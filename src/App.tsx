@@ -7,6 +7,12 @@ const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
 const CLUSTER_GRID_SIZE = 84
 
 type MapPoint = { latitude: number; longitude: number; count: number; name?: string }
+type SelectedToilet = { name: string; latitude: number; longitude: number }
+type CardPosition = { left: number; top: number }
+
+const PLACE_CARD_WIDTH = 360
+const PLACE_CARD_HEIGHT = 164
+const MAP_EDGE_GAP = 18
 
 function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
   const groups = new Map<string, { latitude: number; longitude: number; count: number; name?: string }>()
@@ -39,16 +45,30 @@ function App() {
   const overlaysRef = useRef<KakaoOverlay[]>([])
   const currentLocationOverlayRef = useRef<KakaoOverlay | null>(null)
   const requestSequenceRef = useRef(0)
+  const selectedToiletRef = useRef<SelectedToilet | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ToiletMapSearchResponse | null>(null)
-  const [selectedName, setSelectedName] = useState<string | null>(null)
+  const [selectedToilet, setSelectedToilet] = useState<SelectedToilet | null>(null)
+  const [placeCardPosition, setPlaceCardPosition] = useState<CardPosition | null>(null)
   const [locationMessage, setLocationMessage] = useState<string | null>(null)
   const [isLocating, setIsLocating] = useState(false)
 
   const clearOverlays = useCallback(() => {
     overlaysRef.current.forEach((overlay) => overlay.setMap(null))
     overlaysRef.current = []
+  }, [])
+
+  const repositionPlaceCard = useCallback(() => {
+    const map = mapRef.current
+    const container = mapContainerRef.current
+    const selected = selectedToiletRef.current
+    if (!map || !container || !selected) return
+
+    const point = map.getProjection().pointFromCoords(new window.kakao.maps.LatLng(selected.latitude, selected.longitude))
+    const left = Math.min(Math.max(MAP_EDGE_GAP, point.x + MAP_EDGE_GAP), Math.max(MAP_EDGE_GAP, container.clientWidth - PLACE_CARD_WIDTH - MAP_EDGE_GAP))
+    const top = Math.min(Math.max(MAP_EDGE_GAP, point.y - PLACE_CARD_HEIGHT - MAP_EDGE_GAP), Math.max(MAP_EDGE_GAP, container.clientHeight - PLACE_CARD_HEIGHT - MAP_EDGE_GAP))
+    setPlaceCardPosition({ left, top })
   }, [])
 
   const renderResult = useCallback((map: KakaoMapInstance, response: ToiletMapSearchResponse) => {
@@ -85,8 +105,12 @@ function App() {
       content.className = 'toilet-marker'
       content.type = 'button'
       content.innerHTML = '<span aria-hidden="true">🚻</span>'
-      content.setAttribute('aria-label', point.name ?? '공중화장실')
-      content.addEventListener('click', () => setSelectedName(point.name ?? '공중화장실'))
+      const toiletName = point.name ?? '공중화장실'
+      content.setAttribute('aria-label', toiletName)
+      content.addEventListener('click', () => {
+        selectedToiletRef.current = { name: toiletName, latitude: point.latitude, longitude: point.longitude }
+        setSelectedToilet(selectedToiletRef.current)
+      })
 
       return new window.kakao.maps.CustomOverlay({
         position: new window.kakao.maps.LatLng(point.latitude, point.longitude),
@@ -131,16 +155,29 @@ function App() {
     }
   }, [renderResult])
 
-  const moveToCurrentLocation = useCallback((isInitialRequest = false) => {
+  const moveToCurrentLocation = useCallback(async (isInitialRequest = false) => {
     const map = mapRef.current
     if (!map) return
 
     if (!navigator.geolocation) {
-      if (!isInitialRequest) setLocationMessage('이 브라우저에서는 현재 위치 기능을 지원하지 않습니다.')
+      setIsLocating(false)
       return
     }
 
     if (!isInitialRequest) setIsLocating(true)
+    try {
+      if ('permissions' in navigator) {
+        const permission = await navigator.permissions.query({ name: 'geolocation' })
+        if (permission.state === 'denied') {
+          setLocationMessage('현재 위치 권한이 차단되어 있습니다. Chrome 주소창 왼쪽의 사이트 설정에서 위치를 허용한 뒤 다시 시도해 주세요.')
+          setIsLocating(false)
+          return
+        }
+      }
+    } catch {
+      // Permissions API를 지원하지 않는 브라우저는 Geolocation 요청으로 바로 진행한다.
+    }
+
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         const position = new window.kakao.maps.LatLng(coords.latitude, coords.longitude)
@@ -167,9 +204,8 @@ function App() {
           2: '현재 위치를 확인할 수 없습니다. GPS·Wi‑Fi 연결을 확인해 주세요.',
           3: '위치 확인 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.',
         }
-        if (!isInitialRequest) {
+        if (positionError.code === 1) {
           setLocationMessage(messageByCode[positionError.code] ?? '현재 위치를 확인하지 못했습니다.')
-          window.setTimeout(() => setLocationMessage(null), 4000)
         }
         setIsLocating(false)
       },
@@ -188,11 +224,14 @@ function App() {
         const map = await createKakaoMap(mapContainerRef.current, DAEJEON_CITY_HALL)
         if (disposed) return
         mapRef.current = map
-        window.kakao.maps.event.addListener(map, 'idle', loadMapArea)
+        window.kakao.maps.event.addListener(map, 'idle', () => {
+          void loadMapArea()
+          repositionPlaceCard()
+        })
         resizeObserver = new ResizeObserver(() => map.relayout())
         resizeObserver.observe(mapContainerRef.current)
         await loadMapArea()
-        moveToCurrentLocation(true)
+        void moveToCurrentLocation(true)
       } catch (caughtError) {
         setIsLoading(false)
         setError(caughtError instanceof Error ? caughtError.message : '지도를 불러오지 못했습니다.')
@@ -206,7 +245,11 @@ function App() {
       currentLocationOverlayRef.current?.setMap(null)
       resizeObserver?.disconnect()
     }
-  }, [clearOverlays, loadMapArea, moveToCurrentLocation])
+  }, [clearOverlays, loadMapArea, moveToCurrentLocation, repositionPlaceCard])
+
+  useEffect(() => {
+    repositionPlaceCard()
+  }, [selectedToilet, repositionPlaceCard])
 
   return (
     <main className="app-shell">
@@ -217,9 +260,8 @@ function App() {
 
       <section className="map-section" aria-label="공중화장실 지도">
         <div ref={mapContainerRef} className="map" />
-        <button className="location-button" type="button" onClick={() => moveToCurrentLocation()} disabled={isLocating} aria-label="현재 위치로 이동">
-          <span aria-hidden="true">⌖</span>
-          <span className="sr-only">현재 위치로 이동</span>
+        <button className={`location-button${selectedToilet ? ' is-with-card' : ''}`} type="button" onClick={() => void moveToCurrentLocation()} disabled={isLocating}>
+          {isLocating ? '확인 중' : '현재 위치'}
         </button>
         <div className="map-hud" aria-live="polite">
           {isLoading && <span>지도를 조회하는 중…</span>}
@@ -227,11 +269,11 @@ function App() {
           {error && <span className="error-message">{error}</span>}
         </div>
         {locationMessage && <p className="location-message" role="status">{locationMessage}</p>}
-        {selectedName && (
-          <aside className="place-card" aria-live="polite">
-            <button type="button" className="close-button" onClick={() => setSelectedName(null)} aria-label="정보 닫기">×</button>
+        {selectedToilet && (
+          <aside className="place-card" aria-live="polite" style={placeCardPosition ? { left: placeCardPosition.left, top: placeCardPosition.top } : undefined}>
+            <button type="button" className="close-button" onClick={() => { selectedToiletRef.current = null; setSelectedToilet(null); setPlaceCardPosition(null) }} aria-label="정보 닫기">×</button>
             <span className="card-label">공중화장실</span>
-            <strong>{selectedName}</strong>
+            <strong>{selectedToilet.name}</strong>
             <p>마커를 선택했습니다. 상세 정보 조회는 다음 작업에서 연결합니다.</p>
           </aside>
         )}
