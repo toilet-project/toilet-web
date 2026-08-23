@@ -4,6 +4,7 @@ export type KakaoOverlay = { setMap(map: KakaoMapInstance | null): void }
 export type KakaoMapInstance = {
   getBounds(): { getSouthWest(): { getLat(): number; getLng(): number }; getNorthEast(): { getLat(): number; getLng(): number } }
   getLevel(): number
+  getProjection(): { pointFromCoords(position: unknown): { x: number; y: number } }
   setLevel(level: number, options?: { anchor?: unknown }): void
   panTo(position: unknown): void
   relayout(): void

@@ -4,12 +4,12 @@
 .subtitle { color: #637066; font-size: 14px; }
 .map-section { position: relative; min-height: 0; }
 .map { width: 100%; height: 100%; min-height: calc(100svh - 112px); }
-.location-button { position: absolute; z-index: 5; top: 18px; right: 18px; display: inline-flex; align-items: center; gap: 6px; min-height: 42px; padding: 0 14px; border: 1px solid #d6e0d8; border-radius: 10px; background: rgb(255 255 255 / 96%); box-shadow: 0 2px 12px rgb(31 46 34 / 14%); color: #1f5533; font-size: 14px; font-weight: 700; cursor: pointer; }
+.location-button { position: absolute; z-index: 5; right: 18px; bottom: 32px; display: grid; width: 44px; height: 44px; place-items: center; padding: 0; border: 1px solid #d6e0d8; border-radius: 12px; background: rgb(255 255 255 / 96%); box-shadow: 0 2px 12px rgb(31 46 34 / 14%); color: #1f5533; font-size: 25px; font-weight: 700; cursor: pointer; }
 .location-button:hover:not(:disabled) { background: #f1faf3; }
 .location-button:disabled { cursor: wait; color: #738278; }
 .map-hud { position: absolute; top: 18px; left: 18px; z-index: 5; max-width: min(360px, calc(100% - 36px)); padding: 10px 14px; border-radius: 10px; background: rgb(255 255 255 / 94%); box-shadow: 0 2px 12px rgb(31 46 34 / 14%); color: #314037; font-size: 14px; font-weight: 600; }
 .error-message { color: #b42318; }
-.location-message { position: absolute; z-index: 5; top: 76px; right: 18px; max-width: min(360px, calc(100% - 36px)); margin: 0; padding: 9px 12px; border-radius: 9px; background: rgb(255 255 255 / 94%); box-shadow: 0 2px 12px rgb(31 46 34 / 14%); color: #445349; font-size: 13px; line-height: 1.45; }
+.location-message { position: absolute; z-index: 5; right: 18px; bottom: 86px; max-width: min(320px, calc(100% - 36px)); margin: 0; padding: 9px 12px; border-radius: 9px; background: rgb(255 255 255 / 94%); box-shadow: 0 2px 12px rgb(31 46 34 / 14%); color: #445349; font-size: 13px; line-height: 1.45; }
 .place-card { position: absolute; z-index: 5; left: 18px; bottom: 18px; width: min(360px, calc(100% - 36px)); padding: 20px; border-radius: 16px; background: #fff; box-shadow: 0 8px 28px rgb(31 46 34 / 18%); }
 .place-card strong { display: block; font-size: 19px; color: #1d2b21; }
 .place-card p { margin: 8px 0 0; color: #68746c; font-size: 14px; line-height: 1.5; }
@@ -18,9 +18,9 @@
 .toilet-marker, .cluster-marker { border: 0; cursor: pointer; box-shadow: 0 3px 8px rgb(23 104 58 / 25%); }
 .toilet-marker { width: 38px; height: 38px; border-radius: 50% 50% 50% 0; background: #fff; color: #17683a; font-size: 20px; transform: rotate(-45deg); }
 .toilet-marker span { display: block; transform: rotate(45deg); }
-.cluster-marker { min-width: 42px; height: 42px; padding: 0 10px; border-radius: 999px; background: #17683a; color: #fff; font-size: 13px; font-weight: 800; }
+.cluster-marker { min-width: 44px; height: 44px; padding: 0 10px; border: 3px solid #e9f7ed; border-radius: 999px; background: #188247; color: #fff; font-size: 13px; font-weight: 800; }
 .current-location-marker { display: grid; width: 24px; height: 24px; place-items: center; border: 3px solid #fff; border-radius: 50%; background: #2878e3; box-shadow: 0 1px 8px rgb(22 76 153 / 55%); }
 .current-location-marker span:first-child { width: 7px; height: 7px; border-radius: 50%; background: #fff; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; color: #6b756d; font-size: 13px; text-align: center; }
-@media (max-width: 640px) { .topbar { min-height: 56px; padding: 0 16px; } .map { min-height: calc(100svh - 104px); } .map-hud { top: 12px; left: 12px; } .location-button { top: 12px; right: 12px; min-height: 40px; padding: 0 11px; } .location-message { top: 62px; right: 12px; max-width: calc(100% - 24px); } .place-card { left: 12px; bottom: 12px; width: calc(100% - 24px); } }
+@media (max-width: 640px) { .topbar { min-height: 56px; padding: 0 16px; } .map { min-height: calc(100svh - 104px); } .map-hud { top: 12px; left: 12px; } .location-button { right: 12px; bottom: 28px; width: 42px; height: 42px; } .location-message { right: 12px; bottom: 78px; max-width: calc(100% - 24px); } .place-card { left: 12px; bottom: 12px; width: calc(100% - 24px); } }
