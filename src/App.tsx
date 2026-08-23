@@ -11,7 +11,7 @@ type SelectedToilet = { name: string; latitude: number; longitude: number }
 type CardPosition = { left: number; top: number }
 
 const PLACE_CARD_WIDTH = 360
-const PLACE_CARD_HEIGHT = 164
+const PLACE_CARD_HEIGHT = 224
 const MAP_EDGE_GAP = 18
 
 function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
@@ -59,15 +59,16 @@ function App() {
     overlaysRef.current = []
   }, [])
 
-  const repositionPlaceCard = useCallback(() => {
-    const map = mapRef.current
+  const positionPlaceCardFromMarker = useCallback((marker: HTMLElement) => {
     const container = mapContainerRef.current
-    const selected = selectedToiletRef.current
-    if (!map || !container || !selected) return
+    if (!container) return
 
-    const point = map.getProjection().pointFromCoords(new window.kakao.maps.LatLng(selected.latitude, selected.longitude))
-    const left = Math.min(Math.max(MAP_EDGE_GAP, point.x + MAP_EDGE_GAP), Math.max(MAP_EDGE_GAP, container.clientWidth - PLACE_CARD_WIDTH - MAP_EDGE_GAP))
-    const top = Math.min(Math.max(MAP_EDGE_GAP, point.y - PLACE_CARD_HEIGHT - MAP_EDGE_GAP), Math.max(MAP_EDGE_GAP, container.clientHeight - PLACE_CARD_HEIGHT - MAP_EDGE_GAP))
+    const markerRect = marker.getBoundingClientRect()
+    const containerRect = container.getBoundingClientRect()
+    const markerCenter = markerRect.left - containerRect.left + (markerRect.width / 2)
+    const markerTop = markerRect.top - containerRect.top
+    const left = Math.min(Math.max(MAP_EDGE_GAP, markerCenter - (PLACE_CARD_WIDTH / 2)), Math.max(MAP_EDGE_GAP, container.clientWidth - PLACE_CARD_WIDTH - MAP_EDGE_GAP))
+    const top = Math.min(Math.max(MAP_EDGE_GAP, markerTop - PLACE_CARD_HEIGHT - MAP_EDGE_GAP), Math.max(MAP_EDGE_GAP, container.clientHeight - PLACE_CARD_HEIGHT - MAP_EDGE_GAP))
     setPlaceCardPosition({ left, top })
   }, [])
 
@@ -110,6 +111,7 @@ function App() {
       content.addEventListener('click', () => {
         selectedToiletRef.current = { name: toiletName, latitude: point.latitude, longitude: point.longitude }
         setSelectedToilet(selectedToiletRef.current)
+        positionPlaceCardFromMarker(content)
       })
 
       return new window.kakao.maps.CustomOverlay({
@@ -121,7 +123,7 @@ function App() {
     })
 
     overlaysRef.current.forEach((overlay) => overlay.setMap(map))
-  }, [clearOverlays])
+  }, [clearOverlays, positionPlaceCardFromMarker])
 
   const loadMapArea = useCallback(async () => {
     const map = mapRef.current
@@ -224,10 +226,7 @@ function App() {
         const map = await createKakaoMap(mapContainerRef.current, DAEJEON_CITY_HALL)
         if (disposed) return
         mapRef.current = map
-        window.kakao.maps.event.addListener(map, 'idle', () => {
-          void loadMapArea()
-          repositionPlaceCard()
-        })
+        window.kakao.maps.event.addListener(map, 'idle', loadMapArea)
         resizeObserver = new ResizeObserver(() => map.relayout())
         resizeObserver.observe(mapContainerRef.current)
         await loadMapArea()
@@ -245,11 +244,7 @@ function App() {
       currentLocationOverlayRef.current?.setMap(null)
       resizeObserver?.disconnect()
     }
-  }, [clearOverlays, loadMapArea, moveToCurrentLocation, repositionPlaceCard])
-
-  useEffect(() => {
-    repositionPlaceCard()
-  }, [selectedToilet, repositionPlaceCard])
+  }, [clearOverlays, loadMapArea, moveToCurrentLocation])
 
   return (
     <main className="app-shell">
