@@ -34,6 +34,16 @@ function formatPhoneNumber(phoneNumber: string) {
   return phoneNumber
 }
 
+function formatInstallationDate(installationDate: string) {
+  const digits = installationDate.replace(/\D/g, '')
+  const matched = digits.match(/^(\d{4})(\d{1,2})$/)
+  if (!matched) return installationDate
+
+  const month = Number(matched[2])
+  if (month < 1 || month > 12) return `${matched[1]}년`
+  return `${matched[1]}년 ${month}월`
+}
+
 function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
   const groups = new Map<string, { id?: number; latitude: number; longitude: number; count: number; name?: string }>()
   const projection = map.getProjection()
@@ -411,7 +421,7 @@ function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse }) {
     <div className="card-details" tabIndex={0} aria-label="화장실 상세 정보">
       {address && <DetailRow className="detail-address" label="주소" value={address} copyable />}
       {hasValue(toilet.openTimeDetail) && <DetailRow label="개방시간 상세" value={toilet.openTimeDetail} />}
-      {hasValue(toilet.installationDate) && <DetailRow label="설치연월" value={toilet.installationDate} />}
+      {hasValue(toilet.installationDate) && <DetailRow label="설치연월" value={formatInstallationDate(toilet.installationDate)} />}
       {(maleCounts.length > 0 || femaleCounts.length > 0) && <section className="detail-section">
         <h2>화장실 수</h2>
         <div className="capacity-groups">
@@ -441,9 +451,13 @@ function FacilityRow({ label, available, location }: { label: string; available:
     return <div className="facility-row"><strong>{label}</strong><span className="facility-status is-unavailable">미설치</span><span className="facility-location-placeholder" aria-hidden="true" /></div>
   }
 
+  if (!hasValue(location ?? '')) {
+    return <div className="facility-row"><strong>{label}</strong><span className="facility-status">설치됨</span><span className="facility-location-placeholder" aria-hidden="true" /></div>
+  }
+
   return <details className="facility-row facility-row-expandable">
     <summary><strong>{label}</strong><span className="facility-status">설치됨</span><span className="facility-location-label">위치 보기 <span aria-hidden="true">⌄</span></span></summary>
-    <p>{hasValue(location ?? '') ? `위치: ${location}` : '위치 정보가 등록되지 않았습니다.'}</p>
+    <p>위치: {location}</p>
   </details>
 }
 
