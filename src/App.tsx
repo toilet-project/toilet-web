@@ -327,13 +327,15 @@ function App() {
 
       <section className="map-section" aria-label="공중화장실 지도">
         <div ref={mapContainerRef} className="map" />
-        <button className={`location-button${selectedToilet ? ' is-with-card' : ''}`} type="button" onClick={() => void moveToCurrentLocation()} disabled={isLocating}>
-          {isLocating ? '확인 중' : '현재 위치'}
-        </button>
-        <div className="map-hud" aria-live="polite">
-          {isLoading && <span>지도를 조회하는 중…</span>}
-          {!isLoading && result && <span>이 지역 {result.meta.total_count.toLocaleString()}곳{result.meta.display_type === 'CLUSTER' ? ' · 묶어서 표시 중' : ''}</span>}
-          {error && <span className="error-message">{error}</span>}
+        <div className={`map-controls${selectedToilet ? ' is-with-card' : ''}`}>
+          <div className="map-hud" aria-live="polite">
+            {isLoading && <span>지도를 조회하는 중…</span>}
+            {!isLoading && result && <span>이 지역 {result.meta.total_count.toLocaleString()}곳{result.meta.display_type === 'CLUSTER' ? ' · 묶어서 표시 중' : ''}</span>}
+            {error && <span className="error-message">{error}</span>}
+          </div>
+          <button className={`location-button${selectedToilet ? ' is-with-card' : ''}`} type="button" onClick={() => void moveToCurrentLocation()} disabled={isLocating}>
+            {isLocating ? '확인 중' : '현재 위치'}
+          </button>
         </div>
         {locationMessage && <p className="location-message" role="status">{locationMessage}</p>}
         {selectedToilet && (
