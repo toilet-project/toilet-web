@@ -63,8 +63,8 @@ function calculateDistanceInMeters(from: Coordinates, to: Coordinates) {
 }
 
 function formatDistance(distanceInMeters: number) {
-  if (distanceInMeters < 1_000) return `내 위치에서 약 ${Math.round(distanceInMeters / 10) * 10}m`
-  return `내 위치에서 약 ${(distanceInMeters / 1_000).toFixed(1)}km`
+  if (distanceInMeters < 1_000) return `${Math.round(distanceInMeters / 10) * 10}m`
+  return `${(distanceInMeters / 1_000).toFixed(1)}km`
 }
 
 function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
@@ -372,6 +372,10 @@ function App() {
     }
   }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard])
 
+  const distanceToSelectedToilet = currentLocation && selectedToilet
+    ? formatDistance(calculateDistanceInMeters(currentLocation, selectedToilet))
+    : null
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -414,7 +418,7 @@ function App() {
               <span className="card-label">{toiletDetail?.toiletType || '공중화장실'}</span>
               <strong>{toiletDetail?.name || selectedToilet.name}</strong>
               <p className="open-time">{toiletDetail ? formatOpenTime(toiletDetail) : isDetailLoading ? '상세 정보를 불러오는 중…' : '상세 정보를 확인해 주세요.'}</p>
-              {currentLocation && <p className="distance-from-current">{formatDistance(calculateDistanceInMeters(currentLocation, selectedToilet))}</p>}
+              {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">내 위치에서 약</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">직선 거리</span></div>}
               {toiletDetail && hasValue(toiletDetail.roadAddress || toiletDetail.jibunAddress) && <div className="summary-address"><DetailRow label="주소" value={toiletDetail.roadAddress || toiletDetail.jibunAddress} copyable /></div>}
             </div>
             {detailError && <p className="detail-error" role="alert">{detailError}</p>}
