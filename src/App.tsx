@@ -352,12 +352,13 @@ function App() {
           >
             <button type="button" className="close-button" onClick={() => { detailRequestRef.current += 1; selectedToiletRef.current = null; setSelectedToilet(null); setPlaceCardPosition(null); setToiletDetail(null); setIsMobileCardExpanded(false) }} aria-label="정보 닫기">×</button>
             <button type="button" className="mobile-card-handle" onClick={() => setIsMobileCardExpanded((expanded) => !expanded)} aria-expanded={isMobileCardExpanded}>
-              {isMobileCardExpanded ? '상세 정보 접기' : '위로 밀어 상세 정보 보기'}
+              {isMobileCardExpanded ? '상세 정보 접기' : '상세 정보 보기'}
             </button>
             <div className="place-card-summary">
               <span className="card-label">{toiletDetail?.toiletType || '공중화장실'}</span>
               <strong>{toiletDetail?.name || selectedToilet.name}</strong>
               <p className="open-time">{toiletDetail ? formatOpenTime(toiletDetail) : isDetailLoading ? '상세 정보를 불러오는 중…' : '상세 정보를 확인해 주세요.'}</p>
+              {toiletDetail && hasValue(toiletDetail.roadAddress || toiletDetail.jibunAddress) && <div className="summary-address"><DetailRow label="주소" value={toiletDetail.roadAddress || toiletDetail.jibunAddress} copyable /></div>}
             </div>
             {detailError && <p className="detail-error" role="alert">{detailError}</p>}
             {toiletDetail && <ToiletDetailContents toilet={toiletDetail} />}
@@ -416,11 +417,11 @@ function CapacityGroup({ title, items }: { title: string; items: CountItem[] }) 
 
 function FacilityRow({ label, available, location }: { label: string; available: boolean; location?: string }) {
   if (!available) {
-    return <div className="facility-row"><strong>{label}</strong><span className="facility-actions"><span className="facility-status is-unavailable">미설치</span><span className="facility-action-placeholder" aria-hidden="true" /></span></div>
+    return <div className="facility-row"><strong>{label}</strong><span className="facility-status is-unavailable">미설치</span><span className="facility-location-placeholder" aria-hidden="true" /></div>
   }
 
   return <details className="facility-row facility-row-expandable">
-    <summary><strong>{label}</strong><span className="facility-actions"><span className="facility-status">설치됨</span><span className="facility-location-label">위치 보기</span></span></summary>
+    <summary><strong>{label}</strong><span className="facility-status">설치됨</span><span className="facility-location-label">위치 보기 <span aria-hidden="true">⌄</span></span></summary>
     <p>{hasValue(location ?? '') ? `위치: ${location}` : '위치 정보가 등록되지 않았습니다.'}</p>
   </details>
 }
