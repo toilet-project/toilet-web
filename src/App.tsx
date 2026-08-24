@@ -107,6 +107,7 @@ function App() {
   const locationMessageTimerRef = useRef<number | undefined>(undefined)
   const cardTouchStartYRef = useRef<number | null>(null)
   const placeSearchRequestRef = useRef(0)
+  const placeSearchInputRef = useRef<HTMLInputElement>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ToiletMapSearchResponse | null>(null)
@@ -124,6 +125,7 @@ function App() {
   const [placeSearchMessage, setPlaceSearchMessage] = useState<string | null>(null)
   const [isPlaceSearching, setIsPlaceSearching] = useState(false)
   const [activePlaceSearchIndex, setActivePlaceSearchIndex] = useState(-1)
+  const [isPlaceSearchFocused, setIsPlaceSearchFocused] = useState(false)
 
   const showLocationMessage = useCallback((message: string) => {
     window.clearTimeout(locationMessageTimerRef.current)
@@ -400,6 +402,9 @@ function App() {
     setPlaceSearchResults([])
     setPlaceSearchMessage(null)
     setActivePlaceSearchIndex(-1)
+    setIsPlaceSearching(false)
+    setIsPlaceSearchFocused(false)
+    placeSearchInputRef.current?.blur()
   }, [closeDetailCard])
 
   const handlePlaceSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -422,6 +427,8 @@ function App() {
       setPlaceSearchResults([])
       setPlaceSearchMessage(null)
       setActivePlaceSearchIndex(-1)
+      setIsPlaceSearchFocused(false)
+      event.currentTarget.blur()
     }
   }
 
@@ -432,6 +439,8 @@ function App() {
     setPlaceSearchMessage(null)
     setIsPlaceSearching(false)
   }
+
+  const isPlaceSearchResultsOpen = isPlaceSearchFocused && placeSearchKeyword.trim().length >= 2
 
   useEffect(() => {
     let disposed = false
@@ -491,6 +500,7 @@ function App() {
         <div className="place-search">
           <label className="sr-only" htmlFor="place-search-input">주소 또는 장소 검색</label>
           <input
+            ref={placeSearchInputRef}
             id="place-search-input"
             className="place-search-input"
             type="search"
@@ -498,13 +508,15 @@ function App() {
             placeholder="주소 또는 장소 검색"
             role="combobox"
             aria-autocomplete="list"
-            aria-expanded={placeSearchKeyword.trim().length >= 2}
+            aria-expanded={isPlaceSearchResultsOpen}
             aria-controls="place-search-results"
             aria-activedescendant={activePlaceSearchIndex >= 0 ? `place-search-result-${placeSearchResults[activePlaceSearchIndex]?.id}` : undefined}
             onChange={(event) => handlePlaceSearchChange(event.target.value)}
             onKeyDown={handlePlaceSearchKeyDown}
+            onFocus={() => setIsPlaceSearchFocused(true)}
+            onBlur={() => setIsPlaceSearchFocused(false)}
           />
-          {placeSearchKeyword.trim().length >= 2 && <div id="place-search-results" className="place-search-results" role="listbox" aria-label="장소 검색 결과">
+          {isPlaceSearchResultsOpen && <div id="place-search-results" className="place-search-results" role="listbox" aria-label="장소 검색 결과">
             {isPlaceSearching && <p className="place-search-status">검색 중…</p>}
             {!isPlaceSearching && placeSearchMessage && <p className="place-search-status">{placeSearchMessage}</p>}
             {!isPlaceSearching && placeSearchResults.map((place, index) => <button
