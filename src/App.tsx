@@ -98,6 +98,7 @@ function App() {
   const mapRef = useRef<KakaoMapInstance | null>(null)
   const overlaysRef = useRef<KakaoOverlay[]>([])
   const currentLocationOverlayRef = useRef<KakaoOverlay | null>(null)
+  const locationWatchIdRef = useRef<number | null>(null)
   const requestSequenceRef = useRef(0)
   const mapInteractionRef = useRef(false)
   const selectedToiletRef = useRef<SelectedToilet | null>(null)
@@ -271,6 +272,43 @@ function App() {
     }
   }, [renderResult])
 
+  const updateCurrentLocation = useCallback((coordinates: Coordinates, shouldCenterMap: boolean) => {
+    const map = mapRef.current
+    if (!map) return
+
+    setCurrentLocation(coordinates)
+    const position = new window.kakao.maps.LatLng(coordinates.latitude, coordinates.longitude)
+    currentLocationOverlayRef.current?.setMap(null)
+
+    const content = document.createElement('div')
+    content.className = 'current-location-marker'
+    content.innerHTML = '<span aria-hidden="true"></span><span class="sr-only">현재 위치</span>'
+    currentLocationOverlayRef.current = new window.kakao.maps.CustomOverlay({
+      position,
+      content,
+      yAnchor: 0.5,
+      zIndex: 3,
+    })
+    currentLocationOverlayRef.current.setMap(map)
+
+    if (shouldCenterMap) {
+      map.setLevel(Math.min(map.getLevel(), 4))
+      map.panTo(position)
+    }
+  }, [])
+
+  const startCurrentLocationWatch = useCallback(() => {
+    if (!navigator.geolocation || locationWatchIdRef.current != null) return
+
+    locationWatchIdRef.current = navigator.geolocation.watchPosition(
+      ({ coords }) => updateCurrentLocation({ latitude: coords.latitude, longitude: coords.longitude }, false),
+      () => {
+        // 최초 위치 확인은 버튼 요청에서 안내한다. 이후 갱신 실패는 사용자 흐름을 방해하지 않는다.
+      },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 0 },
+    )
+  }, [updateCurrentLocation])
+
   const moveToCurrentLocation = useCallback(async (isInitialRequest = false) => {
     const map = mapRef.current
     if (!map) return
@@ -297,22 +335,8 @@ function App() {
 
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
-        setCurrentLocation({ latitude: coords.latitude, longitude: coords.longitude })
-        const position = new window.kakao.maps.LatLng(coords.latitude, coords.longitude)
-        currentLocationOverlayRef.current?.setMap(null)
-
-        const content = document.createElement('div')
-        content.className = 'current-location-marker'
-        content.innerHTML = '<span aria-hidden="true"></span><span class="sr-only">현재 위치</span>'
-        currentLocationOverlayRef.current = new window.kakao.maps.CustomOverlay({
-          position,
-          content,
-          yAnchor: 0.5,
-          zIndex: 3,
-        })
-        currentLocationOverlayRef.current.setMap(map)
-        map.setLevel(Math.min(map.getLevel(), 4))
-        map.panTo(position)
+        updateCurrentLocation({ latitude: coords.latitude, longitude: coords.longitude }, true)
+        startCurrentLocationWatch()
         window.clearTimeout(locationMessageTimerRef.current)
         setLocationMessage(null)
         setIsLocating(false)
@@ -328,7 +352,7 @@ function App() {
       },
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
     )
-  }, [showLocationMessage])
+  }, [showLocationMessage, startCurrentLocationWatch, updateCurrentLocation])
 
   useEffect(() => {
     let disposed = false
@@ -367,6 +391,10 @@ function App() {
       disposed = true
       clearOverlays()
       currentLocationOverlayRef.current?.setMap(null)
+      if (locationWatchIdRef.current != null) {
+        navigator.geolocation?.clearWatch(locationWatchIdRef.current)
+        locationWatchIdRef.current = null
+      }
       resizeObserver?.disconnect()
       window.clearTimeout(locationMessageTimerRef.current)
     }
