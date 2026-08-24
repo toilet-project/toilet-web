@@ -388,7 +388,7 @@ function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse }) {
 
   return (
     <div className="card-details" tabIndex={0} aria-label="화장실 상세 정보">
-      {address && <DetailRow label="주소" value={address} copyable />}
+      {address && <DetailRow className="detail-address" label="주소" value={address} copyable />}
       {hasValue(toilet.openTimeDetail) && <DetailRow label="개방시간 상세" value={toilet.openTimeDetail} />}
       {hasValue(toilet.installationDate) && <DetailRow label="설치연월" value={toilet.installationDate} />}
       {(maleCounts.length > 0 || femaleCounts.length > 0) && <section className="detail-section">
@@ -426,7 +426,7 @@ function FacilityRow({ label, available, location }: { label: string; available:
   </details>
 }
 
-function DetailRow({ label, value, copyable = false }: { label: string; value: string; copyable?: boolean }) {
+function DetailRow({ label, value, copyable = false, className = '' }: { label: string; value: string; copyable?: boolean; className?: string }) {
   const [copied, setCopied] = useState(false)
 
   const copyValue = async () => {
@@ -450,7 +450,7 @@ function DetailRow({ label, value, copyable = false }: { label: string; value: s
     }
   }
 
-  return <div className="detail-row"><dt>{label}</dt><dd><span>{value}</span>{copyable && <button type="button" className="copy-address-button" onClick={() => void copyValue()}>{copied ? '복사됨' : '주소 복사'}</button>}</dd></div>
+  return <div className={`detail-row ${className}`.trim()}><dt>{label}</dt><dd><span>{value}</span>{copyable && <button type="button" className="copy-address-button" onClick={() => void copyValue()}>{copied ? '복사됨' : '주소 복사'}</button>}</dd></div>
 }
 
 export default App
