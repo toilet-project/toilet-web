@@ -556,7 +556,7 @@ function App() {
               <span className="card-label">{toiletDetail?.toiletType || '공중화장실'}</span>
               <strong>{toiletDetail?.name || selectedToilet.name}</strong>
               <p className="open-time">{toiletDetail ? formatOpenTime(toiletDetail) : isDetailLoading ? '상세 정보를 불러오는 중…' : '상세 정보를 확인해 주세요.'}</p>
-              {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">내 위치에서 약</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">직선 거리</span></div>}
+              {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">내 위치에서 약</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">(직선거리)</span></div>}
               {toiletDetail && hasValue(toiletDetail.roadAddress || toiletDetail.jibunAddress) && <div className="summary-address"><DetailRow label="주소" value={toiletDetail.roadAddress || toiletDetail.jibunAddress} copyable /></div>}
             </div>
             {detailError && <p className="detail-error" role="alert">{detailError}</p>}
