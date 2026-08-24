@@ -69,6 +69,8 @@ function App() {
   const selectedToiletRef = useRef<SelectedToilet | null>(null)
   const detailRequestRef = useRef(0)
   const placeCardRef = useRef<HTMLElement>(null)
+  const locationMessageTimerRef = useRef<number | undefined>(undefined)
+  const cardTouchStartYRef = useRef<number | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ToiletMapSearchResponse | null>(null)
@@ -79,6 +81,13 @@ function App() {
   const [detailError, setDetailError] = useState<string | null>(null)
   const [locationMessage, setLocationMessage] = useState<string | null>(null)
   const [isLocating, setIsLocating] = useState(false)
+  const [isMobileCardExpanded, setIsMobileCardExpanded] = useState(false)
+
+  const showLocationMessage = useCallback((message: string) => {
+    window.clearTimeout(locationMessageTimerRef.current)
+    setLocationMessage(message)
+    locationMessageTimerRef.current = window.setTimeout(() => setLocationMessage(null), 4_000)
+  }, [])
 
   const clearOverlays = useCallback(() => {
     overlaysRef.current.forEach((overlay) => overlay.setMap(null))
@@ -116,6 +125,7 @@ function App() {
     selectedToiletRef.current = selected
     setSelectedToilet(selected)
     setPlaceCardPosition(null)
+    setIsMobileCardExpanded(false)
     setToiletDetail(null)
     setDetailError(null)
     setIsDetailLoading(true)
@@ -220,6 +230,7 @@ function App() {
     if (!map) return
 
     if (!navigator.geolocation) {
+      if (!isInitialRequest) showLocationMessage('이 브라우저에서는 현재 위치를 지원하지 않습니다.')
       setIsLocating(false)
       return
     }
@@ -229,7 +240,7 @@ function App() {
       if ('permissions' in navigator) {
         const permission = await navigator.permissions.query({ name: 'geolocation' })
         if (permission.state === 'denied') {
-          setLocationMessage('현재 위치 권한이 차단되어 있습니다. Chrome 주소창 왼쪽의 사이트 설정에서 위치를 허용한 뒤 다시 시도해 주세요.')
+          if (!isInitialRequest) showLocationMessage('위치 권한이 거부되었습니다. 브라우저의 사이트 설정에서 위치를 허용해 주세요.')
           setIsLocating(false)
           return
         }
@@ -255,6 +266,7 @@ function App() {
         currentLocationOverlayRef.current.setMap(map)
         map.setLevel(Math.min(map.getLevel(), 4))
         map.panTo(position)
+        window.clearTimeout(locationMessageTimerRef.current)
         setLocationMessage(null)
         setIsLocating(false)
       },
@@ -264,14 +276,12 @@ function App() {
           2: '현재 위치를 확인할 수 없습니다. GPS·Wi‑Fi 연결을 확인해 주세요.',
           3: '위치 확인 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.',
         }
-        if (positionError.code === 1) {
-          setLocationMessage(messageByCode[positionError.code] ?? '현재 위치를 확인하지 못했습니다.')
-        }
+        if (!isInitialRequest) showLocationMessage(messageByCode[positionError.code] ?? '현재 위치를 확인하지 못했습니다.')
         setIsLocating(false)
       },
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
     )
-  }, [])
+  }, [showLocationMessage])
 
   useEffect(() => {
     let disposed = false
@@ -304,6 +314,7 @@ function App() {
       clearOverlays()
       currentLocationOverlayRef.current?.setMap(null)
       resizeObserver?.disconnect()
+      window.clearTimeout(locationMessageTimerRef.current)
     }
   }, [clearOverlays, loadMapArea, moveToCurrentLocation, positionSelectedCard])
 
@@ -326,8 +337,23 @@ function App() {
         </div>
         {locationMessage && <p className="location-message" role="status">{locationMessage}</p>}
         {selectedToilet && (
-          <aside ref={placeCardRef} className="place-card" aria-live="polite" style={placeCardPosition ? { left: placeCardPosition.left, top: placeCardPosition.top } : undefined}>
-            <button type="button" className="close-button" onClick={() => { detailRequestRef.current += 1; selectedToiletRef.current = null; setSelectedToilet(null); setPlaceCardPosition(null); setToiletDetail(null) }} aria-label="정보 닫기">×</button>
+          <aside
+            ref={placeCardRef}
+            className={`place-card${isMobileCardExpanded ? ' mobile-card-expanded' : ''}`}
+            aria-live="polite"
+            style={placeCardPosition ? { left: placeCardPosition.left, top: placeCardPosition.top } : undefined}
+            onTouchStart={(event) => { cardTouchStartYRef.current = event.touches[0]?.clientY ?? null }}
+            onTouchEnd={(event) => {
+              const startY = cardTouchStartYRef.current
+              const endY = event.changedTouches[0]?.clientY
+              cardTouchStartYRef.current = null
+              if (startY != null && endY != null && startY - endY > 36) setIsMobileCardExpanded(true)
+            }}
+          >
+            <button type="button" className="close-button" onClick={() => { detailRequestRef.current += 1; selectedToiletRef.current = null; setSelectedToilet(null); setPlaceCardPosition(null); setToiletDetail(null); setIsMobileCardExpanded(false) }} aria-label="정보 닫기">×</button>
+            <button type="button" className="mobile-card-handle" onClick={() => setIsMobileCardExpanded((expanded) => !expanded)} aria-expanded={isMobileCardExpanded}>
+              {isMobileCardExpanded ? '상세 정보 접기' : '위로 밀어 상세 정보 보기'}
+            </button>
             <div className="place-card-summary">
               <span className="card-label">{toiletDetail?.toiletType || '공중화장실'}</span>
               <strong>{toiletDetail?.name || selectedToilet.name}</strong>
@@ -390,11 +416,11 @@ function CapacityGroup({ title, items }: { title: string; items: CountItem[] }) 
 
 function FacilityRow({ label, available, location }: { label: string; available: boolean; location?: string }) {
   if (!available) {
-    return <div className="facility-row"><strong>{label}</strong><span className="facility-status is-unavailable">미설치</span></div>
+    return <div className="facility-row"><strong>{label}</strong><span className="facility-actions"><span className="facility-status is-unavailable">미설치</span><span className="facility-action-placeholder" aria-hidden="true" /></span></div>
   }
 
   return <details className="facility-row facility-row-expandable">
-    <summary><strong>{label}</strong><span className="facility-status">설치됨</span></summary>
+    <summary><strong>{label}</strong><span className="facility-actions"><span className="facility-status">설치됨</span><span className="facility-location-label">위치 보기</span></span></summary>
     <p>{hasValue(location ?? '') ? `위치: ${location}` : '위치 정보가 등록되지 않았습니다.'}</p>
   </details>
 }
