@@ -148,12 +148,22 @@ function App() {
     const map = mapRef.current
     if (!container || !map) return
 
-    const point = map.getProjection().pointFromCoords(new window.kakao.maps.LatLng(toilet.latitude, toilet.longitude))
-    let left = point.x - (PLACE_CARD_WIDTH / 2)
+    const marker = toiletMarkerElementsRef.current.get(toilet.id)
+    const markerRect = marker?.getBoundingClientRect()
+    const containerRect = container.getBoundingClientRect()
+    const point = markerRect && marker?.isConnected
+      ? {
+          x: markerRect.left - containerRect.left + (markerRect.width / 2),
+          y: markerRect.top - containerRect.top + markerRect.height,
+        }
+      : map.getProjection().pointFromCoords(new window.kakao.maps.LatLng(toilet.latitude, toilet.longitude))
+    const cardWidth = Math.min(PLACE_CARD_WIDTH, container.clientWidth - (MAP_EDGE_GAP * 2))
+    let left = point.x - (cardWidth / 2)
     let top = point.y - cardHeight - MAP_EDGE_GAP
     if (left < MAP_EDGE_GAP) left = point.x + MAP_EDGE_GAP
-    if (left + PLACE_CARD_WIDTH > container.clientWidth - MAP_EDGE_GAP) left = point.x - PLACE_CARD_WIDTH - MAP_EDGE_GAP
+    if (left + cardWidth > container.clientWidth - MAP_EDGE_GAP) left = point.x - cardWidth - MAP_EDGE_GAP
     if (top < MAP_EDGE_GAP) top = point.y + MAP_EDGE_GAP
+    if (top + cardHeight > container.clientHeight - MAP_EDGE_GAP) top = container.clientHeight - cardHeight - MAP_EDGE_GAP
     setPlaceCardPosition((current) => current && Math.abs(current.left - left) < 1 && Math.abs(current.top - top) < 1 ? current : { left, top })
   }, [])
 
@@ -200,7 +210,10 @@ function App() {
 
   useLayoutEffect(() => {
     if (!selectedToilet || !placeCardRef.current) return
-    positionPlaceCardAtToilet(selectedToilet, placeCardRef.current.offsetHeight)
+    const frame = window.requestAnimationFrame(() => {
+      if (placeCardRef.current) positionPlaceCardAtToilet(selectedToilet, placeCardRef.current.offsetHeight)
+    })
+    return () => window.cancelAnimationFrame(frame)
   }, [selectedToilet, toiletDetail, isDetailLoading, detailError, positionPlaceCardAtToilet])
 
   const positionSelectedCard = useCallback(() => {
