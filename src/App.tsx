@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, type ToiletMapSearchResponse } from './api/toilets'
 import { createKakaoMap, searchKakaoPlaces, type KakaoMapInstance, type KakaoOverlay, type KakaoPlace } from './lib/kakaoMap'
+import toiletMarkerLogo from './assets/toilet-marker-logo.svg'
 import './App.css'
 
 const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
@@ -237,6 +238,8 @@ function App() {
       ? groupPointsByScreenGrid(map, points)
       : points
 
+    const shouldShowToiletName = map.getLevel() <= 4 && response.meta.display_type !== 'CLUSTER'
+
     overlaysRef.current = displayPoints.map((point) => {
       if (point.count > 1) {
         const content = document.createElement('button')
@@ -260,8 +263,22 @@ function App() {
       const content = document.createElement('button')
       content.className = 'toilet-marker'
       content.type = 'button'
-      content.innerHTML = '<span aria-hidden="true">🚻</span>'
       const toiletName = point.name ?? '공중화장실'
+      const pin = document.createElement('span')
+      pin.className = 'toilet-marker-pin'
+      pin.setAttribute('aria-hidden', 'true')
+      const logo = document.createElement('img')
+      logo.className = 'toilet-marker-logo'
+      logo.src = toiletMarkerLogo
+      logo.alt = ''
+      pin.append(logo)
+      content.append(pin)
+      if (shouldShowToiletName) {
+        const name = document.createElement('span')
+        name.className = 'toilet-marker-name'
+        name.textContent = toiletName
+        content.append(name)
+      }
       content.setAttribute('aria-label', toiletName)
       content.addEventListener('click', () => {
         if (point.id != null) void selectToilet(point.id, toiletName, point.latitude, point.longitude)
