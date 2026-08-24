@@ -98,6 +98,7 @@ function App() {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<KakaoMapInstance | null>(null)
   const overlaysRef = useRef<KakaoOverlay[]>([])
+  const toiletMarkerElementsRef = useRef(new Map<number, HTMLButtonElement>())
   const currentLocationOverlayRef = useRef<KakaoOverlay | null>(null)
   const searchLocationOverlayRef = useRef<KakaoOverlay | null>(null)
   const locationWatchIdRef = useRef<number | null>(null)
@@ -110,6 +111,7 @@ function App() {
   const cardTouchStartYRef = useRef<number | null>(null)
   const placeSearchRequestRef = useRef(0)
   const placeSearchInputRef = useRef<HTMLInputElement>(null)
+  const mapLoadTimerRef = useRef<number | undefined>(undefined)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ToiletMapSearchResponse | null>(null)
@@ -138,6 +140,7 @@ function App() {
   const clearOverlays = useCallback(() => {
     overlaysRef.current.forEach((overlay) => overlay.setMap(null))
     overlaysRef.current = []
+    toiletMarkerElementsRef.current.clear()
   }, [])
 
   const positionPlaceCardAtToilet = useCallback((toilet: SelectedToilet, cardHeight: number) => {
@@ -163,6 +166,7 @@ function App() {
     setDetailError(null)
     setIsDetailLoading(false)
     setIsMobileCardExpanded(false)
+    toiletMarkerElementsRef.current.forEach((marker) => marker.classList.remove('is-selected'))
   }, [])
 
   useEffect(() => {
@@ -209,6 +213,7 @@ function App() {
     const requestSequence = ++detailRequestRef.current
     const selected = { id: toiletId, name, latitude, longitude }
     selectedToiletRef.current = selected
+    toiletMarkerElementsRef.current.forEach((marker, markerId) => marker.classList.toggle('is-selected', markerId === toiletId))
     setSelectedToilet(selected)
     setPlaceCardPosition(null)
     setIsMobileCardExpanded(false)
@@ -280,6 +285,10 @@ function App() {
         content.append(name)
       }
       content.setAttribute('aria-label', toiletName)
+      if (point.id != null) {
+        toiletMarkerElementsRef.current.set(point.id, content)
+        content.classList.toggle('is-selected', selectedToiletRef.current?.id === point.id)
+      }
       content.addEventListener('click', () => {
         if (point.id != null) void selectToilet(point.id, toiletName, point.latitude, point.longitude)
       })
@@ -326,6 +335,13 @@ function App() {
       if (requestSequence === requestSequenceRef.current) setIsLoading(false)
     }
   }, [renderResult])
+
+  const scheduleMapAreaLoad = useCallback(() => {
+    window.clearTimeout(mapLoadTimerRef.current)
+    mapLoadTimerRef.current = window.setTimeout(() => {
+      void loadMapArea()
+    }, 180)
+  }, [loadMapArea])
 
   const updateCurrentLocation = useCallback((coordinates: Coordinates, shouldCenterMap: boolean) => {
     const map = mapRef.current
@@ -503,7 +519,7 @@ function App() {
             mapInteractionRef.current = false
             if (window.matchMedia('(min-width: 641px)').matches) closeDetailCard()
           }
-          loadMapArea()
+          scheduleMapAreaLoad()
           positionSelectedCard()
         })
         const markMapInteraction = () => { mapInteractionRef.current = true }
@@ -530,9 +546,10 @@ function App() {
         locationWatchIdRef.current = null
       }
       resizeObserver?.disconnect()
+      window.clearTimeout(mapLoadTimerRef.current)
       window.clearTimeout(locationMessageTimerRef.current)
     }
-  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard])
+  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad])
 
   const distanceToSelectedToilet = currentLocation && selectedToilet
     ? formatDistance(calculateDistanceInMeters(currentLocation, selectedToilet))
