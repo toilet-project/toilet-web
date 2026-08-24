@@ -98,6 +98,7 @@ function App() {
   const mapRef = useRef<KakaoMapInstance | null>(null)
   const overlaysRef = useRef<KakaoOverlay[]>([])
   const currentLocationOverlayRef = useRef<KakaoOverlay | null>(null)
+  const searchLocationOverlayRef = useRef<KakaoOverlay | null>(null)
   const locationWatchIdRef = useRef<number | null>(null)
   const requestSequenceRef = useRef(0)
   const mapInteractionRef = useRef(false)
@@ -396,8 +397,25 @@ function App() {
     if (!map) return
 
     closeDetailCard()
+    const position = new window.kakao.maps.LatLng(place.latitude, place.longitude)
+    searchLocationOverlayRef.current?.setMap(null)
+    const content = document.createElement('div')
+    content.className = 'search-place-marker'
+    const icon = document.createElement('span')
+    icon.setAttribute('aria-hidden', 'true')
+    icon.textContent = '⌖'
+    const label = document.createElement('span')
+    label.textContent = place.name
+    content.append(icon, label)
+    searchLocationOverlayRef.current = new window.kakao.maps.CustomOverlay({
+      position,
+      content,
+      yAnchor: 1,
+      zIndex: 4,
+    })
+    searchLocationOverlayRef.current.setMap(map)
     map.setLevel(4)
-    map.panTo(new window.kakao.maps.LatLng(place.latitude, place.longitude))
+    map.panTo(position)
     setPlaceSearchKeyword(place.name)
     setPlaceSearchResults([])
     setPlaceSearchMessage(null)
@@ -440,6 +458,16 @@ function App() {
     setIsPlaceSearching(false)
   }
 
+  const handlePlaceSearchFocus = () => {
+    placeSearchRequestRef.current += 1
+    setPlaceSearchKeyword('')
+    setPlaceSearchResults([])
+    setPlaceSearchMessage(null)
+    setIsPlaceSearching(false)
+    setActivePlaceSearchIndex(-1)
+    setIsPlaceSearchFocused(true)
+  }
+
   const isPlaceSearchResultsOpen = isPlaceSearchFocused && placeSearchKeyword.trim().length >= 2
 
   useEffect(() => {
@@ -479,6 +507,7 @@ function App() {
       disposed = true
       clearOverlays()
       currentLocationOverlayRef.current?.setMap(null)
+      searchLocationOverlayRef.current?.setMap(null)
       if (locationWatchIdRef.current != null) {
         navigator.geolocation?.clearWatch(locationWatchIdRef.current)
         locationWatchIdRef.current = null
@@ -513,7 +542,7 @@ function App() {
             aria-activedescendant={activePlaceSearchIndex >= 0 ? `place-search-result-${placeSearchResults[activePlaceSearchIndex]?.id}` : undefined}
             onChange={(event) => handlePlaceSearchChange(event.target.value)}
             onKeyDown={handlePlaceSearchKeyDown}
-            onFocus={() => setIsPlaceSearchFocused(true)}
+            onFocus={handlePlaceSearchFocus}
             onBlur={() => setIsPlaceSearchFocused(false)}
           />
           {isPlaceSearchResultsOpen && <div id="place-search-results" className="place-search-results" role="listbox" aria-label="장소 검색 결과">
