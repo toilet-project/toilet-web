@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, type ToiletMapSearchResponse } from './api/toilets'
-import { createKakaoMap, type KakaoMapInstance, type KakaoOverlay } from './lib/kakaoMap'
+import { createKakaoMap, searchKakaoPlaces, type KakaoMapInstance, type KakaoOverlay, type KakaoPlace } from './lib/kakaoMap'
 import './App.css'
 
 const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
@@ -106,6 +106,7 @@ function App() {
   const placeCardRef = useRef<HTMLElement>(null)
   const locationMessageTimerRef = useRef<number | undefined>(undefined)
   const cardTouchStartYRef = useRef<number | null>(null)
+  const placeSearchRequestRef = useRef(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ToiletMapSearchResponse | null>(null)
@@ -118,6 +119,11 @@ function App() {
   const [isLocating, setIsLocating] = useState(false)
   const [isMobileCardExpanded, setIsMobileCardExpanded] = useState(false)
   const [currentLocation, setCurrentLocation] = useState<Coordinates | null>(null)
+  const [placeSearchKeyword, setPlaceSearchKeyword] = useState('')
+  const [placeSearchResults, setPlaceSearchResults] = useState<KakaoPlace[]>([])
+  const [placeSearchMessage, setPlaceSearchMessage] = useState<string | null>(null)
+  const [isPlaceSearching, setIsPlaceSearching] = useState(false)
+  const [activePlaceSearchIndex, setActivePlaceSearchIndex] = useState(-1)
 
   const showLocationMessage = useCallback((message: string) => {
     window.clearTimeout(locationMessageTimerRef.current)
@@ -154,6 +160,35 @@ function App() {
     setIsDetailLoading(false)
     setIsMobileCardExpanded(false)
   }, [])
+
+  useEffect(() => {
+    const keyword = placeSearchKeyword.trim()
+    const requestSequence = ++placeSearchRequestRef.current
+
+    if (keyword.length < 2) {
+      return
+    }
+
+    const timer = window.setTimeout(async () => {
+      setIsPlaceSearching(true)
+      setPlaceSearchMessage(null)
+      try {
+        const places = await searchKakaoPlaces(keyword)
+        if (requestSequence !== placeSearchRequestRef.current) return
+        setPlaceSearchResults(places)
+        setPlaceSearchMessage(places.length === 0 ? '검색 결과가 없습니다.' : null)
+      } catch {
+        if (requestSequence === placeSearchRequestRef.current) {
+          setPlaceSearchResults([])
+          setPlaceSearchMessage('장소를 검색하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+        }
+      } finally {
+        if (requestSequence === placeSearchRequestRef.current) setIsPlaceSearching(false)
+      }
+    }, 300)
+
+    return () => window.clearTimeout(timer)
+  }, [placeSearchKeyword])
 
   useLayoutEffect(() => {
     if (!selectedToilet || !placeCardRef.current) return
@@ -354,6 +389,50 @@ function App() {
     )
   }, [showLocationMessage, startCurrentLocationWatch, updateCurrentLocation])
 
+  const moveToSearchPlace = useCallback((place: KakaoPlace) => {
+    const map = mapRef.current
+    if (!map) return
+
+    closeDetailCard()
+    map.setLevel(4)
+    map.panTo(new window.kakao.maps.LatLng(place.latitude, place.longitude))
+    setPlaceSearchKeyword(place.name)
+    setPlaceSearchResults([])
+    setPlaceSearchMessage(null)
+    setActivePlaceSearchIndex(-1)
+  }, [closeDetailCard])
+
+  const handlePlaceSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'ArrowDown' && placeSearchResults.length > 0) {
+      event.preventDefault()
+      setActivePlaceSearchIndex((index) => Math.min(index + 1, placeSearchResults.length - 1))
+      return
+    }
+    if (event.key === 'ArrowUp' && placeSearchResults.length > 0) {
+      event.preventDefault()
+      setActivePlaceSearchIndex((index) => Math.max(index - 1, 0))
+      return
+    }
+    if (event.key === 'Enter' && activePlaceSearchIndex >= 0) {
+      event.preventDefault()
+      moveToSearchPlace(placeSearchResults[activePlaceSearchIndex])
+      return
+    }
+    if (event.key === 'Escape') {
+      setPlaceSearchResults([])
+      setPlaceSearchMessage(null)
+      setActivePlaceSearchIndex(-1)
+    }
+  }
+
+  const handlePlaceSearchChange = (keyword: string) => {
+    setPlaceSearchKeyword(keyword)
+    setActivePlaceSearchIndex(-1)
+    setPlaceSearchResults([])
+    setPlaceSearchMessage(null)
+    setIsPlaceSearching(false)
+  }
+
   useEffect(() => {
     let disposed = false
     let resizeObserver: ResizeObserver | undefined
@@ -409,6 +488,37 @@ function App() {
       <header className="topbar">
         <a className="brand" href="/" aria-label="급똥 지도 홈">급똥</a>
         <span className="subtitle">내 주변 공중화장실 찾기</span>
+        <div className="place-search">
+          <label className="sr-only" htmlFor="place-search-input">주소 또는 장소 검색</label>
+          <input
+            id="place-search-input"
+            className="place-search-input"
+            type="search"
+            value={placeSearchKeyword}
+            placeholder="주소 또는 장소 검색"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={placeSearchKeyword.trim().length >= 2}
+            aria-controls="place-search-results"
+            aria-activedescendant={activePlaceSearchIndex >= 0 ? `place-search-result-${placeSearchResults[activePlaceSearchIndex]?.id}` : undefined}
+            onChange={(event) => handlePlaceSearchChange(event.target.value)}
+            onKeyDown={handlePlaceSearchKeyDown}
+          />
+          {placeSearchKeyword.trim().length >= 2 && <div id="place-search-results" className="place-search-results" role="listbox" aria-label="장소 검색 결과">
+            {isPlaceSearching && <p className="place-search-status">검색 중…</p>}
+            {!isPlaceSearching && placeSearchMessage && <p className="place-search-status">{placeSearchMessage}</p>}
+            {!isPlaceSearching && placeSearchResults.map((place, index) => <button
+              id={`place-search-result-${place.id}`}
+              key={place.id}
+              type="button"
+              role="option"
+              aria-selected={activePlaceSearchIndex === index}
+              className={activePlaceSearchIndex === index ? 'is-active' : ''}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => moveToSearchPlace(place)}
+            ><strong>{place.name}</strong><span>{place.address || '주소 정보 없음'}</span></button>)}
+          </div>}
+        </div>
       </header>
 
       <section className="map-section" aria-label="공중화장실 지도">
