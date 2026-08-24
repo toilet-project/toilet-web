@@ -1,32 +1,42 @@
-# React + TypeScript + Vite
+# 급똥 웹
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+공공데이터 기반으로 내 주변 공중화장실을 지도에서 빠르게 찾는 웹 클라이언트입니다.
 
-Currently, two official plugins are available:
+## 서비스
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- 운영 주소: [https://geupddong.com](https://geupddong.com)
+- Public API: [https://api.geupddong.com](https://api.geupddong.com)
+- 아키텍처: [docs/architecture-v2.md](https://github.com/toilet-project/docs/blob/main/architecture-v2.md)
 
-## React Compiler
+## 기능
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- 카카오맵 지도와 주소·장소 검색
+- 현재 위치 권한 및 실시간 위치 갱신
+- 지도 범위·줌 레벨 기반 공중화장실 마커/클러스터
+- 마커 상세 카드, 주소 복사, 편의·안전시설, 거리 표시
+- 모바일·데스크톱 반응형 UI
 
-## Expanding the Oxlint configuration
+## 기술
 
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
+React 19 · TypeScript · Vite · Kakao Maps SDK
 
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+## 로컬 실행
+
+```bash
+pnpm install
+pnpm dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+`.env`에 아래 값을 설정합니다. 실제 키는 커밋하지 않습니다.
+
+```dotenv
+VITE_KAKAO_JAVASCRIPT_KEY=...
+VITE_API_BASE_URL=https://api.geupddong.com
+```
+
+## 검증
+
+```bash
+pnpm run build
+pnpm run lint
+```
