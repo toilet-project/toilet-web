@@ -56,8 +56,9 @@
 .facility-status { color: #167743; font-size: 12px; font-weight: 700; text-align: center; }
 .facility-status.is-unavailable { color: #849088; }
 .facility-location-label { display: flex; align-items: center; justify-content: flex-end; gap: 5px; color: #526157; font-size: 12px; font-weight: 700; line-height: 1; }
-.facility-location-label span { display: inline-grid; width: 12px; height: 12px; place-items: center; font-size: 14px; line-height: 1; }
-.facility-row-expandable[open] .facility-location-label span { transform: rotate(180deg); }
+.facility-location-arrow { display: inline-grid; width: 12px; height: 12px; place-items: center; }
+.facility-location-arrow::before { width: 6px; height: 6px; border-right: 1.75px solid currentColor; border-bottom: 1.75px solid currentColor; content: ''; transform: rotate(45deg) translate(-1px, -1px); }
+.facility-row-expandable[open] .facility-location-arrow::before { transform: rotate(225deg) translate(-1px, -1px); }
 .facility-location-placeholder { display: block; }
 .toilet-marker, .cluster-marker { border: 0; cursor: pointer; box-shadow: 0 3px 8px rgb(23 104 58 / 25%); }
 .toilet-marker { position: relative; width: 34px; height: 34px; padding: 0; background: transparent; box-shadow: none; }

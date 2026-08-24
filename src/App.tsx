@@ -701,7 +701,7 @@ function FacilityRow({ label, available, location }: { label: string; available:
   }
 
   return <details className="facility-row facility-row-expandable">
-    <summary><strong>{label}</strong><span className="facility-status">설치됨</span><span className="facility-location-label">위치 보기 <span aria-hidden="true">⌄</span></span></summary>
+    <summary><strong>{label}</strong><span className="facility-status">설치됨</span><span className="facility-location-label">위치 보기 <span className="facility-location-arrow" aria-hidden="true" /></span></summary>
     <p>위치: {formatFacilityLocation(location ?? '')}</p>
   </details>
 }
