@@ -44,6 +44,10 @@ function formatInstallationDate(installationDate: string) {
   return `${matched[1]}년 ${month}월`
 }
 
+function formatFacilityLocation(location: string) {
+  return location.replace(/\s*\+\s*/g, ' / ')
+}
+
 function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
   const groups = new Map<string, { id?: number; latitude: number; longitude: number; count: number; name?: string }>()
   const projection = map.getProjection()
@@ -457,7 +461,7 @@ function FacilityRow({ label, available, location }: { label: string; available:
 
   return <details className="facility-row facility-row-expandable">
     <summary><strong>{label}</strong><span className="facility-status">설치됨</span><span className="facility-location-label">위치 보기 <span aria-hidden="true">⌄</span></span></summary>
-    <p>위치: {location}</p>
+    <p>위치: {formatFacilityLocation(location ?? '')}</p>
   </details>
 }
 
