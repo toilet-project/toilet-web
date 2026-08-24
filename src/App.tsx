@@ -7,7 +7,7 @@ const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
 const CLUSTER_GRID_SIZE = 84
 
 type MapPoint = { id?: number; latitude: number; longitude: number; count: number; name?: string }
-type SelectedToilet = { id: number; name: string; marker: HTMLElement }
+type SelectedToilet = { id: number; name: string; latitude: number; longitude: number }
 type CardPosition = { left: number; top: number }
 
 const PLACE_CARD_WIDTH = 360
@@ -25,6 +25,13 @@ function hasValue(value: string) {
 
 function formatOpenTime(toilet: ToiletDetailResponse) {
   return [toilet.openTime, toilet.openTimeDetail].filter(hasValue).join(' · ') || '운영시간 정보 없음'
+}
+
+function formatPhoneNumber(phoneNumber: string) {
+  const digits = phoneNumber.replace(/\D/g, '')
+  if (/^02\d{7,8}$/.test(digits)) return digits.replace(/^(02)(\d{3,4})(\d{4})$/, '$1-$2-$3')
+  if (/^0\d{9,10}$/.test(digits)) return digits.replace(/^(0\d{2})(\d{3,4})(\d{4})$/, '$1-$2-$3')
+  return phoneNumber
 }
 
 function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
@@ -78,27 +85,34 @@ function App() {
     overlaysRef.current = []
   }, [])
 
-  const positionPlaceCardFromMarker = useCallback((marker: HTMLElement, cardHeight: number) => {
+  const positionPlaceCardAtToilet = useCallback((toilet: SelectedToilet, cardHeight: number) => {
     const container = mapContainerRef.current
-    if (!container) return
+    const map = mapRef.current
+    if (!container || !map) return
 
-    const markerRect = marker.getBoundingClientRect()
-    const containerRect = container.getBoundingClientRect()
-    const markerCenter = markerRect.left - containerRect.left + (markerRect.width / 2)
-    const markerTop = markerRect.top - containerRect.top
-    const left = Math.min(Math.max(MAP_EDGE_GAP, markerCenter - (PLACE_CARD_WIDTH / 2)), Math.max(MAP_EDGE_GAP, container.clientWidth - PLACE_CARD_WIDTH - MAP_EDGE_GAP))
-    const top = Math.min(Math.max(MAP_EDGE_GAP, markerTop - cardHeight - MAP_EDGE_GAP), Math.max(MAP_EDGE_GAP, container.clientHeight - cardHeight - MAP_EDGE_GAP))
-    setPlaceCardPosition({ left, top })
+    const point = map.getProjection().pointFromCoords(new window.kakao.maps.LatLng(toilet.latitude, toilet.longitude))
+    let left = point.x - (PLACE_CARD_WIDTH / 2)
+    let top = point.y - cardHeight - MAP_EDGE_GAP
+    if (left < MAP_EDGE_GAP) left = point.x + MAP_EDGE_GAP
+    if (left + PLACE_CARD_WIDTH > container.clientWidth - MAP_EDGE_GAP) left = point.x - PLACE_CARD_WIDTH - MAP_EDGE_GAP
+    if (top < MAP_EDGE_GAP) top = point.y + MAP_EDGE_GAP
+    setPlaceCardPosition((current) => current && Math.abs(current.left - left) < 1 && Math.abs(current.top - top) < 1 ? current : { left, top })
   }, [])
 
   useLayoutEffect(() => {
     if (!selectedToilet || !placeCardRef.current) return
-    positionPlaceCardFromMarker(selectedToilet.marker, placeCardRef.current.offsetHeight)
-  }, [selectedToilet, toiletDetail, isDetailLoading, detailError, positionPlaceCardFromMarker])
+    positionPlaceCardAtToilet(selectedToilet, placeCardRef.current.offsetHeight)
+  }, [selectedToilet, toiletDetail, isDetailLoading, detailError, positionPlaceCardAtToilet])
 
-  const selectToilet = useCallback(async (toiletId: number, name: string, marker: HTMLElement) => {
+  const positionSelectedCard = useCallback(() => {
+    if (selectedToiletRef.current && placeCardRef.current) {
+      positionPlaceCardAtToilet(selectedToiletRef.current, placeCardRef.current.offsetHeight)
+    }
+  }, [positionPlaceCardAtToilet])
+
+  const selectToilet = useCallback(async (toiletId: number, name: string, latitude: number, longitude: number) => {
     const requestSequence = ++detailRequestRef.current
-    const selected = { id: toiletId, name, marker }
+    const selected = { id: toiletId, name, latitude, longitude }
     selectedToiletRef.current = selected
     setSelectedToilet(selected)
     setPlaceCardPosition(null)
@@ -155,7 +169,7 @@ function App() {
       const toiletName = point.name ?? '공중화장실'
       content.setAttribute('aria-label', toiletName)
       content.addEventListener('click', () => {
-        if (point.id != null) void selectToilet(point.id, toiletName, content)
+        if (point.id != null) void selectToilet(point.id, toiletName, point.latitude, point.longitude)
       })
 
       return new window.kakao.maps.CustomOverlay({
@@ -270,7 +284,10 @@ function App() {
         const map = await createKakaoMap(mapContainerRef.current, DAEJEON_CITY_HALL)
         if (disposed) return
         mapRef.current = map
-        window.kakao.maps.event.addListener(map, 'idle', loadMapArea)
+        window.kakao.maps.event.addListener(map, 'idle', () => {
+          loadMapArea()
+          positionSelectedCard()
+        })
         resizeObserver = new ResizeObserver(() => map.relayout())
         resizeObserver.observe(mapContainerRef.current)
         await loadMapArea()
@@ -288,7 +305,7 @@ function App() {
       currentLocationOverlayRef.current?.setMap(null)
       resizeObserver?.disconnect()
     }
-  }, [clearOverlays, loadMapArea, moveToCurrentLocation])
+  }, [clearOverlays, loadMapArea, moveToCurrentLocation, positionSelectedCard])
 
   return (
     <main className="app-shell">
@@ -341,14 +358,12 @@ function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse }) {
     { label: '어린이 대변기', count: toilet.femaleChildToiletCount },
   ])
   const address = toilet.roadAddress || toilet.jibunAddress
-  const facilities = [
-    toilet.hasEmergencyBell === 'Y' && `비상벨${hasValue(toilet.emergencyBellLocation) ? ` · ${toilet.emergencyBellLocation}` : ''}`,
-    toilet.hasCctv === 'Y' && 'CCTV',
-    toilet.hasDiaperTable === 'Y' && `기저귀 교환대${hasValue(toilet.diaperTableLocation) ? ` · ${toilet.diaperTableLocation}` : ''}`,
-  ].filter(Boolean)
 
   return (
     <div className="card-details" tabIndex={0} aria-label="화장실 상세 정보">
+      {address && <DetailRow label="주소" value={address} copyable />}
+      {hasValue(toilet.openTimeDetail) && <DetailRow label="개방시간 상세" value={toilet.openTimeDetail} />}
+      {hasValue(toilet.installationDate) && <DetailRow label="설치연월" value={toilet.installationDate} />}
       {(maleCounts.length > 0 || femaleCounts.length > 0) && <section className="detail-section">
         <h2>화장실 수</h2>
         <div className="capacity-groups">
@@ -356,12 +371,15 @@ function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse }) {
           {femaleCounts.length > 0 && <CapacityGroup title="여성" items={femaleCounts} />}
         </div>
       </section>}
-      {address && <DetailRow label="주소" value={address} />}
-      {toilet.agencyName && <DetailRow label="관리기관" value={toilet.agencyName} />}
-      {toilet.phoneNumber && <DetailRow label="전화" value={toilet.phoneNumber} />}
-      {toilet.installationDate && <DetailRow label="설치일" value={toilet.installationDate} />}
-      {facilities.length > 0 && <DetailRow label="편의·안전" value={facilities.join(', ')} />}
-      {toilet.dataBaseDate && <DetailRow label="데이터 기준일" value={toilet.dataBaseDate} />}
+      <section className="detail-section facility-section">
+        <h2>편의·안전</h2>
+        <FacilityRow label="비상벨" available={toilet.hasEmergencyBell === 'Y'} location={toilet.emergencyBellLocation} />
+        <FacilityRow label="CCTV" available={toilet.hasCctv === 'Y'} />
+        <FacilityRow label="기저귀 교환대" available={toilet.hasDiaperTable === 'Y'} location={toilet.diaperTableLocation} />
+      </section>
+      {hasValue(toilet.agencyName) && <DetailRow label="관리기관" value={toilet.agencyName} />}
+      {hasValue(toilet.phoneNumber) && <DetailRow label="전화" value={formatPhoneNumber(toilet.phoneNumber)} />}
+      {hasValue(toilet.dataBaseDate) && <DetailRow label="데이터 기준일" value={toilet.dataBaseDate} />}
     </div>
   )
 }
@@ -370,8 +388,42 @@ function CapacityGroup({ title, items }: { title: string; items: CountItem[] }) 
   return <div className="capacity-group"><h3>{title}</h3><dl>{items.map(({ label, count }) => <div key={label}><dt>{label}</dt><dd>{count}대</dd></div>)}</dl></div>
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
-  return <div className="detail-row"><dt>{label}</dt><dd>{value}</dd></div>
+function FacilityRow({ label, available, location }: { label: string; available: boolean; location?: string }) {
+  if (!available) {
+    return <div className="facility-row"><strong>{label}</strong><span className="facility-status is-unavailable">미설치</span></div>
+  }
+
+  return <details className="facility-row facility-row-expandable">
+    <summary><strong>{label}</strong><span className="facility-status">설치됨</span></summary>
+    <p>{hasValue(location ?? '') ? `위치: ${location}` : '위치 정보가 등록되지 않았습니다.'}</p>
+  </details>
+}
+
+function DetailRow({ label, value, copyable = false }: { label: string; value: string; copyable?: boolean }) {
+  const [copied, setCopied] = useState(false)
+
+  const copyValue = async () => {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(value)
+      } else {
+        const textarea = document.createElement('textarea')
+        textarea.value = value
+        textarea.style.position = 'fixed'
+        textarea.style.opacity = '0'
+        document.body.append(textarea)
+        textarea.select()
+        document.execCommand('copy')
+        textarea.remove()
+      }
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 2_000)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  return <div className="detail-row"><dt>{label}</dt><dd><span>{value}</span>{copyable && <button type="button" className="copy-address-button" onClick={() => void copyValue()}>{copied ? '복사됨' : '주소 복사'}</button>}</dd></div>
 }
 
 export default App
