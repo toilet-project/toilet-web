@@ -59,8 +59,10 @@
 .facility-row-expandable[open] .facility-location-label span { transform: rotate(180deg); }
 .facility-location-placeholder { display: block; }
 .toilet-marker, .cluster-marker { border: 0; cursor: pointer; box-shadow: 0 3px 8px rgb(23 104 58 / 25%); }
-.toilet-marker { width: 38px; height: 38px; border-radius: 50% 50% 50% 0; background: #fff; color: #17683a; font-size: 20px; transform: rotate(-45deg); }
-.toilet-marker span { display: block; transform: rotate(45deg); }
+.toilet-marker { position: relative; width: 34px; height: 34px; padding: 0; background: transparent; box-shadow: none; }
+.toilet-marker-pin { position: absolute; inset: 1px; display: grid; place-items: center; border: 3px solid #fff; border-radius: 50% 50% 50% 5px; background: #17683a; box-shadow: 0 2px 6px rgb(23 104 58 / 42%); transform: rotate(-45deg); }
+.toilet-marker-logo { width: 19px; height: 19px; transform: rotate(45deg); }
+.toilet-marker-name { position: absolute; top: calc(100% + 4px); left: 50%; color: #111; font-size: 11px; font-weight: 800; line-height: 1.2; pointer-events: none; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 1px 2px #fff; transform: translateX(-50%); white-space: nowrap; }
 .cluster-marker { min-width: 44px; height: 44px; padding: 0 10px; border: 3px solid #e9f7ed; border-radius: 999px; background: #188247; color: #fff; font-size: 13px; font-weight: 800; }
 .current-location-marker { display: grid; width: 24px; height: 24px; place-items: center; border: 3px solid #fff; border-radius: 50%; background: #2878e3; box-shadow: 0 1px 8px rgb(22 76 153 / 55%); }
 .current-location-marker span:first-child { width: 7px; height: 7px; border-radius: 50%; background: #fff; }
