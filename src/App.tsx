@@ -9,6 +9,7 @@ const CLUSTER_GRID_SIZE = 84
 type MapPoint = { id?: number; latitude: number; longitude: number; count: number; name?: string }
 type SelectedToilet = { id: number; name: string; latitude: number; longitude: number }
 type CardPosition = { left: number; top: number }
+type Coordinates = { latitude: number; longitude: number }
 
 const PLACE_CARD_WIDTH = 360
 const MAP_EDGE_GAP = 18
@@ -32,6 +33,38 @@ function formatPhoneNumber(phoneNumber: string) {
   if (/^02\d{7,8}$/.test(digits)) return digits.replace(/^(02)(\d{3,4})(\d{4})$/, '$1-$2-$3')
   if (/^0\d{9,10}$/.test(digits)) return digits.replace(/^(0\d{2})(\d{3,4})(\d{4})$/, '$1-$2-$3')
   return phoneNumber
+}
+
+function formatInstallationDate(installationDate: string) {
+  const digits = installationDate.replace(/\D/g, '')
+  const matched = digits.match(/^(\d{4})(\d{1,2})$/)
+  if (!matched) return installationDate
+
+  const month = Number(matched[2])
+  if (month < 1 || month > 12) return `${matched[1]}년`
+  return `${matched[1]}년 ${month}월`
+}
+
+function formatFacilityLocation(location: string) {
+  return location.replace(/\s*\+\s*/g, ' / ')
+}
+
+function calculateDistanceInMeters(from: Coordinates, to: Coordinates) {
+  const earthRadiusInMeters = 6_371_000
+  const toRadians = (degree: number) => degree * (Math.PI / 180)
+  const latitudeDelta = toRadians(to.latitude - from.latitude)
+  const longitudeDelta = toRadians(to.longitude - from.longitude)
+  const latitudeFrom = toRadians(from.latitude)
+  const latitudeTo = toRadians(to.latitude)
+  const haversine = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(latitudeFrom) * Math.cos(latitudeTo) * Math.sin(longitudeDelta / 2) ** 2
+
+  return 2 * earthRadiusInMeters * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+}
+
+function formatDistance(distanceInMeters: number) {
+  if (distanceInMeters < 1_000) return `내 위치에서 약 ${Math.round(distanceInMeters / 10) * 10}m`
+  return `내 위치에서 약 ${(distanceInMeters / 1_000).toFixed(1)}km`
 }
 
 function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
@@ -83,6 +116,7 @@ function App() {
   const [locationMessage, setLocationMessage] = useState<string | null>(null)
   const [isLocating, setIsLocating] = useState(false)
   const [isMobileCardExpanded, setIsMobileCardExpanded] = useState(false)
+  const [currentLocation, setCurrentLocation] = useState<Coordinates | null>(null)
 
   const showLocationMessage = useCallback((message: string) => {
     window.clearTimeout(locationMessageTimerRef.current)
@@ -263,6 +297,7 @@ function App() {
 
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
+        setCurrentLocation({ latitude: coords.latitude, longitude: coords.longitude })
         const position = new window.kakao.maps.LatLng(coords.latitude, coords.longitude)
         currentLocationOverlayRef.current?.setMap(null)
 
@@ -379,6 +414,7 @@ function App() {
               <span className="card-label">{toiletDetail?.toiletType || '공중화장실'}</span>
               <strong>{toiletDetail?.name || selectedToilet.name}</strong>
               <p className="open-time">{toiletDetail ? formatOpenTime(toiletDetail) : isDetailLoading ? '상세 정보를 불러오는 중…' : '상세 정보를 확인해 주세요.'}</p>
+              {currentLocation && <p className="distance-from-current">{formatDistance(calculateDistanceInMeters(currentLocation, selectedToilet))}</p>}
               {toiletDetail && hasValue(toiletDetail.roadAddress || toiletDetail.jibunAddress) && <div className="summary-address"><DetailRow label="주소" value={toiletDetail.roadAddress || toiletDetail.jibunAddress} copyable /></div>}
             </div>
             {detailError && <p className="detail-error" role="alert">{detailError}</p>}
@@ -411,7 +447,7 @@ function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse }) {
     <div className="card-details" tabIndex={0} aria-label="화장실 상세 정보">
       {address && <DetailRow className="detail-address" label="주소" value={address} copyable />}
       {hasValue(toilet.openTimeDetail) && <DetailRow label="개방시간 상세" value={toilet.openTimeDetail} />}
-      {hasValue(toilet.installationDate) && <DetailRow label="설치연월" value={toilet.installationDate} />}
+      {hasValue(toilet.installationDate) && <DetailRow label="설치연월" value={formatInstallationDate(toilet.installationDate)} />}
       {(maleCounts.length > 0 || femaleCounts.length > 0) && <section className="detail-section">
         <h2>화장실 수</h2>
         <div className="capacity-groups">
@@ -441,9 +477,13 @@ function FacilityRow({ label, available, location }: { label: string; available:
     return <div className="facility-row"><strong>{label}</strong><span className="facility-status is-unavailable">미설치</span><span className="facility-location-placeholder" aria-hidden="true" /></div>
   }
 
+  if (!hasValue(location ?? '')) {
+    return <div className="facility-row"><strong>{label}</strong><span className="facility-status">설치됨</span><span className="facility-location-placeholder" aria-hidden="true" /></div>
+  }
+
   return <details className="facility-row facility-row-expandable">
     <summary><strong>{label}</strong><span className="facility-status">설치됨</span><span className="facility-location-label">위치 보기 <span aria-hidden="true">⌄</span></span></summary>
-    <p>{hasValue(location ?? '') ? `위치: ${location}` : '위치 정보가 등록되지 않았습니다.'}</p>
+    <p>위치: {formatFacilityLocation(location ?? '')}</p>
   </details>
 }
 
