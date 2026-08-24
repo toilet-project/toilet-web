@@ -66,6 +66,7 @@ function App() {
   const overlaysRef = useRef<KakaoOverlay[]>([])
   const currentLocationOverlayRef = useRef<KakaoOverlay | null>(null)
   const requestSequenceRef = useRef(0)
+  const mapInteractionRef = useRef(false)
   const selectedToiletRef = useRef<SelectedToilet | null>(null)
   const detailRequestRef = useRef(0)
   const placeCardRef = useRef<HTMLElement>(null)
@@ -106,6 +107,17 @@ function App() {
     if (left + PLACE_CARD_WIDTH > container.clientWidth - MAP_EDGE_GAP) left = point.x - PLACE_CARD_WIDTH - MAP_EDGE_GAP
     if (top < MAP_EDGE_GAP) top = point.y + MAP_EDGE_GAP
     setPlaceCardPosition((current) => current && Math.abs(current.left - left) < 1 && Math.abs(current.top - top) < 1 ? current : { left, top })
+  }, [])
+
+  const closeDetailCard = useCallback(() => {
+    detailRequestRef.current += 1
+    selectedToiletRef.current = null
+    setSelectedToilet(null)
+    setPlaceCardPosition(null)
+    setToiletDetail(null)
+    setDetailError(null)
+    setIsDetailLoading(false)
+    setIsMobileCardExpanded(false)
   }, [])
 
   useLayoutEffect(() => {
@@ -295,9 +307,16 @@ function App() {
         if (disposed) return
         mapRef.current = map
         window.kakao.maps.event.addListener(map, 'idle', () => {
+          if (mapInteractionRef.current) {
+            mapInteractionRef.current = false
+            if (window.matchMedia('(min-width: 641px)').matches) closeDetailCard()
+          }
           loadMapArea()
           positionSelectedCard()
         })
+        const markMapInteraction = () => { mapInteractionRef.current = true }
+        window.kakao.maps.event.addListener(map, 'dragstart', markMapInteraction)
+        window.kakao.maps.event.addListener(map, 'zoom_changed', markMapInteraction)
         resizeObserver = new ResizeObserver(() => map.relayout())
         resizeObserver.observe(mapContainerRef.current)
         await loadMapArea()
@@ -316,7 +335,7 @@ function App() {
       resizeObserver?.disconnect()
       window.clearTimeout(locationMessageTimerRef.current)
     }
-  }, [clearOverlays, loadMapArea, moveToCurrentLocation, positionSelectedCard])
+  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard])
 
   return (
     <main className="app-shell">
@@ -352,7 +371,7 @@ function App() {
               if (startY != null && endY != null && startY - endY > 36) setIsMobileCardExpanded(true)
             }}
           >
-            <button type="button" className="close-button" onClick={() => { detailRequestRef.current += 1; selectedToiletRef.current = null; setSelectedToilet(null); setPlaceCardPosition(null); setToiletDetail(null); setIsMobileCardExpanded(false) }} aria-label="정보 닫기">×</button>
+            <button type="button" className="close-button" onClick={closeDetailCard} aria-label="정보 닫기">×</button>
             <button type="button" className="mobile-card-handle" onClick={() => setIsMobileCardExpanded((expanded) => !expanded)} aria-expanded={isMobileCardExpanded}>
               {isMobileCardExpanded ? '상세 정보 접기' : '상세 정보 보기'}
             </button>

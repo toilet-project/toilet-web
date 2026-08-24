@@ -17,7 +17,7 @@ declare global {
       Map: new (container: HTMLElement, options: { center: unknown; level: number }) => KakaoMapInstance
       LatLng: new (latitude: number, longitude: number) => unknown
       CustomOverlay: new (options: { position: unknown; content: HTMLElement; yAnchor: number; zIndex: number }) => KakaoOverlay
-      event: { addListener(map: KakaoMapInstance, event: 'idle', callback: () => void): void }
+      event: { addListener(map: KakaoMapInstance, event: 'idle' | 'dragstart' | 'zoom_changed', callback: () => void): void }
     } }
   }
 }
