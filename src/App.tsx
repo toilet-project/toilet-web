@@ -9,6 +9,7 @@ const CLUSTER_GRID_SIZE = 84
 type MapPoint = { id?: number; latitude: number; longitude: number; count: number; name?: string }
 type SelectedToilet = { id: number; name: string; latitude: number; longitude: number }
 type CardPosition = { left: number; top: number }
+type Coordinates = { latitude: number; longitude: number }
 
 const PLACE_CARD_WIDTH = 360
 const MAP_EDGE_GAP = 18
@@ -46,6 +47,24 @@ function formatInstallationDate(installationDate: string) {
 
 function formatFacilityLocation(location: string) {
   return location.replace(/\s*\+\s*/g, ' / ')
+}
+
+function calculateDistanceInMeters(from: Coordinates, to: Coordinates) {
+  const earthRadiusInMeters = 6_371_000
+  const toRadians = (degree: number) => degree * (Math.PI / 180)
+  const latitudeDelta = toRadians(to.latitude - from.latitude)
+  const longitudeDelta = toRadians(to.longitude - from.longitude)
+  const latitudeFrom = toRadians(from.latitude)
+  const latitudeTo = toRadians(to.latitude)
+  const haversine = Math.sin(latitudeDelta / 2) ** 2
+    + Math.cos(latitudeFrom) * Math.cos(latitudeTo) * Math.sin(longitudeDelta / 2) ** 2
+
+  return 2 * earthRadiusInMeters * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+}
+
+function formatDistance(distanceInMeters: number) {
+  if (distanceInMeters < 1_000) return `내 위치에서 약 ${Math.round(distanceInMeters / 10) * 10}m`
+  return `내 위치에서 약 ${(distanceInMeters / 1_000).toFixed(1)}km`
 }
 
 function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
@@ -97,6 +116,7 @@ function App() {
   const [locationMessage, setLocationMessage] = useState<string | null>(null)
   const [isLocating, setIsLocating] = useState(false)
   const [isMobileCardExpanded, setIsMobileCardExpanded] = useState(false)
+  const [currentLocation, setCurrentLocation] = useState<Coordinates | null>(null)
 
   const showLocationMessage = useCallback((message: string) => {
     window.clearTimeout(locationMessageTimerRef.current)
@@ -277,6 +297,7 @@ function App() {
 
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
+        setCurrentLocation({ latitude: coords.latitude, longitude: coords.longitude })
         const position = new window.kakao.maps.LatLng(coords.latitude, coords.longitude)
         currentLocationOverlayRef.current?.setMap(null)
 
@@ -393,6 +414,7 @@ function App() {
               <span className="card-label">{toiletDetail?.toiletType || '공중화장실'}</span>
               <strong>{toiletDetail?.name || selectedToilet.name}</strong>
               <p className="open-time">{toiletDetail ? formatOpenTime(toiletDetail) : isDetailLoading ? '상세 정보를 불러오는 중…' : '상세 정보를 확인해 주세요.'}</p>
+              {currentLocation && <p className="distance-from-current">{formatDistance(calculateDistanceInMeters(currentLocation, selectedToilet))}</p>}
               {toiletDetail && hasValue(toiletDetail.roadAddress || toiletDetail.jibunAddress) && <div className="summary-address"><DetailRow label="주소" value={toiletDetail.roadAddress || toiletDetail.jibunAddress} copyable /></div>}
             </div>
             {detailError && <p className="detail-error" role="alert">{detailError}</p>}
