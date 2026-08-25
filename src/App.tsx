@@ -88,6 +88,27 @@ function groupToiletsByCoordinate(toilets: ToiletMapItem[]) {
   })
 }
 
+function coordinateGroupFloor(name: string) {
+  const basement = name.match(/(?:지하|b)\s*(\d+)\s*층/i)
+  if (basement) return -Number(basement[1])
+
+  const floor = name.match(/(\d+)\s*층/)
+  return floor ? Number(floor[1]) : null
+}
+
+function sortCoordinateGroupToilets(toilets: ToiletMapItem[]) {
+  const collator = new Intl.Collator('ko-KR', { numeric: true, sensitivity: 'base' })
+
+  return [...toilets].sort((left, right) => {
+    const leftFloor = coordinateGroupFloor(left.name)
+    const rightFloor = coordinateGroupFloor(right.name)
+    if (leftFloor != null && rightFloor != null && leftFloor !== rightFloor) return rightFloor - leftFloor
+    if (leftFloor != null && rightFloor == null) return -1
+    if (leftFloor == null && rightFloor != null) return 1
+    return collator.compare(right.name, left.name)
+  })
+}
+
 function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
   const groups = new Map<string, MapPoint[]>()
   const projection = map.getProjection()
@@ -242,11 +263,11 @@ function App() {
     }
   }, [positionPlaceCardAtToilet])
 
-  const selectToilet = useCallback(async (toiletId: number, name: string, latitude: number, longitude: number) => {
+  const selectToilet = useCallback(async (toiletId: number, name: string, latitude: number, longitude: number, keepCoordinateGroup = false) => {
     const requestSequence = ++detailRequestRef.current
     const selected = { id: toiletId, name, latitude, longitude }
     selectedToiletRef.current = selected
-    setSelectedCoordinateGroup(null)
+    if (!keepCoordinateGroup || !window.matchMedia('(min-width: 641px)').matches) setSelectedCoordinateGroup(null)
     toiletMarkerElementsRef.current.forEach((marker, markerId) => marker.classList.toggle('is-selected', markerId === toiletId))
     setSelectedToilet(selected)
     setPlaceCardPosition(null)
@@ -270,8 +291,19 @@ function App() {
   const openCoordinateGroup = useCallback((point: MapPoint) => {
     if (!point.toilets) return
     closeDetailCard()
-    setSelectedCoordinateGroup({ latitude: point.latitude, longitude: point.longitude, toilets: point.toilets })
+    setSelectedCoordinateGroup({ latitude: point.latitude, longitude: point.longitude, toilets: sortCoordinateGroupToilets(point.toilets) })
   }, [closeDetailCard])
+
+  const returnToCoordinateGroupList = useCallback(() => {
+    detailRequestRef.current += 1
+    selectedToiletRef.current = null
+    setSelectedToilet(null)
+    setPlaceCardPosition(null)
+    setToiletDetail(null)
+    setDetailError(null)
+    setIsDetailLoading(false)
+    toiletMarkerElementsRef.current.forEach((marker) => marker.classList.remove('is-selected'))
+  }, [])
 
   const renderResult = useCallback((map: KakaoMapInstance, response: ToiletMapSearchResponse) => {
     clearOverlays()
@@ -291,8 +323,8 @@ function App() {
         const isCoordinateGroup = point.toilets != null
         content.className = isCoordinateGroup ? 'coordinate-group-marker' : 'cluster-marker'
         content.type = 'button'
-        content.textContent = isCoordinateGroup ? `같은 위치 ${point.count}` : String(point.count)
-        content.setAttribute('aria-label', isCoordinateGroup ? `같은 위치에 등록된 화장실 ${point.count}곳 목록 보기` : `${point.count}개의 화장실이 있는 구역 확대하기`)
+        content.textContent = isCoordinateGroup ? `동일 위치 ${point.count}` : String(point.count)
+        content.setAttribute('aria-label', isCoordinateGroup ? `동일 위치에 등록된 화장실 ${point.count}곳 목록 보기` : `${point.count}개의 화장실이 있는 구역 확대하기`)
         content.addEventListener('click', () => {
           if (isCoordinateGroup) {
             openCoordinateGroup(point)
@@ -658,7 +690,7 @@ function App() {
         {selectedToilet && (
           <aside
             ref={placeCardRef}
-            className={`place-card${isMobileCardExpanded ? ' mobile-card-expanded' : ''}`}
+            className={`place-card${isMobileCardExpanded ? ' mobile-card-expanded' : ''}${selectedCoordinateGroup ? ' place-card-with-group' : ''}`}
             aria-live="polite"
             style={placeCardPosition ? { left: placeCardPosition.left, top: placeCardPosition.top } : undefined}
             onTouchStart={(event) => { cardTouchStartYRef.current = event.touches[0]?.clientY ?? null }}
@@ -691,14 +723,26 @@ function App() {
             <button type="button" className="close-button" onClick={closeDetailCard} aria-label="목록 닫기">×</button>
             <span className="card-label">동일 좌표로 등록됨</span>
             <strong>같은 위치에 {selectedCoordinateGroup.toilets.length}곳</strong>
-            <p>목록에서 화장실을 선택하면 상세 정보를 확인할 수 있습니다.</p>
-            <div className="coordinate-group-list">
-              {selectedCoordinateGroup.toilets.map((toilet) => <button
-                key={toilet.id}
-                type="button"
-                onClick={() => void selectToilet(toilet.id, toilet.name, toilet.latitude, toilet.longitude)}
-              >{toilet.name || '이름 없는 공중화장실'}<span>상세 정보 보기</span></button>)}
-            </div>
+            {selectedToilet ? (
+              <div className="coordinate-group-detail">
+                <button type="button" className="coordinate-group-back" onClick={returnToCoordinateGroupList}>목록으로</button>
+                <h2>{toiletDetail?.name || selectedToilet.name}</h2>
+                <p className="open-time">{toiletDetail ? formatOpenTime(toiletDetail) : isDetailLoading ? '상세 정보를 불러오는 중…' : '상세 정보를 확인해 주세요.'}</p>
+                {detailError && <p className="detail-error" role="alert">{detailError}</p>}
+                {toiletDetail && <ToiletDetailContents toilet={toiletDetail} />}
+              </div>
+            ) : (
+              <>
+                <p>목록에서 화장실을 선택하면 이 패널에서 상세 정보를 확인할 수 있습니다.</p>
+                <div className="coordinate-group-list">
+                  {selectedCoordinateGroup.toilets.map((toilet) => <button
+                    key={toilet.id}
+                    type="button"
+                    onClick={() => void selectToilet(toilet.id, toilet.name, toilet.latitude, toilet.longitude, true)}
+                  >{toilet.name || '이름 없는 공중화장실'}<span>상세 정보 보기</span></button>)}
+                </div>
+              </>
+            )}
           </aside>
         )}
       </section>
