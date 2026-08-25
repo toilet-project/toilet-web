@@ -652,8 +652,8 @@ function App() {
   const distanceToSelectedToilet = currentLocation && selectedToilet
     ? formatDistance(calculateDistanceInMeters(currentLocation, selectedToilet))
     : null
-  const distanceToExpandedCoordinateToilet = currentLocation && expandedCoordinateToilet
-    ? formatDistance(calculateDistanceInMeters(currentLocation, expandedCoordinateToilet))
+  const distanceToCoordinateGroup = currentLocation && selectedCoordinateGroup
+    ? formatDistance(calculateDistanceInMeters(currentLocation, selectedCoordinateGroup))
     : null
   const hasMapCard = selectedToilet != null || selectedCoordinateGroup != null
 
@@ -746,6 +746,7 @@ function App() {
           <aside className="coordinate-group-card" aria-live="polite" aria-label="같은 위치 화장실 목록">
             <button type="button" className="close-button" onClick={closeDetailCard} aria-label="목록 닫기">×</button>
             <span className="card-label">동일 좌표로 등록됨</span>
+            {distanceToCoordinateGroup && <p className="coordinate-group-distance">내 위치에서 약 <strong>{distanceToCoordinateGroup}</strong></p>}
             <p>화장실을 선택하면 해당 행 아래에서 상세 정보가 펼쳐집니다.</p>
             <div className="coordinate-group-list">
               {selectedCoordinateGroup.toilets.map((toilet, index) => {
@@ -760,7 +761,6 @@ function App() {
                     toilet={toiletDetail}
                     isLoading={isDetailLoading}
                     error={detailError}
-                    distance={distanceToExpandedCoordinateToilet}
                   />}
                 </div>
               })}
@@ -773,7 +773,7 @@ function App() {
   )
 }
 
-function CoordinateGroupInlineDetails({ toilet, isLoading, error, distance }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; distance: string | null }) {
+function CoordinateGroupInlineDetails({ toilet, isLoading, error }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null }) {
   if (isLoading) return <div className="coordinate-inline-details"><p className="coordinate-inline-status">상세 정보를 불러오는 중…</p></div>
   if (error) return <div className="coordinate-inline-details"><p className="detail-error" role="alert">{error}</p></div>
   if (!toilet) return null
@@ -782,7 +782,6 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, distance }: { 
 
   return <div className="coordinate-inline-details">
     <p className="open-time">{formatOpenTime(toilet)}</p>
-    {distance && <p className="coordinate-inline-distance"><span>내 위치에서 약</span><strong>{distance}</strong><small>(직선거리)</small></p>}
     {address && <DetailRow className="coordinate-inline-address" label="주소" value={address} copyable />}
     <dl className="coordinate-inline-capacity">
       <div><dt>남성</dt><dd>대변기 {toilet.maleToiletCount}대</dd></div>
