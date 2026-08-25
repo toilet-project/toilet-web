@@ -145,6 +145,8 @@ function App() {
   const mapInteractionRef = useRef(false)
   const selectedToiletRef = useRef<SelectedToilet | null>(null)
   const detailRequestRef = useRef(0)
+  const coordinateGroupListRef = useRef<HTMLDivElement>(null)
+  const coordinateGroupItemRefs = useRef(new Map<number, HTMLDivElement>())
   const placeCardRef = useRef<HTMLElement>(null)
   const locationMessageTimerRef = useRef<number | undefined>(undefined)
   const cardTouchStartYRef = useRef<number | null>(null)
@@ -315,6 +317,14 @@ function App() {
     setToiletDetail(null)
     setDetailError(null)
     setIsDetailLoading(true)
+
+    if (window.matchMedia('(max-width: 640px)').matches) {
+      requestAnimationFrame(() => {
+        const list = coordinateGroupListRef.current
+        const item = coordinateGroupItemRefs.current.get(toilet.id)
+        if (list && item) list.scrollTo({ top: item.offsetTop, behavior: 'smooth' })
+      })
+    }
 
     try {
       const detail = await fetchToiletDetail(toilet.id)
@@ -748,10 +758,10 @@ function App() {
             <span className="card-label">동일 좌표로 등록됨</span>
             {distanceToCoordinateGroup && <p className="coordinate-group-distance">내 위치에서 약 <strong>{distanceToCoordinateGroup}</strong></p>}
             <p>화장실을 선택하면 해당 행 아래에서 상세 정보가 펼쳐집니다.</p>
-            <div className="coordinate-group-list">
+            <div ref={coordinateGroupListRef} className="coordinate-group-list">
               {selectedCoordinateGroup.toilets.map((toilet, index) => {
                 const isExpanded = expandedCoordinateToilet?.id === toilet.id
-                return <div key={toilet.id} className={`coordinate-group-item${isExpanded ? ' is-expanded' : ''}`}>
+                return <div key={toilet.id} ref={(node) => { if (node) coordinateGroupItemRefs.current.set(toilet.id, node); else coordinateGroupItemRefs.current.delete(toilet.id) }} className={`coordinate-group-item${isExpanded ? ' is-expanded' : ''}`}>
                   <button type="button" className="coordinate-group-item-toggle" onClick={() => void toggleCoordinateToiletDetail(toilet)} aria-expanded={isExpanded}>
                     <span className="coordinate-group-index" aria-hidden="true">{index + 1}</span>
                     <span className="coordinate-group-name">{toilet.name || '이름 없는 공중화장실'}</span>
@@ -784,22 +794,24 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error }: { toilet: To
     <p className="open-time">{formatOpenTime(toilet)}</p>
     {address && <DetailRow className="coordinate-inline-address" label="주소" value={address} copyable />}
     <dl className="coordinate-inline-capacity">
-      <div><dt>남성</dt><dd>대변기 {toilet.maleToiletCount}대</dd></div>
-      <div><dt>여성</dt><dd>대변기 {toilet.femaleToiletCount}대</dd></div>
+      <div><dt>남성 대변기</dt><dd>{toilet.maleToiletCount}대</dd></div>
+      <div><dt>여성 대변기</dt><dd>{toilet.femaleToiletCount}대</dd></div>
     </dl>
     <section className="coordinate-inline-facilities" aria-label="편의 및 안전">
       <h2>편의·안전</h2>
-      <CompactFacilityStatus label="비상벨" available={toilet.hasEmergencyBell === 'Y'} location={toilet.emergencyBellLocation} />
-      <CompactFacilityStatus label="CCTV" available={toilet.hasCctv === 'Y'} />
-      <CompactFacilityStatus label="기저귀 교환대" available={toilet.hasDiaperTable === 'Y'} location={toilet.diaperTableLocation} />
+      <div className="coordinate-facility-list">
+        <CompactFacilityStatus label="비상벨" available={toilet.hasEmergencyBell === 'Y'} location={toilet.emergencyBellLocation} />
+        <CompactFacilityStatus label="CCTV" available={toilet.hasCctv === 'Y'} />
+        <CompactFacilityStatus label="기저귀 교환대" available={toilet.hasDiaperTable === 'Y'} location={toilet.diaperTableLocation} />
+      </div>
     </section>
     {hasValue(toilet.agencyName) && <DetailRow className="coordinate-inline-agency" label="관리기관" value={toilet.agencyName} />}
   </div>
 }
 
 function CompactFacilityStatus({ label, available, location }: { label: string; available: boolean; location?: string }) {
-  if (!available) return <div className="coordinate-facility"><span>{label}</span><strong className="is-unavailable">미설치</strong></div>
-  if (!hasValue(location ?? '')) return <div className="coordinate-facility"><span>{label}</span><strong>설치됨</strong></div>
+  if (!available) return <span className="coordinate-facility"><span>{label}</span><strong className="is-unavailable">미설치</strong></span>
+  if (!hasValue(location ?? '')) return <span className="coordinate-facility"><span>{label}</span><strong>설치됨</strong></span>
 
   return <details className="coordinate-facility coordinate-facility-with-location">
     <summary><span>{label}</span><strong>설치됨 · 위치</strong></summary>
