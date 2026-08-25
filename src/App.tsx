@@ -156,6 +156,7 @@ function App() {
   const [result, setResult] = useState<ToiletMapSearchResponse | null>(null)
   const [selectedToilet, setSelectedToilet] = useState<SelectedToilet | null>(null)
   const [selectedCoordinateGroup, setSelectedCoordinateGroup] = useState<SelectedCoordinateGroup | null>(null)
+  const [expandedCoordinateToilet, setExpandedCoordinateToilet] = useState<SelectedToilet | null>(null)
   const [placeCardPosition, setPlaceCardPosition] = useState<CardPosition | null>(null)
   const [toiletDetail, setToiletDetail] = useState<ToiletDetailResponse | null>(null)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
@@ -212,6 +213,7 @@ function App() {
     selectedToiletRef.current = null
     setSelectedToilet(null)
     setSelectedCoordinateGroup(null)
+    setExpandedCoordinateToilet(null)
     setPlaceCardPosition(null)
     setToiletDetail(null)
     setDetailError(null)
@@ -267,6 +269,7 @@ function App() {
     const requestSequence = ++detailRequestRef.current
     const selected = { id: toiletId, name, latitude, longitude }
     selectedToiletRef.current = selected
+    setExpandedCoordinateToilet(null)
     if (!keepCoordinateGroup || !window.matchMedia('(min-width: 641px)').matches) setSelectedCoordinateGroup(null)
     toiletMarkerElementsRef.current.forEach((marker, markerId) => marker.classList.toggle('is-selected', markerId === toiletId))
     setSelectedToilet(selected)
@@ -294,16 +297,34 @@ function App() {
     setSelectedCoordinateGroup({ latitude: point.latitude, longitude: point.longitude, toilets: sortCoordinateGroupToilets(point.toilets) })
   }, [closeDetailCard])
 
-  const returnToCoordinateGroupList = useCallback(() => {
-    detailRequestRef.current += 1
+  const toggleCoordinateToiletDetail = useCallback(async (toilet: ToiletMapItem) => {
+    if (expandedCoordinateToilet?.id === toilet.id) {
+      detailRequestRef.current += 1
+      setExpandedCoordinateToilet(null)
+      setToiletDetail(null)
+      setDetailError(null)
+      setIsDetailLoading(false)
+      return
+    }
+
+    const requestSequence = ++detailRequestRef.current
     selectedToiletRef.current = null
     setSelectedToilet(null)
     setPlaceCardPosition(null)
+    setExpandedCoordinateToilet(toilet)
     setToiletDetail(null)
     setDetailError(null)
-    setIsDetailLoading(false)
-    toiletMarkerElementsRef.current.forEach((marker) => marker.classList.remove('is-selected'))
-  }, [])
+    setIsDetailLoading(true)
+
+    try {
+      const detail = await fetchToiletDetail(toilet.id)
+      if (requestSequence === detailRequestRef.current) setToiletDetail(detail)
+    } catch {
+      if (requestSequence === detailRequestRef.current) setDetailError('상세 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      if (requestSequence === detailRequestRef.current) setIsDetailLoading(false)
+    }
+  }, [expandedCoordinateToilet])
 
   const renderResult = useCallback((map: KakaoMapInstance, response: ToiletMapSearchResponse) => {
     clearOverlays()
@@ -631,6 +652,9 @@ function App() {
   const distanceToSelectedToilet = currentLocation && selectedToilet
     ? formatDistance(calculateDistanceInMeters(currentLocation, selectedToilet))
     : null
+  const distanceToExpandedCoordinateToilet = currentLocation && expandedCoordinateToilet
+    ? formatDistance(calculateDistanceInMeters(currentLocation, expandedCoordinateToilet))
+    : null
   const hasMapCard = selectedToilet != null || selectedCoordinateGroup != null
 
   return (
@@ -721,34 +745,67 @@ function App() {
         {selectedCoordinateGroup && (
           <aside className="coordinate-group-card" aria-live="polite" aria-label="같은 위치 화장실 목록">
             <button type="button" className="close-button" onClick={closeDetailCard} aria-label="목록 닫기">×</button>
-            {selectedToilet ? (
-              <div className="coordinate-group-detail">
-                <button type="button" className="coordinate-group-back" onClick={returnToCoordinateGroupList}>← 뒤로가기</button>
-                <span className="card-label">동일 좌표로 등록됨</span>
-                <h2>{toiletDetail?.name || selectedToilet.name}</h2>
-                <p className="open-time">{toiletDetail ? formatOpenTime(toiletDetail) : isDetailLoading ? '상세 정보를 불러오는 중…' : '상세 정보를 확인해 주세요.'}</p>
-                {detailError && <p className="detail-error" role="alert">{detailError}</p>}
-                {toiletDetail && <ToiletDetailContents toilet={toiletDetail} />}
-              </div>
-            ) : (
-              <>
-                <span className="card-label">동일 좌표로 등록됨</span>
-                <p>목록에서 화장실을 선택하면 이 패널에서 상세 정보를 확인할 수 있습니다.</p>
-                <div className="coordinate-group-list">
-                  {selectedCoordinateGroup.toilets.map((toilet) => <button
-                    key={toilet.id}
-                    type="button"
-                    onClick={() => void selectToilet(toilet.id, toilet.name, toilet.latitude, toilet.longitude, true)}
-                  >{toilet.name || '이름 없는 공중화장실'}<span>상세 정보 보기</span></button>)}
+            <span className="card-label">동일 좌표로 등록됨</span>
+            <p>화장실을 선택하면 해당 행 아래에서 상세 정보가 펼쳐집니다.</p>
+            <div className="coordinate-group-list">
+              {selectedCoordinateGroup.toilets.map((toilet, index) => {
+                const isExpanded = expandedCoordinateToilet?.id === toilet.id
+                return <div key={toilet.id} className={`coordinate-group-item${isExpanded ? ' is-expanded' : ''}`}>
+                  <button type="button" className="coordinate-group-item-toggle" onClick={() => void toggleCoordinateToiletDetail(toilet)} aria-expanded={isExpanded}>
+                    <span className="coordinate-group-index" aria-hidden="true">{index + 1}</span>
+                    <span className="coordinate-group-name">{toilet.name || '이름 없는 공중화장실'}</span>
+                    <span className="coordinate-group-toggle-label">{isExpanded ? '접기' : '상세 보기'}</span>
+                  </button>
+                  {isExpanded && <CoordinateGroupInlineDetails
+                    toilet={toiletDetail}
+                    isLoading={isDetailLoading}
+                    error={detailError}
+                    distance={distanceToExpandedCoordinateToilet}
+                  />}
                 </div>
-              </>
-            )}
+              })}
+            </div>
           </aside>
         )}
       </section>
       <footer>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</footer>
     </main>
   )
+}
+
+function CoordinateGroupInlineDetails({ toilet, isLoading, error, distance }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; distance: string | null }) {
+  if (isLoading) return <div className="coordinate-inline-details"><p className="coordinate-inline-status">상세 정보를 불러오는 중…</p></div>
+  if (error) return <div className="coordinate-inline-details"><p className="detail-error" role="alert">{error}</p></div>
+  if (!toilet) return null
+
+  const address = toilet.roadAddress || toilet.jibunAddress
+
+  return <div className="coordinate-inline-details">
+    <p className="open-time">{formatOpenTime(toilet)}</p>
+    {distance && <p className="coordinate-inline-distance"><span>내 위치에서 약</span><strong>{distance}</strong><small>(직선거리)</small></p>}
+    {address && <DetailRow className="coordinate-inline-address" label="주소" value={address} copyable />}
+    <dl className="coordinate-inline-capacity">
+      <div><dt>남성</dt><dd>대변기 {toilet.maleToiletCount}대</dd></div>
+      <div><dt>여성</dt><dd>대변기 {toilet.femaleToiletCount}대</dd></div>
+    </dl>
+    <section className="coordinate-inline-facilities" aria-label="편의 및 안전">
+      <h2>편의·안전</h2>
+      <CompactFacilityStatus label="비상벨" available={toilet.hasEmergencyBell === 'Y'} location={toilet.emergencyBellLocation} />
+      <CompactFacilityStatus label="CCTV" available={toilet.hasCctv === 'Y'} />
+      <CompactFacilityStatus label="기저귀 교환대" available={toilet.hasDiaperTable === 'Y'} location={toilet.diaperTableLocation} />
+    </section>
+    {hasValue(toilet.agencyName) && <DetailRow className="coordinate-inline-agency" label="관리기관" value={toilet.agencyName} />}
+  </div>
+}
+
+function CompactFacilityStatus({ label, available, location }: { label: string; available: boolean; location?: string }) {
+  if (!available) return <div className="coordinate-facility"><span>{label}</span><strong className="is-unavailable">미설치</strong></div>
+  if (!hasValue(location ?? '')) return <div className="coordinate-facility"><span>{label}</span><strong>설치됨</strong></div>
+
+  return <details className="coordinate-facility coordinate-facility-with-location">
+    <summary><span>{label}</span><strong>설치됨 · 위치</strong></summary>
+    <p>{formatFacilityLocation(location ?? '')}</p>
+  </details>
 }
 
 function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse }) {
