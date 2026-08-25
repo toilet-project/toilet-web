@@ -721,11 +721,10 @@ function App() {
         {selectedCoordinateGroup && (
           <aside className="coordinate-group-card" aria-live="polite" aria-label="같은 위치 화장실 목록">
             <button type="button" className="close-button" onClick={closeDetailCard} aria-label="목록 닫기">×</button>
-            <span className="card-label">동일 좌표로 등록됨</span>
-            <strong>같은 위치에 {selectedCoordinateGroup.toilets.length}곳</strong>
             {selectedToilet ? (
               <div className="coordinate-group-detail">
-                <button type="button" className="coordinate-group-back" onClick={returnToCoordinateGroupList}>목록으로</button>
+                <button type="button" className="coordinate-group-back" onClick={returnToCoordinateGroupList}>← 뒤로가기</button>
+                <span className="card-label">동일 좌표로 등록됨</span>
                 <h2>{toiletDetail?.name || selectedToilet.name}</h2>
                 <p className="open-time">{toiletDetail ? formatOpenTime(toiletDetail) : isDetailLoading ? '상세 정보를 불러오는 중…' : '상세 정보를 확인해 주세요.'}</p>
                 {detailError && <p className="detail-error" role="alert">{detailError}</p>}
@@ -733,6 +732,7 @@ function App() {
               </div>
             ) : (
               <>
+                <span className="card-label">동일 좌표로 등록됨</span>
                 <p>목록에서 화장실을 선택하면 이 패널에서 상세 정보를 확인할 수 있습니다.</p>
                 <div className="coordinate-group-list">
                   {selectedCoordinateGroup.toilets.map((toilet) => <button
