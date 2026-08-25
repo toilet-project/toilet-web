@@ -7,8 +7,10 @@ import './App.css'
 const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
 const CLUSTER_GRID_SIZE = 84
 
-type MapPoint = { id?: number; latitude: number; longitude: number; count: number; name?: string }
+type ToiletMapItem = { id: number; name: string; latitude: number; longitude: number }
+type MapPoint = { id?: number; latitude: number; longitude: number; count: number; name?: string; toilets?: ToiletMapItem[] }
 type SelectedToilet = { id: number; name: string; latitude: number; longitude: number }
+type SelectedCoordinateGroup = { latitude: number; longitude: number; toilets: ToiletMapItem[] }
 type CardPosition = { left: number; top: number }
 type Coordinates = { latitude: number; longitude: number }
 
@@ -68,30 +70,46 @@ function formatDistance(distanceInMeters: number) {
   return `${(distanceInMeters / 1_000).toFixed(1)}km`
 }
 
+function groupToiletsByCoordinate(toilets: ToiletMapItem[]) {
+  const groups = new Map<string, ToiletMapItem[]>()
+
+  for (const toilet of toilets) {
+    const key = `${toilet.latitude}:${toilet.longitude}`
+    const current = groups.get(key)
+    if (current) current.push(toilet)
+    else groups.set(key, [toilet])
+  }
+
+  return [...groups.values()].map((items): MapPoint => {
+    const [toilet] = items
+    return items.length === 1
+      ? { ...toilet, count: 1 }
+      : { latitude: toilet.latitude, longitude: toilet.longitude, count: items.length, toilets: items }
+  })
+}
+
 function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
-  const groups = new Map<string, { id?: number; latitude: number; longitude: number; count: number; name?: string }>()
+  const groups = new Map<string, MapPoint[]>()
   const projection = map.getProjection()
 
   for (const point of points) {
     const projected = projection.pointFromCoords(new window.kakao.maps.LatLng(point.latitude, point.longitude))
     const key = `${Math.floor(projected.x / CLUSTER_GRID_SIZE)}:${Math.floor(projected.y / CLUSTER_GRID_SIZE)}`
     const current = groups.get(key)
-    if (current) {
-      current.latitude += point.latitude * point.count
-      current.longitude += point.longitude * point.count
-      current.count += point.count
-    } else {
-      groups.set(key, { id: point.id, latitude: point.latitude * point.count, longitude: point.longitude * point.count, count: point.count, name: point.name })
-    }
+    if (current) current.push(point)
+    else groups.set(key, [point])
   }
 
-  return [...groups.values()].map((group) => ({
-    latitude: group.latitude / group.count,
-    longitude: group.longitude / group.count,
-    count: group.count,
-    id: group.count === 1 ? group.id : undefined,
-    name: group.count === 1 ? group.name : undefined,
-  }))
+  return [...groups.values()].map((items): MapPoint => {
+    if (items.length === 1) return items[0]
+
+    const count = items.reduce((total, point) => total + point.count, 0)
+    return {
+      latitude: items.reduce((total, point) => total + (point.latitude * point.count), 0) / count,
+      longitude: items.reduce((total, point) => total + (point.longitude * point.count), 0) / count,
+      count,
+    }
+  })
 }
 
 function App() {
@@ -116,6 +134,7 @@ function App() {
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<ToiletMapSearchResponse | null>(null)
   const [selectedToilet, setSelectedToilet] = useState<SelectedToilet | null>(null)
+  const [selectedCoordinateGroup, setSelectedCoordinateGroup] = useState<SelectedCoordinateGroup | null>(null)
   const [placeCardPosition, setPlaceCardPosition] = useState<CardPosition | null>(null)
   const [toiletDetail, setToiletDetail] = useState<ToiletDetailResponse | null>(null)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
@@ -171,6 +190,7 @@ function App() {
     detailRequestRef.current += 1
     selectedToiletRef.current = null
     setSelectedToilet(null)
+    setSelectedCoordinateGroup(null)
     setPlaceCardPosition(null)
     setToiletDetail(null)
     setDetailError(null)
@@ -226,6 +246,7 @@ function App() {
     const requestSequence = ++detailRequestRef.current
     const selected = { id: toiletId, name, latitude, longitude }
     selectedToiletRef.current = selected
+    setSelectedCoordinateGroup(null)
     toiletMarkerElementsRef.current.forEach((marker, markerId) => marker.classList.toggle('is-selected', markerId === toiletId))
     setSelectedToilet(selected)
     setPlaceCardPosition(null)
@@ -246,12 +267,18 @@ function App() {
     }
   }, [])
 
+  const openCoordinateGroup = useCallback((point: MapPoint) => {
+    if (!point.toilets) return
+    closeDetailCard()
+    setSelectedCoordinateGroup({ latitude: point.latitude, longitude: point.longitude, toilets: point.toilets })
+  }, [closeDetailCard])
+
   const renderResult = useCallback((map: KakaoMapInstance, response: ToiletMapSearchResponse) => {
     clearOverlays()
 
     const points: MapPoint[] = response.meta.display_type === 'CLUSTER'
       ? response.clusters
-      : response.toilets.map((toilet) => ({ ...toilet, count: 1 }))
+      : groupToiletsByCoordinate(response.toilets)
     const displayPoints = map.getLevel() >= 5 || response.meta.display_type === 'CLUSTER'
       ? groupPointsByScreenGrid(map, points)
       : points
@@ -261,11 +288,16 @@ function App() {
     overlaysRef.current = displayPoints.map((point) => {
       if (point.count > 1) {
         const content = document.createElement('button')
-        content.className = 'cluster-marker'
+        const isCoordinateGroup = point.toilets != null
+        content.className = isCoordinateGroup ? 'coordinate-group-marker' : 'cluster-marker'
         content.type = 'button'
-        content.textContent = String(point.count)
-        content.setAttribute('aria-label', `${point.count}개의 화장실이 있는 구역 확대하기`)
+        content.textContent = isCoordinateGroup ? `같은 위치 ${point.count}` : String(point.count)
+        content.setAttribute('aria-label', isCoordinateGroup ? `같은 위치에 등록된 화장실 ${point.count}곳 목록 보기` : `${point.count}개의 화장실이 있는 구역 확대하기`)
         content.addEventListener('click', () => {
+          if (isCoordinateGroup) {
+            openCoordinateGroup(point)
+            return
+          }
           map.setLevel(Math.max(1, map.getLevel() - 2), { anchor: new window.kakao.maps.LatLng(point.latitude, point.longitude) })
           map.panTo(new window.kakao.maps.LatLng(point.latitude, point.longitude))
         })
@@ -315,7 +347,7 @@ function App() {
     })
 
     overlaysRef.current.forEach((overlay) => overlay.setMap(map))
-  }, [clearOverlays, selectToilet])
+  }, [clearOverlays, openCoordinateGroup, selectToilet])
 
   const loadMapArea = useCallback(async () => {
     const map = mapRef.current
@@ -567,6 +599,7 @@ function App() {
   const distanceToSelectedToilet = currentLocation && selectedToilet
     ? formatDistance(calculateDistanceInMeters(currentLocation, selectedToilet))
     : null
+  const hasMapCard = selectedToilet != null || selectedCoordinateGroup != null
 
   return (
     <main className="app-shell">
@@ -611,13 +644,13 @@ function App() {
 
       <section className="map-section" aria-label="공중화장실 지도">
         <div ref={mapContainerRef} className="map" />
-        <div className={`map-controls${selectedToilet ? ' is-with-card' : ''}`}>
+        <div className={`map-controls${hasMapCard ? ' is-with-card' : ''}`}>
           <div className="map-hud" aria-live="polite">
             {isLoading && <span>지도를 조회하는 중…</span>}
             {!isLoading && result && <span>이 지역 {result.meta.total_count.toLocaleString()}곳{result.meta.display_type === 'CLUSTER' ? ' · 묶어서 표시 중' : ''}</span>}
             {error && <span className="error-message">{error}</span>}
           </div>
-          <button className={`location-button${selectedToilet ? ' is-with-card' : ''}`} type="button" onClick={() => void moveToCurrentLocation()} disabled={isLocating}>
+          <button className={`location-button${hasMapCard ? ' is-with-card' : ''}`} type="button" onClick={() => void moveToCurrentLocation()} disabled={isLocating}>
             {isLocating ? '확인 중' : '현재 위치'}
           </button>
         </div>
@@ -650,6 +683,21 @@ function App() {
               {toiletDetail && hasValue(toiletDetail.roadAddress || toiletDetail.jibunAddress) && <div className="summary-address"><DetailRow label="주소" value={toiletDetail.roadAddress || toiletDetail.jibunAddress} copyable /></div>}
               {detailError && <p className="detail-error" role="alert">{detailError}</p>}
               {toiletDetail && <ToiletDetailContents toilet={toiletDetail} />}
+            </div>
+          </aside>
+        )}
+        {selectedCoordinateGroup && (
+          <aside className="coordinate-group-card" aria-live="polite" aria-label="같은 위치 화장실 목록">
+            <button type="button" className="close-button" onClick={closeDetailCard} aria-label="목록 닫기">×</button>
+            <span className="card-label">동일 좌표로 등록됨</span>
+            <strong>같은 위치에 {selectedCoordinateGroup.toilets.length}곳</strong>
+            <p>목록에서 화장실을 선택하면 상세 정보를 확인할 수 있습니다.</p>
+            <div className="coordinate-group-list">
+              {selectedCoordinateGroup.toilets.map((toilet) => <button
+                key={toilet.id}
+                type="button"
+                onClick={() => void selectToilet(toilet.id, toilet.name, toilet.latitude, toilet.longitude)}
+              >{toilet.name || '이름 없는 공중화장실'}<span>상세 정보 보기</span></button>)}
             </div>
           </aside>
         )}
