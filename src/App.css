@@ -70,15 +70,19 @@
 @keyframes selected-marker-pulse { 0%, 100% { box-shadow: 0 0 0 4px rgb(39 128 74 / 28%), 0 3px 9px rgb(13 67 35 / 48%); } 50% { box-shadow: 0 0 0 8px rgb(39 128 74 / 7%), 0 3px 9px rgb(13 67 35 / 48%); } }
 @media (prefers-reduced-motion: reduce) { .toilet-marker.is-selected .toilet-marker-pin { animation: none; } }
 .cluster-marker { min-width: 44px; height: 44px; padding: 0 10px; border: 3px solid #e9f7ed; border-radius: 999px; background: #188247; color: #fff; font-size: 13px; font-weight: 800; }
-.coordinate-group-marker { min-height: 34px; padding: 0 10px; border: 2px solid #fff; border-radius: 999px; background: #17683a; box-shadow: 0 2px 9px rgb(15 74 39 / 45%); color: #fff; font-size: 12px; font-weight: 800; white-space: nowrap; }
-.coordinate-group-marker::before { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border: 2px solid rgb(255 255 255 / 82%); border-radius: 50%; content: ''; vertical-align: -1px; }
-.coordinate-group-card { position: absolute; z-index: 5; left: 18px; bottom: 18px; display: flex; width: min(360px, calc(100% - 36px)); max-height: min(460px, calc(100% - 36px)); padding: 20px; flex-direction: column; overflow: hidden; border-radius: 16px; background: #fff; box-shadow: 0 8px 28px rgb(31 46 34 / 18%); }
+.coordinate-group-marker { min-height: 34px; padding: 0 11px; border: 2px solid #fff; border-radius: 999px; background: #17683a; box-shadow: 0 2px 9px rgb(15 74 39 / 45%); color: #fff; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.coordinate-group-card { position: absolute; z-index: 7; top: 18px; bottom: 18px; left: 18px; display: flex; width: clamp(340px, 25vw, 440px); max-height: none; padding: 20px; flex-direction: column; overflow: hidden; border-radius: 16px; background: #fff; box-shadow: 0 8px 28px rgb(31 46 34 / 18%); }
 .coordinate-group-card > strong { display: block; padding-right: 26px; color: #1d2b21; font-size: 19px; }
 .coordinate-group-card > p { margin: 8px 0 14px; color: #647168; font-size: 13px; line-height: 1.45; }
-.coordinate-group-list { display: grid; gap: 7px; overflow-y: auto; overscroll-behavior: contain; }
+.coordinate-group-list { display: grid; flex: 1 1 auto; align-content: start; gap: 7px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .coordinate-group-list button { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 12px; border: 1px solid #e0e9e2; border-radius: 10px; background: #f8fbf8; color: #233127; font: inherit; font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }
 .coordinate-group-list button:hover { border-color: #9bc7a8; background: #eff8f1; }
 .coordinate-group-list button span { flex: 0 0 auto; color: #27804a; font-size: 11px; font-weight: 700; }
+.coordinate-group-detail { display: flex; min-height: 0; flex: 1 1 auto; flex-direction: column; }
+.coordinate-group-detail h2 { margin: 12px 30px 0 0; color: #1d2b21; font-size: 19px; line-height: 1.35; }
+.coordinate-group-detail .card-details { flex: 1 1 auto; max-height: none; }
+.coordinate-group-back { align-self: flex-start; padding: 5px 8px; border: 1px solid #c8d9cc; border-radius: 7px; background: #fff; color: #17683a; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+@media (min-width: 641px) { .place-card-with-group { display: none; } }
 .current-location-marker { display: grid; width: 24px; height: 24px; place-items: center; border: 3px solid #fff; border-radius: 50%; background: #2878e3; box-shadow: 0 1px 8px rgb(22 76 153 / 55%); }
 .current-location-marker span:first-child { width: 7px; height: 7px; border-radius: 50%; background: #fff; }
 .search-place-marker { display: flex; align-items: center; gap: 5px; padding: 5px 8px; border: 2px solid #fff; border-radius: 999px; background: #17683a; box-shadow: 0 2px 10px rgb(23 104 58 / 35%); color: #fff; font-size: 12px; font-weight: 800; white-space: nowrap; }
