@@ -93,21 +93,25 @@
 .coordinate-inline-address dd { display: flex; min-width: 0; max-width: none; align-items: center; gap: 6px; }
 .coordinate-inline-address dd > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .coordinate-inline-address .copy-address-button { flex: 0 0 auto; }
-.coordinate-inline-capacity { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 11px 0 0; }
-.coordinate-inline-capacity div { display: flex; gap: 4px; align-items: baseline; }
-.coordinate-inline-capacity dt { color: #66736b; font-size: 12px; }
-.coordinate-inline-capacity dd { margin: 0; color: #243129; font-size: 12px; font-weight: 700; }
-.coordinate-inline-facilities { display: flex; gap: 7px; align-items: flex-start; margin-top: 11px; }
-.coordinate-inline-facilities h2 { flex: 0 0 auto; margin: 0; color: #526157; font-size: 12px; line-height: 1.55; }
-.coordinate-facility-list { display: flex; flex: 1; flex-wrap: wrap; gap: 4px 9px; min-width: 0; }
-.coordinate-facility { display: inline-flex; gap: 3px; align-items: baseline; min-width: 0; color: #48574e; font-size: 11px; white-space: nowrap; }
-.coordinate-facility > span, .coordinate-facility summary > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.coordinate-facility strong { color: #167743; font-size: 11px; }
+.coordinate-inline-section, .coordinate-inline-facilities { margin-top: 13px; }
+.coordinate-inline-section h2, .coordinate-inline-facilities h2 { margin: 0; color: #526157; font-size: 12px; font-weight: 700; }
+.coordinate-inline-capacity { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 8px 0 0; }
+.coordinate-inline-capacity div { min-width: 0; padding: 9px 10px; border: 1px solid #e2ebe4; border-radius: 8px; background: #f7faf7; }
+.coordinate-inline-capacity dt { color: #66736b; font-size: 11px; }
+.coordinate-inline-capacity dd { margin: 3px 0 0; color: #17683a; font-size: 20px; font-weight: 800; line-height: 1; }
+.coordinate-inline-capacity small { margin-left: 2px; color: #526157; font-size: 11px; font-weight: 700; }
+.coordinate-inline-facilities { display: block; }
+.coordinate-facility-list { display: grid; gap: 6px; margin-top: 8px; }
+.coordinate-facility { display: grid; min-height: 34px; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid #e4ebe5; border-radius: 8px; color: #48574e; font-size: 12px; }
+.coordinate-facility strong { color: #167743; font-size: 12px; }
 .coordinate-facility strong.is-unavailable { color: #849088; }
 .coordinate-facility-with-location { display: block; }
-.coordinate-facility-with-location summary { display: inline-flex; gap: 3px; align-items: baseline; cursor: pointer; list-style: none; }
+.coordinate-facility-with-location summary { display: grid; min-height: 34px; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 7px 9px; cursor: pointer; list-style: none; }
 .coordinate-facility-with-location summary::-webkit-details-marker { display: none; }
-.coordinate-facility-with-location p { margin: 7px 0 0; color: #647168; font-size: 11px; line-height: 1.4; }
+.coordinate-facility-with-location p { margin: 0; padding: 0 9px 9px; color: #647168; font-size: 11px; line-height: 1.4; }
+.coordinate-facility-location { display: inline-flex; align-items: center; gap: 4px; color: #526157; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.coordinate-facility-location i { width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg) translate(-1px, -1px); }
+.coordinate-facility-with-location[open] .coordinate-facility-location i { transform: rotate(225deg) translate(-1px, -1px); }
 .coordinate-inline-agency dd { max-width: 72%; }
 @media (min-width: 641px) { .place-card-with-group { display: none; } }
 .current-location-marker { display: grid; width: 24px; height: 24px; place-items: center; border: 3px solid #fff; border-radius: 50%; background: #2878e3; box-shadow: 0 1px 8px rgb(22 76 153 / 55%); }
