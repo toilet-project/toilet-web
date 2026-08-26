@@ -694,6 +694,9 @@ function App() {
     : null
   const hasMapCard = selectedToilet != null || selectedCoordinateGroup != null
   const areaToilets = mobileAreaToilets ?? result?.toilets ?? []
+  const sortedAreaToilets = currentLocation
+    ? [...areaToilets].sort((left, right) => calculateDistanceInMeters(currentLocation, left) - calculateDistanceInMeters(currentLocation, right))
+    : areaToilets
   const isLongMobileAreaList = areaToilets.length > 8
 
   const toggleMobileAreaList = useCallback(async () => {
@@ -803,7 +806,7 @@ function App() {
           <div className="mobile-area-list-content">
             {isMobileAreaListLoading && <p className="mobile-area-list-status">목록을 불러오는 중…</p>}
             {!isMobileAreaListLoading && areaToilets.length === 0 && <p className="mobile-area-list-status">이 영역의 화장실 목록이 없습니다.</p>}
-            {!isMobileAreaListLoading && areaToilets.map((toilet) => {
+            {!isMobileAreaListLoading && sortedAreaToilets.map((toilet) => {
               const distance = currentLocation ? formatDistance(calculateDistanceInMeters(currentLocation, toilet)) : '—'
               return <button key={toilet.id} type="button" className="mobile-area-list-item" onClick={() => selectMobileAreaToilet(toilet)}>
                 <strong>{toilet.name || '이름 없는 공중화장실'}</strong>
