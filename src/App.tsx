@@ -96,10 +96,21 @@ function coordinateGroupFloor(name: string) {
   return floor ? Number(floor[1]) : null
 }
 
+function coordinateGroupName(name: string) {
+  return name
+    .replace(/(?:지하|b)\s*\d+\s*층/gi, '')
+    .replace(/\d+\s*층/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function sortCoordinateGroupToilets(toilets: ToiletMapItem[]) {
   const collator = new Intl.Collator('ko-KR', { numeric: true, sensitivity: 'base' })
 
   return [...toilets].sort((left, right) => {
+    const nameComparison = collator.compare(coordinateGroupName(left.name), coordinateGroupName(right.name))
+    if (nameComparison !== 0) return nameComparison
+
     const leftFloor = coordinateGroupFloor(left.name)
     const rightFloor = coordinateGroupFloor(right.name)
     if (leftFloor != null && rightFloor != null && leftFloor !== rightFloor) return rightFloor - leftFloor
