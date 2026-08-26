@@ -318,13 +318,16 @@ function App() {
     setDetailError(null)
     setIsDetailLoading(true)
 
-    if (window.matchMedia('(max-width: 640px)').matches) {
-      requestAnimationFrame(() => {
-        const list = coordinateGroupListRef.current
-        const item = coordinateGroupItemRefs.current.get(toilet.id)
-        if (list && item) list.scrollTo({ top: item.offsetTop, behavior: 'smooth' })
-      })
+    const scrollExpandedItemIntoView = () => {
+      const list = coordinateGroupListRef.current
+      const item = coordinateGroupItemRefs.current.get(toilet.id)
+      if (!list || !item) return
+
+      const itemTop = item.offsetTop - list.offsetTop
+      list.scrollTo({ top: Math.max(0, itemTop - 8), behavior: 'smooth' })
     }
+
+    requestAnimationFrame(scrollExpandedItemIntoView)
 
     try {
       const detail = await fetchToiletDetail(toilet.id)
@@ -332,7 +335,10 @@ function App() {
     } catch {
       if (requestSequence === detailRequestRef.current) setDetailError('상세 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
-      if (requestSequence === detailRequestRef.current) setIsDetailLoading(false)
+      if (requestSequence === detailRequestRef.current) {
+        setIsDetailLoading(false)
+        requestAnimationFrame(scrollExpandedItemIntoView)
+      }
     }
   }, [expandedCoordinateToilet])
 
@@ -793,10 +799,13 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error }: { toilet: To
   return <div className="coordinate-inline-details">
     <p className="open-time">{formatOpenTime(toilet)}</p>
     {address && <DetailRow className="coordinate-inline-address" label="주소" value={address} copyable />}
-    <dl className="coordinate-inline-capacity">
-      <div><dt>남성 대변기</dt><dd>{toilet.maleToiletCount}대</dd></div>
-      <div><dt>여성 대변기</dt><dd>{toilet.femaleToiletCount}대</dd></div>
-    </dl>
+    <section className="coordinate-inline-section coordinate-inline-capacity-section" aria-label="화장실 수">
+      <h2>화장실 수</h2>
+      <dl className="coordinate-inline-capacity">
+        <div><dt>남성 대변기</dt><dd>{toilet.maleToiletCount}<small>대</small></dd></div>
+        <div><dt>여성 대변기</dt><dd>{toilet.femaleToiletCount}<small>대</small></dd></div>
+      </dl>
+    </section>
     <section className="coordinate-inline-facilities" aria-label="편의 및 안전">
       <h2>편의·안전</h2>
       <div className="coordinate-facility-list">
@@ -810,11 +819,11 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error }: { toilet: To
 }
 
 function CompactFacilityStatus({ label, available, location }: { label: string; available: boolean; location?: string }) {
-  if (!available) return <span className="coordinate-facility"><span>{label}</span><strong className="is-unavailable">미설치</strong></span>
-  if (!hasValue(location ?? '')) return <span className="coordinate-facility"><span>{label}</span><strong>설치됨</strong></span>
+  if (!available) return <div className="coordinate-facility"><span>{label}</span><strong className="is-unavailable">미설치</strong></div>
+  if (!hasValue(location ?? '')) return <div className="coordinate-facility"><span>{label}</span><strong>설치됨</strong></div>
 
   return <details className="coordinate-facility coordinate-facility-with-location">
-    <summary><span>{label}</span><strong>설치됨 · 위치</strong></summary>
+    <summary><span>{label}</span><strong>설치됨</strong><span className="coordinate-facility-location">위치 보기 <i aria-hidden="true" /></span></summary>
     <p>{formatFacilityLocation(location ?? '')}</p>
   </details>
 }
