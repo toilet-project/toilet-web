@@ -787,7 +787,7 @@ function App() {
         <div className={`map-controls${hasMapCard ? ' is-with-card' : ''}`}>
           <div className="map-hud" aria-live="polite">
             {isLoading && <span>지도를 조회하는 중…</span>}
-            {!isLoading && result && <><span className="map-area-count">이 지역 {result.meta.total_count.toLocaleString()}곳{result.meta.display_type === 'CLUSTER' ? ' · 묶어서 표시 중' : ''}</span><button className="mobile-area-list-button" type="button" onClick={() => void toggleMobileAreaList()} aria-expanded={isMobileAreaListOpen}>{isMobileAreaListOpen ? '목록 닫기' : `이 지역 ${result.meta.total_count.toLocaleString()}곳`}</button></>}
+            {!isLoading && result && <><span className="map-area-count">이 지역 {result.meta.total_count.toLocaleString()}곳{result.meta.display_type === 'CLUSTER' ? ' · 묶어서 표시 중' : ''}</span><button className={`mobile-area-list-button${isMobileAreaListOpen ? ' is-open' : ''}`} type="button" onClick={() => void toggleMobileAreaList()} aria-expanded={isMobileAreaListOpen}>{isMobileAreaListOpen ? '목록 닫기' : `이 지역 ${result.meta.total_count.toLocaleString()}곳`}</button></>}
             {error && <span className="error-message">{error}</span>}
           </div>
           <button className={`location-button${hasMapCard ? ' is-with-card' : ''}`} type="button" onClick={() => void moveToCurrentLocation()} disabled={isLocating}>
@@ -803,8 +803,8 @@ function App() {
               const distance = currentLocation ? formatDistance(calculateDistanceInMeters(currentLocation, toilet)) : '—'
               return <button key={toilet.id} type="button" className="mobile-area-list-item" onClick={() => selectMobileAreaToilet(toilet)}>
                 <strong>{toilet.name || '이름 없는 공중화장실'}</strong>
-                <span>{toilet.toiletType || '공중화장실'}</span>
-                <span>{distance}</span>
+                <span className="mobile-area-list-type">{toilet.toiletType || '공중화장실'}</span>
+                <span className="mobile-area-list-distance">{distance}</span>
               </button>
             })}
           </div>
