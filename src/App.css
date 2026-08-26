@@ -76,7 +76,7 @@
 .coordinate-group-card > p { margin: 8px 0 14px; color: #647168; font-size: 13px; line-height: 1.45; }
 .coordinate-group-distance { position: absolute; top: 19px; right: 47px; margin: 0 !important; color: #17683a !important; font-size: 11px !important; font-weight: 700; white-space: nowrap; }
 .coordinate-group-distance strong { margin-left: 3px; font-size: 16px; }
-.coordinate-group-list { display: grid; flex: 0 1 auto; align-content: start; gap: 8px; max-height: 520px; min-height: 0; padding-right: 2px; overflow-y: scroll; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.coordinate-group-list { display: grid; flex: 1 1 auto; grid-auto-rows: max-content; align-content: start; gap: 8px; min-height: 0; padding-right: 2px; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
 .coordinate-group-item { min-width: 0; overflow: hidden; scroll-margin-top: 8px; border: 1px solid #e0e9e2; border-radius: 10px; background: #f8fbf8; }
 .coordinate-group-item.is-expanded { border-color: #9bc7a8; background: #fff; }
 .coordinate-group-item-toggle { display: grid; width: 100%; min-height: 48px; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 9px; padding: 12px; border: 0; background: transparent; color: #233127; font-family: inherit; font-size: 13px; font-weight: 400; line-height: 1.4; text-align: left; cursor: pointer; }
