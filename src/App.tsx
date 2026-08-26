@@ -697,7 +697,6 @@ function App() {
   const sortedAreaToilets = currentLocation
     ? [...areaToilets].sort((left, right) => calculateDistanceInMeters(currentLocation, left) - calculateDistanceInMeters(currentLocation, right))
     : areaToilets
-  const isLongMobileAreaList = areaToilets.length > 8
 
   const toggleMobileAreaList = useCallback(async () => {
     if (isMobileAreaListOpen) {
@@ -801,7 +800,7 @@ function App() {
             {isLocating ? '확인 중' : '현재 위치'}
           </button>
         </div>
-        {isMobileAreaListOpen && <aside className={`mobile-area-list${isLongMobileAreaList ? ' is-long' : ''}`} aria-label="현재 지도 영역 화장실 목록">
+        {isMobileAreaListOpen && <aside className="mobile-area-list" aria-label="현재 지도 영역 화장실 목록">
           <div className="mobile-area-list-header"><span>화장실명</span><span>구분</span><span>거리</span></div>
           <div className="mobile-area-list-content">
             {isMobileAreaListLoading && <p className="mobile-area-list-status">목록을 불러오는 중…</p>}

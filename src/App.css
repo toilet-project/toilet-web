@@ -136,7 +136,7 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
   .mobile-area-list-button.is-open { background: #eef8f0; box-shadow: 0 3px 14px rgb(31 46 34 / 18%); }
   .mobile-area-list-button.is-open::before { content: '×'; font-size: 22px; font-weight: 500; }
   .mobile-area-list-button:active { transform: translateY(1px); }
-  .mobile-area-list { border: 1px solid rgb(219 229 221 / 90%); border-bottom: 0; border-radius: 20px 20px 0 0; background: rgb(255 255 255 / 98%); box-shadow: 0 -8px 30px rgb(26 48 33 / 20%); backdrop-filter: blur(14px); }
+  .mobile-area-list { height: calc(100% - 72px); border: 1px solid rgb(219 229 221 / 90%); border-bottom: 0; border-radius: 20px 20px 0 0; background: rgb(255 255 255 / 98%); box-shadow: 0 -8px 30px rgb(26 48 33 / 20%); backdrop-filter: blur(14px); }
   .mobile-area-list::before { width: 34px; height: 4px; margin: 9px auto 2px; flex: 0 0 auto; border-radius: 999px; background: #d5e3d8; content: ''; }
   .mobile-area-list-header { min-height: 44px; padding: 0 15px 2px; border-bottom-color: #e6eee8; color: #5e7063; font-size: 10px; letter-spacing: .02em; text-align: center; }
   .mobile-area-list-header span:nth-child(2), .mobile-area-list-header span:nth-child(3) { text-align: center; }
