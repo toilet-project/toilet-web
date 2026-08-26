@@ -701,6 +701,7 @@ function App() {
     const map = mapRef.current
     if (!map || !result) return
 
+    closeDetailCard()
     setIsMobileAreaListOpen(true)
     if (result.meta.display_type !== 'CLUSTER') return
 
@@ -723,7 +724,7 @@ function App() {
     } finally {
       setIsMobileAreaListLoading(false)
     }
-  }, [isMobileAreaListOpen, result])
+  }, [closeDetailCard, isMobileAreaListOpen, result])
 
   const selectMobileAreaToilet = useCallback((toilet: ToiletMapItem) => {
     const map = mapRef.current
