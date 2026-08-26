@@ -105,7 +105,7 @@
 .coordinate-facility { display: grid; min-height: 34px; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 7px 9px; border: 1px solid #e4ebe5; border-radius: 8px; color: #48574e; font-size: 12px; }
 .coordinate-facility strong { color: #167743; font-size: 12px; }
 .coordinate-facility strong.is-unavailable { color: #849088; }
-.coordinate-facility-with-location { display: block; }
+.coordinate-facility-with-location { display: block; min-height: 0; padding: 0; }
 .coordinate-facility-with-location summary { display: grid; min-height: 34px; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 7px 9px; cursor: pointer; list-style: none; }
 .coordinate-facility-with-location summary::-webkit-details-marker { display: none; }
 .coordinate-facility-with-location p { margin: 0; padding: 0 9px 9px; color: #647168; font-size: 11px; line-height: 1.4; }
