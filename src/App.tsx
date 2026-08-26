@@ -318,13 +318,16 @@ function App() {
     setDetailError(null)
     setIsDetailLoading(true)
 
-    if (window.matchMedia('(max-width: 640px)').matches) {
-      requestAnimationFrame(() => {
-        const list = coordinateGroupListRef.current
-        const item = coordinateGroupItemRefs.current.get(toilet.id)
-        if (list && item) list.scrollTo({ top: item.offsetTop, behavior: 'smooth' })
-      })
+    const scrollExpandedItemIntoView = () => {
+      const list = coordinateGroupListRef.current
+      const item = coordinateGroupItemRefs.current.get(toilet.id)
+      if (!list || !item) return
+
+      const itemTop = item.offsetTop - list.offsetTop
+      list.scrollTo({ top: Math.max(0, itemTop - 8), behavior: 'smooth' })
     }
+
+    requestAnimationFrame(scrollExpandedItemIntoView)
 
     try {
       const detail = await fetchToiletDetail(toilet.id)
@@ -332,7 +335,10 @@ function App() {
     } catch {
       if (requestSequence === detailRequestRef.current) setDetailError('상세 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
     } finally {
-      if (requestSequence === detailRequestRef.current) setIsDetailLoading(false)
+      if (requestSequence === detailRequestRef.current) {
+        setIsDetailLoading(false)
+        requestAnimationFrame(scrollExpandedItemIntoView)
+      }
     }
   }, [expandedCoordinateToilet])
 
