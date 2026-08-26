@@ -7,7 +7,7 @@ import './App.css'
 const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
 const CLUSTER_GRID_SIZE = 84
 
-type ToiletMapItem = { id: number; name: string; latitude: number; longitude: number }
+type ToiletMapItem = { id: number; name: string; toiletType?: string; latitude: number; longitude: number }
 type MapPoint = { id?: number; latitude: number; longitude: number; count: number; name?: string; toilets?: ToiletMapItem[] }
 type SelectedToilet = { id: number; name: string; latitude: number; longitude: number }
 type SelectedCoordinateGroup = { latitude: number; longitude: number; toilets: ToiletMapItem[] }
@@ -184,6 +184,9 @@ function App() {
   const [isPlaceSearching, setIsPlaceSearching] = useState(false)
   const [activePlaceSearchIndex, setActivePlaceSearchIndex] = useState(-1)
   const [isPlaceSearchFocused, setIsPlaceSearchFocused] = useState(false)
+  const [isMobileAreaListOpen, setIsMobileAreaListOpen] = useState(false)
+  const [mobileAreaToilets, setMobileAreaToilets] = useState<ToiletMapItem[] | null>(null)
+  const [isMobileAreaListLoading, setIsMobileAreaListLoading] = useState(false)
 
   const showLocationMessage = useCallback((message: string) => {
     window.clearTimeout(locationMessageTimerRef.current)
@@ -232,6 +235,7 @@ function App() {
     setDetailError(null)
     setIsDetailLoading(false)
     setIsMobileCardExpanded(false)
+    setIsMobileAreaListOpen(false)
     toiletMarkerElementsRef.current.forEach((marker) => marker.classList.remove('is-selected'))
   }, [])
 
@@ -451,6 +455,7 @@ function App() {
 
       if (requestSequence !== requestSequenceRef.current) return
       setResult(response)
+      setMobileAreaToilets(null)
       renderResult(map, response)
     } catch {
       if (requestSequence === requestSequenceRef.current) {
@@ -642,6 +647,7 @@ function App() {
         window.kakao.maps.event.addListener(map, 'idle', () => {
           if (mapInteractionRef.current) {
             mapInteractionRef.current = false
+            setIsMobileAreaListOpen(false)
             if (window.matchMedia('(min-width: 641px)').matches) closeDetailCard()
           }
           scheduleMapAreaLoad()
@@ -683,6 +689,56 @@ function App() {
     ? formatDistance(calculateDistanceInMeters(currentLocation, selectedCoordinateGroup))
     : null
   const hasMapCard = selectedToilet != null || selectedCoordinateGroup != null
+  const areaToilets = mobileAreaToilets ?? result?.toilets ?? []
+  const isLongMobileAreaList = areaToilets.length > 8
+
+  const toggleMobileAreaList = useCallback(async () => {
+    if (isMobileAreaListOpen) {
+      setIsMobileAreaListOpen(false)
+      return
+    }
+
+    const map = mapRef.current
+    if (!map || !result) return
+
+    setIsMobileAreaListOpen(true)
+    if (result.meta.display_type !== 'CLUSTER') return
+
+    const bounds = map.getBounds()
+    const southWest = bounds.getSouthWest()
+    const northEast = bounds.getNorthEast()
+    setIsMobileAreaListLoading(true)
+    try {
+      const response = await fetchToiletsInBounds({
+        southLat: southWest.getLat(),
+        northLat: northEast.getLat(),
+        westLng: southWest.getLng(),
+        eastLng: northEast.getLng(),
+        zoom: map.getLevel(),
+        includeList: true,
+      })
+      setMobileAreaToilets(response.toilets)
+    } catch {
+      setMobileAreaToilets([])
+    } finally {
+      setIsMobileAreaListLoading(false)
+    }
+  }, [isMobileAreaListOpen, result])
+
+  const selectMobileAreaToilet = useCallback((toilet: ToiletMapItem) => {
+    const map = mapRef.current
+    if (!map) return
+
+    const sameCoordinateToilets = areaToilets.filter((item) => item.latitude === toilet.latitude && item.longitude === toilet.longitude)
+    const position = new window.kakao.maps.LatLng(toilet.latitude, toilet.longitude)
+    setIsMobileAreaListOpen(false)
+    if (sameCoordinateToilets.length > 1) {
+      openCoordinateGroup({ latitude: toilet.latitude, longitude: toilet.longitude, count: sameCoordinateToilets.length, toilets: sameCoordinateToilets })
+    } else {
+      void selectToilet(toilet.id, toilet.name, toilet.latitude, toilet.longitude)
+    }
+    map.panTo(position)
+  }, [areaToilets, openCoordinateGroup, selectToilet])
 
   return (
     <main className="app-shell">
@@ -730,13 +786,28 @@ function App() {
         <div className={`map-controls${hasMapCard ? ' is-with-card' : ''}`}>
           <div className="map-hud" aria-live="polite">
             {isLoading && <span>지도를 조회하는 중…</span>}
-            {!isLoading && result && <span>이 지역 {result.meta.total_count.toLocaleString()}곳{result.meta.display_type === 'CLUSTER' ? ' · 묶어서 표시 중' : ''}</span>}
+            {!isLoading && result && <><span className="map-area-count">이 지역 {result.meta.total_count.toLocaleString()}곳{result.meta.display_type === 'CLUSTER' ? ' · 묶어서 표시 중' : ''}</span><button className="mobile-area-list-button" type="button" onClick={() => void toggleMobileAreaList()} aria-expanded={isMobileAreaListOpen}>{isMobileAreaListOpen ? '목록 닫기' : `이 지역 ${result.meta.total_count.toLocaleString()}곳`}</button></>}
             {error && <span className="error-message">{error}</span>}
           </div>
           <button className={`location-button${hasMapCard ? ' is-with-card' : ''}`} type="button" onClick={() => void moveToCurrentLocation()} disabled={isLocating}>
             {isLocating ? '확인 중' : '현재 위치'}
           </button>
         </div>
+        {isMobileAreaListOpen && <aside className={`mobile-area-list${isLongMobileAreaList ? ' is-long' : ''}`} aria-label="현재 지도 영역 화장실 목록">
+          <div className="mobile-area-list-header"><span>화장실명</span><span>구분</span><span>거리</span></div>
+          <div className="mobile-area-list-content">
+            {isMobileAreaListLoading && <p className="mobile-area-list-status">목록을 불러오는 중…</p>}
+            {!isMobileAreaListLoading && areaToilets.length === 0 && <p className="mobile-area-list-status">이 영역의 화장실 목록이 없습니다.</p>}
+            {!isMobileAreaListLoading && areaToilets.map((toilet) => {
+              const distance = currentLocation ? formatDistance(calculateDistanceInMeters(currentLocation, toilet)) : '—'
+              return <button key={toilet.id} type="button" className="mobile-area-list-item" onClick={() => selectMobileAreaToilet(toilet)}>
+                <strong>{toilet.name || '이름 없는 공중화장실'}</strong>
+                <span>{toilet.toiletType || '공중화장실'}</span>
+                <span>{distance}</span>
+              </button>
+            })}
+          </div>
+        </aside>}
         {locationMessage && <p className="location-message" role="status">{locationMessage}</p>}
         {selectedToilet && (
           <aside

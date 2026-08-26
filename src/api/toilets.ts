@@ -2,7 +2,7 @@ import { createApiUrl } from '../config/api'
 
 export type ToiletMapSearchResponse = {
   meta: { map_level: number; display_type: 'MARKER' | 'CLUSTER'; total_count: number; result_count: number }
-  toilets: Array<{ id: number; name: string; latitude: number; longitude: number }>
+  toilets: Array<{ id: number; name: string; toiletType?: string; latitude: number; longitude: number }>
   clusters: Array<{ latitude: number; longitude: number; count: number }>
 }
 
@@ -35,7 +35,7 @@ export type ToiletDetailResponse = {
   dataSource: string
 }
 
-export async function fetchToiletsInBounds(params: { southLat: number; northLat: number; westLng: number; eastLng: number; zoom: number }): Promise<ToiletMapSearchResponse> {
+export async function fetchToiletsInBounds(params: { southLat: number; northLat: number; westLng: number; eastLng: number; zoom: number; includeList?: boolean }): Promise<ToiletMapSearchResponse> {
   const query = new URLSearchParams(Object.entries(params).map(([key, value]) => [key, String(value)]))
   const response = await fetch(createApiUrl(`/api/v1/toilets?${query}`))
   if (!response.ok) throw new Error(`화장실 조회에 실패했습니다. (${response.status})`)
