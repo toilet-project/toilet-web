@@ -653,9 +653,13 @@ function App() {
           scheduleMapAreaLoad()
           positionSelectedCard()
         })
-        const markMapInteraction = () => { mapInteractionRef.current = true }
+        const markMapInteraction = () => {
+          mapInteractionRef.current = true
+          setIsMobileAreaListOpen(false)
+        }
         window.kakao.maps.event.addListener(map, 'dragstart', markMapInteraction)
         window.kakao.maps.event.addListener(map, 'zoom_changed', markMapInteraction)
+        window.kakao.maps.event.addListener(map, 'click', () => setIsMobileAreaListOpen(false))
         resizeObserver = new ResizeObserver(() => map.relayout())
         resizeObserver.observe(mapContainerRef.current)
         await loadMapArea()
