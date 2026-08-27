@@ -137,7 +137,9 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
   .mobile-area-list-button.is-open::before { content: '×'; font-size: 22px; font-weight: 500; }
   .mobile-area-list-button:active { transform: translateY(1px); }
   .mobile-area-list { height: calc(100% - 72px); border: 1px solid rgb(219 229 221 / 90%); border-bottom: 0; border-radius: 20px 20px 0 0; background: rgb(255 255 255 / 98%); box-shadow: 0 -8px 30px rgb(26 48 33 / 20%); backdrop-filter: blur(14px); }
-  .mobile-area-list::before { width: 34px; height: 4px; margin: 9px auto 2px; flex: 0 0 auto; border-radius: 999px; background: #d5e3d8; content: ''; }
+  .mobile-area-list-handle { display: flex; width: 100%; height: 18px; flex: 0 0 auto; align-items: center; justify-content: center; padding: 0; border: 0; background: transparent; cursor: pointer; touch-action: manipulation; }
+  .mobile-area-list-handle::before { width: 34px; height: 4px; border-radius: 999px; background: #b9cdbd; box-shadow: 0 1px 0 rgb(255 255 255 / 72%); content: ''; transition: width 140ms ease, background 140ms ease; }
+  .mobile-area-list-handle:active::before { width: 42px; background: #78a184; }
   .mobile-area-list-header { min-height: 44px; padding: 0 15px 2px; border-bottom-color: #e6eee8; color: #5e7063; font-size: 10px; letter-spacing: .02em; text-align: center; }
   .mobile-area-list-header span:nth-child(2), .mobile-area-list-header span:nth-child(3) { text-align: center; }
   .mobile-area-list-content { padding-bottom: env(safe-area-inset-bottom); }
@@ -145,10 +147,12 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
   .mobile-area-list-item:nth-child(even) { background: #fbfdfb; }
   .mobile-area-list-item:hover, .mobile-area-list-item:active { background: #edf8ef; }
   .mobile-area-list-item:active { transform: scale(.995); }
-  .mobile-area-list-item strong { font-size: 13px; letter-spacing: -.15px; }
-  .mobile-area-list-item strong { display: flex; align-items: center; gap: 4px; overflow: visible; white-space: normal; }
+  .mobile-area-list-item strong { display: flex; align-items: center; gap: 5px; overflow: visible; color: #1e2b22; font-size: 13px; font-weight: 800; letter-spacing: -.18px; white-space: normal; }
   .mobile-area-list-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mobile-area-list-additional { flex: 0 0 auto; overflow: visible !important; color: #17683a !important; font-size: 11px !important; font-weight: 800; white-space: nowrap; }
-  .mobile-area-list-type { justify-self: center; max-width: 68px; padding: 3px 6px; border-radius: 999px; background: #edf5ef; color: #487157 !important; font-size: 10px !important; font-weight: 700; text-align: center !important; }
+  .mobile-area-list-type { justify-self: center; max-width: 68px; padding: 3px 6px; border: 1px solid transparent; border-radius: 999px; font-size: 10px !important; font-weight: 800; letter-spacing: -.1px; text-align: center !important; }
+  .mobile-area-list-type.is-public { border-color: #dce7de; background: #eff5f0; color: #55745d !important; }
+  .mobile-area-list-type.is-open { border-color: #eadfc8; background: #fbf6ec; color: #806c48 !important; }
+  .mobile-area-list-type.is-reported { border-color: #d9e0f0; background: #f1f4fb; color: #5c6f9c !important; }
   .mobile-area-list-distance { justify-self: center; color: #17683a !important; font-size: 12px !important; font-weight: 800; text-align: center !important; }
 }
