@@ -694,9 +694,10 @@ function App() {
     : null
   const hasMapCard = selectedToilet != null || selectedCoordinateGroup != null
   const areaToilets = mobileAreaToilets ?? result?.toilets ?? []
-  const sortedAreaToilets = currentLocation
-    ? [...areaToilets].sort((left, right) => calculateDistanceInMeters(currentLocation, left) - calculateDistanceInMeters(currentLocation, right))
-    : areaToilets
+  const groupedAreaToilets = groupToiletsByCoordinate(areaToilets)
+  const sortedAreaToiletGroups = currentLocation
+    ? [...groupedAreaToilets].sort((left, right) => calculateDistanceInMeters(currentLocation, left) - calculateDistanceInMeters(currentLocation, right))
+    : groupedAreaToilets
 
   const toggleMobileAreaList = useCallback(async () => {
     if (isMobileAreaListOpen) {
@@ -805,11 +806,18 @@ function App() {
           <div className="mobile-area-list-content">
             {isMobileAreaListLoading && <p className="mobile-area-list-status">목록을 불러오는 중…</p>}
             {!isMobileAreaListLoading && areaToilets.length === 0 && <p className="mobile-area-list-status">이 영역의 화장실 목록이 없습니다.</p>}
-            {!isMobileAreaListLoading && sortedAreaToilets.map((toilet) => {
-              const distance = currentLocation ? formatDistance(calculateDistanceInMeters(currentLocation, toilet)) : '—'
-              return <button key={toilet.id} type="button" className="mobile-area-list-item" onClick={() => selectMobileAreaToilet(toilet)}>
-                <strong>{toilet.name || '이름 없는 공중화장실'}</strong>
-                <span className="mobile-area-list-type">{toilet.toiletType || '공중화장실'}</span>
+            {!isMobileAreaListLoading && sortedAreaToiletGroups.map((group) => {
+              const representative = group.toilets?.[0] ?? {
+                id: group.id ?? 0,
+                name: group.name ?? '',
+                latitude: group.latitude,
+                longitude: group.longitude,
+              }
+              const additionalCount = group.count - 1
+              const distance = currentLocation ? formatDistance(calculateDistanceInMeters(currentLocation, representative)) : '—'
+              return <button key={`${group.latitude}:${group.longitude}`} type="button" className="mobile-area-list-item" onClick={() => selectMobileAreaToilet(representative)}>
+                <strong>{representative.name || '이름 없는 공중화장실'}{additionalCount > 0 ? ` 외 ${additionalCount}개` : ''}</strong>
+                <span className="mobile-area-list-type">{representative.toiletType || '공중화장실'}</span>
                 <span className="mobile-area-list-distance">{distance}</span>
               </button>
             })}
