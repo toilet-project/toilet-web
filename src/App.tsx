@@ -70,6 +70,13 @@ function formatDistance(distanceInMeters: number) {
   return `${(distanceInMeters / 1_000).toFixed(1)}km`
 }
 
+function toiletTypeTone(toiletType?: string) {
+  const normalizedType = toiletType?.replace(/\s/g, '') ?? ''
+  if (normalizedType.includes('개방')) return 'is-open'
+  if (normalizedType.includes('제보')) return 'is-reported'
+  return 'is-public'
+}
+
 function groupToiletsByCoordinate(toilets: ToiletMapItem[]) {
   const groups = new Map<string, ToiletMapItem[]>()
 
@@ -802,6 +809,7 @@ function App() {
           </button>
         </div>
         {isMobileAreaListOpen && <aside className="mobile-area-list" aria-label="현재 지도 영역 화장실 목록">
+          <button className="mobile-area-list-handle" type="button" onClick={() => setIsMobileAreaListOpen(false)} aria-label="지역 목록 닫기" />
           <div className="mobile-area-list-header"><span>화장실명</span><span>구분</span><span>거리</span></div>
           <div className="mobile-area-list-content">
             {isMobileAreaListLoading && <p className="mobile-area-list-status">목록을 불러오는 중…</p>}
@@ -820,7 +828,7 @@ function App() {
                   <span className="mobile-area-list-name">{representative.name || '이름 없는 공중화장실'}</span>
                   {additionalCount > 0 && <span className="mobile-area-list-additional">외 {additionalCount}개</span>}
                 </strong>
-                <span className="mobile-area-list-type">{representative.toiletType || '공중화장실'}</span>
+                <span className={`mobile-area-list-type ${toiletTypeTone(representative.toiletType)}`}>{representative.toiletType || '공중화장실'}</span>
                 <span className="mobile-area-list-distance">{distance}</span>
               </button>
             })}
