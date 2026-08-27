@@ -146,6 +146,9 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
   .mobile-area-list-item:hover, .mobile-area-list-item:active { background: #edf8ef; }
   .mobile-area-list-item:active { transform: scale(.995); }
   .mobile-area-list-item strong { font-size: 13px; letter-spacing: -.15px; }
+  .mobile-area-list-item strong { display: flex; align-items: center; gap: 4px; overflow: visible; white-space: normal; }
+  .mobile-area-list-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mobile-area-list-additional { flex: 0 0 auto; overflow: visible !important; color: #17683a !important; font-size: 11px !important; font-weight: 800; white-space: nowrap; }
   .mobile-area-list-type { justify-self: center; max-width: 68px; padding: 3px 6px; border-radius: 999px; background: #edf5ef; color: #487157 !important; font-size: 10px !important; font-weight: 700; text-align: center !important; }
   .mobile-area-list-distance { justify-self: center; color: #17683a !important; font-size: 12px !important; font-weight: 800; text-align: center !important; }
 }

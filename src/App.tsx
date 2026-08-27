@@ -816,7 +816,10 @@ function App() {
               const additionalCount = group.count - 1
               const distance = currentLocation ? formatDistance(calculateDistanceInMeters(currentLocation, representative)) : '—'
               return <button key={`${group.latitude}:${group.longitude}`} type="button" className="mobile-area-list-item" onClick={() => selectMobileAreaToilet(representative)}>
-                <strong>{representative.name || '이름 없는 공중화장실'}{additionalCount > 0 ? ` 외 ${additionalCount}개` : ''}</strong>
+                <strong>
+                  <span className="mobile-area-list-name">{representative.name || '이름 없는 공중화장실'}</span>
+                  {additionalCount > 0 && <span className="mobile-area-list-additional">외 {additionalCount}개</span>}
+                </strong>
                 <span className="mobile-area-list-type">{representative.toiletType || '공중화장실'}</span>
                 <span className="mobile-area-list-distance">{distance}</span>
               </button>
