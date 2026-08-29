@@ -125,8 +125,10 @@
   .map-hud { left: calc(var(--desktop-area-list-width) + 18px); padding: 0; background: transparent; box-shadow: none; }
   .map-loading-message { display: none; }
   .map-area-count { display: none; }
-  .map-reference-marker { position: relative; display: block; width: 18px; height: 18px; border: 2px solid #fff; border-radius: 50% 50% 50% 3px; background: #df3a36; box-shadow: 0 2px 7px rgb(126 30 29 / 42%); pointer-events: none; transform: rotate(-45deg); }
-  .map-reference-marker span { position: absolute; top: 50%; left: 50%; width: 5px; height: 5px; border-radius: 50%; background: #fff; transform: translate(-50%, -50%); }
+  .map-reference-marker { position: relative; display: block; width: 18px; height: 20px; pointer-events: none; }
+  .map-reference-marker-pin { position: absolute; inset: 0; display: block; border: 2px solid #fff; border-radius: 50% 50% 50% 3px; background: #df3a36; box-shadow: 0 2px 7px rgb(126 30 29 / 42%); transform: rotate(-45deg); }
+  .map-reference-marker-pin span { position: absolute; top: 50%; left: 50%; width: 5px; height: 5px; border-radius: 50%; background: #fff; transform: translate(-50%, -50%); }
+  .map-reference-marker-label { position: absolute; top: 24px; left: 50%; padding: 3px 6px; border: 1px solid rgb(255 255 255 / 88%); border-radius: 999px; background: rgb(157 39 36 / 92%); box-shadow: 0 2px 6px rgb(97 26 24 / 24%); color: #fff; font-size: 10px; font-weight: 800; letter-spacing: -.1px; line-height: 1; transform: translateX(-50%); white-space: nowrap; }
   .desktop-map-reference-hint { position: absolute; z-index: 5; bottom: 22px; left: calc(var(--desktop-area-list-width) + ((100% - var(--desktop-area-list-width)) / 2)); display: block; margin: 0; padding: 10px 15px; border: 1px solid #cfe0d2; border-radius: 999px; background: rgb(255 255 255 / 96%); box-shadow: 0 3px 16px rgb(31 46 34 / 18%); color: #245f39; font-size: 14px; font-weight: 700; letter-spacing: -.18px; pointer-events: none; transform: translateX(-50%); white-space: nowrap; }
   .desktop-area-list { position: absolute; z-index: 6; top: 0; bottom: 0; left: 0; display: flex; width: var(--desktop-area-list-width); flex-direction: column; overflow: hidden; border-right: 1px solid #e3e8e1; background: #fff; box-shadow: 5px 0 18px rgb(31 46 34 / 12%); }
   .desktop-area-list-header { display: flex; min-height: 88px; align-items: center; justify-content: space-between; gap: 12px; padding: 0 20px; border-bottom: 1px solid #dfe9e1; background: linear-gradient(135deg, #f6fbf7 0%, #fff 78%); }

@@ -224,10 +224,10 @@ function App() {
 
     setMapCenter(coordinates)
     referencePointOverlayRef.current?.setMap(null)
-    const content = document.createElement('span')
+    const content = document.createElement('div')
     content.className = 'map-reference-marker'
     content.setAttribute('aria-label', '거리 기준점')
-    content.innerHTML = '<span aria-hidden="true"></span>'
+    content.innerHTML = '<span class="map-reference-marker-pin" aria-hidden="true"><span></span></span><span class="map-reference-marker-label">기준점</span>'
     referencePointOverlayRef.current = new window.kakao.maps.CustomOverlay({
       position: new window.kakao.maps.LatLng(coordinates.latitude, coordinates.longitude),
       content,
