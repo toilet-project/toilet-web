@@ -123,27 +123,29 @@
   .map-section { --desktop-area-list-width: clamp(340px, 25vw, 440px); }
   .map { width: calc(100% - var(--desktop-area-list-width)); margin-left: var(--desktop-area-list-width); }
   .map-hud { left: calc(var(--desktop-area-list-width) + 18px); padding: 0; background: transparent; box-shadow: none; }
+  .map-loading-message { display: none; }
   .map-area-count { display: none; }
   .map-reference-marker { position: relative; display: block; width: 18px; height: 18px; border: 2px solid #fff; border-radius: 50% 50% 50% 3px; background: #df3a36; box-shadow: 0 2px 7px rgb(126 30 29 / 42%); pointer-events: none; transform: rotate(-45deg); }
   .map-reference-marker span { position: absolute; top: 50%; left: 50%; width: 5px; height: 5px; border-radius: 50%; background: #fff; transform: translate(-50%, -50%); }
-  .desktop-map-reference-hint { position: absolute; z-index: 5; bottom: 18px; left: calc(var(--desktop-area-list-width) + 18px); display: block; margin: 0; padding: 8px 11px; border-radius: 8px; background: rgb(255 255 255 / 94%); box-shadow: 0 2px 12px rgb(31 46 34 / 14%); color: #5d6c62; font-size: 12px; }
+  .desktop-map-reference-hint { position: absolute; z-index: 5; bottom: 22px; left: calc(var(--desktop-area-list-width) + ((100% - var(--desktop-area-list-width)) / 2)); display: block; margin: 0; padding: 10px 15px; border: 1px solid #cfe0d2; border-radius: 999px; background: rgb(255 255 255 / 96%); box-shadow: 0 3px 16px rgb(31 46 34 / 18%); color: #245f39; font-size: 14px; font-weight: 700; letter-spacing: -.18px; pointer-events: none; transform: translateX(-50%); white-space: nowrap; }
   .desktop-area-list { position: absolute; z-index: 6; top: 0; bottom: 0; left: 0; display: flex; width: var(--desktop-area-list-width); flex-direction: column; overflow: hidden; border-right: 1px solid #e3e8e1; background: #fff; box-shadow: 5px 0 18px rgb(31 46 34 / 12%); }
-  .desktop-area-list-header { display: flex; min-height: 76px; align-items: center; justify-content: space-between; gap: 12px; padding: 0 20px; border-bottom: 1px solid #e3eae4; }
-  .desktop-area-list-header strong { display: block; color: #1d2b21; font-size: 17px; }
-  .desktop-area-list-header span { display: block; margin-top: 4px; color: #647168; font-size: 12px; }
+  .desktop-area-list-header { display: flex; min-height: 88px; align-items: center; justify-content: space-between; gap: 12px; padding: 0 20px; border-bottom: 1px solid #dfe9e1; background: linear-gradient(135deg, #f6fbf7 0%, #fff 78%); }
+  .desktop-area-list-header strong { display: block; color: #193b26; font-size: 18px; letter-spacing: -.45px; }
+  .desktop-area-list-header span { display: block; margin-top: 5px; color: #68806f; font-size: 12px; font-weight: 600; }
   .desktop-area-list-header em { color: #17683a; font-size: 12px; font-style: normal; font-weight: 700; white-space: nowrap; }
   .desktop-area-list-content { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; }
   .desktop-area-list-status { margin: 0; padding: 28px 20px; color: #647168; font-size: 13px; text-align: center; }
-  .desktop-area-list-item { display: grid; width: 100%; min-height: 62px; grid-template-columns: minmax(0, 1fr) 72px 58px; column-gap: 8px; align-items: center; padding: 0 20px; border: 0; border-bottom: 1px solid #edf1ee; background: #fff; color: #344139; font-family: inherit; text-align: left; cursor: pointer; transition: background 140ms ease; }
-  .desktop-area-list-item:hover { background: #f1f8f2; }
-  .desktop-area-list-item > strong { display: flex; min-width: 0; align-items: center; gap: 5px; color: #1e2b22; font-size: 13px; font-weight: 800; }
+  .desktop-area-list-item { position: relative; display: grid; width: 100%; min-height: 68px; grid-template-columns: minmax(0, 1fr) 76px 62px; column-gap: 8px; align-items: center; padding: 0 20px; border: 0; border-bottom: 1px solid #edf1ee; background: #fff; color: #344139; font-family: inherit; text-align: left; cursor: pointer; transition: background 140ms ease, box-shadow 140ms ease; }
+  .desktop-area-list-item:nth-child(even) { background: #fcfdfc; }
+  .desktop-area-list-item:hover { z-index: 1; background: #f0f8f2; box-shadow: inset 3px 0 0 #27804a; }
+  .desktop-area-list-item > strong { display: flex; min-width: 0; align-items: center; gap: 5px; color: #17291e; font-size: 14px; font-weight: 800; letter-spacing: -.18px; }
   .desktop-area-list-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .desktop-area-list-additional { flex: 0 0 auto; color: #17683a; font-size: 11px; white-space: nowrap; }
-  .desktop-area-list-type { justify-self: center; max-width: 72px; padding: 3px 6px; overflow: hidden; border: 1px solid transparent; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: -.1px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+  .desktop-area-list-type { justify-self: center; max-width: 76px; padding: 4px 7px; overflow: hidden; border: 1px solid transparent; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: -.1px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
   .desktop-area-list-type.is-public { border-color: #dce7de; background: #eff5f0; color: #55745d; }
   .desktop-area-list-type.is-open { border-color: #eadfc8; background: #fbf6ec; color: #806c48; }
   .desktop-area-list-type.is-reported { border-color: #d9e0f0; background: #f1f4fb; color: #5c6f9c; }
-  .desktop-area-list-distance { justify-self: end; color: #17683a; font-size: 12px; font-weight: 800; white-space: nowrap; }
+  .desktop-area-list-distance { justify-self: end; min-width: 54px; padding: 5px 6px; border-radius: 7px; background: #edf7ef; color: #17683a; font-size: 12px; font-weight: 800; text-align: center; white-space: nowrap; }
   .coordinate-group-card { top: 16px; bottom: 16px; left: calc(var(--desktop-area-list-width) + 16px); width: min(360px, calc(100% - var(--desktop-area-list-width) - 52px)); border: 1px solid #e3e8e1; border-radius: 16px; box-shadow: 0 8px 24px rgb(31 46 34 / 18%); }
 }
 .current-location-marker { display: grid; width: 24px; height: 24px; place-items: center; border: 3px solid #fff; border-radius: 50%; background: #2878e3; box-shadow: 0 1px 8px rgb(22 76 153 / 55%); }
