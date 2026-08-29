@@ -158,6 +158,7 @@ function App() {
   const toiletMarkerElementsRef = useRef(new Map<number, HTMLButtonElement>())
   const currentLocationOverlayRef = useRef<KakaoOverlay | null>(null)
   const searchLocationOverlayRef = useRef<KakaoOverlay | null>(null)
+  const referencePointOverlayRef = useRef<KakaoOverlay | null>(null)
   const locationWatchIdRef = useRef<number | null>(null)
   const requestSequenceRef = useRef(0)
   const mapInteractionRef = useRef(false)
@@ -215,6 +216,25 @@ function App() {
     overlaysRef.current.forEach((overlay) => overlay.setMap(null))
     overlaysRef.current = []
     toiletMarkerElementsRef.current.clear()
+  }, [])
+
+  const updateReferencePoint = useCallback((coordinates: Coordinates) => {
+    const map = mapRef.current
+    if (!map) return
+
+    setMapCenter(coordinates)
+    referencePointOverlayRef.current?.setMap(null)
+    const content = document.createElement('span')
+    content.className = 'map-reference-marker'
+    content.setAttribute('aria-label', '거리 기준점')
+    content.innerHTML = '<span aria-hidden="true"></span>'
+    referencePointOverlayRef.current = new window.kakao.maps.CustomOverlay({
+      position: new window.kakao.maps.LatLng(coordinates.latitude, coordinates.longitude),
+      content,
+      yAnchor: 1,
+      zIndex: 4,
+    })
+    referencePointOverlayRef.current.setMap(map)
   }, [])
 
   const positionPlaceCardAtToilet = useCallback((toilet: SelectedToilet, cardHeight: number) => {
@@ -515,10 +535,11 @@ function App() {
     currentLocationOverlayRef.current.setMap(map)
 
     if (shouldCenterMap) {
+      updateReferencePoint(coordinates)
       map.setLevel(Math.min(map.getLevel(), 4))
       map.panTo(position)
     }
-  }, [])
+  }, [updateReferencePoint])
 
   const startCurrentLocationWatch = useCallback(() => {
     if (!navigator.geolocation || locationWatchIdRef.current != null) return
@@ -583,6 +604,7 @@ function App() {
 
     closeDetailCard()
     const position = new window.kakao.maps.LatLng(place.latitude, place.longitude)
+    updateReferencePoint({ latitude: place.latitude, longitude: place.longitude })
     searchLocationOverlayRef.current?.setMap(null)
     const content = document.createElement('div')
     content.className = 'search-place-marker'
@@ -608,7 +630,7 @@ function App() {
     setIsPlaceSearching(false)
     setIsPlaceSearchFocused(false)
     placeSearchInputRef.current?.blur()
-  }, [closeDetailCard])
+  }, [closeDetailCard, updateReferencePoint])
 
   const handlePlaceSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'ArrowDown' && placeSearchResults.length > 0) {
@@ -666,9 +688,8 @@ function App() {
         const map = await createKakaoMap(mapContainerRef.current, DAEJEON_CITY_HALL)
         if (disposed) return
         mapRef.current = map
+        updateReferencePoint(DAEJEON_CITY_HALL)
         window.kakao.maps.event.addListener(map, 'idle', () => {
-          const center = map.getCenter()
-          setMapCenter({ latitude: center.getLat(), longitude: center.getLng() })
           if (mapInteractionRef.current) {
             mapInteractionRef.current = false
             setIsMobileAreaListOpen(false)
@@ -685,7 +706,10 @@ function App() {
         window.kakao.maps.event.addListener(map, 'zoom_changed', markMapInteraction)
         window.kakao.maps.event.addListener(map, 'click', (event) => {
           setIsMobileAreaListOpen(false)
-          if (window.matchMedia('(min-width: 641px)').matches && event?.latLng) map.panTo(event.latLng)
+          if (window.matchMedia('(min-width: 641px)').matches && event?.latLng) {
+            updateReferencePoint({ latitude: event.latLng.getLat(), longitude: event.latLng.getLng() })
+            map.panTo(event.latLng)
+          }
         })
         resizeObserver = new ResizeObserver(() => map.relayout())
         resizeObserver.observe(mapContainerRef.current)
@@ -703,6 +727,7 @@ function App() {
       clearOverlays()
       currentLocationOverlayRef.current?.setMap(null)
       searchLocationOverlayRef.current?.setMap(null)
+      referencePointOverlayRef.current?.setMap(null)
       if (locationWatchIdRef.current != null) {
         navigator.geolocation?.clearWatch(locationWatchIdRef.current)
         locationWatchIdRef.current = null
@@ -711,7 +736,7 @@ function App() {
       window.clearTimeout(mapLoadTimerRef.current)
       window.clearTimeout(locationMessageTimerRef.current)
     }
-  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad])
+  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint])
 
   const distanceReference = isDesktop ? mapCenter : currentLocation
   const distanceReferenceLabel = isDesktop ? '기준점에서 약' : '내 위치에서 약'
@@ -820,7 +845,7 @@ function App() {
 
       <section className="map-section" aria-label="공중화장실 지도">
         <div ref={mapContainerRef} className="map" />
-        <span className="map-center-marker" aria-hidden="true"><span /></span>
+        <p className="desktop-map-reference-hint">지도를 클릭해 거리 기준점을 옮길 수 있어요.</p>
         <div className={`map-controls${hasMapCard ? ' is-with-card' : ''}`}>
           <div className="map-hud" aria-live="polite">
             {isLoading && <span className="map-loading-message">지도를 조회하는 중…</span>}
