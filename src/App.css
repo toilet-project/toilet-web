@@ -71,8 +71,9 @@
 .toilet-marker-logo { width: 19px; height: 19px; transform: rotate(45deg); }
 .toilet-marker-name { position: absolute; top: calc(100% + 4px); left: 50%; color: #111; font-size: 11px; font-weight: 800; line-height: 1.2; pointer-events: none; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 1px 2px #fff; transform: translateX(-50%); white-space: nowrap; }
 .toilet-marker.is-selected { z-index: 3; }
-.toilet-marker.is-selected .toilet-marker-pin { background: #0e552d; box-shadow: 0 0 0 4px rgb(39 128 74 / 28%), 0 3px 9px rgb(13 67 35 / 48%); animation: selected-marker-pulse 1.6s ease-out infinite; }
-@keyframes selected-marker-pulse { 0%, 100% { box-shadow: 0 0 0 4px rgb(39 128 74 / 28%), 0 3px 9px rgb(13 67 35 / 48%); } 50% { box-shadow: 0 0 0 8px rgb(39 128 74 / 7%), 0 3px 9px rgb(13 67 35 / 48%); } }
+.toilet-marker.is-selected .toilet-marker-pin { background: #e66f22; box-shadow: 0 0 0 4px rgb(241 146 73 / 72%), 0 4px 11px rgb(165 66 12 / 52%); animation: selected-marker-pulse 1.35s ease-out infinite; transform: rotate(-45deg) scale(1.12); }
+.toilet-marker.is-selected .toilet-marker-name { color: #b84b0e; font-weight: 900; }
+@keyframes selected-marker-pulse { 0%, 100% { box-shadow: 0 0 0 4px rgb(241 146 73 / 72%), 0 4px 11px rgb(165 66 12 / 52%); } 50% { box-shadow: 0 0 0 10px rgb(241 146 73 / 12%), 0 4px 11px rgb(165 66 12 / 52%); } }
 @media (prefers-reduced-motion: reduce) { .toilet-marker.is-selected .toilet-marker-pin { animation: none; } }
 .cluster-marker { min-width: 44px; height: 44px; padding: 0 10px; border: 3px solid #e9f7ed; border-radius: 999px; background: #188247; color: #fff; font-size: 13px; font-weight: 800; }
 .coordinate-group-marker { min-height: 34px; padding: 0 11px; border: 2px solid #fff; border-radius: 999px; background: #17683a; box-shadow: 0 2px 9px rgb(15 74 39 / 45%); color: #fff; font-size: 12px; font-weight: 800; white-space: nowrap; }
