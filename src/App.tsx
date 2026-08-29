@@ -263,13 +263,29 @@ function App() {
           const projected = map.getProjection().pointFromCoords(new window.kakao.maps.LatLng(toilet.latitude, toilet.longitude))
           return { x: projected.x + container.offsetLeft, y: projected.y + container.offsetTop }
         })()
-    const cardWidth = Math.min(PLACE_CARD_WIDTH, container.clientWidth - (MAP_EDGE_GAP * 2))
-    let left = point.x - (cardWidth / 2)
-    let top = point.y - cardHeight - MAP_EDGE_GAP
-    if (left < MAP_EDGE_GAP) left = point.x + MAP_EDGE_GAP
-    if (left + cardWidth > container.clientWidth - MAP_EDGE_GAP) left = point.x - cardWidth - MAP_EDGE_GAP
-    if (top < MAP_EDGE_GAP) top = point.y + MAP_EDGE_GAP
-    if (top + cardHeight > container.clientHeight - MAP_EDGE_GAP) top = container.clientHeight - cardHeight - MAP_EDGE_GAP
+    const mapBounds = {
+      left: containerRect.left - sectionRect.left + MAP_EDGE_GAP,
+      top: containerRect.top - sectionRect.top + MAP_EDGE_GAP,
+      right: containerRect.right - sectionRect.left - MAP_EDGE_GAP,
+      bottom: containerRect.bottom - sectionRect.top - MAP_EDGE_GAP,
+    }
+    const cardWidth = Math.min(PLACE_CARD_WIDTH, mapBounds.right - mapBounds.left)
+    const markerCenterY = point.y - ((markerRect?.height ?? 34) / 2)
+    const candidates = [
+      { left: point.x - (cardWidth / 2), top: point.y - cardHeight - MAP_EDGE_GAP },
+      { left: point.x - (cardWidth / 2), top: point.y + MAP_EDGE_GAP },
+      { left: point.x + MAP_EDGE_GAP, top: markerCenterY - (cardHeight / 2) },
+      { left: point.x - cardWidth - MAP_EDGE_GAP, top: markerCenterY - (cardHeight / 2) },
+    ]
+    const fitsMapBounds = (candidate: CardPosition) => (
+      candidate.left >= mapBounds.left
+      && candidate.top >= mapBounds.top
+      && candidate.left + cardWidth <= mapBounds.right
+      && candidate.top + cardHeight <= mapBounds.bottom
+    )
+    const preferredPosition = candidates.find(fitsMapBounds)
+    const left = preferredPosition?.left ?? Math.min(Math.max(point.x - (cardWidth / 2), mapBounds.left), mapBounds.right - cardWidth)
+    const top = preferredPosition?.top ?? Math.min(Math.max(point.y + MAP_EDGE_GAP, mapBounds.top), mapBounds.bottom - cardHeight)
     setPlaceCardPosition((current) => current && Math.abs(current.left - left) < 1 && Math.abs(current.top - top) < 1 ? current : { left, top })
   }, [])
 
