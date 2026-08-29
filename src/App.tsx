@@ -221,7 +221,7 @@ function App() {
     toiletMarkerElementsRef.current.clear()
   }, [])
 
-  const suppressMapClickFromMarker = useCallback((event: MouseEvent) => {
+  const suppressMapClickFromMarker = useCallback((event: Event) => {
     event.stopPropagation()
     markerClickUntilRef.current = Date.now() + 250
   }, [])
@@ -426,6 +426,7 @@ function App() {
         content.type = 'button'
         content.textContent = isCoordinateGroup ? `동일 위치 ${point.count}` : String(point.count)
         content.setAttribute('aria-label', isCoordinateGroup ? `동일 위치에 등록된 화장실 ${point.count}곳 목록 보기` : `${point.count}개의 화장실이 있는 구역 확대하기`)
+        content.addEventListener('pointerdown', suppressMapClickFromMarker)
         content.addEventListener('click', (event) => {
           suppressMapClickFromMarker(event)
           if (isCoordinateGroup) {
@@ -464,6 +465,7 @@ function App() {
         content.append(name)
       }
       content.setAttribute('aria-label', toiletName)
+      content.addEventListener('pointerdown', suppressMapClickFromMarker)
       if (point.id != null) {
         toiletMarkerElementsRef.current.set(point.id, content)
         content.classList.toggle('is-selected', selectedToiletRef.current?.id === point.id)
