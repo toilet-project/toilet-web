@@ -816,7 +816,7 @@ function App() {
     } else {
       void selectToilet(toilet.id, toilet.name, toilet.latitude, toilet.longitude)
     }
-    map.panTo(position)
+    if (!window.matchMedia('(min-width: 641px)').matches) map.panTo(position)
   }, [areaToilets, openCoordinateGroup, selectToilet])
 
   return (
