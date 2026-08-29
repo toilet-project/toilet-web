@@ -6,6 +6,7 @@ import './App.css'
 
 const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
 const CLUSTER_GRID_SIZE = 84
+const MAX_LIST_ZOOM_LEVEL = 6
 
 type ToiletMapItem = { id: number; name: string; toiletType?: string; latitude: number; longitude: number }
 type MapPoint = { id?: number; latitude: number; longitude: number; count: number; name?: string; toilets?: ToiletMapItem[] }
@@ -197,6 +198,7 @@ function App() {
   const [isMobileAreaListOpen, setIsMobileAreaListOpen] = useState(false)
   const [mobileAreaToilets, setMobileAreaToilets] = useState<ToiletMapItem[] | null>(null)
   const [isMobileAreaListLoading, setIsMobileAreaListLoading] = useState(false)
+  const [mapZoomLevel, setMapZoomLevel] = useState(3)
 
   const showLocationMessage = useCallback((message: string) => {
     window.clearTimeout(locationMessageTimerRef.current)
@@ -492,7 +494,7 @@ function App() {
         westLng: southWest.getLng(),
         eastLng: northEast.getLng(),
         zoom: map.getLevel(),
-        includeList: window.matchMedia('(min-width: 641px)').matches,
+        includeList: window.matchMedia('(min-width: 641px)').matches && map.getLevel() <= MAX_LIST_ZOOM_LEVEL,
       })
 
       if (requestSequence !== requestSequenceRef.current) return
@@ -688,6 +690,7 @@ function App() {
         const map = await createKakaoMap(mapContainerRef.current, DAEJEON_CITY_HALL)
         if (disposed) return
         mapRef.current = map
+        setMapZoomLevel(map.getLevel())
         updateReferencePoint(DAEJEON_CITY_HALL)
         window.kakao.maps.event.addListener(map, 'idle', () => {
           if (mapInteractionRef.current) {
@@ -704,6 +707,7 @@ function App() {
         }
         window.kakao.maps.event.addListener(map, 'dragstart', markMapInteraction)
         window.kakao.maps.event.addListener(map, 'zoom_changed', markMapInteraction)
+        window.kakao.maps.event.addListener(map, 'zoom_changed', () => setMapZoomLevel(map.getLevel()))
         window.kakao.maps.event.addListener(map, 'click', (event) => {
           setIsMobileAreaListOpen(false)
           if (window.matchMedia('(min-width: 641px)').matches && event?.latLng) {
@@ -747,7 +751,8 @@ function App() {
     ? formatDistance(calculateDistanceInMeters(distanceReference, selectedCoordinateGroup))
     : null
   const hasMapCard = selectedToilet != null || selectedCoordinateGroup != null
-  const areaToilets = mobileAreaToilets ?? result?.toilets ?? []
+  const isListZoomLimited = mapZoomLevel > MAX_LIST_ZOOM_LEVEL
+  const areaToilets = isListZoomLimited ? [] : mobileAreaToilets ?? result?.toilets ?? []
   const groupedAreaToilets = groupToiletsByCoordinate(areaToilets)
   const sortedAreaToiletGroups = distanceReference
     ? [...groupedAreaToilets].sort((left, right) => calculateDistanceInMeters(distanceReference, left) - calculateDistanceInMeters(distanceReference, right))
@@ -764,6 +769,7 @@ function App() {
 
     closeDetailCard()
     setIsMobileAreaListOpen(true)
+    if (map.getLevel() > MAX_LIST_ZOOM_LEVEL) return
     if (result.meta.display_type !== 'CLUSTER') return
 
     const bounds = map.getBounds()
@@ -866,8 +872,9 @@ function App() {
             {isLoading && <em>조회 중…</em>}
           </header>
           <div className="desktop-area-list-content">
-            {areaToilets.length === 0 && !isLoading && <p className="desktop-area-list-status">이 영역의 화장실 목록이 없습니다.</p>}
-            {sortedAreaToiletGroups.map((group) => {
+            {isListZoomLimited && <p className="map-list-zoom-guide">화장실 목록을 보려면<br />지도를 더 확대해 주세요.</p>}
+            {!isListZoomLimited && areaToilets.length === 0 && !isLoading && <p className="desktop-area-list-status">이 영역의 화장실 목록이 없습니다.</p>}
+            {!isListZoomLimited && sortedAreaToiletGroups.map((group) => {
               const representative = group.toilets?.[0] ?? {
                 id: group.id ?? 0,
                 name: group.name ?? '',
@@ -886,11 +893,12 @@ function App() {
         </aside>}
         {isMobileAreaListOpen && <aside className="mobile-area-list" aria-label="현재 지도 영역 화장실 목록">
           <button className="mobile-area-list-handle" type="button" onClick={() => setIsMobileAreaListOpen(false)} aria-label="지역 목록 닫기" />
-          <div className="mobile-area-list-header"><span>화장실명</span><span>구분</span><span>거리</span></div>
+          {!isListZoomLimited && <div className="mobile-area-list-header"><span>화장실명</span><span>구분</span><span>거리</span></div>}
           <div className="mobile-area-list-content">
-            {isMobileAreaListLoading && <p className="mobile-area-list-status">목록을 불러오는 중…</p>}
-            {!isMobileAreaListLoading && areaToilets.length === 0 && <p className="mobile-area-list-status">이 영역의 화장실 목록이 없습니다.</p>}
-            {!isMobileAreaListLoading && sortedAreaToiletGroups.map((group) => {
+            {isListZoomLimited && <p className="map-list-zoom-guide">화장실 목록을 보려면<br />지도를 더 확대해 주세요.</p>}
+            {!isListZoomLimited && isMobileAreaListLoading && <p className="mobile-area-list-status">목록을 불러오는 중…</p>}
+            {!isListZoomLimited && !isMobileAreaListLoading && areaToilets.length === 0 && <p className="mobile-area-list-status">이 영역의 화장실 목록이 없습니다.</p>}
+            {!isListZoomLimited && !isMobileAreaListLoading && sortedAreaToiletGroups.map((group) => {
               const representative = group.toilets?.[0] ?? {
                 id: group.id ?? 0,
                 name: group.name ?? '',

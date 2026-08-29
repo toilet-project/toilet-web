@@ -136,7 +136,8 @@
   .desktop-area-list-header span { display: block; margin-top: 5px; color: #68806f; font-size: 12px; font-weight: 600; }
   .desktop-area-list-header em { color: #17683a; font-size: 12px; font-style: normal; font-weight: 700; white-space: nowrap; }
   .desktop-area-list-content { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; }
-  .desktop-area-list-status { margin: 0; padding: 28px 20px; color: #647168; font-size: 13px; text-align: center; }
+.desktop-area-list-status { margin: 0; padding: 28px 20px; color: #647168; font-size: 13px; text-align: center; }
+.map-list-zoom-guide { margin: 0; padding: 38px 20px; color: #4d6655; font-size: 14px; font-weight: 700; line-height: 1.65; text-align: center; }
   .desktop-area-list-item { position: relative; display: grid; width: 100%; min-height: 68px; grid-template-columns: minmax(0, 1fr) 76px 62px; column-gap: 8px; align-items: center; padding: 0 20px; border: 0; border-bottom: 1px solid #edf1ee; background: #fff; color: #344139; font-family: inherit; text-align: left; cursor: pointer; transition: background 140ms ease, box-shadow 140ms ease; }
   .desktop-area-list-item:nth-child(even) { background: #fcfdfc; }
   .desktop-area-list-item:hover { z-index: 1; background: #f0f8f2; box-shadow: inset 3px 0 0 #27804a; }
@@ -163,6 +164,7 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
 @media (max-width: 640px) { .coordinate-inline-facilities { grid-template-columns: repeat(2, minmax(0, 1fr)); } .coordinate-group-item-toggle { gap: 7px; padding: 11px 10px; } .coordinate-group-index { width: 22px; height: 22px; } }
 @media (max-width: 640px) { .coordinate-group-card { height: min(68svh, 500px); max-height: none; } .coordinate-group-distance { top: 17px; right: 45px; } .coordinate-group-list { max-height: none; padding-bottom: 0; } .coordinate-inline-details { padding-bottom: 0; } }
 @media (max-width: 640px) { .map-area-count { display: none; } .mobile-area-list-button { display: block; } }
+@media (max-width: 640px) { .mobile-area-list .map-list-zoom-guide { padding-top: 34px; } }
 @media (max-width: 640px) {
   .map-hud { padding: 0; background: transparent; box-shadow: none; }
   .mobile-area-list-button { display: inline-flex; min-height: 40px; align-items: center; gap: 7px; padding: 0 12px; border: 1px solid #d6e0d8; border-radius: 10px; background: rgb(255 255 255 / 96%); box-shadow: 0 2px 12px rgb(31 46 34 / 14%); color: #1f5533; font-size: 14px; font-weight: 700; transition: background 160ms ease, transform 160ms ease, box-shadow 160ms ease; }
