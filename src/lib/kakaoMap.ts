@@ -4,6 +4,7 @@ export type KakaoOverlay = { setMap(map: KakaoMapInstance | null): void }
 export type KakaoPlace = { id: string; name: string; address: string; latitude: number; longitude: number }
 export type KakaoMapInstance = {
   getBounds(): { getSouthWest(): { getLat(): number; getLng(): number }; getNorthEast(): { getLat(): number; getLng(): number } }
+  getCenter(): { getLat(): number; getLng(): number }
   getLevel(): number
   getProjection(): { pointFromCoords(position: unknown): { x: number; y: number } }
   setLevel(level: number, options?: { anchor?: unknown }): void
@@ -18,7 +19,7 @@ declare global {
       Map: new (container: HTMLElement, options: { center: unknown; level: number }) => KakaoMapInstance
       LatLng: new (latitude: number, longitude: number) => unknown
       CustomOverlay: new (options: { position: unknown; content: HTMLElement; yAnchor: number; zIndex: number }) => KakaoOverlay
-      event: { addListener(map: KakaoMapInstance, event: 'idle' | 'dragstart' | 'zoom_changed' | 'click', callback: () => void): void }
+      event: { addListener(map: KakaoMapInstance, event: 'idle' | 'dragstart' | 'zoom_changed' | 'click', callback: (event?: { latLng: unknown }) => void): void }
       services: {
         Places: new () => { keywordSearch(keyword: string, callback: (results: Array<{ id: string; place_name: string; address_name: string; road_address_name: string; x: string; y: string }>, status: string) => void): void }
         Status: { OK: string; ZERO_RESULT: string }
