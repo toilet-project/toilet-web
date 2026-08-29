@@ -163,6 +163,7 @@ function App() {
   const locationWatchIdRef = useRef<number | null>(null)
   const requestSequenceRef = useRef(0)
   const mapInteractionRef = useRef(false)
+  const markerClickUntilRef = useRef(0)
   const selectedToiletRef = useRef<SelectedToilet | null>(null)
   const detailRequestRef = useRef(0)
   const coordinateGroupListRef = useRef<HTMLDivElement>(null)
@@ -218,6 +219,11 @@ function App() {
     overlaysRef.current.forEach((overlay) => overlay.setMap(null))
     overlaysRef.current = []
     toiletMarkerElementsRef.current.clear()
+  }, [])
+
+  const suppressMapClickFromMarker = useCallback((event: MouseEvent) => {
+    event.stopPropagation()
+    markerClickUntilRef.current = Date.now() + 250
   }, [])
 
   const updateReferencePoint = useCallback((coordinates: Coordinates) => {
@@ -420,7 +426,8 @@ function App() {
         content.type = 'button'
         content.textContent = isCoordinateGroup ? `동일 위치 ${point.count}` : String(point.count)
         content.setAttribute('aria-label', isCoordinateGroup ? `동일 위치에 등록된 화장실 ${point.count}곳 목록 보기` : `${point.count}개의 화장실이 있는 구역 확대하기`)
-        content.addEventListener('click', () => {
+        content.addEventListener('click', (event) => {
+          suppressMapClickFromMarker(event)
           if (isCoordinateGroup) {
             openCoordinateGroup(point)
             return
@@ -461,7 +468,8 @@ function App() {
         toiletMarkerElementsRef.current.set(point.id, content)
         content.classList.toggle('is-selected', selectedToiletRef.current?.id === point.id)
       }
-      content.addEventListener('click', () => {
+      content.addEventListener('click', (event) => {
+        suppressMapClickFromMarker(event)
         if (point.id != null) void selectToilet(point.id, toiletName, point.latitude, point.longitude)
       })
 
@@ -474,7 +482,7 @@ function App() {
     })
 
     overlaysRef.current.forEach((overlay) => overlay.setMap(map))
-  }, [clearOverlays, openCoordinateGroup, selectToilet])
+  }, [clearOverlays, openCoordinateGroup, selectToilet, suppressMapClickFromMarker])
 
   const loadMapArea = useCallback(async () => {
     const map = mapRef.current
@@ -710,6 +718,7 @@ function App() {
         window.kakao.maps.event.addListener(map, 'zoom_changed', () => setMapZoomLevel(map.getLevel()))
         window.kakao.maps.event.addListener(map, 'click', (event) => {
           setIsMobileAreaListOpen(false)
+          if (Date.now() < markerClickUntilRef.current) return
           if (window.matchMedia('(min-width: 641px)').matches && event?.latLng) {
             updateReferencePoint({ latitude: event.latLng.getLat(), longitude: event.latLng.getLng() })
             map.panTo(event.latLng)
