@@ -15,9 +15,11 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose }: { to
   const [reason, setReason] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [mapLevel, setMapLevel] = useState(4)
   const mapElementRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<KakaoMapInstance | null>(null)
   const geocodeRequestRef = useRef(0)
+  const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const updateAddress = async (next: Coordinates) => {
     const requestId = ++geocodeRequestRef.current
@@ -37,7 +39,7 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose }: { to
     let disposed = false
 
     void (async () => {
-      const map = await createKakaoMap(mapElementRef.current!, step === 'locationConfirm' ? coordinates : { latitude, longitude })
+      const map = await createKakaoMap(mapElementRef.current!, step === 'locationConfirm' ? coordinates : { latitude, longitude }, step === 'location' ? 4 : 4)
       if (disposed) return
       mapRef.current = map
       if (step === 'locationConfirm') {
@@ -49,13 +51,21 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose }: { to
         const center = map.getCenter()
         const next = { latitude: center.getLat(), longitude: center.getLng() }
         setCoordinates(next)
-        void updateAddress(next)
+        if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current)
+        geocodeTimerRef.current = setTimeout(() => { void updateAddress(next) }, 280)
       }
+      const syncLevel = () => setMapLevel(map.getLevel())
       window.kakao.maps.event.addListener(map, 'idle', syncCenter)
+      window.kakao.maps.event.addListener(map, 'zoom_changed', syncLevel)
+      syncLevel()
       syncCenter()
     })()
 
-    return () => { disposed = true; mapRef.current = null }
+    return () => {
+      disposed = true
+      if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current)
+      mapRef.current = null
+    }
   }, [step, latitude, longitude])
 
   const openLocationConfirmation = () => {
@@ -97,24 +107,23 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose }: { to
       </>}
       {step === 'location' && <>
         <button type="button" className="report-back" onClick={() => setStep('choice')} aria-label="이전 화면으로">‹</button>
-        <span className="report-modal-eyebrow">위치 제보</span>
+        <span className="report-modal-eyebrow report-modal-step-title">위치 제보</span>
         <h1 id="report-modal-title">지도를 움직여 핀을 맞춰 주세요</h1>
         <p className="report-target"><span>제보 대상</span><strong>{toilet.name}</strong></p>
-        <div className="report-map-wrap"><div ref={mapElementRef} className="report-map" /><span className="report-map-pin" aria-label="제안 위치" /></div>
-        <div className="report-address-box"><span>도로명 주소</span><strong>{isAddressLoading ? '주소를 확인하는 중…' : roadAddress || '도로명 주소를 찾지 못했습니다.'}</strong><small>{coordinates.latitude.toFixed(6)}, {coordinates.longitude.toFixed(6)}</small></div>
+        <div className="report-map-wrap"><div ref={mapElementRef} className="report-map" /><span className="report-map-pin" aria-label="제안 위치" />{mapLevel > 3 && <span className="report-map-zoom-guide">정확한 위치는 지도를 조금 더 확대해 맞춰 주세요</span>}</div>
+        <div className="report-address-box"><span>도로명 주소</span><strong>{isAddressLoading ? '주소를 확인하는 중…' : roadAddress || '도로명 주소를 찾지 못했습니다.'}</strong></div>
         <label className="report-field"><span>제보 사유</span><textarea value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} placeholder="예: 실제 화장실은 건물 동쪽 출입구 옆에 있습니다." /></label>
         {error && <p className="report-error" role="alert">{error}</p>}
         <button type="button" className="report-submit" disabled={isAddressLoading} onClick={openLocationConfirmation}>위치 제보 접수</button>
       </>}
       {step === 'locationConfirm' && <>
         <button type="button" className="report-back" onClick={() => setStep('location')} aria-label="위치 수정 화면으로">‹</button>
-        <span className="report-modal-eyebrow">위치 제보 확인</span>
+        <span className="report-modal-eyebrow report-modal-step-title">위치 제보 확인</span>
         <h1 id="report-modal-title">이 위치와 주소가 맞습니까?</h1>
         <p className="report-modal-description">핀을 맞춘 위치를 마지막으로 확인해 주세요.</p>
         <div className="report-map-wrap report-confirm-map"><div ref={mapElementRef} className="report-map" /><span className="report-map-pin" aria-label="제안 위치" /></div>
         <div className="report-confirm-summary">
           <div><span>제보 화장실</span><strong>{toilet.name}</strong></div>
-          <div><span>핀을 맞춘 위치</span><strong>{coordinates.latitude.toFixed(6)}, {coordinates.longitude.toFixed(6)}</strong></div>
           <div><span>도로명 주소</span><strong>{roadAddress}</strong></div>
         </div>
         {error && <p className="report-error" role="alert">{error}</p>}
@@ -122,7 +131,7 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose }: { to
       </>}
       {step === 'openTime' && <>
         <button type="button" className="report-back" onClick={() => setStep('choice')} aria-label="이전 화면으로">‹</button>
-        <span className="report-modal-eyebrow">개방 시간 제보</span>
+        <span className="report-modal-eyebrow report-modal-step-title">개방 시간 제보</span>
         <h1 id="report-modal-title">변경된 개방 시간을 알려주세요</h1>
         <p className="report-target"><span>제보 대상</span><strong>{toilet.name}</strong></p>
         <p className="report-modal-description">현재 등록된 시간: <strong>{toilet.openTime || '정보 없음'}</strong></p>

@@ -47,9 +47,9 @@ function loadKakaoSdk() {
   return kakaoSdkPromise
 }
 
-export async function createKakaoMap(container: HTMLElement, center: { latitude: number; longitude: number }) {
+export async function createKakaoMap(container: HTMLElement, center: { latitude: number; longitude: number }, level = 6) {
   await loadKakaoSdk()
-  return new window.kakao.maps.Map(container, { center: new window.kakao.maps.LatLng(center.latitude, center.longitude), level: 6 })
+  return new window.kakao.maps.Map(container, { center: new window.kakao.maps.LatLng(center.latitude, center.longitude), level })
 }
 
 export async function searchKakaoPlaces(keyword: string): Promise<KakaoPlace[]> {
