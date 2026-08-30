@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, type ToiletMapSearchResponse } from './api/toilets'
 import { createKakaoMap, searchKakaoPlaces, type KakaoMapInstance, type KakaoOverlay, type KakaoPlace } from './lib/kakaoMap'
+import { ToiletReportModal } from './components/ToiletReportModal'
 import toiletMarkerLogo from './assets/toilet-marker-logo.svg'
 import './App.css'
 
@@ -200,6 +201,7 @@ function App() {
   const [mobileAreaToilets, setMobileAreaToilets] = useState<ToiletMapItem[] | null>(null)
   const [isMobileAreaListLoading, setIsMobileAreaListLoading] = useState(false)
   const [mapZoomLevel, setMapZoomLevel] = useState(3)
+  const [reportTarget, setReportTarget] = useState<{ toilet: ToiletDetailResponse; latitude: number; longitude: number } | null>(null)
 
   const showLocationMessage = useCallback((message: string) => {
     window.clearTimeout(locationMessageTimerRef.current)
@@ -300,6 +302,7 @@ function App() {
     setDetailError(null)
     setIsDetailLoading(false)
     setIsMobileCardExpanded(false)
+    setReportTarget(null)
     setIsMobileAreaListOpen(false)
     toiletMarkerElementsRef.current.forEach((marker) => marker.classList.remove('is-selected'))
   }, [])
@@ -972,6 +975,7 @@ function App() {
               <p className="open-time">{toiletDetail ? formatOpenTime(toiletDetail) : isDetailLoading ? '상세 정보를 불러오는 중…' : '상세 정보를 확인해 주세요.'}</p>
               {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">{distanceReferenceLabel}</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">(직선거리)</span></div>}
               {toiletDetail && hasValue(toiletDetail.roadAddress || toiletDetail.jibunAddress) && <div className="summary-address"><DetailRow label="주소" value={toiletDetail.roadAddress || toiletDetail.jibunAddress} copyable /></div>}
+              {toiletDetail && <button type="button" className="report-entry-button" onClick={() => setReportTarget({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude })}>정보 제보하기</button>}
               {detailError && <p className="detail-error" role="alert">{detailError}</p>}
               {toiletDetail && <ToiletDetailContents toilet={toiletDetail} />}
             </div>
@@ -996,19 +1000,21 @@ function App() {
                     toilet={toiletDetail}
                     isLoading={isDetailLoading}
                     error={detailError}
+                    onReport={() => { if (toiletDetail) setReportTarget({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }}
                   />}
                 </div>
               })}
             </div>
           </aside>
         )}
+        {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} />}
       </section>
       <footer>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</footer>
     </main>
   )
 }
 
-function CoordinateGroupInlineDetails({ toilet, isLoading, error }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null }) {
+function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onReport: () => void }) {
   if (isLoading) return <div className="coordinate-inline-details"><p className="coordinate-inline-status">상세 정보를 불러오는 중…</p></div>
   if (error) return <div className="coordinate-inline-details"><p className="detail-error" role="alert">{error}</p></div>
   if (!toilet) return null
@@ -1034,6 +1040,7 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error }: { toilet: To
       </div>
     </section>
     {hasValue(toilet.agencyName) && <DetailRow className="coordinate-inline-agency" label="관리기관" value={toilet.agencyName} />}
+    <button type="button" className="report-entry-button coordinate-report-entry" onClick={onReport}>정보 제보하기</button>
   </div>
 }
 

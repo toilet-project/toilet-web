@@ -22,6 +22,7 @@ declare global {
       event: { addListener(map: KakaoMapInstance, event: 'idle' | 'dragstart' | 'zoom_changed' | 'click', callback: (event?: { latLng: { getLat(): number; getLng(): number } }) => void): void }
       services: {
         Places: new () => { keywordSearch(keyword: string, callback: (results: Array<{ id: string; place_name: string; address_name: string; road_address_name: string; x: string; y: string }>, status: string) => void): void }
+        Geocoder: new () => { coord2Address(longitude: number, latitude: number, callback: (results: Array<{ road_address?: { address_name: string }; address?: { address_name: string } }>, status: string) => void): void }
         Status: { OK: string; ZERO_RESULT: string }
       }
     } }
@@ -70,6 +71,26 @@ export async function searchKakaoPlaces(keyword: string): Promise<KakaoPlace[]> 
         return
       }
       reject(new Error('장소 검색에 실패했습니다.'))
+    })
+  })
+}
+
+export async function reverseGeocodeKakaoCoordinates(latitude: number, longitude: number): Promise<string | null> {
+  await loadKakaoSdk()
+
+  return new Promise((resolve, reject) => {
+    const geocoder = new window.kakao.maps.services.Geocoder()
+    geocoder.coord2Address(longitude, latitude, (results, status) => {
+      if (status === window.kakao.maps.services.Status.OK) {
+        const result = results[0]
+        resolve(result?.road_address?.address_name ?? result?.address?.address_name ?? null)
+        return
+      }
+      if (status === window.kakao.maps.services.Status.ZERO_RESULT) {
+        resolve(null)
+        return
+      }
+      reject(new Error('좌표의 주소를 찾지 못했습니다.'))
     })
   })
 }
