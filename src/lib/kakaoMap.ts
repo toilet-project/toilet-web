@@ -9,6 +9,8 @@ export type KakaoMapInstance = {
   getProjection(): { pointFromCoords(position: unknown): { x: number; y: number } }
   setLevel(level: number, options?: { anchor?: unknown }): void
   panTo(position: unknown): void
+  setDraggable(draggable: boolean): void
+  setZoomable(zoomable: boolean): void
   relayout(): void
 }
 

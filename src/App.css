@@ -44,7 +44,9 @@
 .report-modal-eyebrow { display: block; color: #17683a; font-size: 12px; font-weight: 800; }
 .report-modal-description { margin: 10px 0 20px; color: #627067; font-size: 14px; line-height: 1.55; }
 .report-modal-close { position: absolute; top: 13px; right: 14px; width: 36px; height: 36px; border: 0; border-radius: 50%; background: #f2f6f3; color: #526157; font-size: 25px; line-height: 1; cursor: pointer; }
-.report-back { min-height: 36px; margin: -5px 0 12px; padding: 0 11px; border: 1px solid #cfe0d2; border-radius: 9px; background: #f6fbf7; color: #17683a; font-size: 13px; font-weight: 800; cursor: pointer; }
+.report-back { position: absolute; top: 13px; left: 14px; display: grid; width: 36px; height: 36px; place-items: center; padding: 0 0 3px; border: 0; border-radius: 50%; background: #f2f6f3; color: #526157; font-size: 31px; font-weight: 400; line-height: 1; cursor: pointer; }
+.report-back:hover { background: #e7f1e9; color: #17683a; }
+.report-back + .report-modal-eyebrow { min-height: 36px; margin-left: 46px; padding-top: 10px; }
 .report-target { display: grid; gap: 3px; margin: 12px 0 17px; padding: 10px 12px; border-left: 3px solid #e66f22; border-radius: 0 9px 9px 0; background: #fff8f2; }
 .report-target span { color: #88674d; font-size: 11px; font-weight: 700; }
 .report-target strong { color: #3b2c20; font-size: 14px; line-height: 1.4; }
@@ -54,10 +56,11 @@
 .report-type-options strong { color: #1e472c; font-size: 15px; }
 .report-type-options span { color: #66736b; font-size: 13px; line-height: 1.45; }
 .report-map-wrap { position: relative; isolation: isolate; height: 230px; margin-top: 8px; overflow: hidden; border: 1px solid #d8e5da; border-radius: 14px; }
+.report-confirm-map { height: 180px; margin-top: 14px; }
 .report-map { position: relative; z-index: 0; width: 100%; height: 100%; }
-.report-map-pin { position: absolute; z-index: 3; top: 50%; left: 50%; width: 3px; height: 36px; border-radius: 999px; background: #e66f22; box-shadow: 0 1px 3px rgb(142 57 12 / 38%); pointer-events: none; transform: translate(-50%, -100%); }
-.report-map-pin::before { position: absolute; top: -8px; left: 50%; width: 16px; height: 16px; border: 3px solid #fff; border-radius: 50%; background: #e66f22; box-shadow: 0 2px 6px rgb(142 57 12 / 42%); content: ''; transform: translateX(-50%); }
-.report-map-pin::after { position: absolute; bottom: -2px; left: 50%; width: 7px; height: 7px; border: 1.5px solid #fff; border-radius: 50%; background: #e66f22; box-shadow: 0 1px 3px rgb(142 57 12 / 32%); content: ''; transform: translateX(-50%); }
+.report-map-pin { position: absolute; z-index: 3; top: 50%; left: 50%; width: 2px; height: 28px; border-radius: 999px; background: #e66f22; box-shadow: 0 1px 2px rgb(142 57 12 / 34%); pointer-events: none; transform: translate(-50%, -100%); }
+.report-map-pin::before { position: absolute; top: -7px; left: 50%; width: 13px; height: 13px; border: 2px solid #fff; border-radius: 50%; background: #e66f22; box-shadow: 0 2px 5px rgb(142 57 12 / 38%); content: ''; transform: translateX(-50%); }
+.report-map-pin::after { display: none; }
 .report-address-box { display: grid; gap: 4px; margin-top: 12px; padding: 12px; border-radius: 11px; background: #f5f9f5; }
 .report-address-box span { color: #647168; font-size: 11px; font-weight: 700; }
 .report-address-box strong { color: #23402c; font-size: 14px; line-height: 1.45; }
