@@ -44,7 +44,9 @@
 .report-modal-eyebrow { display: block; color: #17683a; font-size: 12px; font-weight: 800; }
 .report-modal-description { margin: 10px 0 20px; color: #627067; font-size: 14px; line-height: 1.55; }
 .report-modal-close { position: absolute; top: 13px; right: 14px; width: 36px; height: 36px; border: 0; border-radius: 50%; background: #f2f6f3; color: #526157; font-size: 25px; line-height: 1; cursor: pointer; }
-.report-back { min-height: 36px; margin: -5px 0 12px; padding: 0 11px; border: 1px solid #cfe0d2; border-radius: 9px; background: #f6fbf7; color: #17683a; font-size: 13px; font-weight: 800; cursor: pointer; }
+.report-back { position: absolute; top: 13px; left: 14px; display: grid; width: 36px; height: 36px; place-items: center; padding: 0 0 3px; border: 0; border-radius: 50%; background: #f2f6f3; color: #526157; font-size: 31px; font-weight: 400; line-height: 1; cursor: pointer; }
+.report-back:hover { background: #e7f1e9; color: #17683a; }
+.report-back + .report-modal-eyebrow { min-height: 36px; margin-left: 46px; padding-top: 10px; }
 .report-target { display: grid; gap: 3px; margin: 12px 0 17px; padding: 10px 12px; border-left: 3px solid #e66f22; border-radius: 0 9px 9px 0; background: #fff8f2; }
 .report-target span { color: #88674d; font-size: 11px; font-weight: 700; }
 .report-target strong { color: #3b2c20; font-size: 14px; line-height: 1.4; }
