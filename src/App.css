@@ -268,3 +268,12 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
   .auth-button { min-height: 32px; padding: 0 9px; font-size: 12px; }
   .login-modal { padding: 28px 22px; }
 }
+
+@media (max-width: 640px) {
+  .place-card { max-height: min(280px, calc(100svh - 128px)); }
+  .place-card:not(.mobile-card-expanded) .card-scroll-content { overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
+  .place-card .report-entry-button { margin-bottom: 2px; }
+  .coordinate-inline-details { padding-bottom: 12px; }
+  .coordinate-inline-details .coordinate-report-entry { margin-bottom: 0; }
+  .report-field input, .report-field textarea { font-size: 16px; }
+}
