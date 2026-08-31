@@ -14,6 +14,20 @@
 .place-search-results button strong { font-size: 14px; }
 .place-search-results button span, .place-search-status { color: #69766e; font-size: 12px; line-height: 1.4; }
 .place-search-status { margin: 0; padding: 13px; }
+.auth-actions { display: flex; margin-left: auto; align-items: center; gap: 8px; }
+.auth-status { color: #66756b; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.auth-button { min-height: 34px; padding: 0 12px; border: 1px solid #bcd8c3; border-radius: 9px; background: #17683a; color: #fff; font-size: 13px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.auth-button:hover { background: #115d31; }
+.auth-button.is-logout { background: #fff; color: #356147; }
+.login-modal-backdrop { position: fixed; z-index: 50; inset: 0; display: grid; place-items: center; padding: 20px; background: rgb(15 29 19 / 52%); }
+.login-modal { position: relative; width: min(100%, 390px); padding: 32px; border-radius: 20px; background: #fff; box-shadow: 0 24px 60px rgb(12 29 18 / 35%); text-align: center; }
+.login-modal > span { color: #17683a; font-size: 12px; font-weight: 800; }
+.login-modal h1 { margin: 8px 28px 10px; color: #1e2d23; font-size: 22px; letter-spacing: -.7px; }
+.login-modal p { margin: 0 0 22px; color: #66736b; font-size: 14px; line-height: 1.5; }
+.login-modal-close { position: absolute; top: 13px; right: 14px; display: grid; width: 36px; height: 36px; place-items: center; border: 0; border-radius: 50%; background: #f2f6f3; color: #526157; font-size: 25px; line-height: 1; cursor: pointer; }
+.social-login { display: flex; width: 100%; min-height: 46px; margin-top: 9px; align-items: center; justify-content: center; border: 0; border-radius: 10px; font-size: 14px; font-weight: 800; cursor: pointer; }
+.google-login { background: #17683a; color: #fff; }
+.kakao-login { background: #fee500; color: #3c3115; }
 .map-section { position: relative; min-height: 0; overflow: hidden; }
 .map { width: 100%; height: 100%; min-height: calc(100svh - 112px); }
 .desktop-area-list, .desktop-map-reference-hint { display: none; }
@@ -249,4 +263,8 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
   .report-modal-backdrop { padding: 10px; }
   .report-modal { width: 100%; max-height: calc(100svh - 20px); padding: 22px 16px; border-radius: 18px; }
   .report-map-wrap { height: min(270px, 38svh); margin-right: -5px; margin-left: -5px; }
+  .auth-actions { gap: 5px; }
+  .auth-status { display: none; }
+  .auth-button { min-height: 32px; padding: 0 9px; font-size: 12px; }
+  .login-modal { padding: 28px 22px; }
 }
