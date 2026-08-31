@@ -21,6 +21,35 @@
 .auth-button.is-secondary { border: 1px solid #cfe0d3; background: #fff; color: #17683a; }
 .auth-button.is-secondary:hover { background: #eef8f0; }
 .auth-button.is-logout { background: #fff; color: #356147; }
+.notification-button { position: relative; display: grid; width: 36px; height: 36px; flex: 0 0 auto; place-items: center; border: 1px solid #d4e2d7; border-radius: 50%; background: #fff; color: #17683a; font-size: 20px; font-weight: 900; cursor: pointer; }
+.notification-button > span { position: relative; display: block; width: 13px; height: 14px; border: 2px solid currentColor; border-bottom: 0; border-radius: 8px 8px 3px 3px; }
+.notification-button > span::before { position: absolute; right: -4px; bottom: -3px; left: -4px; height: 2px; border-radius: 999px; background: currentColor; content: ''; }
+.notification-button > span::after { position: absolute; bottom: -6px; left: 50%; width: 4px; height: 4px; border-radius: 50%; background: currentColor; content: ''; transform: translateX(-50%); }
+.notification-button > strong { position: absolute; top: -5px; right: -6px; display: grid; min-width: 18px; height: 18px; padding: 0 4px; place-items: center; border: 2px solid #fff; border-radius: 999px; background: #e66f22; color: #fff; font-size: 9px; line-height: 1; }
+.notification-backdrop { position: fixed; z-index: 53; inset: 0; display: flex; justify-content: flex-end; padding: 18px; background: rgb(15 29 19 / 42%); }
+.notification-panel { display: flex; width: min(420px, 100%); min-height: 0; flex-direction: column; overflow: hidden; border: 1px solid rgb(216 231 220 / 90%); border-radius: 22px; background: #fff; box-shadow: 0 24px 70px rgb(12 29 18 / 30%); }
+.notification-panel > header { display: flex; align-items: center; justify-content: space-between; padding: 22px 20px 17px; border-bottom: 1px solid #e7eee9; background: linear-gradient(145deg, #f3faf5, #fff 72%); }
+.notification-panel > header > div:first-child span { color: #17683a; font-size: 11px; font-weight: 800; }
+.notification-panel h1 { margin: 3px 0 0; color: #1d2b21; font-size: 24px; }
+.notification-panel > header > div:last-child { display: flex; align-items: center; gap: 8px; }
+.notification-read-all { border: 0; background: transparent; color: #17683a; font-size: 12px; font-weight: 800; cursor: pointer; }
+.notification-read-all:disabled { color: #a4aea7; cursor: default; }
+.notification-close { display: grid; width: 36px; height: 36px; place-items: center; border: 0; border-radius: 50%; background: #eaf3ec; color: #526157; font-size: 25px; cursor: pointer; }
+.notification-list { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+.notification-item { position: relative; display: grid; width: 100%; grid-template-columns: 38px minmax(0, 1fr) 8px; align-items: start; gap: 11px; padding: 16px 17px; border: 0; border-bottom: 1px solid #edf1ee; background: #fff; text-align: left; cursor: pointer; }
+.notification-item:hover { background: #f5faf6; }
+.notification-item.is-unread { background: #f0f8f2; }
+.notification-icon { display: grid; width: 36px; height: 36px; place-items: center; border-radius: 12px; background: #e6f4e9; color: #17683a; font-size: 18px; font-weight: 900; }
+.notification-icon.is-rejected { background: #fff0ee; color: #b54539; }
+.notification-copy { display: grid; gap: 3px; min-width: 0; }
+.notification-copy strong { color: #223128; font-size: 14px; }
+.notification-copy > span { color: #5e6e64; font-size: 12px; line-height: 1.45; }
+.notification-copy time { margin-top: 3px; color: #89948d; font-size: 10px; }
+.notification-item > i { width: 7px; height: 7px; margin-top: 5px; border-radius: 50%; background: #e66f22; }
+.notification-state, .notification-empty { margin: 0; padding: 64px 18px; color: #68756d; text-align: center; }
+.notification-state.is-error { color: #b42318; }
+.notification-empty strong { color: #293a2f; font-size: 15px; }
+.notification-empty p { margin: 7px 0 0; font-size: 12px; line-height: 1.5; }
 .my-reports-backdrop { position: fixed; z-index: 52; inset: 0; display: flex; justify-content: flex-end; padding: 18px; background: rgb(15 29 19 / 48%); }
 .my-reports-panel { display: flex; width: min(520px, 100%); min-height: 0; flex-direction: column; overflow: hidden; border: 1px solid rgb(216 231 220 / 90%); border-radius: 22px; background: #fff; box-shadow: 0 24px 70px rgb(12 29 18 / 32%); }
 .my-reports-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 25px 25px 20px; border-bottom: 1px solid #e7eee9; background: linear-gradient(145deg, #f3faf5, #fff 72%); }
@@ -40,6 +69,7 @@
 .my-reports-empty p { margin: 8px 0 0; font-size: 13px; line-height: 1.55; }
 .my-report-item { margin-bottom: 10px; overflow: hidden; border: 1px solid #e0e9e2; border-radius: 14px; background: #fff; transition: border-color 140ms ease, box-shadow 140ms ease; }
 .my-report-item:has(.my-report-summary[aria-expanded='true']) { border-color: #99c5a5; box-shadow: 0 5px 18px rgb(28 73 40 / 9%); }
+.my-report-item.is-focused { border-color: #e7a06e; box-shadow: 0 0 0 3px rgb(230 111 34 / 10%); }
 .my-report-summary { position: relative; display: grid; width: 100%; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 16px 42px 16px 16px; border: 0; background: #fff; text-align: left; cursor: pointer; }
 .my-report-type { color: #27804a; font-size: 11px; font-weight: 800; }
 .my-report-summary > strong { min-width: 0; overflow: hidden; color: #213027; font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
@@ -303,6 +333,10 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
   .mobile-area-list-distance { justify-self: center; color: #17683a !important; font-size: 12px !important; font-weight: 800; text-align: center !important; }
 }
 @media (max-width: 640px) {
+  .notification-backdrop { padding: 0; }
+  .notification-panel { width: 100%; border: 0; border-radius: 0; }
+  .notification-panel > header { padding: 18px 15px 14px; }
+  .notification-button { width: 32px; height: 32px; font-size: 18px; }
   .my-reports-backdrop { padding: 0; align-items: stretch; }
   .my-reports-panel { width: 100%; border: 0; border-radius: 0; }
   .my-reports-header { padding: 20px 18px 16px; }

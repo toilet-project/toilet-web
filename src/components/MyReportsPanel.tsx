@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { fetchMyToiletReports, type ToiletReport, type ToiletReportStatus } from '../api/reports'
 
 type Filter = 'ALL' | ToiletReportStatus
@@ -20,12 +20,13 @@ const formatDate = (value?: string | null) => value
   ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
   : '-'
 
-export function MyReportsPanel({ onClose }: { onClose: () => void }) {
+export function MyReportsPanel({ onClose, initialExpandedId = null }: { onClose: () => void; initialExpandedId?: number | null }) {
   const [reports, setReports] = useState<ToiletReport[]>([])
   const [filter, setFilter] = useState<Filter>('ALL')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [expandedId, setExpandedId] = useState<number | null>(initialExpandedId)
+  const focusedReportRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     let active = true
@@ -40,6 +41,11 @@ export function MyReportsPanel({ onClose }: { onClose: () => void }) {
     () => filter === 'ALL' ? reports : reports.filter((report) => report.status === filter),
     [filter, reports],
   )
+
+  useEffect(() => {
+    if (!initialExpandedId || isLoading || !focusedReportRef.current) return
+    focusedReportRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [initialExpandedId, isLoading])
 
   return <div className="my-reports-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section className="my-reports-panel" role="dialog" aria-modal="true" aria-labelledby="my-reports-title">
@@ -58,7 +64,7 @@ export function MyReportsPanel({ onClose }: { onClose: () => void }) {
         {!isLoading && !error && visibleReports.length === 0 && <div className="my-reports-empty"><strong>표시할 제보가 없어요</strong><p>화장실 상세 정보에서 위치나 개방시간 정보를 제보할 수 있습니다.</p></div>}
         {!isLoading && !error && visibleReports.map((report) => {
           const expanded = expandedId === report.id
-          return <article key={report.id} className={`my-report-item is-${report.status.toLowerCase()}`}>
+          return <article key={report.id} ref={report.id === initialExpandedId ? focusedReportRef : undefined} className={`my-report-item is-${report.status.toLowerCase()}${report.id === initialExpandedId ? ' is-focused' : ''}`}>
             <button type="button" className="my-report-summary" aria-expanded={expanded} onClick={() => setExpandedId(expanded ? null : report.id)}>
               <span className="my-report-type">{reportTypeLabel(report.reportType)}</span>
               <strong>{report.toiletName || `화장실 #${report.toiletId}`}</strong>

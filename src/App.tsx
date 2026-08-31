@@ -4,6 +4,8 @@ import { getCurrentUser, logout, startSocialLogin, type AuthProfile } from './ap
 import { createKakaoMap, searchKakaoPlaces, type KakaoMapInstance, type KakaoOverlay, type KakaoPlace } from './lib/kakaoMap'
 import { ToiletReportModal } from './components/ToiletReportModal'
 import { MyReportsPanel } from './components/MyReportsPanel'
+import { NotificationPanel } from './components/NotificationPanel'
+import { fetchUnreadNotificationCount } from './api/notifications'
 import toiletMarkerLogo from './assets/toilet-marker-logo.svg'
 import './App.css'
 
@@ -213,6 +215,9 @@ function App() {
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false)
   const [loginPurpose, setLoginPurpose] = useState<LoginPurpose>('general')
   const [isMyReportsOpen, setIsMyReportsOpen] = useState(false)
+  const [focusedReportId, setFocusedReportId] = useState<number | null>(null)
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+  const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
 
   const showLocationMessage = useCallback((message: string) => {
     window.clearTimeout(locationMessageTimerRef.current)
@@ -281,8 +286,21 @@ function App() {
       setIsLoginDialogOpen(true)
       return
     }
+    setFocusedReportId(null)
     setIsMyReportsOpen(true)
   }, [authProfile])
+
+  const refreshNotificationCount = useCallback(() => {
+    if (!authProfile) return
+    void fetchUnreadNotificationCount().then(setUnreadNotificationCount).catch(() => undefined)
+  }, [authProfile])
+
+  useEffect(() => {
+    if (!authProfile) return
+    void fetchUnreadNotificationCount().then(setUnreadNotificationCount).catch(() => undefined)
+    const interval = window.setInterval(refreshNotificationCount, 60_000)
+    return () => window.clearInterval(interval)
+  }, [authProfile, refreshNotificationCount])
 
   const closeLoginDialog = useCallback(() => {
     try { window.sessionStorage.removeItem(PENDING_REPORT_TARGET_KEY) } catch { /* 저장소 사용 불가 환경 */ }
@@ -292,7 +310,7 @@ function App() {
 
   const handleLogout = useCallback(() => {
     void logout()
-      .then(() => setAuthProfile(null))
+      .then(() => { setAuthProfile(null); setUnreadNotificationCount(0); setIsNotificationsOpen(false) })
       .catch((logoutError: unknown) => showLocationMessage(logoutError instanceof Error ? logoutError.message : '로그아웃하지 못했습니다.'))
   }, [showLocationMessage])
 
@@ -958,6 +976,7 @@ function App() {
         </div>
         <div className="auth-actions">
           {isAuthLoading && <span className="auth-status">확인 중…</span>}
+          {!isAuthLoading && authProfile && <button type="button" className="notification-button" onClick={() => setIsNotificationsOpen(true)} aria-label={unreadNotificationCount ? `읽지 않은 알림 ${unreadNotificationCount}개` : '알림'}><span aria-hidden="true" />{unreadNotificationCount > 0 && <strong>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</strong>}</button>}
           {!isAuthLoading && <button type="button" className="auth-button is-secondary" onClick={openMyReports}>내 제보</button>}
           {!isAuthLoading && authProfile && <><span className="auth-status">로그인됨</span><button type="button" className="auth-button is-logout" onClick={handleLogout}>로그아웃</button></>}
           {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}>로그인</button>}
@@ -1093,7 +1112,8 @@ function App() {
           </aside>
         )}
         {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); setIsMyReportsOpen(true) }} />}
-        {isMyReportsOpen && <MyReportsPanel onClose={() => setIsMyReportsOpen(false)} />}
+        {isMyReportsOpen && <MyReportsPanel initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
+        {isNotificationsOpen && <NotificationPanel onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); setFocusedReportId(reportId); setIsMyReportsOpen(true) }} />}
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
       </section>
       <footer>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</footer>
