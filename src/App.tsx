@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, type ToiletMapSearchResponse } from './api/toilets'
+import { getCurrentUser, logout, startSocialLogin, type AuthProfile } from './api/auth'
 import { createKakaoMap, searchKakaoPlaces, type KakaoMapInstance, type KakaoOverlay, type KakaoPlace } from './lib/kakaoMap'
 import { ToiletReportModal } from './components/ToiletReportModal'
 import toiletMarkerLogo from './assets/toilet-marker-logo.svg'
@@ -202,6 +203,9 @@ function App() {
   const [isMobileAreaListLoading, setIsMobileAreaListLoading] = useState(false)
   const [mapZoomLevel, setMapZoomLevel] = useState(3)
   const [reportTarget, setReportTarget] = useState<{ toilet: ToiletDetailResponse; latitude: number; longitude: number } | null>(null)
+  const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null)
+  const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false)
 
   const showLocationMessage = useCallback((message: string) => {
     window.clearTimeout(locationMessageTimerRef.current)
@@ -216,6 +220,29 @@ function App() {
     mediaQuery.addEventListener('change', updateViewport)
     return () => mediaQuery.removeEventListener('change', updateViewport)
   }, [])
+
+  useEffect(() => {
+    let active = true
+    void getCurrentUser()
+      .then((profile) => { if (active) setAuthProfile(profile) })
+      .catch(() => { if (active) setAuthProfile(null) })
+      .finally(() => { if (active) setIsAuthLoading(false) })
+    return () => { active = false }
+  }, [])
+
+  const openReport = useCallback((target: { toilet: ToiletDetailResponse; latitude: number; longitude: number }) => {
+    if (!authProfile) {
+      setIsLoginDialogOpen(true)
+      return
+    }
+    setReportTarget(target)
+  }, [authProfile])
+
+  const handleLogout = useCallback(() => {
+    void logout()
+      .then(() => setAuthProfile(null))
+      .catch((logoutError: unknown) => showLocationMessage(logoutError instanceof Error ? logoutError.message : '로그아웃하지 못했습니다.'))
+  }, [showLocationMessage])
 
   const clearOverlays = useCallback(() => {
     overlaysRef.current.forEach((overlay) => overlay.setMap(null))
@@ -877,6 +904,11 @@ function App() {
             ><strong>{place.name}</strong><span>{place.address || '주소 정보 없음'}</span></button>)}
           </div>}
         </div>
+        <div className="auth-actions">
+          {isAuthLoading && <span className="auth-status">확인 중…</span>}
+          {!isAuthLoading && authProfile && <><span className="auth-status">로그인됨</span><button type="button" className="auth-button is-logout" onClick={handleLogout}>로그아웃</button></>}
+          {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => setIsLoginDialogOpen(true)}>로그인</button>}
+        </div>
       </header>
 
       <section className="map-section" aria-label="공중화장실 지도">
@@ -975,7 +1007,7 @@ function App() {
               <p className="open-time">{toiletDetail ? formatOpenTime(toiletDetail) : isDetailLoading ? '상세 정보를 불러오는 중…' : '상세 정보를 확인해 주세요.'}</p>
               {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">{distanceReferenceLabel}</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">(직선거리)</span></div>}
               {toiletDetail && hasValue(toiletDetail.roadAddress || toiletDetail.jibunAddress) && <div className="summary-address"><DetailRow label="주소" value={toiletDetail.roadAddress || toiletDetail.jibunAddress} copyable /></div>}
-              {toiletDetail && <button type="button" className="report-entry-button" onClick={() => setReportTarget({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude })}>정보 제보하기</button>}
+              {toiletDetail && <button type="button" className="report-entry-button" onClick={() => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude })}>{authProfile ? '정보 제보하기' : '로그인 후 정보 제보하기'}</button>}
               {detailError && <p className="detail-error" role="alert">{detailError}</p>}
               {toiletDetail && <ToiletDetailContents toilet={toiletDetail} />}
             </div>
@@ -1000,7 +1032,7 @@ function App() {
                     toilet={toiletDetail}
                     isLoading={isDetailLoading}
                     error={detailError}
-                    onReport={() => { if (toiletDetail) setReportTarget({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }}
+                    onReport={() => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }}
                   />}
                 </div>
               })}
@@ -1008,10 +1040,24 @@ function App() {
           </aside>
         )}
         {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} />}
+        {isLoginDialogOpen && <LoginDialog onClose={() => setIsLoginDialogOpen(false)} />}
       </section>
       <footer>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</footer>
     </main>
   )
+}
+
+function LoginDialog({ onClose }: { onClose: () => void }) {
+  return <div className="login-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+    <section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
+      <button type="button" className="login-modal-close" onClick={onClose} aria-label="로그인 창 닫기">×</button>
+      <span>급똥 계정</span>
+      <h1 id="login-modal-title">로그인하고 정보를 제보해 주세요</h1>
+      <p>제보 내용은 관리자 확인 후 서비스에 반영됩니다.</p>
+      <button type="button" className="social-login google-login" onClick={() => startSocialLogin('google')}>Google로 계속하기</button>
+      <button type="button" className="social-login kakao-login" onClick={() => startSocialLogin('kakao')}>Kakao로 계속하기</button>
+    </section>
+  </div>
 }
 
 function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onReport: () => void }) {
