@@ -5,6 +5,9 @@ import { createKakaoMap, searchKakaoPlaces, type KakaoMapInstance, type KakaoOve
 import { ToiletReportModal } from './components/ToiletReportModal'
 import { MyReportsPanel } from './components/MyReportsPanel'
 import { NotificationPanel } from './components/NotificationPanel'
+import { PolicyConsentModal } from './components/PolicyConsentModal'
+import { PolicyFooter, PolicyPage } from './components/PolicyPage'
+import { AccountDialog } from './components/AccountDialog'
 import { fetchUnreadNotificationCount } from './api/notifications'
 import toiletMarkerLogo from './assets/toilet-marker-logo.svg'
 import './App.css'
@@ -161,7 +164,7 @@ function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
   })
 }
 
-function App() {
+function MapApp() {
   const mapContainerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<KakaoMapInstance | null>(null)
   const overlaysRef = useRef<KakaoOverlay[]>([])
@@ -179,6 +182,7 @@ function App() {
   const coordinateGroupItemRefs = useRef(new Map<number, HTMLDivElement>())
   const placeCardRef = useRef<HTMLElement>(null)
   const locationMessageTimerRef = useRef<number | undefined>(undefined)
+  const locationPrivacyTimerRef = useRef<number | undefined>(undefined)
   const cardTouchStartYRef = useRef<number | null>(null)
   const placeSearchRequestRef = useRef(0)
   const placeSearchInputRef = useRef<HTMLInputElement>(null)
@@ -218,6 +222,8 @@ function App() {
   const [focusedReportId, setFocusedReportId] = useState<number | null>(null)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
+  const [isAccountOpen, setIsAccountOpen] = useState(false)
+  const [showLocationPrivacyNotice, setShowLocationPrivacyNotice] = useState(false)
 
   const showLocationMessage = useCallback((message: string) => {
     window.clearTimeout(locationMessageTimerRef.current)
@@ -244,9 +250,11 @@ function App() {
 
   useEffect(() => {
     if (isAuthLoading || !authProfile || new URLSearchParams(window.location.search).get('login') !== 'success') return
+    if (authProfile.consentRequired) return
 
     const url = new URL(window.location.href)
     url.searchParams.delete('login')
+    url.searchParams.delete('consent')
     window.history.replaceState({}, '', url)
 
     try {
@@ -276,8 +284,12 @@ function App() {
       setIsLoginDialogOpen(true)
       return
     }
+    if (authProfile.consentRequired) {
+      showLocationMessage('제보를 시작하려면 필수 약관에 먼저 동의해 주세요.')
+      return
+    }
     setReportTarget(target)
-  }, [authProfile])
+  }, [authProfile, showLocationMessage])
 
   const openMyReports = useCallback(() => {
     if (!authProfile) {
@@ -286,9 +298,13 @@ function App() {
       setIsLoginDialogOpen(true)
       return
     }
+    if (authProfile.consentRequired) {
+      showLocationMessage('내 제보를 확인하려면 필수 약관에 먼저 동의해 주세요.')
+      return
+    }
     setFocusedReportId(null)
     setIsMyReportsOpen(true)
-  }, [authProfile])
+  }, [authProfile, showLocationMessage])
 
   const refreshNotificationCount = useCallback(() => {
     if (!authProfile) return
@@ -312,6 +328,22 @@ function App() {
     void logout()
       .then(() => { setAuthProfile(null); setUnreadNotificationCount(0); setIsNotificationsOpen(false) })
       .catch((logoutError: unknown) => showLocationMessage(logoutError instanceof Error ? logoutError.message : '로그아웃하지 못했습니다.'))
+  }, [showLocationMessage])
+
+  const handleConsentComplete = useCallback(() => {
+    setAuthProfile((profile) => profile ? { ...profile, status: 'ACTIVE', consentRequired: false } : profile)
+    if (new URLSearchParams(window.location.search).get('returnTo') === 'admin') {
+      window.location.assign('https://admin.geupddong.com')
+      return
+    }
+    showLocationMessage('약관 동의가 완료되었습니다.')
+  }, [showLocationMessage])
+
+  const handleWithdrawn = useCallback(() => {
+    setIsAccountOpen(false)
+    setAuthProfile(null)
+    setUnreadNotificationCount(0)
+    showLocationMessage('회원 탈퇴가 완료되었습니다.')
   }, [showLocationMessage])
 
   const clearOverlays = useCallback(() => {
@@ -685,6 +717,10 @@ function App() {
     const map = mapRef.current
     if (!map) return
 
+    window.clearTimeout(locationPrivacyTimerRef.current)
+    setShowLocationPrivacyNotice(true)
+    locationPrivacyTimerRef.current = window.setTimeout(() => setShowLocationPrivacyNotice(false), 6_000)
+
     if (!navigator.geolocation) {
       if (!isInitialRequest) showLocationMessage('이 브라우저에서는 현재 위치를 지원하지 않습니다.')
       setIsLocating(false)
@@ -866,6 +902,7 @@ function App() {
       resizeObserver?.disconnect()
       window.clearTimeout(mapLoadTimerRef.current)
       window.clearTimeout(locationMessageTimerRef.current)
+      window.clearTimeout(locationPrivacyTimerRef.current)
     }
   }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint])
 
@@ -978,7 +1015,7 @@ function App() {
           {isAuthLoading && <span className="auth-status">확인 중…</span>}
           {!isAuthLoading && authProfile && <button type="button" className="notification-button" onClick={() => setIsNotificationsOpen(true)} aria-label={unreadNotificationCount ? `읽지 않은 알림 ${unreadNotificationCount}개` : '알림'}><span aria-hidden="true" />{unreadNotificationCount > 0 && <strong>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</strong>}</button>}
           {!isAuthLoading && <button type="button" className="auth-button is-secondary" onClick={openMyReports}>내 제보</button>}
-          {!isAuthLoading && authProfile && <><span className="auth-status">로그인됨</span><button type="button" className="auth-button is-logout" onClick={handleLogout}>로그아웃</button></>}
+          {!isAuthLoading && authProfile && <><button type="button" className="auth-button is-secondary" onClick={() => setIsAccountOpen(true)}>내 계정</button><button type="button" className="auth-button is-logout" onClick={handleLogout}>로그아웃</button></>}
           {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}>로그인</button>}
         </div>
       </header>
@@ -1053,6 +1090,7 @@ function App() {
           </div>
         </aside>}
         {locationMessage && <p className="location-message" role="status">{locationMessage}</p>}
+        {showLocationPrivacyNotice && <p className="location-privacy-notice" role="status">현재 위치는 주변 화장실과 거리 계산에만 사용되며 서버에 저장되지 않습니다. <a href="/policies/location" target="_blank" rel="noreferrer">자세히</a></p>}
         {selectedToilet && (
           <aside
             ref={placeCardRef}
@@ -1115,8 +1153,10 @@ function App() {
         {isMyReportsOpen && <MyReportsPanel initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
         {isNotificationsOpen && <NotificationPanel onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); setFocusedReportId(reportId); setIsMyReportsOpen(true) }} />}
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
+        {authProfile?.consentRequired && <PolicyConsentModal onComplete={handleConsentComplete} onLogout={handleLogout} />}
+        {authProfile && isAccountOpen && <AccountDialog profile={authProfile} onClose={() => setIsAccountOpen(false)} onWithdrawn={handleWithdrawn} />}
       </section>
-      <footer>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</footer>
+      <footer className="site-footer"><p>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</p><PolicyFooter /></footer>
     </main>
   )
 }
@@ -1132,6 +1172,8 @@ function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () 
       <p>{description}</p>
       <button type="button" className="social-login google-login" onClick={() => startSocialLogin('google')}>Google로 계속하기</button>
       <button type="button" className="social-login kakao-login" onClick={() => startSocialLogin('kakao')}>Kakao로 계속하기</button>
+      <p className="login-policy-note">소셜 인증 후 만 14세 이상 확인과 필수 약관 동의 단계가 이어집니다. 지도 조회는 로그인 없이 이용할 수 있습니다.</p>
+      <nav className="login-policy-links"><a href="/policies/terms" target="_blank" rel="noreferrer">이용약관</a><a href="/policies/privacy" target="_blank" rel="noreferrer">개인정보 처리방침</a></nav>
     </section>
   </div>
 }
@@ -1261,6 +1303,14 @@ function DetailRow({ label, value, copyable = false, className = '' }: { label: 
   }
 
   return <div className={`detail-row ${className}`.trim()}><dt>{label}</dt><dd><span>{value}</span>{copyable && <button type="button" className="copy-address-button" onClick={() => void copyValue()}>{copied ? '복사됨' : '주소 복사'}</button>}</dd></div>
+}
+
+function App() {
+  const path = window.location.pathname.replace(/\/$/, '')
+  if (path === '/policies/terms') return <PolicyPage kind="terms" />
+  if (path === '/policies/privacy') return <PolicyPage kind="privacy" />
+  if (path === '/policies/location') return <PolicyPage kind="location" />
+  return <MapApp />
 }
 
 export default App

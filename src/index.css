@@ -2,3 +2,6 @@
 * { box-sizing: border-box; }
 html, body, #root { min-width: 320px; min-height: 100%; margin: 0; }
 button { font: inherit; }
+.app-error { display: grid; min-height: 100svh; place-content: center; gap: 8px; padding: 24px; background: #f5f8f5; color: #203026; text-align: center; }
+.app-error strong { font-size: 20px; }
+.app-error p { margin: 0; color: #69776d; font-size: 13px; }
