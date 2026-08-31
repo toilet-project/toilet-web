@@ -6,7 +6,7 @@ import { createKakaoMap, reverseGeocodeKakaoCoordinates, type KakaoMapInstance }
 type ReportType = 'choice' | 'location' | 'locationConfirm' | 'openTime' | 'complete'
 type Coordinates = { latitude: number; longitude: number }
 
-export function ToiletReportModal({ toilet, latitude, longitude, onClose }: { toilet: ToiletDetailResponse; latitude: number; longitude: number; onClose: () => void }) {
+export function ToiletReportModal({ toilet, latitude, longitude, onClose, onViewMyReports }: { toilet: ToiletDetailResponse; latitude: number; longitude: number; onClose: () => void; onViewMyReports: () => void }) {
   const [step, setStep] = useState<ReportType>('choice')
   const [coordinates, setCoordinates] = useState<Coordinates>({ latitude, longitude })
   const [roadAddress, setRoadAddress] = useState(toilet.roadAddress || toilet.jibunAddress || '')
@@ -140,7 +140,7 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose }: { to
         {error && <p className="report-error" role="alert">{error}</p>}
         <button type="button" className="report-submit" disabled={isSubmitting} onClick={() => void submit()}>{isSubmitting ? '접수 중…' : '개방 시간 제보 접수'}</button>
       </>}
-      {step === 'complete' && <div className="report-complete"><span aria-hidden="true">✓</span><h1 id="report-modal-title">제보를 접수했어요</h1><p>관리자가 확인한 뒤 반영합니다.</p><button type="button" className="report-submit" onClick={onClose}>확인</button></div>}
+      {step === 'complete' && <div className="report-complete"><span aria-hidden="true">✓</span><h1 id="report-modal-title">제보를 접수했어요</h1><p>처리 상태는 내 제보에서 언제든 확인할 수 있어요.</p><div className="report-complete-actions"><button type="button" className="report-edit-button" onClick={onClose}>지도 돌아가기</button><button type="button" className="report-submit" onClick={onViewMyReports}>내 제보 보기</button></div></div>}
     </section>
   </div>
 }
