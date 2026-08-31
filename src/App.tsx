@@ -3,6 +3,7 @@ import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, typ
 import { getCurrentUser, logout, startSocialLogin, type AuthProfile } from './api/auth'
 import { createKakaoMap, searchKakaoPlaces, type KakaoMapInstance, type KakaoOverlay, type KakaoPlace } from './lib/kakaoMap'
 import { ToiletReportModal } from './components/ToiletReportModal'
+import { MyReportsPanel } from './components/MyReportsPanel'
 import toiletMarkerLogo from './assets/toilet-marker-logo.svg'
 import './App.css'
 
@@ -17,10 +18,12 @@ type SelectedCoordinateGroup = { latitude: number; longitude: number; toilets: T
 type CardPosition = { left: number; top: number }
 type Coordinates = { latitude: number; longitude: number }
 type ReportTarget = { toilet: ToiletDetailResponse; latitude: number; longitude: number }
+type LoginPurpose = 'general' | 'report' | 'my-reports'
 
 const PLACE_CARD_WIDTH = 360
 const MAP_EDGE_GAP = 18
 const PENDING_REPORT_TARGET_KEY = 'geupddong.pending-report-target'
+const PENDING_MY_REPORTS_KEY = 'geupddong.pending-my-reports'
 
 type CountItem = { label: string; count: number }
 
@@ -208,6 +211,8 @@ function App() {
   const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false)
+  const [loginPurpose, setLoginPurpose] = useState<LoginPurpose>('general')
+  const [isMyReportsOpen, setIsMyReportsOpen] = useState(false)
 
   const showLocationMessage = useCallback((message: string) => {
     window.clearTimeout(locationMessageTimerRef.current)
@@ -240,6 +245,12 @@ function App() {
     window.history.replaceState({}, '', url)
 
     try {
+      const openMyReports = window.sessionStorage.getItem(PENDING_MY_REPORTS_KEY) === 'true'
+      window.sessionStorage.removeItem(PENDING_MY_REPORTS_KEY)
+      if (openMyReports) {
+        window.queueMicrotask(() => setIsMyReportsOpen(true))
+        return
+      }
       const savedTarget = window.sessionStorage.getItem(PENDING_REPORT_TARGET_KEY)
       window.sessionStorage.removeItem(PENDING_REPORT_TARGET_KEY)
       if (!savedTarget) return
@@ -256,14 +267,26 @@ function App() {
   const openReport = useCallback((target: ReportTarget) => {
     if (!authProfile) {
       try { window.sessionStorage.setItem(PENDING_REPORT_TARGET_KEY, JSON.stringify(target)) } catch { /* 저장소 사용 불가 환경에서도 로그인은 계속 제공한다. */ }
+      setLoginPurpose('report')
       setIsLoginDialogOpen(true)
       return
     }
     setReportTarget(target)
   }, [authProfile])
 
+  const openMyReports = useCallback(() => {
+    if (!authProfile) {
+      try { window.sessionStorage.setItem(PENDING_MY_REPORTS_KEY, 'true') } catch { /* 저장소 사용 불가 환경 */ }
+      setLoginPurpose('my-reports')
+      setIsLoginDialogOpen(true)
+      return
+    }
+    setIsMyReportsOpen(true)
+  }, [authProfile])
+
   const closeLoginDialog = useCallback(() => {
     try { window.sessionStorage.removeItem(PENDING_REPORT_TARGET_KEY) } catch { /* 저장소 사용 불가 환경 */ }
+    try { window.sessionStorage.removeItem(PENDING_MY_REPORTS_KEY) } catch { /* 저장소 사용 불가 환경 */ }
     setIsLoginDialogOpen(false)
   }, [])
 
@@ -935,8 +958,9 @@ function App() {
         </div>
         <div className="auth-actions">
           {isAuthLoading && <span className="auth-status">확인 중…</span>}
+          {!isAuthLoading && <button type="button" className="auth-button is-secondary" onClick={openMyReports}>내 제보</button>}
           {!isAuthLoading && authProfile && <><span className="auth-status">로그인됨</span><button type="button" className="auth-button is-logout" onClick={handleLogout}>로그아웃</button></>}
-          {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => setIsLoginDialogOpen(true)}>로그인</button>}
+          {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}>로그인</button>}
         </div>
       </header>
 
@@ -1068,21 +1092,24 @@ function App() {
             </div>
           </aside>
         )}
-        {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} />}
-        {isLoginDialogOpen && <LoginDialog onClose={closeLoginDialog} />}
+        {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); setIsMyReportsOpen(true) }} />}
+        {isMyReportsOpen && <MyReportsPanel onClose={() => setIsMyReportsOpen(false)} />}
+        {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
       </section>
       <footer>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</footer>
     </main>
   )
 }
 
-function LoginDialog({ onClose }: { onClose: () => void }) {
+function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () => void }) {
+  const title = purpose === 'my-reports' ? '로그인하고 내 제보를 확인해 주세요' : purpose === 'report' ? '로그인하고 정보를 제보해 주세요' : '급똥에 로그인해 주세요'
+  const description = purpose === 'my-reports' ? '내가 보낸 제보의 대기·승인·반려 상태와 관리자 메모를 확인할 수 있어요.' : '제보 내용은 관리자 확인 후 서비스에 반영됩니다.'
   return <div className="login-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
       <button type="button" className="login-modal-close" onClick={onClose} aria-label="로그인 창 닫기">×</button>
       <span>급똥 계정</span>
-      <h1 id="login-modal-title">로그인하고 정보를 제보해 주세요</h1>
-      <p>제보 내용은 관리자 확인 후 서비스에 반영됩니다.</p>
+      <h1 id="login-modal-title">{title}</h1>
+      <p>{description}</p>
       <button type="button" className="social-login google-login" onClick={() => startSocialLogin('google')}>Google로 계속하기</button>
       <button type="button" className="social-login kakao-login" onClick={() => startSocialLogin('kakao')}>Kakao로 계속하기</button>
     </section>
