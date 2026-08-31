@@ -1153,7 +1153,7 @@ function MapApp() {
         {isMyReportsOpen && <MyReportsPanel initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
         {isNotificationsOpen && <NotificationPanel onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); setFocusedReportId(reportId); setIsMyReportsOpen(true) }} />}
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
-        {authProfile?.consentRequired && <PolicyConsentModal onComplete={handleConsentComplete} onLogout={handleLogout} />}
+        {authProfile?.consentRequired && <PolicyConsentModal isNewRegistration={authProfile.status === 'PENDING_CONSENT'} onComplete={handleConsentComplete} onLogout={handleLogout} />}
         {authProfile && isAccountOpen && <AccountDialog profile={authProfile} onClose={() => setIsAccountOpen(false)} onWithdrawn={handleWithdrawn} />}
       </section>
       <footer className="site-footer"><p>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</p><PolicyFooter /></footer>
@@ -1172,7 +1172,7 @@ function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () 
       <p>{description}</p>
       <button type="button" className="social-login google-login" onClick={() => startSocialLogin('google')}>Google로 계속하기</button>
       <button type="button" className="social-login kakao-login" onClick={() => startSocialLogin('kakao')}>Kakao로 계속하기</button>
-      <p className="login-policy-note">소셜 인증 후 만 14세 이상 확인과 필수 약관 동의 단계가 이어집니다. 지도 조회는 로그인 없이 이용할 수 있습니다.</p>
+      <p className="login-policy-note">처음 가입하는 경우에만 소셜 인증 후 만 14세 이상 확인과 필수 약관 동의가 이어집니다. 기존 회원은 바로 로그인됩니다.</p>
       <nav className="login-policy-links"><a href="/policies/terms" target="_blank" rel="noreferrer">이용약관</a><a href="/policies/privacy" target="_blank" rel="noreferrer">개인정보 처리방침</a></nav>
     </section>
   </div>
