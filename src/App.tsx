@@ -16,9 +16,11 @@ type SelectedToilet = { id: number; name: string; latitude: number; longitude: n
 type SelectedCoordinateGroup = { latitude: number; longitude: number; toilets: ToiletMapItem[] }
 type CardPosition = { left: number; top: number }
 type Coordinates = { latitude: number; longitude: number }
+type ReportTarget = { toilet: ToiletDetailResponse; latitude: number; longitude: number }
 
 const PLACE_CARD_WIDTH = 360
 const MAP_EDGE_GAP = 18
+const PENDING_REPORT_TARGET_KEY = 'geupddong.pending-report-target'
 
 type CountItem = { label: string; count: number }
 
@@ -202,7 +204,7 @@ function App() {
   const [mobileAreaToilets, setMobileAreaToilets] = useState<ToiletMapItem[] | null>(null)
   const [isMobileAreaListLoading, setIsMobileAreaListLoading] = useState(false)
   const [mapZoomLevel, setMapZoomLevel] = useState(3)
-  const [reportTarget, setReportTarget] = useState<{ toilet: ToiletDetailResponse; latitude: number; longitude: number } | null>(null)
+  const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null)
   const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false)
@@ -230,13 +232,40 @@ function App() {
     return () => { active = false }
   }, [])
 
-  const openReport = useCallback((target: { toilet: ToiletDetailResponse; latitude: number; longitude: number }) => {
+  useEffect(() => {
+    if (isAuthLoading || !authProfile || new URLSearchParams(window.location.search).get('login') !== 'success') return
+
+    const url = new URL(window.location.href)
+    url.searchParams.delete('login')
+    window.history.replaceState({}, '', url)
+
+    try {
+      const savedTarget = window.sessionStorage.getItem(PENDING_REPORT_TARGET_KEY)
+      window.sessionStorage.removeItem(PENDING_REPORT_TARGET_KEY)
+      if (!savedTarget) return
+
+      const target = JSON.parse(savedTarget) as Partial<ReportTarget>
+      if (!target.toilet || !Number.isFinite(target.latitude) || !Number.isFinite(target.longitude)) return
+      setReportTarget(target as ReportTarget)
+      setIsLoginDialogOpen(false)
+    } catch {
+      window.sessionStorage.removeItem(PENDING_REPORT_TARGET_KEY)
+    }
+  }, [authProfile, isAuthLoading])
+
+  const openReport = useCallback((target: ReportTarget) => {
     if (!authProfile) {
+      try { window.sessionStorage.setItem(PENDING_REPORT_TARGET_KEY, JSON.stringify(target)) } catch { /* 저장소 사용 불가 환경에서도 로그인은 계속 제공한다. */ }
       setIsLoginDialogOpen(true)
       return
     }
     setReportTarget(target)
   }, [authProfile])
+
+  const closeLoginDialog = useCallback(() => {
+    try { window.sessionStorage.removeItem(PENDING_REPORT_TARGET_KEY) } catch { /* 저장소 사용 불가 환경 */ }
+    setIsLoginDialogOpen(false)
+  }, [])
 
   const handleLogout = useCallback(() => {
     void logout()
@@ -1040,7 +1069,7 @@ function App() {
           </aside>
         )}
         {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} />}
-        {isLoginDialogOpen && <LoginDialog onClose={() => setIsLoginDialogOpen(false)} />}
+        {isLoginDialogOpen && <LoginDialog onClose={closeLoginDialog} />}
       </section>
       <footer>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</footer>
     </main>
