@@ -83,6 +83,16 @@ function formatDistance(distanceInMeters: number) {
   return `${(distanceInMeters / 1_000).toFixed(1)}km`
 }
 
+function formatLastUpdatedAt(updatedAt: Date | null) {
+  if (!updatedAt) return '확인할 수 없음'
+  return new Intl.DateTimeFormat('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(updatedAt)
+}
+
 function toiletTypeTone(toiletType?: string) {
   const normalizedType = toiletType?.replace(/\s/g, '') ?? ''
   if (normalizedType.includes('개방')) return 'is-open'
@@ -189,6 +199,7 @@ function MapApp() {
   const mapLoadTimerRef = useRef<number | undefined>(undefined)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [lastSuccessfulMapUpdate, setLastSuccessfulMapUpdate] = useState<Date | null>(null)
   const [result, setResult] = useState<ToiletMapSearchResponse | null>(null)
   const [selectedToilet, setSelectedToilet] = useState<SelectedToilet | null>(null)
   const [selectedCoordinateGroup, setSelectedCoordinateGroup] = useState<SelectedCoordinateGroup | null>(null)
@@ -644,7 +655,6 @@ function MapApp() {
     const northEast = bounds.getNorthEast()
 
     setIsLoading(true)
-    setError(null)
     try {
       const response = await fetchToiletsInBounds({
         southLat: southWest.getLat(),
@@ -657,6 +667,8 @@ function MapApp() {
 
       if (requestSequence !== requestSequenceRef.current) return
       setResult(response)
+      setError(null)
+      setLastSuccessfulMapUpdate(new Date())
       setMobileAreaToilets(null)
       renderResult(map, response)
     } catch {
@@ -667,6 +679,12 @@ function MapApp() {
       if (requestSequence === requestSequenceRef.current) setIsLoading(false)
     }
   }, [renderResult])
+
+  useEffect(() => {
+    if (!error || !result) return
+    const interval = window.setInterval(() => void loadMapArea(), 30_000)
+    return () => window.clearInterval(interval)
+  }, [error, loadMapArea, result])
 
   const scheduleMapAreaLoad = useCallback(() => {
     window.clearTimeout(mapLoadTimerRef.current)
@@ -1022,13 +1040,21 @@ function MapApp() {
 
       <section className="map-section" aria-label="공중화장실 지도">
         <div ref={mapContainerRef} className="map" />
+        {error && result && <div className="connection-status-banner" role="alert">
+          <span className="connection-status-dot" aria-hidden="true" />
+          <div>
+            <strong>서버 연결이 끊겼습니다</strong>
+            <span>마지막 정상 갱신 {formatLastUpdatedAt(lastSuccessfulMapUpdate)}</span>
+          </div>
+          <button type="button" onClick={() => void loadMapArea()} disabled={isLoading}>{isLoading ? '연결 중…' : '다시 연결'}</button>
+        </div>}
         <p className="desktop-map-reference-hint">지도를 클릭해 거리 기준점을 옮길 수 있어요.</p>
         <div className={`map-controls${hasMapCard ? ' is-with-card' : ''}`}>
           <div className="map-hud" aria-live="polite">
             {isLoading && <span className="map-loading-message">지도를 조회하는 중…</span>}
             {!isLoading && result && <span className="map-area-count">이 지역 {result.meta.total_count.toLocaleString()}곳{result.meta.display_type === 'CLUSTER' ? ' · 묶어서 표시 중' : ''}</span>}
             {result && <button className={`mobile-area-list-button${isMobileAreaListOpen ? ' is-open' : ''}${isLoading ? ' is-loading' : ''}`} type="button" onClick={() => void toggleMobileAreaList()} aria-expanded={isMobileAreaListOpen} aria-busy={isLoading} disabled={isLoading}>{isLoading ? '지도를 조회하는 중…' : isMobileAreaListOpen ? '목록 닫기' : `이 지역 ${result.meta.total_count.toLocaleString()}곳`}</button>}
-            {error && <span className="error-message">{error}</span>}
+            {error && !result && <span className="error-message">{error}</span>}
           </div>
           <button className={`location-button${hasMapCard ? ' is-with-card' : ''}`} type="button" onClick={() => void moveToCurrentLocation()} disabled={isLocating}>
             {isLocating ? '확인 중' : '현재 위치'}
