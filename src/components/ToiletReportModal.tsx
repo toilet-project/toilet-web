@@ -9,6 +9,8 @@ type Coordinates = { latitude: number; longitude: number }
 export function ToiletReportModal({ toilet, latitude, longitude, onClose, onViewMyReports }: { toilet: ToiletDetailResponse; latitude: number; longitude: number; onClose: () => void; onViewMyReports: () => void }) {
   const [step, setStep] = useState<ReportType>('choice')
   const [coordinates, setCoordinates] = useState<Coordinates>({ latitude, longitude })
+  // 지도 이동 중에는 재생성하지 않고, 확인 단계로 전환할 때만 중심을 확정한다.
+  const [confirmedCoordinates, setConfirmedCoordinates] = useState<Coordinates | null>(null)
   const [roadAddress, setRoadAddress] = useState(toilet.roadAddress || toilet.jibunAddress || '')
   const [isAddressLoading, setIsAddressLoading] = useState(false)
   const [openTime, setOpenTime] = useState(toilet.openTime || '')
@@ -21,25 +23,25 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
   const geocodeRequestRef = useRef(0)
   const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const updateAddress = async (next: Coordinates) => {
-    const requestId = ++geocodeRequestRef.current
-    setIsAddressLoading(true)
-    try {
-      const address = await reverseGeocodeKakaoCoordinates(next.latitude, next.longitude)
-      if (requestId === geocodeRequestRef.current) setRoadAddress(address ?? '')
-    } catch {
-      if (requestId === geocodeRequestRef.current) setRoadAddress('')
-    } finally {
-      if (requestId === geocodeRequestRef.current) setIsAddressLoading(false)
-    }
-  }
-
   useEffect(() => {
     if ((step !== 'location' && step !== 'locationConfirm') || !mapElementRef.current) return
     let disposed = false
 
+    const updateAddress = async (next: Coordinates) => {
+      const requestId = ++geocodeRequestRef.current
+      setIsAddressLoading(true)
+      try {
+        const address = await reverseGeocodeKakaoCoordinates(next.latitude, next.longitude)
+        if (!disposed && requestId === geocodeRequestRef.current) setRoadAddress(address ?? '')
+      } catch {
+        if (!disposed && requestId === geocodeRequestRef.current) setRoadAddress('')
+      } finally {
+        if (!disposed && requestId === geocodeRequestRef.current) setIsAddressLoading(false)
+      }
+    }
+
     void (async () => {
-      const map = await createKakaoMap(mapElementRef.current!, step === 'locationConfirm' ? coordinates : { latitude, longitude }, step === 'location' ? 4 : 4)
+      const map = await createKakaoMap(mapElementRef.current!, confirmedCoordinates ?? { latitude, longitude }, 4)
       if (disposed) return
       mapRef.current = map
       if (step === 'locationConfirm') {
@@ -48,13 +50,14 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
         return
       }
       const syncCenter = () => {
+        if (disposed) return
         const center = map.getCenter()
         const next = { latitude: center.getLat(), longitude: center.getLng() }
         setCoordinates(next)
         if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current)
         geocodeTimerRef.current = setTimeout(() => { void updateAddress(next) }, 280)
       }
-      const syncLevel = () => setMapLevel(map.getLevel())
+      const syncLevel = () => { if (!disposed) setMapLevel(map.getLevel()) }
       window.kakao.maps.event.addListener(map, 'idle', syncCenter)
       window.kakao.maps.event.addListener(map, 'zoom_changed', syncLevel)
       syncLevel()
@@ -66,12 +69,13 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
       if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current)
       mapRef.current = null
     }
-  }, [step, latitude, longitude])
+  }, [step, latitude, longitude, confirmedCoordinates])
 
   const openLocationConfirmation = () => {
     setError(null)
     if (!reason.trim()) { setError('제보 사유를 입력해 주세요.'); return }
     if (!roadAddress) { setError('표시된 도로명 주소를 확인해 주세요.'); return }
+    setConfirmedCoordinates(coordinates)
     setStep('locationConfirm')
   }
 
