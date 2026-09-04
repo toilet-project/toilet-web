@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, type ToiletMapSearchResponse } from './api/toilets'
 import { getCurrentUser, logout, startSocialLogin, type AuthProfile } from './api/auth'
 import { createKakaoMap, searchKakaoPlaces, type KakaoMapInstance, type KakaoOverlay, type KakaoPlace } from './lib/kakaoMap'
@@ -192,7 +192,6 @@ function MapApp() {
   const coordinateGroupItemRefs = useRef(new Map<number, HTMLDivElement>())
   const placeCardRef = useRef<HTMLElement>(null)
   const locationMessageTimerRef = useRef<number | undefined>(undefined)
-  const locationPrivacyTimerRef = useRef<number | undefined>(undefined)
   const cardTouchStartYRef = useRef<number | null>(null)
   const placeSearchRequestRef = useRef(0)
   const placeSearchInputRef = useRef<HTMLInputElement>(null)
@@ -234,7 +233,6 @@ function MapApp() {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
   const [isAccountOpen, setIsAccountOpen] = useState(false)
-  const [showLocationPrivacyNotice, setShowLocationPrivacyNotice] = useState(false)
 
   const showLocationMessage = useCallback((message: string) => {
     window.clearTimeout(locationMessageTimerRef.current)
@@ -250,18 +248,8 @@ function MapApp() {
     return () => mediaQuery.removeEventListener('change', updateViewport)
   }, [])
 
-  useEffect(() => {
-    let active = true
-    void getCurrentUser()
-      .then((profile) => { if (active) setAuthProfile(profile) })
-      .catch(() => { if (active) setAuthProfile(null) })
-      .finally(() => { if (active) setIsAuthLoading(false) })
-    return () => { active = false }
-  }, [])
-
-  useEffect(() => {
-    if (isAuthLoading || !authProfile || new URLSearchParams(window.location.search).get('login') !== 'success') return
-    if (authProfile.consentRequired) return
+  const resumePendingLoginAction = useCallback(() => {
+    if (new URLSearchParams(window.location.search).get('login') !== 'success') return
 
     const url = new URL(window.location.href)
     url.searchParams.delete('login')
@@ -272,7 +260,7 @@ function MapApp() {
       const openMyReports = window.sessionStorage.getItem(PENDING_MY_REPORTS_KEY) === 'true'
       window.sessionStorage.removeItem(PENDING_MY_REPORTS_KEY)
       if (openMyReports) {
-        window.queueMicrotask(() => setIsMyReportsOpen(true))
+        setIsMyReportsOpen(true)
         return
       }
       const savedTarget = window.sessionStorage.getItem(PENDING_REPORT_TARGET_KEY)
@@ -284,9 +272,22 @@ function MapApp() {
       setReportTarget(target as ReportTarget)
       setIsLoginDialogOpen(false)
     } catch {
-      window.sessionStorage.removeItem(PENDING_REPORT_TARGET_KEY)
+      try { window.sessionStorage.removeItem(PENDING_REPORT_TARGET_KEY) } catch { /* 저장소 사용 불가 환경 */ }
     }
-  }, [authProfile, isAuthLoading])
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    void getCurrentUser()
+      .then((profile) => {
+        if (!active) return
+        setAuthProfile(profile)
+        if (profile && !profile.consentRequired) resumePendingLoginAction()
+      })
+      .catch(() => { if (active) setAuthProfile(null) })
+      .finally(() => { if (active) setIsAuthLoading(false) })
+    return () => { active = false }
+  }, [resumePendingLoginAction])
 
   const openReport = useCallback((target: ReportTarget) => {
     if (!authProfile) {
@@ -348,7 +349,8 @@ function MapApp() {
       return
     }
     showLocationMessage('약관 동의가 완료되었습니다.')
-  }, [showLocationMessage])
+    resumePendingLoginAction()
+  }, [resumePendingLoginAction, showLocationMessage])
 
   const handleWithdrawn = useCallback(() => {
     setIsAccountOpen(false)
@@ -735,10 +737,6 @@ function MapApp() {
     const map = mapRef.current
     if (!map) return
 
-    window.clearTimeout(locationPrivacyTimerRef.current)
-    setShowLocationPrivacyNotice(true)
-    locationPrivacyTimerRef.current = window.setTimeout(() => setShowLocationPrivacyNotice(false), 6_000)
-
     if (!navigator.geolocation) {
       if (!isInitialRequest) showLocationMessage('이 브라우저에서는 현재 위치를 지원하지 않습니다.')
       setIsLocating(false)
@@ -920,7 +918,6 @@ function MapApp() {
       resizeObserver?.disconnect()
       window.clearTimeout(mapLoadTimerRef.current)
       window.clearTimeout(locationMessageTimerRef.current)
-      window.clearTimeout(locationPrivacyTimerRef.current)
     }
   }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint])
 
@@ -934,7 +931,10 @@ function MapApp() {
     : null
   const hasMapCard = selectedToilet != null || selectedCoordinateGroup != null
   const isListZoomLimited = mapZoomLevel > MAX_LIST_ZOOM_LEVEL
-  const areaToilets = isListZoomLimited ? [] : mobileAreaToilets ?? result?.toilets ?? []
+  const areaToilets = useMemo(
+    () => isListZoomLimited ? [] : mobileAreaToilets ?? result?.toilets ?? [],
+    [isListZoomLimited, mobileAreaToilets, result?.toilets],
+  )
   const groupedAreaToilets = groupToiletsByCoordinate(areaToilets)
   const sortedAreaToiletGroups = distanceReference
     ? [...groupedAreaToilets].sort((left, right) => calculateDistanceInMeters(distanceReference, left) - calculateDistanceInMeters(distanceReference, right))
@@ -1116,7 +1116,6 @@ function MapApp() {
           </div>
         </aside>}
         {locationMessage && <p className="location-message" role="status">{locationMessage}</p>}
-        {showLocationPrivacyNotice && <p className="location-privacy-notice" role="status">현재 위치는 주변 화장실과 거리 계산에만 사용되며 서버에 저장되지 않습니다. <a href="/policies/location" target="_blank" rel="noreferrer">자세히</a></p>}
         {selectedToilet && (
           <aside
             ref={placeCardRef}
