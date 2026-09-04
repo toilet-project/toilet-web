@@ -425,8 +425,6 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
 .account-confirm > div { display: flex; justify-content: flex-end; gap: 8px; }
 .account-confirm button { min-height: 36px; padding: 0 12px; border: 1px solid #ddc5c1; border-radius: 8px; background: #fff; color: #74443d; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .account-confirm button:last-child { border-color: #a94438; background: #a94438; color: #fff; }
-.location-privacy-notice { position: absolute; z-index: 12; right: 18px; bottom: 78px; max-width: 380px; margin: 0; padding: 11px 13px; border: 1px solid #cbdccd; border-radius: 11px; background: rgb(255 255 255 / 97%); box-shadow: 0 4px 18px rgb(31 46 34 / 18%); color: #425349; font-size: 12px; line-height: 1.5; }
-.location-privacy-notice a { margin-left: 4px; color: #17683a; font-weight: 800; }
 
 @media (max-width: 640px) {
   .site-footer { display: block; padding: 10px 12px; }
@@ -453,7 +451,6 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
   .consent-submit { min-height: 43px; font-size: 14px; }
   .consent-logout { margin-top: 9px; }
   .account-dialog { width: 100%; max-height: 92svh; padding: 25px 19px max(22px, env(safe-area-inset-bottom)); border-radius: 22px 22px 0 0; }
-  .location-privacy-notice { right: 12px; bottom: 76px; left: 12px; max-width: none; }
 }
 
 @media (max-width: 640px) {
