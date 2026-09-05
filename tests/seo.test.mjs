@@ -1,8 +1,31 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { placeData, safeJsonLd, sitemapXml, validateSitemapIds, robotsPolicy, MAX_SHARD } from '../src/lib/seo.ts'
+import { placeData, safeJsonLd, sitemapXml, validateSitemapIds, robotsPolicy, MAX_SHARD, toiletMetadataText } from '../src/lib/seo.ts'
 
 const detail = {id:1,name:'검증 화장실',roadAddress:'대전광역시 유성구 검증로 1',jibunAddress:'검증동 2',latitude:36.3,longitude:127.3,region:{sidoName:'대전광역시',sigunguName:'유성구'}}
+
+test('metadata identifies a building as a toilet without altering its source name', () => {
+  const source = {...detail, name:'공학1호관'}
+  const original = structuredClone(source)
+  assert.deepEqual(toiletMetadataText(source), {
+    title:'공학1호관 화장실 위치 및 이용정보 | 대전광역시 유성구',
+    description:'대전광역시 유성구에 위치한 공학1호관 화장실의 위치, 개방시간과 시설 정보를 확인하세요.',
+  })
+  assert.deepEqual(source, original)
+  assert.equal(placeData(source).name, '공학1호관')
+})
+test('metadata does not duplicate an existing toilet term anywhere in the name', () => {
+  for (const name of ['공중화장실', '공학1호관 화장실', '화장실 (남)', '공학1호관 화 장 실']) {
+    assert.equal(toiletMetadataText({...detail,name}).title, `${name} 위치 및 이용정보 | 대전광역시 유성구`)
+  }
+})
+test('metadata handles missing region and trims names without inventing a location', () => {
+  assert.deepEqual(toiletMetadataText({...detail,name:' 검증관 ',region:null}), {
+    title:'검증관 화장실 위치 및 이용정보',
+    description:'검증관 화장실의 위치, 개방시간과 시설 정보를 확인하세요.',
+  })
+  assert.equal(toiletMetadataText({...detail,name:' '}).title, '화장실 위치 및 이용정보 | 대전광역시 유성구')
+})
 test('Place uses actual preferred address, validated region and coordinates',()=>{
   const data=placeData(detail)
   assert.equal(data['@type'],'Place')

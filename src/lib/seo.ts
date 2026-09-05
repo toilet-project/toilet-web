@@ -1,10 +1,21 @@
 import type { ToiletDetailResponse } from '../api/toilets.ts'
 import { getDisplayAddress } from './address.ts'
-import { toiletCoordinates, toiletPath } from './toiletRoute.ts'
+import { regionLabel, toiletCoordinates, toiletPath } from './toiletRoute.ts'
 
 export const SITE_ORIGIN = 'https://geupddong.com'
 export const SITEMAP_SIZE = 10_000
 export const MAX_SHARD = Math.floor((Number.MAX_SAFE_INTEGER - 1) / SITEMAP_SIZE)
+
+// Metadata only: keep the source name used by the map, API and Place unchanged.
+export function toiletMetadataText(detail: Pick<ToiletDetailResponse, 'name' | 'region'>) {
+  const sourceName = detail.name.trim()
+  const name = /화\s*장\s*실/u.test(sourceName) ? sourceName : `${sourceName ? `${sourceName} ` : ''}화장실`
+  const region = regionLabel(detail.region)
+  return {
+    title: `${name} 위치 및 이용정보${region ? ` | ${region}` : ''}`,
+    description: `${region ? `${region}에 위치한 ` : ''}${name}의 위치, 개방시간과 시설 정보를 확인하세요.`,
+  }
+}
 
 export function placeData(detail: ToiletDetailResponse) {
   const address = getDisplayAddress(detail.roadAddress, detail.jibunAddress)

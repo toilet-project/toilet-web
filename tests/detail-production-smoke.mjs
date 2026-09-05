@@ -26,6 +26,7 @@ const api = createServer((req,res) => {
   if (req.url === '/api/v1/toilets/900001' && !deleted) return res.end(JSON.stringify(fixture))
   if (req.url === '/api/v1/toilets/900002') return res.end(JSON.stringify({...fixture,id:900002,latitude:null,longitude:null,roadAddress:'',jibunAddress:'충청남도 천안시 서북구 검증동 1',region:null}))
   if (req.url === '/api/v1/toilets/900003') return res.end(JSON.stringify({...fixture,id:900003,name:'</script><script>alert("x")</script>'}))
+  if (req.url === '/api/v1/toilets/900004') return res.end(JSON.stringify({...fixture,id:900004,name:'공학1호관'}))
   res.statusCode = req.url === '/api/v1/toilets/900500' ? 503 : 404
   res.end('{}')
 })
@@ -64,6 +65,20 @@ try {
   assert.match(html,/충청남도 천안시 서북구 검증로 1/)
   assert.match(html,/충청남도 천안시 서북구/)
   assert.match(html,/화장실 수/)
+  const assertMetadata = (document, name) => {
+    const title = `${name} 위치 및 이용정보 | 충청남도 천안시 서북구`
+    const description = `충청남도 천안시 서북구에 위치한 ${name}의 위치, 개방시간과 시설 정보를 확인하세요.`
+    assert.ok(document.includes(`<title>${title} | 급똥</title>`))
+    for (const [attribute,key,value] of [
+      ['name','description',description], ['property','og:title',title],
+      ['property','og:description',description], ['name','twitter:title',title],
+      ['name','twitter:description',description],
+    ]) assert.ok(document.includes(`<meta ${attribute}="${key}" content="${value}"`), key)
+  }
+  assertMetadata(html, '검증용 화장실')
+  const building = await (await fetch(`${origin}/toilet/900004`)).text()
+  assertMetadata(building, '공학1호관 화장실')
+  assert.match(building, /<h1[^>]*>공학1호관<\/h1>/)
   assert.match(html,/href="https:\/\/geupddong.com\/toilet\/900001"/)
   if(indexable) assert.equal(first.headers.get('x-robots-tag'),null)
   else assert.match(first.headers.get('x-robots-tag'),/noindex/)
