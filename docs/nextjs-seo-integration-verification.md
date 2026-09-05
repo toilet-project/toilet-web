@@ -77,3 +77,12 @@ API의 북유성IC주유소(13448)는 목록과 상세 모두 개방화장실이
 - 기존 CI action major/Node 20 deprecated 안내가 남아 있다. 이번 배포 실패는 아니며 별도 CI 유지보수로 업데이트한다.
 
 문제 시 API는 PR #81 변경을 되돌리는 검토된 revert 배포, preview는 이전 정상 Worker 버전으로 되돌릴 수 있다. 이번 API에는 스키마 변경이 없어 DB down migration은 없다. 자동 롤백이나 운영 데이터 삭제를 실행하지 않았다.
+
+## 후속: 메타데이터의 화장실 식별 문구
+
+사용자 확인에 따라 이름에 ‘화장실’이 없는 경우에만 metadata 표시 이름에 ‘화장실’을 붙였다. 기존 명칭·지도 표시·Place.name·DB는 보존한다. title/description 및 OG/Twitter 제목·설명은 같은 함수의 결과를 사용한다.
+
+- 소스 `e57ba90215443d9f63ad59f7d1e639f4a3a3ce1d`, [CI 33965729220](https://github.com/toilet-project/toilet-web/actions/runs/33965729220) 성공.
+- 자동 테스트 38건, lint/typecheck, 두 production smoke 모드의 5개 메타 태그와 title 및 원래 h1 보존 검사 통과.
+- preview Worker `b62d8ece-9637-4854-93c7-eb694bcf0fa1` 배포. 운영 웹/API/DB 변경 없음.
+- 실제 `/toilet/13144` 서버 HTML 확인: `공학1호관 화장실 위치 및 이용정보 | 대전광역시 유성구 | 급똥`. 표준·OG·Twitter 설명 일치, canonical/noindex 유지, API 및 Place.name은 `공학1호관` 그대로.
