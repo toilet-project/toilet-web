@@ -20,6 +20,7 @@ export type ToiletReport = {
   latitude?: number | null
   longitude?: number | null
   roadAddress?: string | null
+  jibunAddress?: string | null
   openTime?: string | null
   reason: string
   status: ToiletReportStatus

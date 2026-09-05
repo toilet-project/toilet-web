@@ -1,4 +1,5 @@
 import { kakaoJavascriptKey } from '../config/kakao'
+import { getDisplayAddress } from './address'
 
 export type KakaoOverlay = { setMap(map: KakaoMapInstance | null): void }
 export type KakaoPlace = { id: string; name: string; address: string; latitude: number; longitude: number }
@@ -62,7 +63,7 @@ export async function searchKakaoPlaces(keyword: string): Promise<KakaoPlace[]> 
         resolve(results.map((place) => ({
           id: place.id,
           name: place.place_name,
-          address: place.road_address_name || place.address_name,
+          address: getDisplayAddress(place.road_address_name, place.address_name),
           longitude: Number(place.x),
           latitude: Number(place.y),
         })))
@@ -85,7 +86,7 @@ export async function reverseGeocodeKakaoCoordinates(latitude: number, longitude
     geocoder.coord2Address(longitude, latitude, (results, status) => {
       if (status === window.kakao.maps.services.Status.OK) {
         const result = results[0]
-        resolve(result?.road_address?.address_name ?? result?.address?.address_name ?? null)
+        resolve(getDisplayAddress(result?.road_address?.address_name, result?.address?.address_name) || null)
         return
       }
       if (status === window.kakao.maps.services.Status.ZERO_RESULT) {
