@@ -2,8 +2,8 @@
 // Public map/SSR reads are live. Auth/consent/report writes are browser-local fixtures.
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright')
 const assert = require('node:assert/strict')
-const origin = process.env.MOBILE_TEST_ORIGIN || 'https://preview.geupddong.com'
-assert.ok(['https://preview.geupddong.com','http://127.0.0.1:4174','http://192.168.0.4:4174'].includes(origin), 'Only isolated preview/local targets are allowed')
+const {mobileTestOrigin} = require('./mobile-test-origin.cjs')
+const origin = mobileTestOrigin(process.env.MOBILE_TEST_ORIGIN || 'https://preview.geupddong.com', {allowLoopback:true})
 const results = []
 async function visible(locator) { await locator.waitFor({ state:'visible', timeout:30000 }) }
 async function withinViewport(page, locator) {
@@ -25,7 +25,7 @@ async function noOverflow(page) {
   // Only this disposable test browser treats the LAN dev origin like HTTPS for
   // geolocation. Preview uses real HTTPS; no user browser/server settings change.
   const browser=await chromium.launch({channel:'chrome',headless:true,
-    args:origin.startsWith('http://192.168.')?['--unsafely-treat-insecure-origin-as-secure='+origin]:[]})
+    args:origin==='http://192.168.0.4:4174'?['--unsafely-treat-insecure-origin-as-secure='+origin]:[]})
   let lastPage
   try {
     for (const viewport of [{width:375,height:667},{width:390,height:844},{width:430,height:932}]) {

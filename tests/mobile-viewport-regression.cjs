@@ -2,8 +2,8 @@
 // events are synthetic: this does NOT replace an iPhone Safari keyboard check.
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE_PATH || 'playwright')
 const assert=require('node:assert/strict')
-const origin=process.env.MOBILE_TEST_ORIGIN || 'https://preview.geupddong.com'
-assert.ok(['https://preview.geupddong.com','http://192.168.0.4:4174'].includes(origin))
+const {mobileTestOrigin}=require('./mobile-test-origin.cjs')
+const origin=mobileTestOrigin(process.env.MOBILE_TEST_ORIGIN || 'https://preview.geupddong.com')
 const visible=locator=>locator.waitFor({state:'visible',timeout:30000})
 async function stable(page) { await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)))) }
 async function checkMobile(page) {
