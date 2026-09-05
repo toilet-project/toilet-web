@@ -13,6 +13,7 @@ dist-ssr
 .next/
 .next-smoke/
 .open-next/
+worker-release-manifest.json
 .wrangler/
 *.tsbuildinfo
 .dev.vars*

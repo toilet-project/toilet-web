@@ -16,6 +16,16 @@ concurrency:
 
 jobs:
   build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: preview
+            config: wrangler.jsonc
+            indexable: 'false'
+          - target: production-candidate
+            config: wrangler.production.jsonc
+            indexable: 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -23,7 +33,7 @@ jobs:
       WRANGLER_SEND_METRICS: 'false'
       NEXT_PUBLIC_API_BASE_URL: https://api.geupddong.com
       NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY: ${{ secrets.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY || 'build-validation-placeholder' }}
-      SITE_INDEXABLE: 'false'
+      SITE_INDEXABLE: ${{ matrix.indexable }}
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.0.0
@@ -38,16 +48,19 @@ jobs:
       - run: pnpm test
       - run: pnpm run test:detail-production
       - run: node tests/detail-production-smoke.mjs --indexable
-      - run: pnpm run build:workers
+      - run: pnpm exec opennextjs-cloudflare build --config ${{ matrix.config }}
+      - run: node scripts/write-worker-release-manifest.mjs ${{ matrix.target }}
       # Deliberately no Cloudflare credentials, upload, resource creation or deployment.
       - name: Validate Worker bundle without uploading
-        run: pnpm exec wrangler deploy --dry-run
+        run: pnpm exec wrangler deploy --dry-run --config ${{ matrix.config }}
       # Build on Linux; deploy manually using the approved local Cloudflare session.
       # No OAuth tokens or production secrets enter this artifact.
-      - name: Package validated preview runtime
-        run: tar -czf workers-preview.tar.gz .open-next package.json pnpm-lock.yaml wrangler.jsonc open-next.config.ts next.config.ts .next/BUILD_ID
+      - name: Package selected candidate runtime
+        # Include ONLY the selected config: an indexable candidate must never
+        # fall back to preview's default wrangler.jsonc when extracted.
+        run: tar -czf workers-${{ matrix.target }}.tar.gz .open-next package.json pnpm-lock.yaml ${{ matrix.config }} worker-release-manifest.json open-next.config.ts next.config.ts .next/BUILD_ID
       - uses: actions/upload-artifact@v4
         with:
-          name: workers-preview-${{ github.sha }}
-          path: workers-preview.tar.gz
+          name: workers-${{ matrix.target }}-${{ github.sha }}
+          path: workers-${{ matrix.target }}.tar.gz
           retention-days: 3
