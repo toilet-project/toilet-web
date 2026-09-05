@@ -36,6 +36,9 @@
 | 좌표 없음 | 지번 fallback HTML 200, 좌표 판별 단위 검사에서 가짜 좌표 생성 없음 |
 | 실제 개발 브라우저 | `/toilet/1` → 목록의 사직동 주민센터 `/toilet/170` → 뒤로 1 → 앞으로 170 → 닫기 `/`. 제목/카드/마커 일치. 선택 전후 타일 URL·배치·레벨 동일 |
 | 동일 위치 그룹 | 충남대학교 검색 → 자연과학대학 외 63개 그룹 → 공동실험실습관 `/toilet/13090`. 그룹 유지, 인라인 상세 및 선택 핀 확인 |
+| Linux CI | Web `6b53513` [Workers validation](https://github.com/toilet-project/toilet-web/actions/runs/33955131750): 단위/production smoke/OpenNext 빌드/업로드 없는 Worker 패키지 검증 모두 성공 |
+
+추가 보완: 그룹 상세 히스토리 복원 시 해당 행으로 스크롤한다. 개발 HMR/Strict Mode 해제 시 SDK 소유 DOM·대기 생성·이전 응답을 정리해 지도 로고/타일 중첩을 방지한다.
 
 ## 아직 확인하지 않은 항목 / 배포 제한
 

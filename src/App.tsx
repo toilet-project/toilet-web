@@ -461,6 +461,14 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     setIsDetailLoading(false)
     toiletMarkerElementsRef.current.forEach((marker, id) => marker.classList.toggle('is-selected', id === detail.id))
     // URL/history changes update only selection. Never pan, zoom or fetch map bounds here.
+    if (inGroup) {
+      const frame = window.requestAnimationFrame(() => {
+        const list = coordinateGroupListRef.current
+        const item = coordinateGroupItemRefs.current.get(detail.id)
+        if (list && item) list.scrollTo({ top: Math.max(0, item.offsetTop - list.offsetTop - 8) })
+      })
+      return () => window.cancelAnimationFrame(frame)
+    }
   }, [route, resetDetailCard])
 
   useEffect(() => {
@@ -885,19 +893,22 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     let disposed = false
     const controller = new AbortController()
     let resizeObserver: ResizeObserver | undefined
+    const container = mapContainerRef.current
+    if (!container) return
 
     async function initialize() {
-      if (!mapContainerRef.current) return
+      if (!container) return
 
       try {
         const center = toiletCoordinates(initialRouteRef.current.detail) ?? DAEJEON_CITY_HALL
-        const map = await createKakaoMap(mapContainerRef.current, center, initialRouteRef.current.detail ? 4 : 6, controller.signal)
+        const map = await createKakaoMap(container, center, initialRouteRef.current.detail ? 4 : 6, controller.signal)
         if (disposed) return
         mapRef.current = map
         setIsMapReady(true)
         setMapZoomLevel(map.getLevel())
         updateReferencePoint(center)
         window.kakao.maps.event.addListener(map, 'idle', () => {
+          if (disposed) return
           if (mapInteractionRef.current) {
             mapInteractionRef.current = false
             setIsMobileAreaListOpen(false)
@@ -907,13 +918,15 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
           positionSelectedCard()
         })
         const markMapInteraction = () => {
+          if (disposed) return
           mapInteractionRef.current = true
           setIsMobileAreaListOpen(false)
         }
         window.kakao.maps.event.addListener(map, 'dragstart', markMapInteraction)
         window.kakao.maps.event.addListener(map, 'zoom_changed', markMapInteraction)
-        window.kakao.maps.event.addListener(map, 'zoom_changed', () => setMapZoomLevel(map.getLevel()))
+        window.kakao.maps.event.addListener(map, 'zoom_changed', () => { if (!disposed) setMapZoomLevel(map.getLevel()) })
         window.kakao.maps.event.addListener(map, 'click', (event) => {
+          if (disposed) return
           setIsMobileAreaListOpen(false)
           if (Date.now() < markerClickUntilRef.current) return
           if (window.matchMedia('(min-width: 641px)').matches && event?.latLng) {
@@ -922,7 +935,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
           }
         })
         resizeObserver = new ResizeObserver(() => map.relayout())
-        resizeObserver.observe(mapContainerRef.current)
+        resizeObserver.observe(container)
         await loadMapArea()
         if (!disposed && !initialRouteRef.current.detail) void moveToCurrentLocation(true)
       } catch (caughtError) {
@@ -936,6 +949,9 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     return () => {
       disposed = true
       controller.abort()
+      requestSequenceRef.current += 1
+      mapRef.current = null
+      setIsMapReady(false)
       clearOverlays()
       currentLocationOverlayRef.current?.setMap(null)
       searchLocationOverlayRef.current?.setMap(null)
@@ -945,6 +961,8 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
         locationWatchIdRef.current = null
       }
       resizeObserver?.disconnect()
+      // The SDK owns this empty React div. Remove its DOM when dev HMR/Strict Mode disposes it.
+      container.replaceChildren()
       window.clearTimeout(mapLoadTimerRef.current)
       window.clearTimeout(locationMessageTimerRef.current)
     }
