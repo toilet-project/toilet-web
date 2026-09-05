@@ -23,13 +23,16 @@
 ## 운영 후보 빌드 분리
 
 - `wrangler.jsonc`는 preview 전용이며 검색 차단을 유지한다.
-- `wrangler.production.jsonc`는 **배포 불가능한 후보**다. 공개 경로가 없고 `workers_dev=false`이며 D1 ID는 미생성 표시값이다. 운영 캐시 이름도 preview와 분리했다. 이 파일 추가만으로 자원이나 요금이 발생하지 않는다.
+- `wrangler.production.jsonc`는 **공개 전환이 차단된 운영 후보**다. 공개 경로가 없고 `workers_dev=false`, `preview_urls=false`다. 사용자 승인 후 별도 Standard R2와 D1을 생성하고 실제 ID를 반영했다. 업무 MySQL이나 preview 캐시는 변경하지 않는다.
 - CI는 preview와 production-candidate를 각각 빌드한다. build/runtime 검색 허용 값과 생성된 헤더를 대조하고, 두 모드의 HTML·robots·사이트맵 검증을 수행한다.
 - 산출물에는 선택한 설정 하나와 `worker-release-manifest.json`만 포함한다. manifest에 소스 커밋·빌드 ID·대상·설정 해시를 남긴다. 운영 후보에는 기본 `wrangler.jsonc`를 넣지 않아 preview로 잘못 배포하는 경로를 줄인다.
 - `node scripts/check-workers-deployment.mjs production-candidate`는 의도적으로 실패한다. 현재 정상 배포 명령은 preview만 지원한다. 이는 저장소 내 실수 방지 검사이며 Cloudflare 권한 제어를 대체하거나 직접 CLI 실행까지 막지는 않는다.
+- 승인된 비공개 준비 작업에서는 `node scripts/verify-worker-release.mjs DIRECTORY production-candidate FULL_COMMIT`으로 추출한 CI 산출물의 대상·커밋·설정 해시·빌드 ID와 공개 경로 차단을 확인한다. 그 후 해당 산출물 폴더에서 OpenNext deploy에 `--config wrangler.production.jsonc`를 명시한다. 검사는 업로드를 실행하지 않으며 공개 도메인 전환 승인도 부여하지 않는다.
 - CI의 Worker 검사는 `--dry-run`이며 자원 생성·업로드·도메인 변경을 하지 않는다. 실제 운영 배포는 자원/도메인/자동 갱신/모니터 대상 전환 승인 후 별도 검토가 필요하다.
 
 ## 승인 후 준비할 전환 순서 — 아직 미실행
+
+2026-09-06 진행 업데이트: 기존 Pages의 production 자동 배포를 끄고 preview branch를 None으로 저장했다. 새로고침 후 두 설정 유지와 root/www의 기존 HTML·HTTP 200을 확인했다. 기존 Pages 프로젝트·정상 배포·Git 연결·도메인·시크릿은 보존했다. 아래 항목 중 실제 본 도메인 전환과 운영 캐시 전송 대상 전환은 여전히 미실행이다.
 
 1. 현재 main/develop 변경을 다시 비교하고 Next feature와 충돌·누락을 검토한다. 이번 점검으로 main을 병합하지 않는다.
 2. 기존 Pages 프로젝트의 성공 배포·정적 산출물·도메인 연결·빌드 명령을 보존하고 복구 가능한지 실제 확인한다. Git 커밋만 있다고 배포 복구 준비 완료로 보지 않는다.
@@ -59,3 +62,7 @@
 - [ ] 본 도메인 전환 및 전환 후 검증
 
 따라서 WBS 전체는 진행 중이며, 운영 홈페이지·요금제·DB에는 이번 단계의 변경이 없다.
+
+## 캐시 비용 구분
+
+Workers Free 유지가 모든 부가 저장소에 무조건 0원 상한을 제공한다는 의미는 아니다. [R2 Standard](https://developers.cloudflare.com/r2/pricing/)는 월 무료 제공량(10GB-month, Class A 100만 회, Class B 1,000만 회)을 초과하면 별도 종량 과금된다. 준비 시점 계정 사용량과 청구 발생 여부를 확인했으며 작은 비공개 후보만 준비하고 전국 상세를 미리 생성하지 않는다. D1은 [Free 일일 한도](https://developers.cloudflare.com/d1/platform/pricing/) 초과 시 쿼리가 실패할 수 있다. Workers 요금제와 R2 사용량을 별도로 관찰해야 한다.
