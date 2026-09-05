@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createToiletReport } from '../api/reports'
 import type { ToiletDetailResponse } from '../api/toilets'
 import { createKakaoMap, reverseGeocodeKakaoCoordinates, type KakaoMapInstance } from '../lib/kakaoMap'
+import { getDisplayAddress } from '../lib/address'
 
 type ReportType = 'choice' | 'location' | 'locationConfirm' | 'openTime' | 'complete'
 type Coordinates = { latitude: number; longitude: number }
@@ -11,7 +12,7 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
   const [coordinates, setCoordinates] = useState<Coordinates>({ latitude, longitude })
   // 지도 이동 중에는 재생성하지 않고, 확인 단계로 전환할 때만 중심을 확정한다.
   const [confirmedCoordinates, setConfirmedCoordinates] = useState<Coordinates | null>(null)
-  const [roadAddress, setRoadAddress] = useState(toilet.roadAddress || toilet.jibunAddress || '')
+  const [roadAddress, setRoadAddress] = useState(getDisplayAddress(toilet.roadAddress, toilet.jibunAddress))
   const [isAddressLoading, setIsAddressLoading] = useState(false)
   const [openTime, setOpenTime] = useState(toilet.openTime || '')
   const [reason, setReason] = useState('')
@@ -74,7 +75,7 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
   const openLocationConfirmation = () => {
     setError(null)
     if (!reason.trim()) { setError('제보 사유를 입력해 주세요.'); return }
-    if (!roadAddress) { setError('표시된 도로명 주소를 확인해 주세요.'); return }
+    if (!roadAddress) { setError('표시된 주소를 확인해 주세요.'); return }
     setConfirmedCoordinates(coordinates)
     setStep('locationConfirm')
   }
@@ -82,7 +83,7 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
   const submit = async () => {
     setError(null)
     if (!reason.trim()) { setError('제보 사유를 입력해 주세요.'); return }
-    if (step === 'locationConfirm' && !roadAddress) { setError('표시된 도로명 주소를 확인해 주세요.'); return }
+    if (step === 'locationConfirm' && !roadAddress) { setError('표시된 주소를 확인해 주세요.'); return }
     if (step === 'openTime' && !openTime.trim()) { setError('변경할 개방 시간을 입력해 주세요.'); return }
 
     setIsSubmitting(true)
@@ -115,7 +116,7 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
         <h1 id="report-modal-title">지도를 움직여 핀을 맞춰 주세요</h1>
         <p className="report-target"><span>제보 대상</span><strong>{toilet.name}</strong></p>
         <div className="report-map-wrap"><div ref={mapElementRef} className="report-map" /><span className="report-map-pin" aria-label="제안 위치" />{mapLevel > 3 && <span className="report-map-zoom-guide">정확한 위치는 지도를 조금 더 확대해 맞춰 주세요</span>}</div>
-        <div className="report-address-box"><span>도로명 주소</span><strong>{isAddressLoading ? '주소를 확인하는 중…' : roadAddress || '도로명 주소를 찾지 못했습니다.'}</strong></div>
+        <div className="report-address-box"><span>주소</span><strong>{isAddressLoading ? '주소를 확인하는 중…' : roadAddress || '주소를 찾지 못했습니다.'}</strong></div>
         <label className="report-field"><span>제보 사유</span><textarea value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} placeholder="예: 실제 화장실은 건물 동쪽 출입구 옆에 있습니다." /></label>
         {error && <p className="report-error" role="alert">{error}</p>}
         <button type="button" className="report-submit" disabled={isAddressLoading} onClick={openLocationConfirmation}>위치 제보 접수</button>
@@ -128,7 +129,7 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
         <div className="report-map-wrap report-confirm-map"><div ref={mapElementRef} className="report-map" /><span className="report-map-pin" aria-label="제안 위치" /></div>
         <div className="report-confirm-summary">
           <div><span>제보 화장실</span><strong>{toilet.name}</strong></div>
-          <div><span>도로명 주소</span><strong>{roadAddress}</strong></div>
+          <div><span>주소</span><strong>{roadAddress}</strong></div>
         </div>
         {error && <p className="report-error" role="alert">{error}</p>}
         <div className="report-confirm-actions"><button type="button" className="report-edit-button" onClick={() => setStep('location')}>수정하기</button><button type="button" className="report-submit" disabled={isSubmitting} onClick={() => void submit()}>{isSubmitting ? '접수 중…' : '맞아요, 접수하기'}</button></div>

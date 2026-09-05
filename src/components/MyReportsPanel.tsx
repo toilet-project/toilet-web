@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { fetchMyToiletReports, type ToiletReport, type ToiletReportStatus } from '../api/reports'
+import { getDisplayAddress } from '../lib/address'
 
 type Filter = 'ALL' | ToiletReportStatus
 
@@ -74,7 +75,7 @@ export function MyReportsPanel({ onClose, initialExpandedId = null }: { onClose:
             </button>
             {expanded && <div className="my-report-detail">
               <dl>
-                {report.reportType === 'COORDINATE_CORRECTION' && <><div><dt>제보 주소</dt><dd>{report.roadAddress || '주소 정보 없음'}</dd></div></>}
+                {report.reportType === 'COORDINATE_CORRECTION' && <div><dt>제보 주소</dt><dd>{getDisplayAddress(report.roadAddress, report.jibunAddress) || '주소 정보 없음'}</dd></div>}
                 {report.reportType === 'OPEN_TIME_CORRECTION' && <div><dt>제보 개방시간</dt><dd>{report.openTime || '입력 정보 없음'}</dd></div>}
                 <div><dt>제보 사유</dt><dd>{report.reason}</dd></div>
                 {report.reviewedAt && <div><dt>처리 일시</dt><dd>{formatDate(report.reviewedAt)}</dd></div>}

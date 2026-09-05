@@ -9,6 +9,7 @@ import { PolicyConsentModal } from './components/PolicyConsentModal'
 import { PolicyFooter, PolicyPage } from './components/PolicyPage'
 import { AccountDialog } from './components/AccountDialog'
 import { fetchUnreadNotificationCount } from './api/notifications'
+import { getDisplayAddress } from './lib/address'
 import toiletMarkerLogo from './assets/toilet-marker-logo.svg'
 import './App.css'
 
@@ -1141,7 +1142,7 @@ function MapApp() {
             <div className="card-scroll-content">
               <p className="open-time">{toiletDetail ? formatOpenTime(toiletDetail) : isDetailLoading ? '상세 정보를 불러오는 중…' : '상세 정보를 확인해 주세요.'}</p>
               {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">{distanceReferenceLabel}</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">(직선거리)</span></div>}
-              {toiletDetail && hasValue(toiletDetail.roadAddress || toiletDetail.jibunAddress) && <div className="summary-address"><DetailRow label="주소" value={toiletDetail.roadAddress || toiletDetail.jibunAddress} copyable /></div>}
+              {toiletDetail && hasValue(getDisplayAddress(toiletDetail.roadAddress, toiletDetail.jibunAddress)) && <div className="summary-address"><DetailRow label="주소" value={getDisplayAddress(toiletDetail.roadAddress, toiletDetail.jibunAddress)} copyable /></div>}
               {toiletDetail && <button type="button" className="report-entry-button" onClick={() => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude })}>{authProfile ? '정보 제보하기' : '로그인 후 정보 제보하기'}</button>}
               {detailError && <p className="detail-error" role="alert">{detailError}</p>}
               {toiletDetail && <ToiletDetailContents toilet={toiletDetail} />}
@@ -1208,7 +1209,7 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport }: { 
   if (error) return <div className="coordinate-inline-details"><p className="detail-error" role="alert">{error}</p></div>
   if (!toilet) return null
 
-  const address = toilet.roadAddress || toilet.jibunAddress
+  const address = getDisplayAddress(toilet.roadAddress, toilet.jibunAddress)
 
   return <div className="coordinate-inline-details">
     <p className="open-time">{formatOpenTime(toilet)}</p>
@@ -1257,7 +1258,7 @@ function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse }) {
     { label: '장애인 대변기', count: toilet.femaleDisabledToiletCount },
     { label: '어린이 대변기', count: toilet.femaleChildToiletCount },
   ])
-  const address = toilet.roadAddress || toilet.jibunAddress
+  const address = getDisplayAddress(toilet.roadAddress, toilet.jibunAddress)
 
   return (
     <div className="card-details" tabIndex={0} aria-label="화장실 상세 정보">
