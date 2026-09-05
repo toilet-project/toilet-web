@@ -266,6 +266,8 @@
 @media (min-width: 641px) and (pointer: fine), (min-width: 641px) and (pointer: none), (min-width: 641px) and (min-height: 501px), (min-width: 1025px) {
   .map-section { --desktop-area-list-width: clamp(340px, 25vw, 440px); }
   .map { width: calc(100% - var(--desktop-area-list-width)); margin-left: var(--desktop-area-list-width); }
+  /* Keep direct-link/no-coordinate cards outside the sidebar before the SDK is ready. */
+  .place-card { left: calc(var(--desktop-area-list-width) + 18px); width: min(360px, calc(100% - var(--desktop-area-list-width) - 36px)); }
   .map-hud { left: calc(var(--desktop-area-list-width) + 18px); padding: 0; background: transparent; box-shadow: none; }
   .map-loading-message { display: none; }
   .map-area-count { display: none; }

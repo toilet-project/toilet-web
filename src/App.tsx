@@ -494,12 +494,12 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   }, [placeSearchKeyword])
 
   useLayoutEffect(() => {
-    if (!selectedToilet || !placeCardRef.current) return
+    if (!isMapReady || !selectedToilet || !placeCardRef.current) return
     const frame = window.requestAnimationFrame(() => {
       if (placeCardRef.current) positionPlaceCardAtToilet(selectedToilet, placeCardRef.current.offsetHeight)
     })
     return () => window.cancelAnimationFrame(frame)
-  }, [selectedToilet, toiletDetail, isDetailLoading, detailError, positionPlaceCardAtToilet])
+  }, [isMapReady, isDesktop, selectedToilet, toiletDetail, isDetailLoading, detailError, positionPlaceCardAtToilet])
 
   const positionSelectedCard = useCallback(() => {
     if (selectedToiletRef.current && placeCardRef.current) {
