@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "geupddong-web-production",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "geupddong.com/*", "zone_name": "geupddong.com" },
+    { "pattern": "www.geupddong.com/*", "zone_name": "geupddong.com" }
+  ],
+  "triggers": { "crons": [] }
+}

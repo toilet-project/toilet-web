@@ -3,14 +3,24 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "packageManager": "pnpm@11.19.0",
+  "engines": { "node": ">=24.0.0 <25" },
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "oxlint",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "build:workers": "opennextjs-cloudflare build",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy:workers": "node scripts/check-workers-deployment.mjs && opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "typecheck": "next typegen && tsc --noEmit",
+    "lint": "oxlint src next.config.ts open-next.config.ts",
     "test:address": "node --experimental-strip-types --test tests/address.test.mjs",
-    "preview": "vite preview"
+    "test:detail-production": "node tests/detail-production-smoke.mjs",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "1.20.6",
+    "next": "16.3.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
@@ -18,9 +28,8 @@
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.4",
     "oxlint": "^1.75.0",
     "typescript": "~6.0.2",
-    "vite": "^8.2.0"
+    "wrangler": "4.129.0"
   }
 }
