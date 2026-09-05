@@ -1,3 +1,5 @@
+'use client'
+
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, type ToiletMapSearchResponse } from './api/toilets'
 import { getCurrentUser, logout, startSocialLogin, type AuthProfile } from './api/auth'
@@ -6,12 +8,11 @@ import { ToiletReportModal } from './components/ToiletReportModal'
 import { MyReportsPanel } from './components/MyReportsPanel'
 import { NotificationPanel } from './components/NotificationPanel'
 import { PolicyConsentModal } from './components/PolicyConsentModal'
-import { PolicyFooter, PolicyPage } from './components/PolicyPage'
+import { PolicyFooter } from './components/PolicyPage'
 import { AccountDialog } from './components/AccountDialog'
 import { fetchUnreadNotificationCount } from './api/notifications'
 import { getDisplayAddress } from './lib/address'
-import toiletMarkerLogo from './assets/toilet-marker-logo.svg'
-import './App.css'
+const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
 const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
 const CLUSTER_GRID_SIZE = 84
@@ -1331,12 +1332,4 @@ function DetailRow({ label, value, copyable = false, className = '' }: { label: 
   return <div className={`detail-row ${className}`.trim()}><dt>{label}</dt><dd><span>{value}</span>{copyable && <button type="button" className="copy-address-button" onClick={() => void copyValue()}>{copied ? '복사됨' : '주소 복사'}</button>}</dd></div>
 }
 
-function App() {
-  const path = window.location.pathname.replace(/\/$/, '')
-  if (path === '/policies/terms') return <PolicyPage kind="terms" />
-  if (path === '/policies/privacy') return <PolicyPage kind="privacy" />
-  if (path === '/policies/location') return <PolicyPage kind="location" />
-  return <MapApp />
-}
-
-export default App
+export default MapApp
