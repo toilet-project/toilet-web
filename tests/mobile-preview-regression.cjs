@@ -52,6 +52,8 @@ async function noOverflow(page) {
         if (api && path==='/api/v1/reports/me') return json(reports)
         if (api && path==='/api/v1/toilets' && mapFailure) return json({message:'test-only unavailable'},503)
         if (api && path.includes('/notifications')) return json(path.includes('unread')?{count:0}:[])
+        // Suppress Cloudflare performance telemetry from this synthetic browser.
+        if (url.origin===origin && path==='/cdn-cgi/rum' && method==='POST') return route.fulfill({status:204})
         if (!['GET','HEAD','OPTIONS'].includes(method)) {
           if (api) mockedWrites.push({method,path})
           if (api && path==='/api/v1/auth/refresh') return json({},401)
