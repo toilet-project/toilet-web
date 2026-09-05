@@ -1,0 +1,68 @@
+# Next.js 운영 전환 사전 점검
+
+2026-09-06 · WBS #186 · **운영 도메인 전환 미실행**
+
+## 이번 확인
+
+- 사용자가 iPhone 가로 회전 및 긴 위치 제보에서 키보드를 닫은 뒤 헤더 복귀에 이상이 없음을 확인했다.
+- 기존 preview 배포 코드는 그대로 유지했다. 최신 문서/테스트 커밋의 [Linux CI](https://github.com/toilet-project/toilet-web/actions/runs/33973191165)도 통과했다.
+- 공개 GET만 최대 28건, 동시 2건으로 제한해 확인했다. 계정·제보 쓰기, 캐시 강제 삭제, 전국 상세 강제 생성은 하지 않았다.
+- 28건 모두 HTTP 200. 준비 요청 4건을 제외한 24건의 응답 시간 중앙값 212ms, p95 327ms, 최대 610ms였다. 준비 과정 상세 응답은 STALE 후 반복 요청에서 HIT로 갱신됐다.
+- 이는 소규모 표본이며 처리 용량·대규모 부하·다중 지역·콜드 스타트 보장은 아니다. 네트워크 포함 응답 시간은 Worker CPU 시간과 다르다.
+
+재실행: `node scripts/verify-preview-concurrency.mjs`. 대상과 최대 건수는 스크립트에 고정되며 오류가 나면 다음 요청 묶음을 시작하지 않는다.
+
+## Free 유지 결정과 남은 위험
+
+실제 Cloudflare 지표와 현재 Free 플랜을 읽기 전용으로 확인했다. 오류가 없다는 사실만으로 무료 CPU 제한에 충분한 여유가 있다고 판단할 수 없다. 세부 계정 지표는 공개 문서에 복제하지 않는다.
+
+사용자는 Free 플랜을 유지하고 오류를 Discord로 받은 뒤 유료 전환을 판단하기로 결정했다. 별도 서버의 주기 점검과 제한된 오류 로그를 구성했다([운영 모니터링 PR](https://github.com/toilet-project/docs/pull/70)). 이는 CPU 여유 확보나 모든 사용자 요청의 오류 수집을 의미하지 않는다. 표본 경로 외 오류, 점검 사이의 짧은 장애, 모니터 서버 자체 장애는 놓칠 수 있다.
+
+[공식 한도](https://developers.cloudflare.com/workers/platform/limits/)의 Free 요청당 CPU 10ms 기준과 실제 캐시 HIT·MISS·갱신 경로를 계속 구분해서 판단한다. 플랜이나 결제 설정은 자동 변경하지 않는다. 알림 뒤 전환하더라도 이미 발생한 요청 실패를 예방할 수는 없다.
+
+## 운영 후보 빌드 분리
+
+- `wrangler.jsonc`는 preview 전용이며 검색 차단을 유지한다.
+- `wrangler.production.jsonc`는 **공개 전환이 차단된 운영 후보**다. 공개 경로가 없고 `workers_dev=false`, `preview_urls=false`다. 사용자 승인 후 별도 Standard R2와 D1을 생성하고 실제 ID를 반영했다. 업무 MySQL이나 preview 캐시는 변경하지 않는다.
+- CI는 preview와 production-candidate를 각각 빌드한다. build/runtime 검색 허용 값과 생성된 헤더를 대조하고, 두 모드의 HTML·robots·사이트맵 검증을 수행한다.
+- 산출물에는 선택한 설정 하나와 `worker-release-manifest.json`만 포함한다. manifest에 소스 커밋·빌드 ID·대상·설정 해시를 남긴다. 운영 후보에는 기본 `wrangler.jsonc`를 넣지 않아 preview로 잘못 배포하는 경로를 줄인다.
+- `node scripts/check-workers-deployment.mjs production-candidate`는 의도적으로 실패한다. 현재 정상 배포 명령은 preview만 지원한다. 이는 저장소 내 실수 방지 검사이며 Cloudflare 권한 제어를 대체하거나 직접 CLI 실행까지 막지는 않는다.
+- 승인된 비공개 준비 작업에서는 `node scripts/verify-worker-release.mjs DIRECTORY production-candidate FULL_COMMIT`으로 추출한 CI 산출물의 대상·커밋·설정 해시·빌드 ID와 공개 경로 차단을 확인한다. 그 후 해당 산출물 폴더에서 OpenNext deploy에 `--config wrangler.production.jsonc`를 명시한다. 검사는 업로드를 실행하지 않으며 공개 도메인 전환 승인도 부여하지 않는다.
+- CI의 Worker 검사는 `--dry-run`이며 자원 생성·업로드·도메인 변경을 하지 않는다. 실제 운영 배포는 자원/도메인/자동 갱신/모니터 대상 전환 승인 후 별도 검토가 필요하다.
+
+## 승인 후 준비할 전환 순서 — 아직 미실행
+
+2026-09-06 진행 업데이트: 기존 Pages의 production 자동 배포를 끄고 preview branch를 None으로 저장했다. 새로고침 후 두 설정 유지와 root/www의 기존 HTML·HTTP 200을 확인했다. 기존 Pages 프로젝트·정상 배포·Git 연결·도메인·시크릿은 보존했다. 아래 항목 중 실제 본 도메인 전환과 운영 캐시 전송 대상 전환은 여전히 미실행이다.
+
+1. 현재 main/develop 변경을 다시 비교하고 Next feature와 충돌·누락을 검토한다. 이번 점검으로 main을 병합하지 않는다.
+2. 기존 Pages 프로젝트의 성공 배포·정적 산출물·도메인 연결·빌드 명령을 보존하고 복구 가능한지 실제 확인한다. Git 커밋만 있다고 배포 복구 준비 완료로 보지 않는다.
+3. 분리한 preview/운영 후보 산출물의 CI 결과와 manifest를 확인한다. preview 산출물의 도메인만 바꿔 운영하지 않는다.
+4. 운영 빌드는 build와 runtime 모두 검색 허용 설정을 적용해 새로 검증한다. root metadata, X-Robots-Tag, robots, sitemap, canonical을 함께 확인한다. preview는 noindex로 유지한다.
+5. 운영 Worker/캐시 저장소/자기 참조 binding과 서명 수신 연결을 준비한다. 새 자원 비용·권한은 먼저 확인한다. preview 캐시와 운영 캐시를 임의 공유하지 않는다.
+6. Spring 전송 대상과 운영 캐시 수신 연결을 검증한다. 대상이 preview로만 남은 채 운영 갱신 완료로 간주하지 않는다. 기존 대기열/원본 데이터는 삭제하지 않는다.
+7. 실제 소셜 신규 동의·제보 복귀 등 남은 실사용 항목을 확인한다. 기존 계정 로그인 확인과 신규 가입 전체 검증은 구분한다.
+8. 사용자 최종 승인 후에만 Pages/Worker의 본 도메인 소유권을 전환한다. root/www 및 HTTPS·OAuth callback·쿠키·지도 도메인 허용도 대조한다. 기존 Pages를 삭제하지 않는다.
+9. 전환 직후 홈·상세·404·검색 허용·사이트맵·지도·로그인·캐시 자동 갱신을 확인한다. 5xx/1102, 로그인 실패, 지도 불가, 잘못된 검색 차단은 중단/복구 판단 대상이다.
+
+## 복구 원칙 — 실제 리허설 전
+
+- 새 Worker 배포만 문제이고 도메인 구조는 그대로면 검증된 이전 Worker 버전과 설정으로 되돌린다. 코드 rollback이 데이터·캐시 스키마·도메인까지 자동 복원한다고 가정하지 않는다.
+- Next 전환 자체를 철회해야 하면 기록한 Pages 도메인 연결과 정상 정적 배포로 복구한다. 변경한 DNS/route만 정확히 되돌리며 다른 서비스 레코드는 건드리지 않는다.
+- 이전 React 앱에는 새 상세 URL의 SEO 기능이 없으므로 Pages로 되돌릴 때 상세 URL·canonical·색인 영향도 확인한다.
+- 캐시 전송 대상/설정도 함께 점검하고 실패 대기열은 보존한다. 업무 DB/API의 호환 확장을 무조건 rollback하지 않는다.
+- 복구 후 실제 사용자 경로를 확인한 다음에만 전환 완료/실패를 기록한다. 이 문서는 절차안이지 복구 리허설 성공 보고서가 아니다.
+
+## 아직 남음
+
+- [x] Free 유지·Discord 알림 후 유료 전환 판단 방침 결정
+- [ ] CPU 제한 위험의 지속 관찰(알림 구축만으로 해소되지 않음)
+- [ ] 실제 신규 가입 동의/제보 복귀 등 미확인 시나리오
+- [ ] 운영용 분리 설정·배포 흐름·코드 리뷰
+- [ ] Pages 복구 대상 현황 확인과 전환 승인
+- [ ] 본 도메인 전환 및 전환 후 검증
+
+따라서 WBS 전체는 진행 중이며, 운영 홈페이지·요금제·DB에는 이번 단계의 변경이 없다.
+
+## 캐시 비용 구분
+
+Workers Free 유지가 모든 부가 저장소에 무조건 0원 상한을 제공한다는 의미는 아니다. [R2 Standard](https://developers.cloudflare.com/r2/pricing/)는 월 무료 제공량(10GB-month, Class A 100만 회, Class B 1,000만 회)을 초과하면 별도 종량 과금된다. 준비 시점 계정 사용량과 청구 발생 여부를 확인했으며 작은 비공개 후보만 준비하고 전국 상세를 미리 생성하지 않는다. D1은 [Free 일일 한도](https://developers.cloudflare.com/d1/platform/pricing/) 초과 시 쿼리가 실패할 수 있다. Workers 요금제와 R2 사용량을 별도로 관찰해야 한다.

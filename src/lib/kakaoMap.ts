@@ -35,8 +35,8 @@ declare global {
 let kakaoSdkPromise: Promise<void> | undefined
 
 function loadKakaoSdk() {
-  if (window.kakao?.maps) return Promise.resolve()
   if (kakaoSdkPromise) return kakaoSdkPromise
+  if (window.kakao?.maps?.Map) return Promise.resolve()
   kakaoSdkPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script')
     script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoJavascriptKey}&autoload=false&libraries=services`
@@ -48,8 +48,9 @@ function loadKakaoSdk() {
   return kakaoSdkPromise
 }
 
-export async function createKakaoMap(container: HTMLElement, center: { latitude: number; longitude: number }, level = 6) {
+export async function createKakaoMap(container: HTMLElement, center: { latitude: number; longitude: number }, level = 6, signal?: AbortSignal) {
   await loadKakaoSdk()
+  signal?.throwIfAborted()
   return new window.kakao.maps.Map(container, { center: new window.kakao.maps.LatLng(center.latitude, center.longitude), level })
 }
 

@@ -1,4 +1,5 @@
 import { createApiUrl } from '../config/api'
+import { socialLoginPath } from '../lib/oauthReturn'
 
 export type AuthProfile = {
   userId: string
@@ -55,7 +56,7 @@ export async function getCurrentUser(): Promise<AuthProfile | null> {
 }
 
 export function startSocialLogin(provider: 'google' | 'kakao') {
-  window.location.assign(createApiUrl(`/api/v1/auth/login/${provider}`))
+  window.location.assign(createApiUrl(socialLoginPath(provider, window.location.origin)))
 }
 
 export async function logout() {

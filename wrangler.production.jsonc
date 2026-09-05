@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "geupddong-web-production",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-05",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "geupddong-web-production" }],
+  "r2_buckets": [{ "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "geupddong-next-production-cache" }],
+  "durable_objects": { "bindings": [{ "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DOQueueHandler"] }],
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [],
+  "observability": { "enabled": true, "head_sampling_rate": 0.1 },
+  "vars": { "CACHE_RUNTIME": "workers", "SITE_INDEXABLE": "true" },
+  "d1_databases": [{ "binding": "NEXT_TAG_CACHE_D1", "database_name": "geupddong-next-production-tags", "database_id": "653ca351-872d-4f36-a248-759d176a5571" }]
+}

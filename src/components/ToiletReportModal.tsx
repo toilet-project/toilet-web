@@ -3,6 +3,7 @@ import { createToiletReport } from '../api/reports'
 import type { ToiletDetailResponse } from '../api/toilets'
 import { createKakaoMap, reverseGeocodeKakaoCoordinates, type KakaoMapInstance } from '../lib/kakaoMap'
 import { getDisplayAddress } from '../lib/address'
+import { attachReportViewport } from '../lib/reportViewport'
 
 type ReportType = 'choice' | 'location' | 'locationConfirm' | 'openTime' | 'complete'
 type Coordinates = { latitude: number; longitude: number }
@@ -23,10 +24,19 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
   const mapRef = useRef<KakaoMapInstance | null>(null)
   const geocodeRequestRef = useRef(0)
   const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const backdropRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (backdropRef.current) return attachReportViewport(backdropRef.current)
+  }, [])
+
+  useEffect(() => { contentRef.current?.scrollTo(0, 0) }, [step])
 
   useEffect(() => {
     if ((step !== 'location' && step !== 'locationConfirm') || !mapElementRef.current) return
     let disposed = false
+    let resizeObserver: ResizeObserver | undefined
 
     const updateAddress = async (next: Coordinates) => {
       const requestId = ++geocodeRequestRef.current
@@ -45,6 +55,8 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
       const map = await createKakaoMap(mapElementRef.current!, confirmedCoordinates ?? { latitude, longitude }, 4)
       if (disposed) return
       mapRef.current = map
+      resizeObserver = new ResizeObserver(() => map.relayout())
+      resizeObserver.observe(mapElementRef.current!)
       if (step === 'locationConfirm') {
         map.setDraggable(false)
         map.setZoomable(false)
@@ -67,6 +79,7 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
 
     return () => {
       disposed = true
+      resizeObserver?.disconnect()
       if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current)
       mapRef.current = null
     }
@@ -97,11 +110,15 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
     } finally { setIsSubmitting(false) }
   }
 
-  return <div className="report-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+  return <div ref={backdropRef} className="report-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section className="report-modal" role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
-      <button type="button" className="report-modal-close" onClick={onClose} aria-label="제보 닫기">×</button>
+      <header className="report-modal-toolbar">
+        {step !== 'choice' && step !== 'complete' && <button type="button" className="report-back" onClick={() => setStep(step === 'locationConfirm' ? 'location' : 'choice')} aria-label={step === 'locationConfirm' ? '위치 수정 화면으로' : '이전 화면으로'}>‹</button>}
+        <span className="report-modal-step-title">{{choice:'정보 제보',location:'위치 제보',locationConfirm:'위치 제보 확인',openTime:'개방 시간 제보',complete:'접수 완료'}[step]}</span>
+        <button type="button" className="report-modal-close" onClick={onClose} aria-label="제보 닫기">×</button>
+      </header>
+      <div ref={contentRef} className="report-modal-content">
       {step === 'choice' && <>
-        <span className="report-modal-eyebrow">정보 제보</span>
         <h1 id="report-modal-title">어떤 정보를 알려주실 건가요?</h1>
         <p className="report-target"><span>제보 대상</span><strong>{toilet.name}</strong></p>
         <p className="report-modal-description">관리자가 확인한 뒤 서비스 정보에 반영합니다.</p>
@@ -111,8 +128,6 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
         </div>
       </>}
       {step === 'location' && <>
-        <button type="button" className="report-back" onClick={() => setStep('choice')} aria-label="이전 화면으로">‹</button>
-        <span className="report-modal-eyebrow report-modal-step-title">위치 제보</span>
         <h1 id="report-modal-title">지도를 움직여 핀을 맞춰 주세요</h1>
         <p className="report-target"><span>제보 대상</span><strong>{toilet.name}</strong></p>
         <div className="report-map-wrap"><div ref={mapElementRef} className="report-map" /><span className="report-map-pin" aria-label="제안 위치" />{mapLevel > 3 && <span className="report-map-zoom-guide">정확한 위치는 지도를 조금 더 확대해 맞춰 주세요</span>}</div>
@@ -122,8 +137,6 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
         <button type="button" className="report-submit" disabled={isAddressLoading} onClick={openLocationConfirmation}>위치 제보 접수</button>
       </>}
       {step === 'locationConfirm' && <>
-        <button type="button" className="report-back" onClick={() => setStep('location')} aria-label="위치 수정 화면으로">‹</button>
-        <span className="report-modal-eyebrow report-modal-step-title">위치 제보 확인</span>
         <h1 id="report-modal-title">이 위치와 주소가 맞습니까?</h1>
         <p className="report-modal-description">핀을 맞춘 위치를 마지막으로 확인해 주세요.</p>
         <div className="report-map-wrap report-confirm-map"><div ref={mapElementRef} className="report-map" /><span className="report-map-pin" aria-label="제안 위치" /></div>
@@ -135,8 +148,6 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
         <div className="report-confirm-actions"><button type="button" className="report-edit-button" onClick={() => setStep('location')}>수정하기</button><button type="button" className="report-submit" disabled={isSubmitting} onClick={() => void submit()}>{isSubmitting ? '접수 중…' : '맞아요, 접수하기'}</button></div>
       </>}
       {step === 'openTime' && <>
-        <button type="button" className="report-back" onClick={() => setStep('choice')} aria-label="이전 화면으로">‹</button>
-        <span className="report-modal-eyebrow report-modal-step-title">개방 시간 제보</span>
         <h1 id="report-modal-title">변경된 개방 시간을 알려주세요</h1>
         <p className="report-target"><span>제보 대상</span><strong>{toilet.name}</strong></p>
         <p className="report-modal-description">현재 등록된 시간: <strong>{toilet.openTime || '정보 없음'}</strong></p>
@@ -146,6 +157,7 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
         <button type="button" className="report-submit" disabled={isSubmitting} onClick={() => void submit()}>{isSubmitting ? '접수 중…' : '개방 시간 제보 접수'}</button>
       </>}
       {step === 'complete' && <div className="report-complete"><span aria-hidden="true">✓</span><h1 id="report-modal-title">제보를 접수했어요</h1><p>처리 상태는 내 제보에서 언제든 확인할 수 있어요.</p><div className="report-complete-actions"><button type="button" className="report-edit-button" onClick={onClose}>지도 돌아가기</button><button type="button" className="report-submit" onClick={onViewMyReports}>내 제보 보기</button></div></div>}
+      </div>
     </section>
   </div>
 }
