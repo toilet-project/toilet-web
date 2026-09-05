@@ -7,7 +7,7 @@ const read = path => readFile(new URL(path, root), 'utf8')
 
 test('map remains owned by a shared layout and browser-only shell', async () => {
   const layout = await read('src/app/(map)/layout.tsx')
-  assert.match(layout, /<MapShell\s*\/>/)
+  assert.match(layout, /<MapShell>\{children\}<\/MapShell>/)
   assert.doesNotMatch(layout, /key=|usePathname|useParams/)
   assert.match(await read('src/components/MapShell.tsx'), /ssr: false/)
 })

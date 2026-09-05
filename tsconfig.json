@@ -31,7 +31,9 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     "next.config.ts",
-    "open-next.config.ts"
+    "open-next.config.ts",
+    ".next-smoke/types/**/*.ts",
+    ".next-smoke/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

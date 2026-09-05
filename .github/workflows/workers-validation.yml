@@ -36,6 +36,7 @@ jobs:
       - run: pnpm run lint
       - run: pnpm run typecheck
       - run: pnpm test
+      - run: pnpm run test:detail-production
       - run: pnpm run build:workers
       # Deliberately no Cloudflare credentials, upload, resource creation or deployment.
       - name: Validate Worker bundle without uploading

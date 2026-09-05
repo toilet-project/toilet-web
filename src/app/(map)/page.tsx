@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { ToiletRouteBridge } from '../../components/ToiletRouteBridge'
 
 export const metadata: Metadata = {
   alternates: { canonical: '/' },
@@ -6,7 +7,7 @@ export const metadata: Metadata = {
 }
 
 export default function HomePage() {
-  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
+  return <><ToiletRouteBridge detail={null} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify({
     '@context': 'https://schema.org',
     '@graph': [{
       '@type': 'WebSite',
@@ -26,5 +27,5 @@ export default function HomePage() {
       description: '현재 위치와 장소 검색으로 가까운 공중화장실의 위치, 개방시간, 편의시설을 확인하는 지도 서비스입니다.',
       featureList: ['현재 위치 기반 공중화장실 찾기', '장소 검색으로 지도 이동', '공중화장실 개방시간 및 편의시설 확인'],
     }],
-  }) }} />
+  }) }} /></>
 }

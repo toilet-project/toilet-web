@@ -1,6 +1,8 @@
 # Next.js 전환 사전 분석·실행 계획
 
-2026-09-05 · Workers 선택 승인. 단계 1: 실행 환경 전환 및 호환 검증 중. 운영 배포 전.
+2026-09-05 · Workers 선택 승인. 단계 2: 상세 URL·서버 렌더링 구현 및 검증. 운영 배포 전.
+
+상세 결과: [상세 URL 단계 검증](nextjs-detail-stage-verification.md). WBS: [toilet-web #186](https://github.com/toilet-project/toilet-web/issues/186).
 
 ## 범위와 기준
 

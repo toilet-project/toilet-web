@@ -15,6 +15,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "oxlint src next.config.ts open-next.config.ts",
     "test:address": "node --experimental-strip-types --test tests/address.test.mjs",
+    "test:detail-production": "node tests/detail-production-smoke.mjs",
     "test": "node --experimental-strip-types --test tests/*.test.mjs"
   },
   "dependencies": {

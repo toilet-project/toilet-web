@@ -9,6 +9,7 @@ const securityHeaders = [
 ]
 
 const config: NextConfig = {
+  distDir: process.env.NEXT_BUILD_DIR || '.next',
   poweredByHeader: false,
   reactStrictMode: true,
   // Existing public images are served unchanged, without an image transformation subscription.

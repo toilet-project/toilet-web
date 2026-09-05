@@ -461,3 +461,9 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
   .coordinate-inline-details .coordinate-report-entry { margin-bottom: 0; }
   .report-field input, .report-field textarea { font-size: 16px; }
 }
+
+/* Server-rendered detail remains readable before the interactive map takes over. */
+.place-card.initial-route-card { position: fixed; z-index: 10; right: 20px; bottom: 24px; max-height: calc(100svh - 100px); overflow-y: auto; }
+.initial-route-card h1 { padding-right: 26px; margin: 0 0 12px; font-size: 20px; }
+.place-card-summary h1 { display: block; margin: 0; color: #1d2b21; font: inherit; font-size: 19px; font-weight: 700; }
+.place-card.initial-route-card .card-details { display: block; max-height: none; overflow: visible; }

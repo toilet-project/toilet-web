@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 .next/
+.next-smoke/
 .open-next/
 .wrangler/
 *.tsbuildinfo

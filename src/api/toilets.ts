@@ -12,6 +12,16 @@ export type ToiletDetailResponse = {
   toiletType: string
   roadAddress: string
   jibunAddress: string
+  latitude: number | null
+  longitude: number | null
+  region?: {
+    sidoName: string | null
+    sidoCode: string | null
+    sigunguName: string | null
+    sigunguCode: string | null
+    cityName: string | null
+    districtName: string | null
+  } | null
   maleToiletCount: number
   maleUrinalCount: number
   maleDisabledToiletCount: number
