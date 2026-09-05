@@ -25,7 +25,9 @@ test('preview configuration cannot claim the production domain', async () => {
   assert.equal(config.route, undefined)
   assert.equal(config.services[0].service, config.name)
   assert.equal(config.r2_buckets[0].bucket_name, 'geupddong-next-preview-cache')
-  assert.equal(config.limits.cpu_ms, 1000)
+  // Free preview uses account defaults; a Paid-only CPU override must not creep in.
+  assert.equal(config.limits?.cpu_ms, undefined)
+  assert.equal(config.vars.SITE_INDEXABLE, 'false')
 })
 
 test('marker image preserves the existing SVG asset', async () => {
