@@ -15,6 +15,7 @@ import { getDisplayAddress } from './lib/address'
 import { ToiletDetailContents, DetailRow } from './components/ToiletDetailContents'
 import { hasValue, formatOpenTime, formatFacilityLocation } from './lib/detailFormatting'
 import { toiletCoordinates } from './lib/toiletRoute'
+import { groupToiletsByCoordinate, representativeToilet, type ToiletMapItem, type MapPoint } from './lib/toiletGrouping'
 import type { MapRouteData } from './components/mapRouteContext'
 const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
@@ -22,8 +23,6 @@ const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
 const CLUSTER_GRID_SIZE = 84
 const MAX_LIST_ZOOM_LEVEL = 6
 
-type ToiletMapItem = { id: number; name: string; toiletType?: string; latitude: number; longitude: number }
-type MapPoint = { id?: number; latitude: number; longitude: number; count: number; name?: string; toilets?: ToiletMapItem[] }
 type SelectedToilet = { id: number; name: string; latitude: number; longitude: number }
 type SelectedCoordinateGroup = { latitude: number; longitude: number; toilets: ToiletMapItem[] }
 type CardPosition = { left: number; top: number }
@@ -70,24 +69,6 @@ function toiletTypeTone(toiletType?: string) {
   if (normalizedType.includes('개방')) return 'is-open'
   if (normalizedType.includes('제보')) return 'is-reported'
   return 'is-public'
-}
-
-function groupToiletsByCoordinate(toilets: ToiletMapItem[]) {
-  const groups = new Map<string, ToiletMapItem[]>()
-
-  for (const toilet of toilets) {
-    const key = `${toilet.latitude}:${toilet.longitude}`
-    const current = groups.get(key)
-    if (current) current.push(toilet)
-    else groups.set(key, [toilet])
-  }
-
-  return [...groups.values()].map((items): MapPoint => {
-    const [toilet] = items
-    return items.length === 1
-      ? { ...toilet, count: 1 }
-      : { latitude: toilet.latitude, longitude: toilet.longitude, count: items.length, toilets: items }
-  })
 }
 
 function coordinateGroupFloor(name: string) {
@@ -1128,12 +1109,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             {isListZoomLimited && <p className="map-list-zoom-guide">화장실 목록을 보려면<br />지도를 더 확대해 주세요.</p>}
             {!isListZoomLimited && areaToilets.length === 0 && !isLoading && <p className="desktop-area-list-status">이 영역의 화장실 목록이 없습니다.</p>}
             {!isListZoomLimited && sortedAreaToiletGroups.map((group) => {
-              const representative = group.toilets?.[0] ?? {
-                id: group.id ?? 0,
-                name: group.name ?? '',
-                latitude: group.latitude,
-                longitude: group.longitude,
-              }
+              const representative = representativeToilet(group)
               const additionalCount = group.count - 1
               const distance = distanceReference ? formatDistance(calculateDistanceInMeters(distanceReference, representative)) : '—'
               return <button key={`${group.latitude}:${group.longitude}`} type="button" className="desktop-area-list-item" onClick={() => selectMobileAreaToilet(representative)}>
@@ -1152,12 +1128,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             {!isListZoomLimited && isMobileAreaListLoading && <p className="mobile-area-list-status">목록을 불러오는 중…</p>}
             {!isListZoomLimited && !isMobileAreaListLoading && areaToilets.length === 0 && <p className="mobile-area-list-status">이 영역의 화장실 목록이 없습니다.</p>}
             {!isListZoomLimited && !isMobileAreaListLoading && sortedAreaToiletGroups.map((group) => {
-              const representative = group.toilets?.[0] ?? {
-                id: group.id ?? 0,
-                name: group.name ?? '',
-                latitude: group.latitude,
-                longitude: group.longitude,
-              }
+              const representative = representativeToilet(group)
               const additionalCount = group.count - 1
               const distance = distanceReference ? formatDistance(calculateDistanceInMeters(distanceReference, representative)) : '—'
               return <button key={`${group.latitude}:${group.longitude}`} type="button" className="mobile-area-list-item" onClick={() => selectMobileAreaToilet(representative)}>
