@@ -11,7 +11,7 @@
     "start": "next start",
     "build:workers": "opennextjs-cloudflare build",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy:workers": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "deploy:workers": "node scripts/check-workers-deployment.mjs && opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "typecheck": "next typegen && tsc --noEmit",
     "lint": "oxlint src next.config.ts open-next.config.ts",
     "test:address": "node --experimental-strip-types --test tests/address.test.mjs",

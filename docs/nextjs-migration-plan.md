@@ -1,8 +1,10 @@
 # Next.js 전환 사전 분석·실행 계획
 
-2026-09-05 · Workers 선택 승인. 단계 2: 상세 URL·서버 렌더링 구현 및 검증. 운영 배포 전.
+2026-09-05 · Workers 선택 승인. 단계 3: 인증된 상세 캐시 갱신·전송 대기열 구현 및 검증. 운영 배포 전.
 
 상세 결과: [상세 URL 단계 검증](nextjs-detail-stage-verification.md). WBS: [toilet-web #186](https://github.com/toilet-project/toilet-web/issues/186).
+
+후속 결과: [캐시 갱신 단계](nextjs-cache-invalidation.md). DDL·수신 secret·Workers 저장소 활성화는 별도 승인 대상으로 남아 있다.
 
 ## 범위와 기준
 
