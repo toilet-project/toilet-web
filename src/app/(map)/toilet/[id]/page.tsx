@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { getToilet } from '../../../../server/toilets'
 import { regionLabel, toiletPath } from '../../../../lib/toiletRoute'
 import { ToiletRouteBridge } from '../../../../components/ToiletRouteBridge'
+import { placeData, safeJsonLd } from '../../../../lib/seo'
 
 type Props = { params: Promise<{ id: string }> }
 export const revalidate = 3600
@@ -22,5 +23,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ToiletPage({ params }: Props) {
   const detail = await getToilet((await params).id)
   if (!detail) notFound()
-  return <ToiletRouteBridge detail={detail} />
+  return <><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(placeData(detail)) }} />
+    <ToiletRouteBridge detail={detail} /></>
 }

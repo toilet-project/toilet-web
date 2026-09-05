@@ -7,6 +7,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import {signatureFor, REVALIDATION_PATH} from '../src/server/cacheRevalidation.ts'
 
 const counts = new Map()
+const indexable = process.argv.includes('--indexable')
 const secret = 'test-only-signing-secret-at-least-32-bytes'
 let deleted = false
 const fixture = { id: 900001, name: '검증용 화장실', toiletType: '공중화장실', latitude: 36.85, longitude: 127.15,
@@ -16,8 +17,15 @@ const fixture = { id: 900001, name: '검증용 화장실', toiletType: '공중�
 const api = createServer((req,res) => {
   counts.set(req.url,(counts.get(req.url) || 0)+1)
   res.setHeader('Content-Type','application/json')
+  if (req.url === '/api/v1/toilets/sitemap/shards') return res.end('[0,1,90]')
+  if (req.url === '/api/v1/toilets/sitemap/ids?shard=0') return res.end('[1,10000]')
+  if (req.url === '/api/v1/toilets/sitemap/ids?shard=1') return res.end('[10001,20000]')
+  if (req.url === '/api/v1/toilets/sitemap/ids?shard=90') return res.end('[900001,900002]')
+  if (req.url === '/api/v1/toilets/sitemap/ids?shard=2') return res.end('[]')
+  if (req.url === '/api/v1/toilets/sitemap/ids?shard=3') return res.end('[30001,30001]')
   if (req.url === '/api/v1/toilets/900001' && !deleted) return res.end(JSON.stringify(fixture))
   if (req.url === '/api/v1/toilets/900002') return res.end(JSON.stringify({...fixture,id:900002,latitude:null,longitude:null,roadAddress:'',jibunAddress:'충청남도 천안시 서북구 검증동 1',region:null}))
+  if (req.url === '/api/v1/toilets/900003') return res.end(JSON.stringify({...fixture,id:900003,name:'</script><script>alert("x")</script>'}))
   res.statusCode = req.url === '/api/v1/toilets/900500' ? 503 : 404
   res.end('{}')
 })
@@ -28,7 +36,7 @@ const reservation = createServer().listen(0,'127.0.0.1')
 await once(reservation,'listening')
 const port = reservation.address().port
 await new Promise(resolve=>reservation.close(resolve))
-const env = {...process.env, CACHE_RUNTIME:'node', CACHE_REVALIDATION_SECRET:secret, NEXT_BUILD_DIR:'.next-smoke', TOILET_API_ORIGIN:`http://127.0.0.1:${apiPort}`, SITE_INDEXABLE:'false', NEXT_TELEMETRY_DISABLED:'1', NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY:'smoke-public-key'}
+const env = {...process.env, CACHE_RUNTIME:'node', CACHE_REVALIDATION_SECRET:secret, NEXT_BUILD_DIR:'.next-smoke', TOILET_API_ORIGIN:`http://127.0.0.1:${apiPort}`, SITE_INDEXABLE:String(indexable), NEXT_TELEMETRY_DISABLED:'1', NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY:'smoke-public-key'}
 let server
 let output = ''
 const run = args => {
@@ -57,7 +65,42 @@ try {
   assert.match(html,/충청남도 천안시 서북구/)
   assert.match(html,/화장실 수/)
   assert.match(html,/href="https:\/\/geupddong.com\/toilet\/900001"/)
-  assert.match(first.headers.get('x-robots-tag'),/noindex/)
+  if(indexable) assert.equal(first.headers.get('x-robots-tag'),null)
+  else assert.match(first.headers.get('x-robots-tag'),/noindex/)
+  const ld=JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1])
+  assert.equal(ld['@type'],'Place')
+  assert.equal(ld.address.addressLocality,'천안시 서북구')
+  assert.equal(ld.geo.latitude,36.85)
+  const robots=await (await fetch(`${origin}/robots.txt`)).text()
+  if(indexable) {
+    assert.match(robots,/Allow: \/\n/)
+    assert.match(robots,/Sitemap: https:\/\/geupddong.com\/sitemap.xml/)
+    assert.doesNotMatch(robots,/Disallow: \/toilet/)
+    assert.match(html,/<meta name="robots" content="index, follow"/)
+  } else {
+    assert.match(robots,/Disallow: \//)
+    assert.doesNotMatch(robots,/Sitemap:/)
+  }
+  const index=await fetch(`${origin}/sitemap.xml`)
+  assert.equal(index.status,200)
+  assert.match(index.headers.get('content-type'),/application\/xml/)
+  assert.match(await index.text(),/https:\/\/geupddong.com\/sitemap-toilets-90.xml/)
+  for(const [shard,ids] of [[0,[1,10000]],[1,[10001,20000]],[90,[900001,900002]]]) {
+    const response=await fetch(`${origin}/sitemap-toilets-${shard}.xml`)
+    assert.equal(response.status,200)
+    const xml=await response.text()
+    for(const id of ids) assert.ok(xml.includes(`<loc>https://geupddong.com/toilet/${id}</loc>`))
+    assert.doesNotMatch(xml,/lastmod|region/)
+  }
+  await (await fetch(`${origin}/sitemaps/0.xml`)).text()
+  assert.equal(counts.get('/api/v1/toilets/sitemap/ids?shard=0'),1,'ID data cache reused')
+  for(const file of ['2.xml','01.xml','bad.xml','-1.xml','900719925475.xml'])
+    assert.equal((await fetch(`${origin}/sitemaps/${file}`)).status,404)
+  for(const file of ['3.xml','4.xml']) {
+    const failed=await fetch(`${origin}/sitemaps/${file}`)
+    assert.equal(failed.status,503,'bad/upstream unavailable must not publish an empty successful sitemap')
+    assert.equal(failed.headers.get('cache-control'),'no-store')
+  }
   for(let i=0;i<3;i++) {
     const cached = await fetch(`${origin}/toilet/900001`)
     await cached.text()
@@ -81,6 +124,7 @@ try {
   assert.match(changed,/<h1[^>]*>변경된 화장실<\/h1>/)
   assert.match(changed,/세종특별자치시/)
   assert.match(changed,/09:00~18:00/)
+  assert.equal(JSON.parse(changed.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]).address.addressRegion,'세종특별자치시')
   assert.equal(counts.get('/api/v1/toilets/900001'),2)
   fixture.region=null
   assert.equal((await invalidate()).status,200)
@@ -93,7 +137,13 @@ try {
   assert.equal((await fetch(`${origin}/toilet/900001`)).status,200,'invalidate must also evict a cached 404')
   const noCoords = await fetch(`${origin}/toilet/900002`)
   assert.equal(noCoords.status,200)
-  assert.match(await noCoords.text(),/충청남도 천안시 서북구 검증동 1/)
+  const noCoordsHtml=await noCoords.text()
+  assert.match(noCoordsHtml,/충청남도 천안시 서북구 검증동 1/)
+  assert.equal('geo' in JSON.parse(noCoordsHtml.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]),false)
+  const maliciousHtml=await (await fetch(`${origin}/toilet/900003`)).text()
+  const maliciousLd=maliciousHtml.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]
+  assert.equal(JSON.parse(maliciousLd).name,'</script><script>alert("x")</script>')
+  assert.doesNotMatch(maliciousLd,/</)
   for(const id of ['bad','0','01','900404']) {
     const missing = await fetch(`${origin}/toilet/${id}`)
     assert.equal(missing.status,404,`real HTTP 404: ${id}`)
@@ -103,7 +153,7 @@ try {
   const unavailable = await fetch(`${origin}/toilet/900500`)
   assert.equal(unavailable.status,500,'upstream outage is not a missing toilet')
   await unavailable.text()
-  console.log(JSON.stringify({result:'PASS',ssr:true,canonical:true,noindex:true,cacheHits:3,initialUpstreamRequests:1,signedInvalidation:true,forgedRequestRejected:true,regionRemoved:true,deletionAndRestoration:true,real404Cases:4,missingCoordinates:true,upstreamFailureStatus:500},null,2))
+  console.log(JSON.stringify({result:'PASS',ssr:true,canonical:true,indexable,sitemapShards:3,sitemapDataCacheHit:true,sitemapFailure503:true,jsonLdEscaping:true,cacheHits:3,initialUpstreamRequests:1,signedInvalidation:true,forgedRequestRejected:true,regionRemoved:true,deletionAndRestoration:true,real404Cases:4,missingCoordinates:true,upstreamFailureStatus:500},null,2))
 } finally {
   if(server && server.exitCode===null) { server.kill(); await once(server,'exit') }
   api.closeAllConnections()

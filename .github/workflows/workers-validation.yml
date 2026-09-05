@@ -37,6 +37,7 @@ jobs:
       - run: pnpm run typecheck
       - run: pnpm test
       - run: pnpm run test:detail-production
+      - run: node tests/detail-production-smoke.mjs --indexable
       - run: pnpm run build:workers
       # Deliberately no Cloudflare credentials, upload, resource creation or deployment.
       - name: Validate Worker bundle without uploading

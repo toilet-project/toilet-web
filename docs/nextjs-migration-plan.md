@@ -1,6 +1,8 @@
 # Next.js 전환 사전 분석·실행 계획
 
-2026-09-05 · Workers 선택 승인. 단계 3: 인증된 상세 캐시 갱신·전송 대기열 구현 및 검증. 운영 배포 전.
+2026-09-05 · Workers 선택 승인. 단계 4: 분할 사이트맵·robots·상세 구조화 데이터 구현. 운영 배포 전.
+
+이번 단계: [검색 발견 경로 설계·검증](nextjs-seo-discovery.md).
 
 상세 결과: [상세 URL 단계 검증](nextjs-detail-stage-verification.md). WBS: [toilet-web #186](https://github.com/toilet-project/toilet-web/issues/186).
 

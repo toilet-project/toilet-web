@@ -21,9 +21,12 @@ const config: NextConfig = {
     ] }]
   },
   async rewrites() {
-    return process.env.NODE_ENV === 'development'
-      ? [{ source: '/api/:path*', destination: 'https://api.geupddong.com/api/:path*' }]
-      : []
+    return [
+      // Root-level sitemap URLs cover /toilet/* without relying on search-console scope overrides.
+      { source: '/sitemap-toilets-:shard(\\d+).xml', destination: '/sitemaps/:shard.xml' },
+      ...(process.env.NODE_ENV === 'development'
+        ? [{ source: '/api/:path*', destination: 'https://api.geupddong.com/api/:path*' }] : []),
+    ]
   },
 }
 
