@@ -53,8 +53,10 @@ export async function fetchToiletsInBounds(params: { southLat: number; northLat:
   return { meta: payload.meta ?? { map_level: params.zoom, display_type: 'MARKER', total_count: 0, result_count: 0 }, toilets: payload.toilets ?? [], clusters: payload.clusters ?? [] }
 }
 
-export async function fetchToiletDetail(toiletId: number): Promise<ToiletDetailResponse> {
-  const response = await fetch(createApiUrl(`/api/v1/toilets/${toiletId}`))
+export async function fetchToiletDetail(toiletId: number, signal?: AbortSignal): Promise<ToiletDetailResponse> {
+  const response = await fetch(createApiUrl(`/api/v1/toilets/${toiletId}`), { signal })
   if (!response.ok) throw new Error(`화장실 상세 정보를 불러오지 못했습니다. (${response.status})`)
-  return response.json() as Promise<ToiletDetailResponse>
+  const detail = await response.json() as ToiletDetailResponse
+  if (detail.id !== toiletId || typeof detail.name !== 'string') throw new Error('화장실 상세 응답을 확인할 수 없습니다.')
+  return detail
 }

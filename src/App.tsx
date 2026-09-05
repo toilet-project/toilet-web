@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { fetchToiletsInBounds, type ToiletDetailResponse, type ToiletMapSearchResponse } from './api/toilets'
+import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, type ToiletMapSearchResponse } from './api/toilets'
+import { createDetailCache } from './lib/detailCache'
 import { getCurrentUser, logout, startSocialLogin, type AuthProfile } from './api/auth'
 import { createKakaoMap, searchKakaoPlaces, type KakaoMapInstance, type KakaoOverlay, type KakaoPlace } from './lib/kakaoMap'
 import { ToiletReportModal } from './components/ToiletReportModal'
@@ -24,7 +25,7 @@ const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
 const CLUSTER_GRID_SIZE = 84
 const MAX_LIST_ZOOM_LEVEL = 6
 
-type SelectedToilet = { id: number; name: string; latitude: number; longitude: number }
+type SelectedToilet = ToiletMapItem
 type SelectedCoordinateGroup = { latitude: number; longitude: number; toilets: ToiletMapItem[] }
 type CardPosition = { left: number; top: number }
 type Coordinates = { latitude: number; longitude: number }
@@ -131,8 +132,11 @@ function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
 function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavigate: (id: number | null) => void; onMounted: () => void }) {
   const [initialRoute] = useState(route)
   const initialRouteRef = useRef(initialRoute)
-  const routeRef = useRef(route)
-  useLayoutEffect(() => { routeRef.current = route }, [route])
+  const [detailCache] = useState(() => {
+    const cache = createDetailCache<ToiletDetailResponse>()
+    if (route.detail) cache.set(route.detail)
+    return cache
+  })
   const initialCoordinates = toiletCoordinates(initialRoute.detail)
   const initialSelected = initialCoordinates && initialRoute.detail
     ? { id: initialRoute.detail.id, name: initialRoute.detail.name, ...initialCoordinates } : null
@@ -170,6 +174,34 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const [toiletDetail, setToiletDetail] = useState<ToiletDetailResponse | null>(initialRoute.detail)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
+  const [detailRetry, setDetailRetry] = useState(0)
+  const retryDetail = () => {
+    setDetailError(null)
+    setIsDetailLoading(true)
+    setDetailRetry(value => value + 1)
+  }
+  const detailRef = useRef(toiletDetail)
+  useLayoutEffect(() => { detailRef.current = toiletDetail }, [toiletDetail])
+  const activeDetailId = selectedToilet?.id ?? expandedCoordinateToilet?.id ?? null
+  useEffect(() => {
+    if (activeDetailId === null || detailCache.get(activeDetailId)) return
+    const controller = new AbortController()
+    let disposed = false
+    const timeout = window.setTimeout(() => controller.abort(), 10_000)
+    // Fetch interactive content immediately; URL/SEO navigation can finish independently.
+    void fetchToiletDetail(activeDetailId, controller.signal).then(detail => {
+      if (disposed) return
+      detailCache.set(detail)
+      setToiletDetail(detail)
+      setDetailError(null)
+      setIsDetailLoading(false)
+    }).catch(() => {
+      if (disposed || detailRef.current?.id === activeDetailId) return
+      setDetailError('상세 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.')
+      setIsDetailLoading(false)
+    }).finally(() => window.clearTimeout(timeout))
+    return () => { disposed = true; controller.abort(); window.clearTimeout(timeout) }
+  }, [activeDetailId, detailCache, detailRetry])
   const [locationMessage, setLocationMessage] = useState<string | null>(null)
   const [isLocating, setIsLocating] = useState(false)
   const [isMobileCardExpanded, setIsMobileCardExpanded] = useState(false)
@@ -430,7 +462,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   }, [onNavigate, resetDetailCard])
 
   useEffect(() => {
-    const detail = route.detail
+    const detail = route.detail ? detailCache.get(route.detail.id) ?? route.detail : null
     if (!detail) {
       if (preserveGroupOnHomeRef.current) {
         preserveGroupOnHomeRef.current = false
@@ -462,7 +494,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       })
       return () => window.cancelAnimationFrame(frame)
     }
-  }, [route, resetDetailCard])
+  }, [route, resetDetailCard, detailCache])
 
   useEffect(() => {
     const keyword = placeSearchKeyword.trim()
@@ -507,9 +539,9 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     }
   }, [positionPlaceCardAtToilet])
 
-  const selectToilet = useCallback((toiletId: number, name: string, latitude: number, longitude: number, keepCoordinateGroup = false) => {
+  const selectToilet = useCallback((toiletId: number, name: string, latitude: number, longitude: number, keepCoordinateGroup = false, toiletType?: string) => {
     setIsMobileAreaListOpen(false)
-    const selected = { id: toiletId, name, latitude, longitude }
+    const selected = { id: toiletId, name, latitude, longitude, toiletType }
     selectedToiletRef.current = selected
     setExpandedCoordinateToilet(null)
     if (!keepCoordinateGroup || !window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) setSelectedCoordinateGroup(null)
@@ -517,12 +549,12 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     setSelectedToilet(selected)
     setPlaceCardPosition(null)
     setIsMobileCardExpanded(false)
-    const cached = routeRef.current.detail?.id === toiletId ? routeRef.current.detail : null
+    const cached = detailCache.get(toiletId)
     setToiletDetail(cached)
     setDetailError(null)
     setIsDetailLoading(!cached)
     onNavigate(toiletId)
-  }, [onNavigate])
+  }, [onNavigate, detailCache])
 
   const openCoordinateGroup = useCallback((point: MapPoint) => {
     if (!point.toilets) return
@@ -548,7 +580,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     setSelectedToilet(null)
     setPlaceCardPosition(null)
     setExpandedCoordinateToilet(toilet)
-    const cached = routeRef.current.detail?.id === toilet.id ? routeRef.current.detail : null
+    const cached = detailCache.get(toilet.id)
     setToiletDetail(cached)
     setDetailError(null)
     setIsDetailLoading(!cached)
@@ -565,7 +597,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
 
     requestAnimationFrame(scrollExpandedItemIntoView)
 
-  }, [expandedCoordinateToilet, onNavigate])
+  }, [expandedCoordinateToilet, onNavigate, detailCache])
 
   useEffect(() => {
     const selected = selectedToilet ?? expandedCoordinateToilet
@@ -660,7 +692,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       }
       content.addEventListener('click', (event) => {
         suppressMapClickFromMarker(event)
-        if (point.id != null) void selectToilet(point.id, toiletName, point.latitude, point.longitude)
+        if (point.id != null) void selectToilet(point.id, toiletName, point.latitude, point.longitude, false, point.toiletType)
       })
 
       return new window.kakao.maps.CustomOverlay({
@@ -1027,7 +1059,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     if (sameCoordinateToilets.length > 1) {
       openCoordinateGroup({ latitude: toilet.latitude, longitude: toilet.longitude, count: sameCoordinateToilets.length, toilets: sameCoordinateToilets })
     } else {
-      void selectToilet(toilet.id, toilet.name, toilet.latitude, toilet.longitude)
+      void selectToilet(toilet.id, toilet.name, toilet.latitude, toilet.longitude, false, toilet.toiletType)
     }
     if (!window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) map.panTo(position)
   }, [areaToilets, openCoordinateGroup, selectToilet])
@@ -1176,15 +1208,16 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
               {isMobileCardExpanded ? '상세 정보 접기' : '상세 정보 보기'}
             </button>
             <div className="place-card-summary">
-              <span className="card-label">{toiletDetail?.toiletType || '공중화장실'}</span>
+              <span className="card-label">{toiletDetail?.toiletType || selectedToilet.toiletType || '화장실'}</span>
               <h1>{toiletDetail?.name || selectedToilet.name}</h1>
             </div>
             <div className="card-scroll-content">
-              <p className="open-time">{toiletDetail ? formatOpenTime(toiletDetail) : isDetailLoading ? '상세 정보를 불러오는 중…' : '상세 정보를 확인해 주세요.'}</p>
+              {toiletDetail && <p className="open-time">{formatOpenTime(toiletDetail)}</p>}
               {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">{distanceReferenceLabel}</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">(직선거리)</span></div>}
               {toiletDetail && hasValue(getDisplayAddress(toiletDetail.roadAddress, toiletDetail.jibunAddress)) && <div className="summary-address"><DetailRow label="주소" value={getDisplayAddress(toiletDetail.roadAddress, toiletDetail.jibunAddress)} copyable /></div>}
               {toiletDetail && <button type="button" className="report-entry-button" onClick={() => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude })}>{authProfile ? '정보 제보하기' : '로그인 후 정보 제보하기'}</button>}
-              {detailError && <p className="detail-error" role="alert">{detailError}</p>}
+              {detailError && <div><p className="detail-error" role="alert">{detailError}</p><button type="button" className="detail-retry" onClick={retryDetail}>다시 불러오기</button></div>}
+              {!toiletDetail && isDetailLoading && <DetailLoadingFields />}
               {toiletDetail && <ToiletDetailContents toilet={toiletDetail} />}
             </div>
           </aside>
@@ -1208,6 +1241,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
                     toilet={toiletDetail}
                     isLoading={isDetailLoading}
                     error={detailError}
+                    onRetry={retryDetail}
                     onReport={() => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }}
                   />}
                 </div>
@@ -1244,9 +1278,15 @@ function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () 
   </div>
 }
 
-function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onReport: () => void }) {
-  if (isLoading) return <div className="coordinate-inline-details"><p className="coordinate-inline-status">상세 정보를 불러오는 중…</p></div>
-  if (error) return <div className="coordinate-inline-details"><p className="detail-error" role="alert">{error}</p></div>
+function DetailLoadingFields() {
+  return <div className="detail-loading-fields" role="status" aria-label="주소와 시설 정보 불러오는 중">
+    {['개방시간', '주소', '시설 정보'].map(label => <div className="detail-loading-field" key={label}><span>{label}</span><span className="detail-loading-bar" aria-hidden="true" /></div>)}
+  </div>
+}
+
+function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRetry }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onReport: () => void; onRetry: () => void }) {
+  if (isLoading && !toilet) return <div className="coordinate-inline-details"><DetailLoadingFields /></div>
+  if (error) return <div className="coordinate-inline-details"><p className="detail-error" role="alert">{error}</p><button type="button" className="detail-retry" onClick={onRetry}>다시 불러오기</button></div>
   if (!toilet) return null
 
   const address = getDisplayAddress(toilet.roadAddress, toilet.jibunAddress)
