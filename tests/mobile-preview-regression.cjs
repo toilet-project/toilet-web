@@ -181,15 +181,38 @@ async function noOverflow(page) {
         const mapX=mapBox.x+mapBox.width*0.83,mapY=mapBox.y+mapBox.height*0.17
         await page.mouse.click(mapX,mapY)
         assert.equal(await page.locator('.mobile-area-list').count(),0,'Map click closes list')
-        const markerCount=await page.locator('.toilet-marker,.coordinate-group-marker,.cluster-marker').count()
+        // Finish the preceding live place-search map refresh before taking the
+        // baseline. Otherwise its successful response races the failure fixture.
+        await page.waitForLoadState('networkidle')
+        await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))
+        const areaCountBefore=await page.locator('.mobile-area-list-button').innerText()
+        await page.evaluate(()=>{
+          window.__markersBeforeFailure=[...document.querySelectorAll('.toilet-marker,.coordinate-group-marker,.cluster-marker')]
+        })
+        const dragPoint=await page.locator('.map').evaluate(map=>{
+          const box=map.getBoundingClientRect()
+          for(const fy of [.35,.55,.75]) for(const fx of [.7,.5,.3]) {
+            const x=box.x+box.width*fx,y=box.y+box.height*fy
+            const targets=[document.elementFromPoint(x,y),document.elementFromPoint(x-55,y+35)]
+            if(targets.every(el=>el&&map.contains(el)&&!el.closest('button,a,.toilet-marker,.coordinate-group-marker,.cluster-marker,.search-place-marker,.reference-point-marker'))) return {x,y}
+          }
+          return null
+        })
+        assert.ok(dragPoint,'No unobstructed map tile for drag')
         mapFailure=true
-        await page.mouse.move(mapX,mapY)
+        await page.mouse.move(dragPoint.x,dragPoint.y)
         await page.mouse.down()
-        await page.mouse.move(mapX-55,mapY+35,{steps:12})
+        await page.mouse.move(dragPoint.x-55,dragPoint.y+35,{steps:12})
         await page.mouse.up()
         await visible(page.locator('.connection-status-banner'))
         assert.match(await page.locator('.connection-status-banner').innerText(),/마지막 정상 갱신/)
-        assert.equal(await page.locator('.toilet-marker,.coordinate-group-marker,.cluster-marker').count(),markerCount,'Failed load preserves prior markers')
+        // Kakao detaches off-screen overlays while panning. Compare retained
+        // node identities and data count, not the viewport-dependent DOM count.
+        assert.equal(await page.locator('.mobile-area-list-button').innerText(),areaCountBefore,'Failed load preserves prior area count')
+        assert.ok(await page.evaluate(()=>{
+          const markers=[...document.querySelectorAll('.toilet-marker,.coordinate-group-marker,.cluster-marker')]
+          return markers.length>0 && markers.every(marker=>window.__markersBeforeFailure.includes(marker))
+        }),'Failed load must retain prior visible marker instances')
         mapFailure=false
         await page.getByRole('button',{name:'다시 연결',exact:true}).click()
         await page.locator('.connection-status-banner').waitFor({state:'hidden'})
