@@ -16,7 +16,7 @@ const path = '/_internal/cache/revalidate'
 const id = 13448
 const config = JSON.parse(readFileSync('wrangler.jsonc', 'utf8'))
 assert.equal(config.name, worker)
-assert.equal(config.routes, undefined)
+assert.deepEqual(config.routes, [{pattern:'preview.geupddong.com',custom_domain:true}])
 assert.equal(config.route, undefined)
 assert.equal(config.d1_databases[0].database_id, 'bbf77cf5-62e9-4c94-a8ec-a45c0e26deed')
 assert.equal(config.r2_buckets[0].bucket_name, 'geupddong-next-preview-cache')

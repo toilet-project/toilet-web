@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 const origin = new URL(process.argv[2])
 const id = process.argv[3] || '13448'
 assert.equal(origin.protocol, 'https:')
-assert.ok(origin.hostname.startsWith('geupddong-web-preview.') && origin.hostname.endsWith('.workers.dev'))
+assert.ok(origin.hostname === 'preview.geupddong.com' || origin.hostname === 'geupddong-web-preview.dlgksqls7218.workers.dev')
 assert.match(id, /^[1-9]\d*$/)
 const results = []
 for (const path of ['/', '/robots.txt', `/toilet/${id}`, `/toilet/${id}`, '/toilet/0', '/toilet/not-a-number']) {

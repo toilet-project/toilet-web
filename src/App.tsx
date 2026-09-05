@@ -268,9 +268,18 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
         if (profile && !profile.consentRequired) resumePendingLoginAction()
       })
       .catch(() => { if (active) setAuthProfile(null) })
-      .finally(() => { if (active) setIsAuthLoading(false) })
+      .finally(() => {
+        if (!active) return
+        setIsAuthLoading(false)
+        const url = new URL(window.location.href)
+        if (url.searchParams.get('login') === 'failed') {
+          url.searchParams.delete('login')
+          window.history.replaceState(window.history.state, '', url)
+          showLocationMessage('로그인이 취소되었거나 완료되지 않았습니다. 다시 시도해 주세요.')
+        }
+      })
     return () => { active = false }
-  }, [resumePendingLoginAction])
+  }, [resumePendingLoginAction, showLocationMessage])
 
   const openReport = useCallback((target: ReportTarget) => {
     if (!authProfile) {

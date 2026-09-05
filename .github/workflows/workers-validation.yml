@@ -22,7 +22,7 @@ jobs:
       NEXT_TELEMETRY_DISABLED: '1'
       WRANGLER_SEND_METRICS: 'false'
       NEXT_PUBLIC_API_BASE_URL: https://api.geupddong.com
-      NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY: build-validation-placeholder
+      NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY: ${{ secrets.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY || 'build-validation-placeholder' }}
       SITE_INDEXABLE: 'false'
     steps:
       - uses: actions/checkout@v7.0.1

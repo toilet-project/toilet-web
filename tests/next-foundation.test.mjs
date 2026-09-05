@@ -21,7 +21,7 @@ test('root and policy pages remain server components', async () => {
 test('preview configuration cannot claim the production domain', async () => {
   const config = JSON.parse(await read('wrangler.jsonc'))
   assert.equal(config.name, 'geupddong-web-preview')
-  assert.equal(config.routes, undefined)
+  assert.deepEqual(config.routes, [{pattern:'preview.geupddong.com',custom_domain:true}])
   assert.equal(config.route, undefined)
   assert.equal(config.services[0].service, config.name)
   assert.equal(config.r2_buckets[0].bucket_name, 'geupddong-next-preview-cache')
