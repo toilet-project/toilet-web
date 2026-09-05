@@ -42,3 +42,12 @@ jobs:
       # Deliberately no Cloudflare credentials, upload, resource creation or deployment.
       - name: Validate Worker bundle without uploading
         run: pnpm exec wrangler deploy --dry-run
+      # Build on Linux; deploy manually using the approved local Cloudflare session.
+      # No OAuth tokens or production secrets enter this artifact.
+      - name: Package validated preview runtime
+        run: tar -czf workers-preview.tar.gz .open-next package.json pnpm-lock.yaml wrangler.jsonc open-next.config.ts next.config.ts .next/BUILD_ID
+      - uses: actions/upload-artifact@v4
+        with:
+          name: workers-preview-${{ github.sha }}
+          path: workers-preview.tar.gz
+          retention-days: 3

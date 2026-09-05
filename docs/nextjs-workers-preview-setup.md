@@ -21,9 +21,17 @@
 - API CORS와 OAuth 복귀 주소는 운영 origin 기준이다. 미리보기 주소 전체 허용·wildcard credential CORS로 임의 완화하지 않는다. 실제 인증 회귀는 별도 승인된 테스트 구성 또는 운영 전환 계획이 필요하다.
 - Windows의 OpenNext build symlink 제약을 피하려면 Linux CI 빌드 산출물을 전달하는 경로를 준비한다. 현재 CI는 검증/dry-run만 수행하며 Cloudflare 인증정보가 없다.
 
+## 무료 플랜 우선 검증으로 정정
+
+사용자는 유료 전환 전에 실제 필요성과 비용을 안내받기로 했다. Free를 유지한다.
+앞의 1000ms는 측정된 CPU 사용량이 아니라 임의로 설정한 허용 상한이었다. 이것만으로 유료 필수라고 판단할 수 없다.
+설정의 유료용 cpu_ms override를 제거하고 계정 Free 기본 제한을 따른다. 무료 요청 수/CPU 제한에 걸리면 오류를 보고하며 자동 업그레이드하지 않는다.
+R2의 별도 무료 한도 초과 과금은 이미 승인된 구독 조건이며 Workers Free와 구분한다.
+Linux 검증 CI에 3일 보관 build artifact를 추가했다. 배포는 로컬에서 별도 수행하며 Cloudflare OAuth를 GitHub에 보내지 않는다.
+
 ## 다음 순서
 
-1. Workers Paid 전환 조건 확인·승인.
+1. Workers Free에서 미리보기 runtime 검증. 유료 필요성은 실제 오류/측정 후 판단.
 2. secret을 포함하지 않는 Linux 빌드 산출물 전달 준비.
 3. 미리보기 cache schema/secret/Worker 연결 후 runtime 검증.
 4. 실제 API projection·sitemap 및 지도 도메인·인증의 미완료 사항을 분리해 검증.

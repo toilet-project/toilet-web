@@ -11,7 +11,7 @@
     "bindings": [{ "name": "NEXT_CACHE_DO_QUEUE", "class_name": "DOQueueHandler" }]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DOQueueHandler"] }],
-  "limits": { "cpu_ms": 1000 },
+  "workers_dev": true,
   "observability": { "enabled": true, "head_sampling_rate": 0.1 },
   "vars": { "CACHE_RUNTIME": "workers", "SITE_INDEXABLE": "false" },
   "d1_databases": [{ "binding": "NEXT_TAG_CACHE_D1", "database_name": "geupddong-next-preview-tags", "database_id": "bbf77cf5-62e9-4c94-a8ec-a45c0e26deed" }]
