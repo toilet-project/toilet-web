@@ -18,9 +18,20 @@ test('verified city/district hierarchy does not duplicate names or parse source 
   assert.equal(regionLabel({sidoName:'세종특별자치시',sigunguName:null}),'세종특별자치시')
   assert.equal(regionLabel(null),'')
 })
-test('map selection reuses server detail instead of a second browser detail request', async () => {
+test('interactive detail fetch does not wait for the route; initial SSR still seeds the cache', async () => {
   const app = await readFile(new URL('../src/App.tsx',import.meta.url),'utf8')
-  assert.doesNotMatch(app,/fetchToiletDetail/)
+  assert.match(app,/fetchToiletDetail\(activeDetailId, controller.signal\)/)
+  assert.match(app,/if \(route.detail\) cache.set\(route.detail\)/)
+  assert.match(app,/disposed = true; controller.abort\(\)/)
   assert.match(app,/onNavigate\(toiletId\)/)
   assert.match(app,/if \(!disposed && !initialRouteRef.current.detail\)/)
+})
+
+test('unknown detail values use placeholders and collapsed mobile errors remain visible', async () => {
+  const app = await readFile(new URL('../src/App.tsx',import.meta.url),'utf8')
+  const css = await readFile(new URL('../src/App.css',import.meta.url),'utf8')
+  assert.match(app,/selectedToilet.toiletType \|\| '화장실'/)
+  assert.match(app,/!toiletDetail && isDetailLoading && <DetailLoadingFields/)
+  assert.match(app,/role="status" aria-label="주소와 시설 정보 불러오는 중"/)
+  assert.match(css,/\.place-card:not\(\.mobile-card-expanded\) \.detail-error\s*\{\s*display: block;/)
 })
