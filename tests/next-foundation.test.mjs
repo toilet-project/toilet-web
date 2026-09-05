@@ -5,6 +5,14 @@ import test from 'node:test'
 const root = new URL('../', import.meta.url)
 const read = path => readFile(new URL(path, root), 'utf8')
 
+test('home detail reset does not discard a newly opened area list', async () => {
+  const app = await read('src/App.tsx')
+  const reset = app.slice(app.indexOf('const resetDetailCard ='), app.indexOf('const closeDetailCard ='))
+  assert.doesNotMatch(reset, /setIsMobileAreaListOpen/)
+  assert.match(app, /isMobileAreaListVisible = isMobileAreaListOpen && !route.detail/)
+  assert.match(app, /isMobileAreaListVisible && <aside/)
+})
+
 test('map remains owned by a shared layout and browser-only shell', async () => {
   const layout = await read('src/app/(map)/layout.tsx')
   assert.match(layout, /<MapShell>\{children\}<\/MapShell>/)

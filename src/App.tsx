@@ -182,6 +182,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const [activePlaceSearchIndex, setActivePlaceSearchIndex] = useState(-1)
   const [isPlaceSearchFocused, setIsPlaceSearchFocused] = useState(false)
   const [isMobileAreaListOpen, setIsMobileAreaListOpen] = useState(false)
+  const isMobileAreaListVisible = isMobileAreaListOpen && !route.detail
   const [mobileAreaToilets, setMobileAreaToilets] = useState<ToiletMapItem[] | null>(null)
   const [isMobileAreaListLoading, setIsMobileAreaListLoading] = useState(false)
   const [mapZoomLevel, setMapZoomLevel] = useState(3)
@@ -417,12 +418,12 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     setIsDetailLoading(false)
     setIsMobileCardExpanded(false)
     setReportTarget(null)
-    setIsMobileAreaListOpen(false)
     toiletMarkerElementsRef.current.forEach((marker) => marker.classList.remove('is-selected'))
   }, [])
 
   const closeDetailCard = useCallback(() => {
     preserveGroupOnHomeRef.current = false
+    setIsMobileAreaListOpen(false)
     resetDetailCard()
     onNavigate(null)
   }, [onNavigate, resetDetailCard])
@@ -436,6 +437,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
         setExpandedCoordinateToilet(null)
         setIsDetailLoading(false)
       } else resetDetailCard()
+      // Returning home clears the detail, not an area list just opened by the user.
       return
     }
     preserveGroupOnHomeRef.current = false
@@ -505,6 +507,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   }, [positionPlaceCardAtToilet])
 
   const selectToilet = useCallback((toiletId: number, name: string, latitude: number, longitude: number, keepCoordinateGroup = false) => {
+    setIsMobileAreaListOpen(false)
     const selected = { id: toiletId, name, latitude, longitude }
     selectedToiletRef.current = selected
     setExpandedCoordinateToilet(null)
@@ -522,6 +525,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
 
   const openCoordinateGroup = useCallback((point: MapPoint) => {
     if (!point.toilets) return
+    setIsMobileAreaListOpen(false)
     resetDetailCard()
     preserveGroupOnHomeRef.current = true
     onNavigate(null)
@@ -978,7 +982,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     : groupedAreaToilets
 
   const toggleMobileAreaList = useCallback(async () => {
-    if (isMobileAreaListOpen) {
+    if (isMobileAreaListVisible) {
       setIsMobileAreaListOpen(false)
       return
     }
@@ -1010,7 +1014,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     } finally {
       setIsMobileAreaListLoading(false)
     }
-  }, [closeDetailCard, isMobileAreaListOpen, result])
+  }, [closeDetailCard, isMobileAreaListVisible, result])
 
   const selectMobileAreaToilet = useCallback((toilet: ToiletMapItem) => {
     const map = mapRef.current
@@ -1090,7 +1094,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
           <div className="map-hud" aria-live="polite">
             {isLoading && <span className="map-loading-message">지도를 조회하는 중…</span>}
             {!isLoading && result && <span className="map-area-count">이 지역 {result.meta.total_count.toLocaleString()}곳{result.meta.display_type === 'CLUSTER' ? ' · 묶어서 표시 중' : ''}</span>}
-            {result && <button className={`mobile-area-list-button${isMobileAreaListOpen ? ' is-open' : ''}${isLoading ? ' is-loading' : ''}`} type="button" onClick={() => void toggleMobileAreaList()} aria-expanded={isMobileAreaListOpen} aria-busy={isLoading} disabled={isLoading}>{isLoading ? '지도를 조회하는 중…' : isMobileAreaListOpen ? '목록 닫기' : `이 지역 ${result.meta.total_count.toLocaleString()}곳`}</button>}
+            {result && <button className={`mobile-area-list-button${isMobileAreaListVisible ? ' is-open' : ''}${isLoading ? ' is-loading' : ''}`} type="button" onClick={() => void toggleMobileAreaList()} aria-expanded={isMobileAreaListVisible} aria-busy={isLoading} disabled={isLoading}>{isLoading ? '지도를 조회하는 중…' : isMobileAreaListVisible ? '목록 닫기' : `이 지역 ${result.meta.total_count.toLocaleString()}곳`}</button>}
             {error && !result && <span className="error-message">{error}</span>}
           </div>
           <button className={`location-button${hasMapCard ? ' is-with-card' : ''}`} type="button" onClick={() => void moveToCurrentLocation()} disabled={isLocating}>
@@ -1120,7 +1124,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             })}
           </div>
         </aside>}
-        {isMobileAreaListOpen && <aside className="mobile-area-list" aria-label="현재 지도 영역 화장실 목록">
+        {isMobileAreaListVisible && <aside className="mobile-area-list" aria-label="현재 지도 영역 화장실 목록">
           <button className="mobile-area-list-handle" type="button" onClick={() => setIsMobileAreaListOpen(false)} aria-label="지역 목록 닫기" />
           {!isListZoomLimited && <div className="mobile-area-list-header"><span>화장실명</span><span>구분</span><span>거리</span></div>}
           <div className="mobile-area-list-content">
