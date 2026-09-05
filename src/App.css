@@ -469,3 +469,37 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
 .initial-route-card h1 { padding-right: 26px; margin: 0 0 12px; font-size: 20px; }
 .place-card-summary h1 { display: block; margin: 0; color: #1d2b21; font: inherit; font-size: 19px; font-weight: 700; }
 .place-card.initial-route-card .card-details { display: block; max-height: none; overflow: visible; }
+.detail-loading-fields {
+  display: grid;
+  gap: 16px;
+  padding: 14px 0;
+}
+.detail-retry {
+  padding: 8px 12px;
+  border: 1px solid #cbded1;
+  border-radius: 8px;
+  color: #17683a;
+  background: #f5faf7;
+  font: inherit;
+  cursor: pointer;
+}
+/* A failed request must remain actionable even in the collapsed phone card. */
+.place-card:not(.mobile-card-expanded) .detail-error {
+  display: block;
+  margin: 8px 0;
+  font-size: 12px;
+}
+.detail-loading-field {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  color: #63766c;
+  font-size: 13px;
+}
+.detail-loading-bar {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: #eaf1ed;
+}
