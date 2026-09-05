@@ -17,6 +17,7 @@ import { hasValue, formatOpenTime, formatFacilityLocation } from './lib/detailFo
 import { toiletCoordinates } from './lib/toiletRoute'
 import { groupToiletsByCoordinate, representativeToilet, type ToiletMapItem, type MapPoint } from './lib/toiletGrouping'
 import type { MapRouteData } from './components/mapRouteContext'
+import { DESKTOP_LAYOUT_QUERY } from './lib/responsiveLayout'
 const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
 const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
@@ -174,7 +175,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const [isMobileCardExpanded, setIsMobileCardExpanded] = useState(false)
   const [currentLocation, setCurrentLocation] = useState<Coordinates | null>(null)
   const [mapCenter, setMapCenter] = useState<Coordinates>(DAEJEON_CITY_HALL)
-  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.matchMedia('(min-width: 641px)').matches)
+  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.matchMedia(DESKTOP_LAYOUT_QUERY).matches)
   const [placeSearchKeyword, setPlaceSearchKeyword] = useState('')
   const [placeSearchResults, setPlaceSearchResults] = useState<KakaoPlace[]>([])
   const [placeSearchMessage, setPlaceSearchMessage] = useState<string | null>(null)
@@ -206,7 +207,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   }, [])
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(min-width: 641px)')
+    const mediaQuery = window.matchMedia(DESKTOP_LAYOUT_QUERY)
     const updateViewport = () => setIsDesktop(mediaQuery.matches)
     updateViewport()
     mediaQuery.addEventListener('change', updateViewport)
@@ -511,7 +512,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     const selected = { id: toiletId, name, latitude, longitude }
     selectedToiletRef.current = selected
     setExpandedCoordinateToilet(null)
-    if (!keepCoordinateGroup || !window.matchMedia('(min-width: 641px)').matches) setSelectedCoordinateGroup(null)
+    if (!keepCoordinateGroup || !window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) setSelectedCoordinateGroup(null)
     toiletMarkerElementsRef.current.forEach((marker, markerId) => marker.classList.toggle('is-selected', markerId === toiletId))
     setSelectedToilet(selected)
     setPlaceCardPosition(null)
@@ -690,7 +691,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
         westLng: southWest.getLng(),
         eastLng: northEast.getLng(),
         zoom: map.getLevel(),
-        includeList: window.matchMedia('(min-width: 641px)').matches && map.getLevel() <= MAX_LIST_ZOOM_LEVEL,
+        includeList: window.matchMedia(DESKTOP_LAYOUT_QUERY).matches && map.getLevel() <= MAX_LIST_ZOOM_LEVEL,
       })
 
       if (requestSequence !== requestSequenceRef.current) return
@@ -906,7 +907,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
           if (mapInteractionRef.current) {
             mapInteractionRef.current = false
             setIsMobileAreaListOpen(false)
-            if (window.matchMedia('(min-width: 641px)').matches) closeDetailCard()
+            if (window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) closeDetailCard()
           }
           scheduleMapAreaLoad()
           positionSelectedCard()
@@ -923,7 +924,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
           if (disposed) return
           setIsMobileAreaListOpen(false)
           if (Date.now() < markerClickUntilRef.current) return
-          if (window.matchMedia('(min-width: 641px)').matches && event?.latLng) {
+          if (window.matchMedia(DESKTOP_LAYOUT_QUERY).matches && event?.latLng) {
             updateReferencePoint({ latitude: event.latLng.getLat(), longitude: event.latLng.getLng() })
             map.panTo(event.latLng)
           }
@@ -1028,7 +1029,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     } else {
       void selectToilet(toilet.id, toilet.name, toilet.latitude, toilet.longitude)
     }
-    if (!window.matchMedia('(min-width: 641px)').matches) map.panTo(position)
+    if (!window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) map.panTo(position)
   }, [areaToilets, openCoordinateGroup, selectToilet])
 
   return (
