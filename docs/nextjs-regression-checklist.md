@@ -5,6 +5,21 @@
 
 ## 기존 동작
 
+### Workers 실행 환경 1차 검증 (상세 URL·실제 지도 회귀와 별도)
+
+- [x] Next 16.3.4 production build, TypeScript, oxlint 0건
+- [x] 주소 10건 + 전환 구조 5건 단위/구성 테스트 통과
+- [x] Linux OpenNext 1.20.6 Worker 변환 성공
+- [x] Wrangler 업로드 없는 dry-run 성공 (gzip 876.71 KiB, d4ac8e7 기준)
+- [x] 로컬 production HTTP: 홈/정책 3개/마커 이미지 200, 없는 URL 및 정책 404
+- [x] preview noindex 및 X-Frame-Options 등 보안 헤더 확인
+- [ ] 실제 Kakao SDK·브라우저 화면/사용자 상호작용·OAuth 회귀
+
+근거: [Linux 실행 33952767703](https://github.com/toilet-project/toilet-web/actions/runs/33952767703).
+빌드에는 컴파일 전용 가짜 Kakao 키를 사용했으므로 실제 지도 성공으로 간주하지 않는다.
+
+### 사용자 동작
+
 - [x] 주소 표시 기존 단위 테스트 10건: 도로명 우선·지번 fallback·원본 보존
 - [ ] 홈 접속·지도 로딩·기존 로고/폰트/CSS·보안 헤더
 - [ ] 지도 drag/zoom → idle → 180ms debounce bounds 목록 호출, 최신 응답만 반영

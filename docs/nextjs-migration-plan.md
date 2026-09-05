@@ -137,6 +137,8 @@ Node 배포를 선택하면 `.next/cache` 영속화와 단일/다중 인스턴�
 - Next 설치 및 production build 통과(홈 + 정책 3페이지 + 404). TypeScript 통과.
 - oxlint는 Next의 공식 route exports를 인식하도록 파일 범위를 한정해 설정했으며 경고·오류 0건.
 - Windows OpenNext 변환은 pnpm 의존성 심볼릭 링크 생성 EPERM에서 실패. 보안 정책/개발자 모드를 변경하지 않고 Linux CI 빌드·dry-run으로 검증한다.
+- Linux CI [33952767703](https://github.com/toilet-project/toilet-web/actions/runs/33952767703) 성공. 15개 테스트·lint 0건·typecheck·Workers build·Wrangler dry-run 전부 통과. d4ac8e7 bundle gzip 876.71 KiB. 원격 자원 생성/업로드 없음.
+- 로컬 production HTTP 검증: 홈·정책 3페이지·마커 이미지 200, 없는 정책/URL 404, preview noindex·보안 헤더 확인.
 - 현재 빌드는 임시 Kakao 키를 사용한 컴파일 검증이다. 실제 Kakao 지도·OAuth 회귀, 상세 URL/지역 SSR/캐시 검증은 아직 미실행이다.
 
 ## 근거

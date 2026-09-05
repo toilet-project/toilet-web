@@ -25,11 +25,11 @@ jobs:
       NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY: build-validation-placeholder
       SITE_INDEXABLE: 'false'
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
         with:
           node-version: '24'
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6.1.0
         with:
           version: 11.19.0
       - run: pnpm install --frozen-lockfile
