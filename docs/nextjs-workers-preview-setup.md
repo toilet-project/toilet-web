@@ -15,7 +15,7 @@
 
 - 현재 계정 Workers 플랜은 **Free**. `cpu_ms=1000`은 사용량 측정값이 아닌 과거 설정 상한이었으며 제거했다. 무료 기본 설정으로 배포했다. 이 설정값만으로 유료 필수라고 안내했던 내용은 아래처럼 정정한다.
 - R2 구독 승인은 Workers의 별도 월 기본요금 구독 승인으로 간주하지 않는다. 유료 변경/결제는 아직 실행하지 않았다.
-- Worker·DO binding·R2 populate·D1 tag schema 및 원격 배포는 완료했다. 서명 secret 등록과 실제 무효화 성공 검증은 아직 미실행이다.
+- Worker·DO binding·R2 populate·D1 tag schema 및 원격 배포는 완료했다. 아래 임시 키 검증에서 실제 서명 무효화도 통과했다. 상시 운영용 secret 및 Spring outbox 연결은 아직 미완료다.
 - 운영 Pages·DNS·미니 PC·MySQL·API는 그대로다. 생성한 두 자원은 preview 전용이며 운영 자원과 공유하지 않는다.
 - 운영 API는 아직 feature 지역 projection/sitemap ID endpoint가 미배포 상태다. 현 상태의 운영 API에 연결해 전체 SEO 통과라고 보고하면 안 된다.
 - API CORS와 OAuth 복귀 주소는 운영 origin 기준이다. 미리보기 주소 전체 허용·wildcard credential CORS로 임의 완화하지 않는다. 실제 인증 회귀는 별도 승인된 테스트 구성 또는 운영 전환 계획이 필요하다.
@@ -61,9 +61,40 @@ Linux 검증 CI에 3일 보관 build artifact를 추가했다. 배포는 로컬�
 
 ## 남은 순서
 
-1. 미리보기 전용 서명 secret과 실제 cache invalidation 통합 검증.
+1. 아래 임시 키 검증은 완료. 상시 운영용 secret의 안전한 보관/등록과 Spring outbox 연결 검증은 별도로 남아 있다.
 2. API projection/sitemap 배포 검토와 검증, Kakao 허용 도메인·공개 JavaScript key·API CORS·OAuth 복귀 경로 확인.
 3. 모바일·데스크탑 지도/로그인/제보 전체 회귀, 반복·부하 및 CPU 사용량 확인.
 4. 운영 배포 전 코드 검토·승인과 rollback 계획 확인. 유료 전환이 필요하면 이유와 비용을 먼저 설명하고 확인받는다.
 
 생성한 cache 자원은 삭제 가능하지만 사용을 시작한 후 삭제하면 cache 정보가 사라진다. 자동 삭제/운영 DB 정리는 하지 않는다.
+
+## 2026-09-05 후속 — 서명 갱신 검증 완료 / 로그인 연결 분석
+
+실행: `node scripts/verify-workers-invalidation.mjs --approved-preview-test`.
+미리보기 Worker/DB를 고정 검증하고, 기존 secret이 있으면 덮어쓰지 않고 중단한다.
+메모리에서 생성한 임시 32바이트 난수 키를 미리보기 secret에만 등록하고 `finally`에서 제거했다. 키 값은 로그/파일/GitHub에 남기지 않았다.
+
+| 검사 | 실제 결과 |
+| --- | --- |
+| 무서명 / 위조 서명 / 10분 만료 서명 | 각각 401 |
+| 서명은 유효하나 ID가 경로 문자열인 요청 | 400 |
+| 거절 요청 전후 D1 tag 대조 | 변경 없음 |
+| 정상 서명 | 200, acceptedIds=[13448] |
+| 성공 응답 후 D1 기록 | build ID/toilet:13448 만료 시각 저장 확인 |
+| 갱신 전 → 갱신 직후 → 재요청 | HIT → MISS → HIT, 모두 200 |
+| 한 요청 안에 동일 ID 두 번 | 200, acceptedIds에 한 번만 반환 |
+| 임시 키 정리 | secret 목록에서 제거 확인 |
+
+첫 검사에서는 기존 시간 만료 캐시의 백그라운드 갱신을 기다리지 않아 STALE에서 중단됐다. 최대 16초의 제한된 준비 대기를 추가했다. 두 번째는 D1 키의 build ID prefix를 빠뜨린 검사 쿼리 때문에 중단됐으며, 실제 배포 BUILD_ID를 읽어 정확한 tag를 조회하도록 수정한 뒤 전체 통과했다. 제품 로직 결함을 숨기기 위해 assertion을 없애지는 않았다.
+
+이번 검사는 Workers 캐시 계층의 실제 HTTP/D1 검증이다. Spring outbox부터의 전체 전달, 원본 수정 후 변경 콘텐츠 대조, 다중 지역/동시성/부하·CPU 한도 검증은 아니다. 운영 화장실 데이터는 변경하지 않았다. secret 추가/제거가 Worker 설정 버전을 갱신했지만 앱 코드는 같은 배포 산출물이다.
+
+### 브라우저 연결 전에 필요한 결정
+
+- `workers.dev` origin으로 운영 상세 API에 OPTIONS 요청: **403**, 허용 origin 헤더 없음.
+- API `CorsConfig`는 운영/www/admin/localhost:5173만 허용한다.
+- API 로그인 쿠키는 HttpOnly·Secure·SameSite=Lax이고, 로그인 복귀는 운영 홈 또는 admin으로 한정되어 있다.
+- 따라서 CORS 한 줄만 열어서는 workers.dev 로그인 회귀를 정상화할 수 없다. [SameSite 동작](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Set-Cookie)상 cross-site fetch는 Lax 쿠키를 보내지 않는다.
+- 권장안(아직 적용하지 않음): `preview.geupddong.com`을 [Worker Custom Domain](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/)으로 연결하고, API는 이 정확한 origin과 검증된 preview 복귀 대상만 허용한다. 기존 쿠키 정책과 운영 홈은 유지한다. Kakao JavaScript 허용 도메인 및 실제 공개 키 빌드도 필요하다.
+- 개발 화면이 운영 API를 사용하면 로그인/제보 등의 동작은 운영 데이터에 영향을 줄 수 있다. 관리자 권한을 완화하거나 자동으로 테스트 제보를 만들지 않는다.
+- 신규 도메인 연결 및 운영 API 설정·배포는 사용자 확인 후 진행한다. Workers Paid 전환은 하지 않는다.
