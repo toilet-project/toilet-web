@@ -1,15 +1,18 @@
 .mobile-navigation, .mobile-header-actions, .mobile-page { display: none; }
 .login-modal > .login-brand { display: block; font-size: 34px; font-weight: 400; line-height: 1; margin: 4px 0 18px; }
-.toilet-community-row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .85fr) minmax(0, 1.15fr) 44px; align-items: center; gap: 4px; box-sizing: border-box; height: 44px; margin: 8px 0 2px; border-radius: 12px; background: #f5f8f6; }
-.toilet-community-metric { display: grid; min-width: 0; gap: 3px; text-align: center; }
-.toilet-community-metric > span { color: #748279; font-size: 10px; line-height: 1.2; white-space: nowrap; }
-.toilet-community-metric strong { color: #3c5143; font-size: 13px; font-weight: 700; line-height: 1.2; white-space: nowrap; }
-.toilet-community-metric small { color: #849087; font-size: 10px; font-weight: 500; }
-.toilet-community-metric .metric-star { color: #c89b47; font-size: 12px; }
-.toilet-community-metric .metric-pending { color: #849087; font-size: 11px; font-weight: 500; }
-.toilet-community-row .report-entry-button.report-icon-button { display: flex; width: 44px; height: 44px; min-height: 44px; flex-direction: column; align-items: center; justify-content: center; gap: 3px; margin: 0; padding: 0; border: 0; border-radius: 12px; background: #e9f3ec; color: #17683a; }
-.toilet-community-row .report-icon-button span { font-size: 10px; font-weight: 700; line-height: 1; }
-.toilet-community-row .report-icon-button:hover { background: #dfeee4; }
+.toilet-community-row { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr) minmax(0, 1.15fr) 44px; align-items: center; box-sizing: border-box; height: 44px; margin: 8px 0 2px; background: transparent; }
+.toilet-community-metric { position: relative; display: flex; height: 44px; min-width: 0; flex-direction: column; align-items: center; justify-content: center; gap: 5px; text-align: center; }
+.toilet-community-metric + .toilet-community-metric::before { content: ''; position: absolute; left: 0; top: 12px; width: 1px; height: 20px; background: #e6ece8; }
+.toilet-community-metric > span { display: flex; align-items: center; gap: 4px; color: #69796f; font-size: 11px; line-height: 13px; white-space: nowrap; }
+.toilet-community-metric > span svg { width: 13px; height: 13px; flex-shrink: 0; }
+.toilet-community-row .toilet-community-metric strong { display: flex; align-items: center; gap: 4px; color: #24382e; font-size: 14px; font-weight: 700; line-height: 16px; white-space: nowrap; }
+.toilet-community-metric small { color: #69796f; font-size: 11px; font-weight: 400; }
+.toilet-community-metric .metric-star { color: #b88524; }
+.toilet-community-metric > span .metric-paper { width: 15px; height: 15px; color: #43845d; }
+.toilet-community-row .toilet-community-metric .metric-pending { color: #69796f; font-size: 12px; font-weight: 500; }
+.toilet-community-row .report-entry-button.report-icon-button { display: flex; box-sizing: border-box; width: 44px; height: 44px; min-height: 44px; flex-direction: column; align-items: center; justify-content: center; gap: 3px; margin: 0; padding: 0; border: 1px solid #e6ece8; border-radius: 12px; background: transparent; color: #17683a; }
+.toilet-community-row .report-icon-button span { font-size: 11px; font-weight: 700; line-height: 12px; }
+.toilet-community-row .report-icon-button:hover { background: #edf6ef; }
 .policy-section-links { display: flex; flex-wrap: wrap; gap: 12px; padding: 16px 0; }
 .policy-combined-section { padding: 20px 0; border-top: 1px solid #e1e8e3; }
 .policy-combined-section > h2 { font-size: 24px; }

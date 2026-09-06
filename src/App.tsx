@@ -6,7 +6,8 @@ import { createDetailCache } from './lib/detailCache'
 import { cardPlacement } from './lib/cardPlacement'
 import { DesktopHeaderMenu } from './components/DesktopHeaderMenu'
 import { MobileNavigation, MobilePage, type MobileTab } from './components/MobileNavigation'
-import './components/mobile-navigation.css'
+import { AppUpdateNotice } from './components/AppUpdateNotice'
+import { readMapResume, saveMapResume, MAP_RESUME_KEY } from './lib/appUpdate'
 import { getCurrentUser, logout, startSocialLogin, type AuthProfile } from './api/auth'
 import { createKakaoMap, searchKakaoPlaces, type KakaoMapInstance, type KakaoOverlay, type KakaoPlace } from './lib/kakaoMap'
 import { ToiletReportModal } from './components/ToiletReportModal'
@@ -137,6 +138,9 @@ function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
 
 function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavigate: (id: number | null) => void; onMounted: () => void }) {
   const [initialRoute] = useState(route)
+  const [resume] = useState(() => {
+    try { return readMapResume(window.sessionStorage, window.location.pathname) } catch { return null }
+  })
   const initialRouteRef = useRef(initialRoute)
   const [detailCache] = useState(() => {
     const cache = createDetailCache<ToiletDetailResponse>()
@@ -936,13 +940,18 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       if (!container) return
 
       try {
-        const center = toiletCoordinates(initialRouteRef.current.detail) ?? DAEJEON_CITY_HALL
-        const map = await createKakaoMap(container, center, initialRouteRef.current.detail ? 4 : 6, controller.signal)
+        const center = resume?.center ?? toiletCoordinates(initialRouteRef.current.detail) ?? DAEJEON_CITY_HALL
+        const map = await createKakaoMap(container, center, resume?.level ?? (initialRouteRef.current.detail ? 4 : 6), controller.signal)
         if (disposed) return
         mapRef.current = map
         setIsMapReady(true)
         setMapZoomLevel(map.getLevel())
-        updateReferencePoint(center)
+        updateReferencePoint(resume?.reference ?? center, resume?.source ?? 'point')
+        if (resume) {
+          if (resume.currentLocation) updateCurrentLocation(resume.currentLocation, false)
+          setIsMobileCardExpanded(resume.expanded)
+          try { window.sessionStorage.removeItem(MAP_RESUME_KEY) } catch { /* Storage may be unavailable. */ }
+        }
         window.kakao.maps.event.addListener(map, 'idle', () => {
           if (disposed) return
           if (mapInteractionRef.current) {
@@ -973,7 +982,8 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
         resizeObserver = new ResizeObserver(() => map.relayout())
         resizeObserver.observe(container)
         await loadMapArea()
-        if (!disposed && !initialRouteRef.current.detail) void moveToCurrentLocation(true)
+        if (!disposed && !initialRouteRef.current.detail && !resume) void moveToCurrentLocation(true)
+        if (!disposed && resume?.source === 'current-location') startCurrentLocationWatch()
       } catch (caughtError) {
         if (disposed) return
         setIsLoading(false)
@@ -1002,7 +1012,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       window.clearTimeout(mapLoadTimerRef.current)
       window.clearTimeout(locationMessageTimerRef.current)
     }
-  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint])
+  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, startCurrentLocationWatch])
 
   const distanceReference = resolveDistanceReference(distanceSource, mapCenter, currentLocation)
   const distanceReferenceLabel = distanceSource === 'current-location' ? '내 위치에서 약' : '기준점에서 약'
@@ -1075,6 +1085,21 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
 
   return (
     <main className={`app-shell${!isDesktop ? ' has-mobile-navigation' : ''}${!isDesktop && mobileTab !== 'map' ? ' is-mobile-page' : ''}`}>
+      <AppUpdateNotice blocked={Boolean(reportTarget || isLoginDialogOpen || isAccountOpen || isMyReportsOpen || isNotificationsOpen || mobileTab !== 'map' || placeSearchKeyword || selectedCoordinateGroup || isMobileAreaListVisible || authProfile?.consentRequired)}
+        beforeReload={() => {
+          const map = mapRef.current
+          if (!map) return false
+          // Do not reload while URL navigation is still catching up with the selected card.
+          const expectedPath = selectedToilet ? `/toilet/${selectedToilet.id}` : '/'
+          if (window.location.pathname !== expectedPath || route.path !== expectedPath) return false
+          const center = map.getCenter()
+          try {
+            return saveMapResume(window.sessionStorage, {
+              path: expectedPath, center: { latitude: center.getLat(), longitude: center.getLng() }, level: map.getLevel(),
+              reference: mapCenter, source: distanceSource, currentLocation, expanded: isMobileCardExpanded, savedAt: Date.now(),
+            })
+          } catch { return false }
+        }} />
       <header className="topbar">
         <div className="topbar-inner">
         <a className="brand" href="/" aria-label="급똥 지도 홈">급똥</a>
@@ -1284,13 +1309,13 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
 function ReportEntryButton({ onClick }: { onClick: () => void }) {
   return <div className="toilet-community-row">
     <div className="toilet-community-metric" aria-label="평점: 준비 중" title="평점 기능 준비 중">
-      <span>평점</span><strong><span className="metric-star" aria-hidden="true">★</span> — <small>/ 5.0</small></strong>
+      <span><svg className="metric-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" /></svg>평점</span><strong>— <small>/ 5.0</small></strong>
     </div>
     <div className="toilet-community-metric" aria-label="혼잡도: 준비 중" title="혼잡도 기능 준비 중">
-      <span>혼잡도</span><strong className="metric-pending">준비 중</strong>
+      <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /><circle cx="9" cy="7" r="4" /></svg>혼잡도</span><strong className="metric-pending">준비 중</strong>
     </div>
     <div className="toilet-community-metric" aria-label="휴지 있음 비율: 준비 중" title="휴지 있음 비율 기능 준비 중">
-      <span>휴지 있음 비율</span><strong>—<small>%</small></strong>
+      <span><svg className="metric-paper" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><ellipse cx="6" cy="9" rx="3" ry="6" /><path d="M6 3h10c2.8 0 5 2.7 5 6v12H9V9M6 15h3M6 8v2M12 16h1m3 0h1" /></svg>휴지 있음</span><strong>—<small>%</small></strong>
     </div>
     <button type="button" className="report-entry-button report-icon-button" onClick={onClick} aria-label="정보 제공하기" title="정보 제공하기">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4H5a2 2 0 0 0-2 2v15l4-3h11a2 2 0 0 0 2-2v-5" /><path d="m13 12-4 1 1-4 7-7 3 3-7 7Z" /></svg>

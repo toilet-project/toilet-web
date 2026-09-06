@@ -9,6 +9,8 @@ const securityHeaders = [
 ]
 
 const config: NextConfig = {
+  deploymentId: process.env.NEXT_DEPLOYMENT_ID,
+  env: { NEXT_PUBLIC_APP_VERSION: process.env.NEXT_DEPLOYMENT_ID || 'development' },
   distDir: process.env.NEXT_BUILD_DIR || '.next',
   poweredByHeader: false,
   reactStrictMode: true,

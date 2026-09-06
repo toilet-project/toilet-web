@@ -2,6 +2,9 @@ import type { Metadata, Viewport } from 'next'
 import type { ReactNode } from 'react'
 import '../index.css'
 import '../App.css'
+// Keep global override order deterministic on initial, cached and restored routes.
+import '../components/mobile-navigation.css'
+import '../components/app-update.css'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://geupddong.com'),

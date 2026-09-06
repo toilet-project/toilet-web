@@ -24,7 +24,7 @@ test('interactive detail fetch does not wait for the route; initial SSR still se
   assert.match(app,/if \(route.detail\) cache.set\(route.detail\)/)
   assert.match(app,/disposed = true; controller.abort\(\)/)
   assert.match(app,/onNavigate\(toiletId\)/)
-  assert.match(app,/if \(!disposed && !initialRouteRef.current.detail\)/)
+  assert.match(app,/if \(!disposed && !initialRouteRef.current.detail && !resume\)/)
 })
 
 test('unknown detail values use placeholders and collapsed mobile errors remain visible', async () => {
