@@ -19,7 +19,7 @@ function Icon({ name }: { name: IconName }) {
 export function MobileNavigation({ tab, onChange, unread }: { tab: MobileTab; onChange: (tab: MobileTab) => void; unread: number }) {
   return <nav className="mobile-navigation" aria-label="하단 내비게이션">
     <button type="button" aria-current={tab === 'map' ? 'page' : undefined} onClick={() => onChange('map')}><span className="mobile-nav-icon"><Icon name="map" /></span><span>지도</span></button>
-    <button type="button" disabled aria-label="커뮤니티 · coming soon"><span className="mobile-nav-icon"><Icon name="community" /></span><span>커뮤니티</span><small>coming soon</small></button>
+    <button type="button" disabled aria-label="커뮤니티 · coming soon"><span className="mobile-nav-icon"><Icon name="community" /></span><span>커뮤니티<small>coming soon</small></span></button>
     <button type="button" aria-current={tab === 'notifications' ? 'page' : undefined} onClick={() => onChange('notifications')}><span className="mobile-nav-icon"><Icon name="notifications" /></span><span>알림</span>{unread > 0 && <b aria-label={`읽지 않은 알림 ${unread}개`}>{unread > 99 ? '99+' : unread}</b>}</button>
     <button type="button" aria-current={tab === 'account' ? 'page' : undefined} onClick={() => onChange('account')}><span className="mobile-nav-icon"><Icon name="account" /></span><span>내 페이지</span></button>
   </nav>
@@ -31,7 +31,7 @@ function PolicyLinks() {
 
 function LoginLanding({ tab, onLogin }: { tab: MobileTab; onLogin: (provider: 'google' | 'kakao') => void }) {
   return <div className="mobile-login-landing">
-    <span className="brand">급똥</span><h1>{tab === 'notifications' ? '로그인하고 알림을 확인하세요' : '로그인 / 회원가입'}</h1>
+    <span className="brand">급똥</span><h1>{tab === 'notifications' ? '로그인하고 알림을 확인하세요' : '로그인 · 간편가입'}</h1>
     <p>카카오·구글 계정으로 간편하게 시작하세요.</p>
     <button className="social-login kakao-login" type="button" onClick={() => onLogin('kakao')}><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3C6.5 3 2 6.5 2 10.8c0 2.8 1.9 5.2 4.8 6.6L6 21l4.2-2.6 1.8.2c5.5 0 10-3.5 10-7.8S17.5 3 12 3Z" /></svg><span>Kakao로 계속하기</span></button>
     <button className="social-login google-login" type="button" onClick={() => onLogin('google')}><svg width="20" height="20" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.91c1.7-1.57 2.69-3.88 2.69-6.62Z" /><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.26c-.8.54-1.84.86-3.05.86-2.34 0-4.33-1.58-5.04-3.71H.95v2.33A9 9 0 0 0 9 18Z" /><path fill="#FBBC05" d="M3.96 10.71a5.4 5.4 0 0 1 0-3.42V4.96H.95a9 9 0 0 0 0 8.08Z" /><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58A8.62 8.62 0 0 0 9 0 9 9 0 0 0 .95 4.96l3.01 2.33A5.4 5.4 0 0 1 9 3.58Z" /></svg><span>Google로 계속하기</span></button>

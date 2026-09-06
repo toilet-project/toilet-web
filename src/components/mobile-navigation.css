@@ -1,4 +1,5 @@
-.mobile-navigation, .mobile-header-actions, .mobile-page, .mobile-search-close { display: none; }
+.mobile-navigation, .mobile-header-actions, .mobile-page { display: none; }
+.login-modal > .login-brand { display: block; font-size: 34px; font-weight: 400; line-height: 1; margin: 4px 0 18px; }
 .policy-section-links { display: flex; flex-wrap: wrap; gap: 12px; padding: 16px 0; }
 .policy-combined-section { padding: 20px 0; border-top: 1px solid #e1e8e3; }
 .policy-combined-section > h2 { font-size: 24px; }
@@ -8,29 +9,28 @@
   .has-mobile-navigation { height: 100svh; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; }
   .has-mobile-navigation .map { min-height: 0; }
   .has-mobile-navigation .topbar { z-index: 20; height: 60px; min-height: 0; padding: 8px 12px; border-bottom-color: #edf0ee; }
-  .has-mobile-navigation .topbar-inner { display: flex; width: 100%; align-items: center; gap: 8px; }
+  .has-mobile-navigation .topbar-inner { display: flex; width: 100%; align-items: center; gap: 10px; }
   .has-mobile-navigation .topbar .brand { flex: 0 0 auto; font-size: 26px; }
   .has-mobile-navigation .place-search { min-width: 0; flex: 1; width: auto; margin: 0; }
-  .has-mobile-navigation .place-search-input { height: 38px; padding: 0 10px; border: 1px solid #edf0ee; border-radius: 12px; background: #f3f5f4; font-size: 16px; letter-spacing: -.5px; }
+  .has-mobile-navigation .place-search-input { height: 40px; padding: 0 12px; border: 1px solid transparent; border-radius: 14px; background: #f2f5f3; color: #334039; font-size: 16px; letter-spacing: -.5px; box-shadow: none; }
+  .has-mobile-navigation .place-search-input:focus { border-color: #abcbb7; outline: none; background: #f7faf8; }
   .has-mobile-navigation .place-search-input::placeholder { color: #7c8780; font-size: 13px; }
   .is-mobile-page .place-search { display: none; }
   .is-mobile-page .mobile-header-actions { margin-left: auto; }
-  .mobile-header-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 0; }
-  .mobile-header-actions .auth-button { min-width: 44px; min-height: 44px; padding: 0 5px; border: 0; background: transparent; color: #334039; font-size: 12px; font-weight: 600; }
-  .mobile-header-actions .header-menu-trigger { width: 40px; height: 44px; border: 0; background: transparent; box-shadow: none; }
+  .mobile-header-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 4px; }
+  .mobile-header-actions .auth-button { min-width: 44px; min-height: 44px; padding: 0 6px; border: 0; border-radius: 14px; background: transparent; color: #17683a; font-family: inherit; font-size: 12px; font-weight: 700; }
+  .mobile-header-actions .header-menu-trigger { width: 40px; height: 40px; border: 0; border-radius: 14px; background: #f2f5f3; color: #52685a; box-shadow: none; }
   .mobile-header-actions .header-menu-panel { width: 180px; }
-  .has-mobile-navigation .place-search.is-mobile-searching { position: fixed; z-index: 30; inset: 0 0 auto; display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 4px; padding: 8px 16px 8px 8px; background: #fff; box-shadow: 0 8px 24px rgb(30 50 38 / 10%); }
-  .is-mobile-searching .mobile-search-close { display: grid; height: 44px; place-items: center; padding: 0; border: 0; background: transparent; color: #334039; }
-  .has-mobile-navigation .is-mobile-searching .place-search-input { height: 44px; }
-  .has-mobile-navigation .is-mobile-searching .place-search-results { top: 100%; border-radius: 0 0 18px 18px; max-height: min(55svh, 420px); border: 0; }
+  .has-mobile-navigation .place-search-results { position: fixed; top: 60px; left: 12px; right: 12px; width: auto; border-radius: 14px; max-height: min(45svh, 360px); border: 1px solid #e4ece7; }
   .mobile-navigation { position: relative; z-index: 20; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 4px max(8px, env(safe-area-inset-right)) max(5px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); border-top: 1px solid #edf0ee; background: #fff; }
-  .mobile-navigation button { position: relative; display: flex; min-height: 60px; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 6px 0 4px; border: 0; background: transparent; color: #7c8781; font: inherit; font-size: 11px; font-weight: 500; line-height: 1.4; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .mobile-navigation button { position: relative; display: flex; min-height: 66px; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 6px 0 4px; border: 0; background: transparent; color: #7c8781; font: inherit; font-size: 11px; font-weight: 600; line-height: 1.4; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .mobile-navigation button > span:last-of-type { height: 27px; text-align: center; }
   .mobile-nav-icon { display: grid; width: 42px; height: 28px; place-items: center; border-radius: 12px; transition: background 140ms ease, color 140ms ease; }
   .mobile-navigation button[aria-current] { color: #17683a; font-weight: 800; }
   .mobile-navigation button[aria-current] .mobile-nav-icon { background: #eaf5ed; }
   .mobile-navigation button[aria-current] svg { stroke-width: 2.1; }
   .mobile-navigation button:disabled { color: #a0aaa4; cursor: default; }
-  .mobile-navigation small { position: absolute; top: -6px; left: 50%; padding: 2px 5px; border: 1px solid #edf0ee; border-radius: 5px; background: #fff; color: #728078; font-size: 9px; font-weight: 500; line-height: 1.2; white-space: nowrap; transform: translateX(-50%); }
+  .mobile-navigation small { display: block; color: #87958d; font-size: 8px; font-weight: 500; line-height: 1.3; white-space: nowrap; }
   .mobile-navigation b { position: absolute; top: 2px; left: calc(50% + 8px); padding: 2px 5px; border: 2px solid #fff; border-radius: 12px; background: #e85e36; color: #fff; font-size: 9px; }
   .mobile-navigation button:focus-visible, .mobile-page button:focus-visible, .mobile-page a:focus-visible { outline: 3px solid #81b995; outline-offset: 2px; }
   .mobile-page { position: absolute; inset: 0; display: block; z-index: 8; overflow-y: auto; overscroll-behavior: contain; padding: 24px 24px 28px; background: #fff; color: #25392d; }
@@ -95,8 +95,9 @@
   .my-reports-embedded .my-report-status { grid-row: 1; padding: 4px 7px; font-size: 10px; }
   .my-reports-embedded .my-report-summary i { right: 4px; }
   .my-reports-embedded .my-report-detail { padding: 16px; border-radius: 12px; background: #f6f8f6; }
-  .has-mobile-navigation .place-card, .has-mobile-navigation .coordinate-group-card { max-height: calc(100% - 24px); }
-  .has-mobile-navigation .place-card:not(.mobile-card-expanded) { max-height: min(280px, calc(100% - 24px)); }
+  /* Reserve 12px + 44px controls + 12px gap above sheets and 12px below. */
+  .has-mobile-navigation .place-card, .has-mobile-navigation .coordinate-group-card, .has-mobile-navigation .mobile-area-list { max-height: calc(100% - 80px); }
+  .has-mobile-navigation .place-card:not(.mobile-card-expanded) { max-height: min(280px, calc(100% - 80px)); }
   .has-mobile-navigation .current-location-marker .current-location-label { font-size: 10px; font-weight: 800; line-height: 1; }
   .map-reference-marker { position: relative; display: block; width: 18px; height: 20px; pointer-events: none; }
   .map-reference-marker-pin { position: absolute; inset: 0; display: block; border: 2px solid #fff; border-radius: 50% 50% 50% 3px; background: #df3a36; box-shadow: 0 2px 7px rgb(126 30 29 / 42%); transform: rotate(-45deg); }

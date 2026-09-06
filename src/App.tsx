@@ -1071,8 +1071,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
         <div className="topbar-inner">
         <a className="brand" href="/" aria-label="급똥 지도 홈">급똥</a>
         <span className="subtitle">내 주변 공중화장실 찾기</span>
-        <div className={`place-search${!isDesktop && isPlaceSearchFocused ? ' is-mobile-searching' : ''}`}>
-          {!isDesktop && <button type="button" className="mobile-search-close" aria-label="검색 닫기" onMouseDown={event => event.preventDefault()} onClick={() => { setIsPlaceSearchFocused(false); placeSearchInputRef.current?.blur() }}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m14 5-7 7 7 7" /></svg></button>}
+        <div className="place-search">
           <label className="sr-only" htmlFor="place-search-input">주소 또는 장소 검색</label>
           <input
             ref={placeSearchInputRef}
@@ -1089,7 +1088,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             onChange={(event) => handlePlaceSearchChange(event.target.value)}
             onKeyDown={handlePlaceSearchKeyDown}
             onFocus={handlePlaceSearchFocus}
-            onBlur={() => { if (isDesktop) setIsPlaceSearchFocused(false) }}
+            onBlur={() => setIsPlaceSearchFocused(false)}
           />
           {isPlaceSearchResultsOpen && <div id="place-search-results" className="place-search-results" role="listbox" aria-label="장소 검색 결과">
             {isPlaceSearching && <p className="place-search-status">검색 중…</p>}
@@ -1224,7 +1223,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
               {toiletDetail && <p className="open-time">{formatOpenTime(toiletDetail)}</p>}
               {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">{distanceReferenceLabel}</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">(직선거리)</span></div>}
               {toiletDetail && hasValue(getDisplayAddress(toiletDetail.roadAddress, toiletDetail.jibunAddress)) && <div className="summary-address"><DetailRow label="주소" value={getDisplayAddress(toiletDetail.roadAddress, toiletDetail.jibunAddress)} copyable /></div>}
-              {toiletDetail && <button type="button" className="report-entry-button" onClick={() => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude })}>{authProfile ? '정보 제보하기' : '로그인 후 정보 제보하기'}</button>}
+              {toiletDetail && <button type="button" className="report-entry-button" onClick={() => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude })}>정보 제공하기</button>}
               {detailError && <div><p className="detail-error" role="alert">{detailError}</p><button type="button" className="detail-retry" onClick={retryDetail}>다시 불러오기</button></div>}
               {!toiletDetail && isDetailLoading && <DetailLoadingFields />}
               {toiletDetail && <ToiletDetailContents toilet={toiletDetail} />}
@@ -1276,12 +1275,12 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
 }
 
 function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () => void }) {
-  const title = purpose === 'my-reports' ? '로그인하고 내 제보를 확인해 주세요' : purpose === 'report' ? '로그인하고 정보를 제보해 주세요' : '급똥에 로그인해 주세요'
+  const title = '로그인 · 간편가입'
   const description = purpose === 'my-reports' ? '내가 보낸 제보의 대기·승인·반려 상태와 관리자 메모를 확인할 수 있어요.' : '제보 내용은 관리자 확인 후 서비스에 반영됩니다.'
   return <div className="login-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
       <button type="button" className="login-modal-close" onClick={onClose} aria-label="로그인 창 닫기">×</button>
-      <span>급똥 계정</span>
+      <span className="brand login-brand">급똥</span>
       <h1 id="login-modal-title">{title}</h1>
       <p>{description}</p>
       <button type="button" className="social-login google-login" onClick={() => startSocialLogin('google')}>Google로 계속하기</button>
@@ -1324,7 +1323,7 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
       </div>
     </section>
     {hasValue(toilet.agencyName) && <DetailRow className="coordinate-inline-agency" label="관리기관" value={toilet.agencyName} />}
-    <button type="button" className="report-entry-button coordinate-report-entry" onClick={onReport}>정보 제보하기</button>
+    <button type="button" className="report-entry-button coordinate-report-entry" onClick={onReport}>정보 제공하기</button>
   </div>
 }
 
