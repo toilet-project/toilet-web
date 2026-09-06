@@ -28,7 +28,12 @@
 
 - `pnpm run lint`, `pnpm run typecheck`, `pnpm test`: 로컬 통과(93개).
 - 신규 테스트: 이전 RSC가 있는 모의 캐시, Request/URL 입력, abort·헤더 유지, 비대상 요청 미변경, 실패 및 배포 변경 진단, 스트림·immutable 캐시 유지, 지도 경로 제한.
-- Linux Workers preview/production-candidate 빌드와 프리뷰 실응답/화면 확인은 배포 단계에서 별도 확인한다.
+- Linux Workers preview/production-candidate 빌드 통과: Actions `34017983491`. CodeQL `34017983432` 통과.
+- preview Worker `1f1a3499-4da4-4d07-831b-705010de18ee`에 배포. 코드 커밋 `e8382d20ae9e416a6ec67a6ae0b14a3ece744762`, CI merge `e5f415f850001299c224c66eb08ccb3817d05da9`.
+- 실응답: `/toilet/13531` HTML 및 RSC 200, 세 캐시 헤더 모두 no-store, 보호 헤더 v1 확인. RSC `x-nextjs-cache: HIT`으로 내부 캐시 유지 확인. CSS `public,max-age=31536000,immutable` 유지.
+- 기존 캐시를 지우지 않은 브라우저 390×844 화면: 노은119안전센터 검색 기준점 → 월드컵경기장역 210m → SK허브 430m → 월드컵경기장역 210m. 카드 높이 각각 약 249.43px.
+- 실제 브라우저 reload 후 월드컵경기장역 210m 및 카드 높이 복원. 이후 SK허브 선택 → 브라우저 뒤로가기에도 210m 유지. 검사 시 콘솔 오류 없음.
+- 이전 런타임으로 연 탭에서 새 배포 시점을 사이에 둔 선택은 문서 재로드와 0m 초기화를 보였다. 이는 이전 코드의 배포 경계 동작이며, 새 코드로 부팅한 뒤의 검증과 구분한다.
 - 모의 캐시 테스트는 iPhone Chrome 실기기의 캐시를 직접 검사한 것이 아니다. 실기기 최종 확인 전 증상 완치로 단정하지 않는다.
 
 ## 배포 및 한계
