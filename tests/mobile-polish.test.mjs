@@ -45,3 +45,12 @@ test('compact navigation retains readable labels, touch targets and safe-area pa
   assert.match(css, /max\(2px, env\(safe-area-inset-bottom\)\)/)
   assert.match(css, /\.mobile-navigation button\s*\{[^}]*font-size: 11px/)
 })
+
+test('future toilet metrics are placeholders in a 44px row, with a labeled report action', async () => {
+  const app = await source('../src/App.tsx')
+  const css = await source('../src/components/mobile-navigation.css')
+  for (const label of ['평점: 준비 중', '혼잡도: 준비 중', '휴지 있음 비율: 준비 중']) assert.ok(app.includes(label))
+  assert.match(app, /<span>제보<\/span>/)
+  assert.match(css, /\.toilet-community-row\s*\{[^}]*height: 44px/)
+  assert.match(css, /grid-template-columns: minmax\(0, 1.1fr\) minmax\(0, .85fr\) minmax\(0, 1.15fr\) 44px/)
+})

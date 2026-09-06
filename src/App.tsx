@@ -1282,9 +1282,21 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
 }
 
 function ReportEntryButton({ onClick }: { onClick: () => void }) {
-  return <button type="button" className="report-entry-button report-icon-button" onClick={onClick} aria-label="정보 제공하기" title="정보 제공하기">
-    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4H5a2 2 0 0 0-2 2v15l4-3h11a2 2 0 0 0 2-2v-5" /><path d="m13 12-4 1 1-4 7-7 3 3-7 7Z" /></svg>
-  </button>
+  return <div className="toilet-community-row">
+    <div className="toilet-community-metric" aria-label="평점: 준비 중" title="평점 기능 준비 중">
+      <span>평점</span><strong><span className="metric-star" aria-hidden="true">★</span> — <small>/ 5.0</small></strong>
+    </div>
+    <div className="toilet-community-metric" aria-label="혼잡도: 준비 중" title="혼잡도 기능 준비 중">
+      <span>혼잡도</span><strong className="metric-pending">준비 중</strong>
+    </div>
+    <div className="toilet-community-metric" aria-label="휴지 있음 비율: 준비 중" title="휴지 있음 비율 기능 준비 중">
+      <span>휴지 있음 비율</span><strong>—<small>%</small></strong>
+    </div>
+    <button type="button" className="report-entry-button report-icon-button" onClick={onClick} aria-label="정보 제공하기" title="정보 제공하기">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4H5a2 2 0 0 0-2 2v15l4-3h11a2 2 0 0 0 2-2v-5" /><path d="m13 12-4 1 1-4 7-7 3 3-7 7Z" /></svg>
+      <span>제보</span>
+    </button>
+  </div>
 }
 
 function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () => void }) {
