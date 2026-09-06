@@ -4,6 +4,7 @@ export function validateWorkerConfig(config, target, {deploy = false, stage = fa
   const production = target === 'production-candidate'
   const suffix = production ? 'production' : 'preview'
   assert.equal(config.name, `geupddong-web-${suffix}`, 'Wrong Worker')
+  assert.equal(config.main, 'custom-worker.mjs', 'Navigation response cache guard must wrap OpenNext')
   assert.equal(config.vars?.SITE_INDEXABLE, String(production), 'Wrong runtime indexing policy')
   assert.equal(config.vars?.CACHE_RUNTIME, 'workers')
   assert.equal(config.services?.find(row => row.binding === 'WORKER_SELF_REFERENCE')?.service, config.name)

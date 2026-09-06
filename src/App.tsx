@@ -9,6 +9,7 @@ import { DesktopHeaderMenu } from './components/DesktopHeaderMenu'
 import { MobileNavigation, MobilePage, type MobileTab } from './components/MobileNavigation'
 import { AppUpdateNotice } from './components/AppUpdateNotice'
 import { readMapResume, saveMapResume, MAP_RESUME_KEY } from './lib/appUpdate'
+import { MAP_NAVIGATION_EVENT, mapNavigationPath } from './lib/navigationCache'
 import { getCurrentUser, logout, startSocialLogin, type AuthProfile } from './api/auth'
 import { createKakaoMap, searchKakaoPlaces, type KakaoMapInstance, type KakaoOverlay, type KakaoPlace } from './lib/kakaoMap'
 import { ToiletReportModal } from './components/ToiletReportModal'
@@ -139,6 +140,7 @@ function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
 
 function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavigate: (id: number | null) => void; onMounted: () => void }) {
   const [initialRoute] = useState(route)
+  const pendingNavigationPath = useRef<string | null | undefined>(undefined)
   const [resume] = useState(() => {
     try { return readMapResume(window.sessionStorage, window.location.pathname) } catch { return null }
   })
@@ -479,6 +481,38 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     resetDetailCard()
     onNavigate(null)
   }, [onNavigate, resetDetailCard])
+
+  useLayoutEffect(() => { pendingNavigationPath.current = undefined }, [route.path])
+
+  useEffect(() => {
+    if (!isMapReady) return
+    const save = (path: string | null, expanded = isMobileCardExpanded) => {
+      try {
+        if (!path) { window.sessionStorage.removeItem(MAP_RESUME_KEY); return }
+        const map = mapRef.current
+        if (!map) return
+        const center = map.getCenter()
+        saveMapResume(window.sessionStorage, { path,
+          center: { latitude: center.getLat(), longitude: center.getLng() }, level: map.getLevel(),
+          reference: mapCenter, source: distanceSource, currentLocation, expanded, savedAt: Date.now() })
+      } catch { /* Navigation works even when session storage is unavailable. */ }
+    }
+    const beforeNavigation = (event: Event) => {
+      const path = (event as CustomEvent<string | null>).detail
+      pendingNavigationPath.current = path
+      // A newly selected card is collapsed, even if the previous card was expanded.
+      save(path, false)
+    }
+    const beforePageHide = () => save(pendingNavigationPath.current === undefined
+      ? mapNavigationPath(window.location.href, window.location.origin) : pendingNavigationPath.current,
+      pendingNavigationPath.current === undefined ? isMobileCardExpanded : false)
+    window.addEventListener(MAP_NAVIGATION_EVENT, beforeNavigation)
+    window.addEventListener('pagehide', beforePageHide)
+    return () => {
+      window.removeEventListener(MAP_NAVIGATION_EVENT, beforeNavigation)
+      window.removeEventListener('pagehide', beforePageHide)
+    }
+  }, [isMapReady, mapCenter, distanceSource, currentLocation, isMobileCardExpanded])
 
   useEffect(() => {
     const detail = route.detail ? detailCache.get(route.detail.id) ?? route.detail : null

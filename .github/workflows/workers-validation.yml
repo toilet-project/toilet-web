@@ -59,7 +59,7 @@ jobs:
       - name: Package selected candidate runtime
         # Include ONLY the selected config: an indexable candidate must never
         # fall back to preview's default wrangler.jsonc when extracted.
-        run: tar -czf workers-${{ matrix.target }}.tar.gz .open-next package.json pnpm-lock.yaml ${{ matrix.config }} worker-release-manifest.json open-next.config.ts next.config.ts .next/BUILD_ID
+        run: tar -czf workers-${{ matrix.target }}.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs package.json pnpm-lock.yaml ${{ matrix.config }} worker-release-manifest.json open-next.config.ts next.config.ts .next/BUILD_ID
       - uses: actions/upload-artifact@v4
         with:
           name: workers-${{ matrix.target }}-${{ github.sha }}
