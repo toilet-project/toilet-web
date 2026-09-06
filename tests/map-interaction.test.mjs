@@ -8,12 +8,11 @@ test('resize restores the exact geographic center without pan, zoom or reference
   let current = center
   const calls = []
   relayoutPreservingCenter({
-    getCenter() { calls.push('read'); return current },
     relayout() { calls.push('resize'); current = { lat: 0, lng: 0 } },
     setCenter(value) { calls.push('restore'); current = value },
-  })
+  }, center)
   assert.equal(current, center)
-  assert.deepEqual(calls, ['read', 'resize', 'restore'])
+  assert.deepEqual(calls, ['resize', 'restore'])
 })
 
 const point = (x, y, identifier = 1) => ({ clientX: x, clientY: y, identifier })

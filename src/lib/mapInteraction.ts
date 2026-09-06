@@ -1,6 +1,5 @@
 // SDK relayout can keep the top-left pixel rather than the geographic center.
-export function relayoutPreservingCenter<T>(map: { getCenter(): T; relayout(): void; setCenter(center: T): void }) {
-  const center = map.getCenter()
+export function relayoutPreservingCenter<T>(map: { relayout(): void; setCenter(center: T): void }, center: T) {
   map.relayout()
   map.setCenter(center)
 }

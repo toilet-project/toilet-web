@@ -978,8 +978,11 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
           setIsMobileCardExpanded(resume.expanded)
           try { window.sessionStorage.removeItem(MAP_RESUME_KEY) } catch { /* Storage may be unavailable. */ }
         }
+        // Save before a DOM resize: SDK getCenter() may already reflect the new element size.
+        let settledViewportCenter = map.getCenter()
         window.kakao.maps.event.addListener(map, 'idle', () => {
           if (disposed) return
+          settledViewportCenter = map.getCenter()
           if (mapInteractionRef.current) {
             mapInteractionRef.current = false
             setIsMobileAreaListOpen(false)
@@ -1005,7 +1008,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             map.panTo(event.latLng)
           }
         })
-        resizeObserver = new ResizeObserver(() => { if (!disposed) relayoutPreservingCenter(map) })
+        resizeObserver = new ResizeObserver(() => { if (!disposed) relayoutPreservingCenter(map, settledViewportCenter) })
         resizeObserver.observe(container)
         await loadMapArea()
         if (!disposed && !initialRouteRef.current.detail && !resume) void moveToCurrentLocation(true)
