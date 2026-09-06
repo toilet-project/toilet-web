@@ -6,6 +6,7 @@ export type KakaoPlace = { id: string; name: string; address: string; latitude: 
 export type KakaoMapInstance = {
   getBounds(): { getSouthWest(): { getLat(): number; getLng(): number }; getNorthEast(): { getLat(): number; getLng(): number } }
   getCenter(): { getLat(): number; getLng(): number }
+  setCenter(position: unknown): void
   getLevel(): number
   getProjection(): { pointFromCoords(position: unknown): { x: number; y: number } }
   setLevel(level: number, options?: { anchor?: unknown }): void

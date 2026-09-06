@@ -1,3 +1,10 @@
+// SDK relayout can keep the top-left pixel rather than the geographic center.
+export function relayoutPreservingCenter<T>(map: { getCenter(): T; relayout(): void; setCenter(center: T): void }) {
+  const center = map.getCenter()
+  map.relayout()
+  map.setCenter(center)
+}
+
 // A delayed GPS answer must not win over a newer search, map reference or GPS request.
 export function createReferenceRequestGate() {
   let revision = 0

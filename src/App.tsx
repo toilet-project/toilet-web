@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, type ToiletMapSearchResponse } from './api/toilets'
 import { createDetailCache } from './lib/detailCache'
-import { createCardHandleGesture, createReferenceRequestGate } from './lib/mapInteraction'
+import { createCardHandleGesture, createReferenceRequestGate, relayoutPreservingCenter } from './lib/mapInteraction'
 import { cardPlacement } from './lib/cardPlacement'
 import { DesktopHeaderMenu } from './components/DesktopHeaderMenu'
 import { MobileNavigation, MobilePage, type MobileTab } from './components/MobileNavigation'
@@ -1005,7 +1005,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             map.panTo(event.latLng)
           }
         })
-        resizeObserver = new ResizeObserver(() => map.relayout())
+        resizeObserver = new ResizeObserver(() => { if (!disposed) relayoutPreservingCenter(map) })
         resizeObserver.observe(container)
         await loadMapArea()
         if (!disposed && !initialRouteRef.current.detail && !resume) void moveToCurrentLocation(true)
