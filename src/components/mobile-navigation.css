@@ -1,5 +1,7 @@
 .mobile-navigation, .mobile-header-actions, .mobile-page { display: none; }
 .login-modal > .login-brand { display: block; font-size: 34px; font-weight: 400; line-height: 1; margin: 4px 0 18px; }
+/* Disable double-tap smart zoom on controls, not the map's pinch gestures. */
+.toilet-marker, .coordinate-group-marker, .cluster-marker, .mobile-card-handle { touch-action: manipulation; }
 .toilet-community-row { display: flex; container-type: inline-size; align-items: center; box-sizing: border-box; height: 44px; margin: 8px 0 2px; background: transparent; }
 .toilet-community-metric { position: relative; display: flex; flex: 1 1 auto; height: 44px; min-width: 0; padding-right: 10px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 5px; text-align: left; }
 .toilet-community-metric + .toilet-community-metric { padding-left: 10px; }
