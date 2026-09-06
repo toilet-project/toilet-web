@@ -239,10 +239,12 @@
 .coordinate-inline-status { margin: 0; padding-top: 13px; color: #627067; font-size: 13px; }
 .coordinate-inline-details .detail-row { margin-top: 11px; }
 .coordinate-inline-details .detail-row dt, .coordinate-inline-details .detail-row dd { font-size: 12px; }
-.coordinate-inline-address { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 6px; }
-.coordinate-inline-address dd { display: flex; min-width: 0; max-width: none; align-items: center; gap: 6px; }
-.coordinate-inline-address dd > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.coordinate-inline-address .copy-address-button { flex: 0 0 auto; }
+/* A shared address row: label/value start left, copy action stays on the card's right edge. */
+.detail-row.detail-address, .detail-row.coordinate-inline-address { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.detail-row.detail-address > dt, .detail-row.coordinate-inline-address > dt { justify-self: start; text-align: left; white-space: nowrap; }
+.detail-row.detail-address > dd, .detail-row.coordinate-inline-address > dd { display: grid; grid-template-columns: minmax(0, 1fr) auto; min-width: 0; max-width: none; align-items: center; gap: 8px; text-align: left; }
+.detail-row.detail-address > dd > span, .detail-row.coordinate-inline-address > dd > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detail-row.detail-address .copy-address-button, .detail-row.coordinate-inline-address .copy-address-button { justify-self: end; white-space: nowrap; }
 .coordinate-inline-section, .coordinate-inline-facilities { margin-top: 13px; }
 .coordinate-inline-section h2, .coordinate-inline-facilities h2 { margin: 0; color: #526157; font-size: 12px; font-weight: 700; }
 .coordinate-inline-capacity { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 8px 0 0; }

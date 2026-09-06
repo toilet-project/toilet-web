@@ -78,3 +78,17 @@ test('group details put metrics below hours; desktop single and group cards omit
   assert.match(css, /\.toilet-community-row.is-readonly \.toilet-community-metric\s*\{ flex: 1 1 0/)
   assert.doesNotMatch(css, /\.toilet-community-row \+ \.open-time/)
 })
+
+test('single and group address rows align label/value left and copy action right without wrapping', async () => {
+  const css = await source('../src/App.css')
+  const mobile = await source('../src/components/mobile-navigation.css')
+  assert.match(css, /\.detail-row.detail-address, \.detail-row.coordinate-inline-address\s*\{[^}]*grid-template-columns: auto minmax\(0, 1fr\)/)
+  assert.match(css, /\.detail-row.detail-address > dd, \.detail-row.coordinate-inline-address > dd\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) auto[^}]*max-width: none[^}]*text-align: left/)
+  assert.match(css, /\.detail-row.detail-address > dd > span, \.detail-row.coordinate-inline-address > dd > span\s*\{[^}]*text-overflow: ellipsis[^}]*white-space: nowrap/)
+  assert.match(css, /\.detail-row.detail-address \.copy-address-button, \.detail-row.coordinate-inline-address \.copy-address-button\s*\{[^}]*justify-self: end/)
+  assert.match(mobile, /\.has-mobile-navigation \.mobile-card-expanded \.detail-address\s*\{ display: grid/)
+  // Presentation truncation must never truncate what gets copied.
+  const detail = await source('../src/components/ToiletDetailContents.tsx')
+  assert.match(detail, /navigator.clipboard.writeText\(value\)/)
+  assert.match(detail, /textarea.value = value/)
+})

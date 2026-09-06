@@ -126,7 +126,7 @@
   /* Reserve 12px + 44px controls + 12px gap above sheets and 12px below. */
   .has-mobile-navigation .place-card, .has-mobile-navigation .coordinate-group-card, .has-mobile-navigation .mobile-area-list { max-height: calc(100% - 80px); }
   .has-mobile-navigation .place-card:not(.mobile-card-expanded) { max-height: min(280px, calc(100% - 80px)); }
-  .has-mobile-navigation .mobile-card-expanded .detail-address { display: flex; }
+  .has-mobile-navigation .mobile-card-expanded .detail-address { display: grid; }
   .has-mobile-navigation .current-location-marker .current-location-label { font-size: 10px; font-weight: 800; line-height: 1; }
   .map-reference-marker { position: relative; display: block; width: 18px; height: 20px; pointer-events: none; }
   .map-reference-marker-pin { position: absolute; inset: 0; display: block; border: 2px solid #fff; border-radius: 50% 50% 50% 3px; background: #df3a36; box-shadow: 0 2px 7px rgb(126 30 29 / 42%); transform: rotate(-45deg); }
