@@ -65,10 +65,10 @@ test('future toilet metrics are placeholders in a 44px row, with a labeled repor
   assert.match(app, /m13 12-4 1 1-4 7-7 3 3-7 7Z/)
 })
 
-test('group details put metrics above hours; desktop single and group cards omit only report action', async () => {
+test('group details put metrics below hours; desktop single and group cards omit only report action', async () => {
   const app = await source('../src/App.tsx')
   const inline = app.slice(app.indexOf('function CoordinateGroupInlineDetails'), app.indexOf('function CompactFacilityStatus'))
-  assert.match(inline, /<div className="coordinate-inline-details">\s*<ToiletCommunityRow onReport=\{onReport\} \/>\s*<p className="open-time">/)
+  assert.match(inline, /<div className="coordinate-inline-details">\s*<p className="open-time">\{formatOpenTime\(toilet\)\}<\/p>\s*<ToiletCommunityRow onReport=\{onReport\} \/>/)
   assert.equal((inline.match(/<ToiletCommunityRow/g) || []).length, 1)
   assert.equal((app.match(/onReport=\{isDesktop \? undefined :/g) || []).length, 2)
   const row = app.slice(app.indexOf('function ToiletCommunityRow'), app.indexOf('function LoginDialog'))
@@ -76,5 +76,5 @@ test('group details put metrics above hours; desktop single and group cards omit
   for (const label of ['평점: 준비 중', '혼잡도: 준비 중', '휴지 있음 비율: 준비 중']) assert.ok(row.includes(label))
   const css = await source('../src/components/mobile-navigation.css')
   assert.match(css, /\.toilet-community-row.is-readonly \.toilet-community-metric\s*\{ flex: 1 1 0/)
-  assert.match(css, /\.coordinate-inline-details > \.toilet-community-row \+ \.open-time\s*\{ margin-top: 0/)
+  assert.doesNotMatch(css, /\.toilet-community-row \+ \.open-time/)
 })

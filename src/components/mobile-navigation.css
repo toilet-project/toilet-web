@@ -21,7 +21,6 @@
 .toilet-community-row.is-readonly .toilet-community-metric:last-child { padding-right: 0; }
 .toilet-community-row.is-readonly .toilet-community-metric > span { font-size: 12px; line-height: 14px; }
 .coordinate-inline-details > .toilet-community-row { margin-top: 8px; margin-bottom: 8px; }
-.coordinate-inline-details > .toilet-community-row + .open-time { margin-top: 0; }
 @container (max-width: 240px) {
   .toilet-community-metric { padding-right: 4px; }
   .toilet-community-metric + .toilet-community-metric { padding-left: 4px; }

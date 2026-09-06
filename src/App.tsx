@@ -1421,8 +1421,8 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
   const address = getDisplayAddress(toilet.roadAddress, toilet.jibunAddress)
 
   return <div className="coordinate-inline-details">
-    <ToiletCommunityRow onReport={onReport} />
     <p className="open-time">{formatOpenTime(toilet)}</p>
+    <ToiletCommunityRow onReport={onReport} />
     {address && <DetailRow className="coordinate-inline-address" label="주소" value={address} copyable />}
     <section className="coordinate-inline-section coordinate-inline-capacity-section" aria-label="화장실 수">
       <h2>화장실 수</h2>
