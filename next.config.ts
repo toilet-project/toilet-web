@@ -12,6 +12,8 @@ const config: NextConfig = {
   distDir: process.env.NEXT_BUILD_DIR || '.next',
   poweredByHeader: false,
   reactStrictMode: true,
+  // Fixed local preview origins only; never allow arbitrary development origins.
+  allowedDevOrigins: ['127.0.0.1', '192.168.0.4'],
   // Existing public images are served unchanged, without an image transformation subscription.
   images: { unoptimized: true },
   async headers() {

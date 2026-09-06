@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, type ToiletMapSearchResponse } from './api/toilets'
 import { createDetailCache } from './lib/detailCache'
+import { cardPlacement } from './lib/cardPlacement'
+import { DesktopHeaderMenu } from './components/DesktopHeaderMenu'
 import { getCurrentUser, logout, startSocialLogin, type AuthProfile } from './api/auth'
 import { createKakaoMap, searchKakaoPlaces, type KakaoMapInstance, type KakaoOverlay, type KakaoPlace } from './lib/kakaoMap'
 import { ToiletReportModal } from './components/ToiletReportModal'
@@ -399,7 +401,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const positionPlaceCardAtToilet = useCallback((toilet: SelectedToilet, cardHeight: number) => {
     const container = mapContainerRef.current
     const map = mapRef.current
-    if (!container || !map) return
+    if (!container || !map || !window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) return
 
     const marker = toiletMarkerElementsRef.current.get(toilet.id)
     const markerRect = marker?.getBoundingClientRect()
@@ -420,23 +422,8 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       right: containerRect.right - sectionRect.left - MAP_EDGE_GAP,
       bottom: containerRect.bottom - sectionRect.top - MAP_EDGE_GAP,
     }
-    const cardWidth = Math.min(PLACE_CARD_WIDTH, mapBounds.right - mapBounds.left)
-    const markerCenterY = point.y - ((markerRect?.height ?? 34) / 2)
-    const candidates = [
-      { left: point.x - (cardWidth / 2), top: point.y - cardHeight - MAP_EDGE_GAP },
-      { left: point.x - (cardWidth / 2), top: point.y + MAP_EDGE_GAP },
-      { left: point.x + MAP_EDGE_GAP, top: markerCenterY - (cardHeight / 2) },
-      { left: point.x - cardWidth - MAP_EDGE_GAP, top: markerCenterY - (cardHeight / 2) },
-    ]
-    const fitsMapBounds = (candidate: CardPosition) => (
-      candidate.left >= mapBounds.left
-      && candidate.top >= mapBounds.top
-      && candidate.left + cardWidth <= mapBounds.right
-      && candidate.top + cardHeight <= mapBounds.bottom
-    )
-    const preferredPosition = candidates.find(fitsMapBounds)
-    const left = preferredPosition?.left ?? Math.min(Math.max(point.x - (cardWidth / 2), mapBounds.left), mapBounds.right - cardWidth)
-    const top = preferredPosition?.top ?? Math.min(Math.max(point.y + MAP_EDGE_GAP, mapBounds.top), mapBounds.bottom - cardHeight)
+    const cardWidth = placeCardRef.current?.offsetWidth ?? Math.min(PLACE_CARD_WIDTH, mapBounds.right - mapBounds.left)
+    const { left, top } = cardPlacement(mapBounds, point, cardWidth, cardHeight, markerRect?.height ?? 34)
     setPlaceCardPosition((current) => current && Math.abs(current.left - left) < 1 && Math.abs(current.top - top) < 1 ? current : { left, top })
   }, [])
 
@@ -527,10 +514,15 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
 
   useLayoutEffect(() => {
     if (!isMapReady || !selectedToilet || !placeCardRef.current) return
-    const frame = window.requestAnimationFrame(() => {
+    // Synchronous layout measurement: no first frame at the fallback position.
+    const position = () => {
       if (placeCardRef.current) positionPlaceCardAtToilet(selectedToilet, placeCardRef.current.offsetHeight)
-    })
-    return () => window.cancelAnimationFrame(frame)
+    }
+    position()
+    const observer = new ResizeObserver(position)
+    if (mapContainerRef.current) observer.observe(mapContainerRef.current)
+    observer.observe(placeCardRef.current)
+    return () => observer.disconnect()
   }, [isMapReady, isDesktop, selectedToilet, toiletDetail, isDetailLoading, detailError, positionPlaceCardAtToilet])
 
   const positionSelectedCard = useCallback(() => {
@@ -1067,6 +1059,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   return (
     <main className="app-shell">
       <header className="topbar">
+        <div className="topbar-inner">
         <a className="brand" href="/" aria-label="급똥 지도 홈">급똥</a>
         <span className="subtitle">내 주변 공중화장실 찾기</span>
         <div className="place-search">
@@ -1103,12 +1096,20 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             ><strong>{place.name}</strong><span>{place.address || '주소 정보 없음'}</span></button>)}
           </div>}
         </div>
-        <div className="auth-actions">
+        {!isDesktop && <div className="auth-actions">
           {isAuthLoading && <span className="auth-status">확인 중…</span>}
           {!isAuthLoading && authProfile && <button type="button" className="notification-button" onClick={() => setIsNotificationsOpen(true)} aria-label={unreadNotificationCount ? `읽지 않은 알림 ${unreadNotificationCount}개` : '알림'}><span aria-hidden="true" />{unreadNotificationCount > 0 && <strong>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</strong>}</button>}
           {!isAuthLoading && <button type="button" className="auth-button is-secondary" onClick={openMyReports}>내 제보</button>}
           {!isAuthLoading && authProfile && <><button type="button" className="auth-button is-secondary" onClick={() => setIsAccountOpen(true)}>내 계정</button><button type="button" className="auth-button is-logout" onClick={handleLogout}>로그아웃</button></>}
           {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}>로그인</button>}
+        </div>}
+        {isDesktop && <div className="desktop-header-actions">
+          {isAuthLoading ? <span className="auth-status">확인 중…</span> : authProfile ? <>
+            <button type="button" className="notification-button" onClick={() => setIsNotificationsOpen(true)} aria-label={unreadNotificationCount ? `읽지 않은 알림 ${unreadNotificationCount}개` : '알림'}><span aria-hidden="true" />{unreadNotificationCount > 0 && <strong>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</strong>}</button>
+            <button type="button" className="header-account-button" onClick={() => setIsAccountOpen(true)}>내 계정</button>
+          </> : <button type="button" className="header-account-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}>로그인 / 회원가입</button>}
+          <DesktopHeaderMenu authenticated={Boolean(authProfile)} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} />
+        </div>}
         </div>
       </header>
 
