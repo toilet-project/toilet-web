@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AuthExpiredError, startSocialLogin, updateNickname, type AuthProfile } from '../api/auth'
 import { MyReportsPanel } from './MyReportsPanel'
 
@@ -17,11 +17,20 @@ function Icon({ name }: { name: IconName }) {
 }
 
 export function MobileNavigation({ tab, onChange, unread }: { tab: MobileTab; onChange: (tab: MobileTab) => void; unread: number }) {
+  const [communityNotice, setCommunityNotice] = useState(false)
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => { if (noticeTimer.current) clearTimeout(noticeTimer.current) }, [])
+  const showCommunityNotice = () => {
+    if (noticeTimer.current) clearTimeout(noticeTimer.current)
+    setCommunityNotice(true)
+    noticeTimer.current = setTimeout(() => { setCommunityNotice(false); noticeTimer.current = null }, 1000)
+  }
   return <nav className="mobile-navigation" aria-label="하단 내비게이션">
     <button type="button" aria-current={tab === 'map' ? 'page' : undefined} onClick={() => onChange('map')}><span className="mobile-nav-icon"><Icon name="map" /></span><span>지도</span></button>
-    <button type="button" disabled aria-label="커뮤니티 · coming soon"><span className="mobile-nav-icon"><Icon name="community" /></span><span>커뮤니티<small>coming soon</small></span></button>
+    <button type="button" onClick={showCommunityNotice}><span className="mobile-nav-icon"><Icon name="community" /></span><span>커뮤니티</span></button>
     <button type="button" aria-current={tab === 'notifications' ? 'page' : undefined} onClick={() => onChange('notifications')}><span className="mobile-nav-icon"><Icon name="notifications" /></span><span>알림</span>{unread > 0 && <b aria-label={`읽지 않은 알림 ${unread}개`}>{unread > 99 ? '99+' : unread}</b>}</button>
     <button type="button" aria-current={tab === 'account' ? 'page' : undefined} onClick={() => onChange('account')}><span className="mobile-nav-icon"><Icon name="account" /></span><span>내 페이지</span></button>
+    <div className="mobile-community-notice" role="status" aria-live="polite" aria-atomic="true">{communityNotice ? '준비 중이에요' : ''}</div>
   </nav>
 }
 

@@ -26,13 +26,16 @@ test('report login prompt uses brand and concise labels without removing the aut
   assert.match(app, /const title = '로그인 · 간편가입'/)
 })
 
-test('community availability text belongs to the label, not a floating border badge', async () => {
+test('community shows a one-second notice without navigating or reserving subtitle space', async () => {
   const nav = await source('../src/components/MobileNavigation.tsx')
   const css = await source('../src/components/mobile-navigation.css')
-  assert.match(nav, /<span>커뮤니티<small>coming soon<\/small><\/span>/)
-  const rule = css.match(/\.mobile-navigation small\s*\{([^}]+)\}/)?.[1]
-  assert.ok(rule)
-  assert.doesNotMatch(rule, /position: absolute|top: -/)
+  assert.doesNotMatch(nav, /coming soon/)
+  assert.match(nav, /onClick=\{showCommunityNotice\}/)
+  assert.match(nav, /준비 중이에요/)
+  assert.match(nav, /setTimeout\([^\n]+, 1000\)/)
+  assert.match(nav, /clearTimeout\(noticeTimer.current\)/)
+  assert.match(nav, /role="status" aria-live="polite"/)
+  assert.doesNotMatch(css, /last-of-type\s*\{\s*height: 23px/)
 })
 
 test('compact navigation retains readable labels, touch targets and safe-area padding', async () => {
