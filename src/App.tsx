@@ -3,8 +3,13 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, type ToiletMapSearchResponse } from './api/toilets'
 import { createDetailCache } from './lib/detailCache'
+import { createCardHandleGesture, createReferenceRequestGate, relayoutPreservingCenter } from './lib/mapInteraction'
 import { cardPlacement } from './lib/cardPlacement'
 import { DesktopHeaderMenu } from './components/DesktopHeaderMenu'
+import { MobileNavigation, MobilePage, type MobileTab } from './components/MobileNavigation'
+import { AppUpdateNotice } from './components/AppUpdateNotice'
+import { readMapResume, saveMapResume, MAP_RESUME_KEY } from './lib/appUpdate'
+import { MAP_NAVIGATION_EVENT, mapNavigationPath } from './lib/navigationCache'
 import { getCurrentUser, logout, startSocialLogin, type AuthProfile } from './api/auth'
 import { createKakaoMap, searchKakaoPlaces, type KakaoMapInstance, type KakaoOverlay, type KakaoPlace } from './lib/kakaoMap'
 import { ToiletReportModal } from './components/ToiletReportModal'
@@ -16,11 +21,14 @@ import { AccountDialog } from './components/AccountDialog'
 import { fetchUnreadNotificationCount } from './api/notifications'
 import { getDisplayAddress } from './lib/address'
 import { ToiletDetailContents, DetailRow } from './components/ToiletDetailContents'
+import { ToiletCommunityRow } from './components/ToiletCommunityRow'
+import { DetailLoadingFields, LoadingOpenTime } from './components/ToiletCardLoading'
 import { hasValue, formatOpenTime, formatFacilityLocation } from './lib/detailFormatting'
 import { toiletCoordinates } from './lib/toiletRoute'
 import { groupToiletsByCoordinate, representativeToilet, type ToiletMapItem, type MapPoint } from './lib/toiletGrouping'
 import type { MapRouteData } from './components/mapRouteContext'
 import { DESKTOP_LAYOUT_QUERY } from './lib/responsiveLayout'
+import { resolveDistanceReference, type DistanceSource } from './lib/distanceReference'
 const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
 const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
@@ -38,6 +46,7 @@ const PLACE_CARD_WIDTH = 360
 const MAP_EDGE_GAP = 18
 const PENDING_REPORT_TARGET_KEY = 'geupddong.pending-report-target'
 const PENDING_MY_REPORTS_KEY = 'geupddong.pending-my-reports'
+const PENDING_MOBILE_TAB_KEY = 'geupddong.pending-mobile-tab'
 
 
 function calculateDistanceInMeters(from: Coordinates, to: Coordinates) {
@@ -133,6 +142,10 @@ function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
 
 function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavigate: (id: number | null) => void; onMounted: () => void }) {
   const [initialRoute] = useState(route)
+  const pendingNavigationPath = useRef<string | null | undefined>(undefined)
+  const [resume] = useState(() => {
+    try { return readMapResume(window.sessionStorage, window.location.pathname) } catch { return null }
+  })
   const initialRouteRef = useRef(initialRoute)
   const [detailCache] = useState(() => {
     const cache = createDetailCache<ToiletDetailResponse>()
@@ -160,7 +173,9 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const coordinateGroupItemRefs = useRef(new Map<number, HTMLDivElement>())
   const placeCardRef = useRef<HTMLElement>(null)
   const locationMessageTimerRef = useRef<number | undefined>(undefined)
-  const cardTouchStartYRef = useRef<number | null>(null)
+  const [cardHandleGesture] = useState(createCardHandleGesture)
+  const [referenceRequestGate] = useState(createReferenceRequestGate)
+  const cardScrollRef = useRef<HTMLDivElement>(null)
   const placeSearchRequestRef = useRef(0)
   const placeSearchInputRef = useRef<HTMLInputElement>(null)
   const mapLoadTimerRef = useRef<number | undefined>(undefined)
@@ -185,6 +200,11 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const detailRef = useRef(toiletDetail)
   useLayoutEffect(() => { detailRef.current = toiletDetail }, [toiletDetail])
   const activeDetailId = selectedToilet?.id ?? expandedCoordinateToilet?.id ?? null
+  // The DOM is reused for cached A → B → A selections. Do not retain a previous card's scroll.
+  useLayoutEffect(() => {
+    if (cardScrollRef.current) cardScrollRef.current.scrollTop = 0
+    cardHandleGesture.cancel()
+  }, [activeDetailId, cardHandleGesture])
   useEffect(() => {
     if (activeDetailId === null || detailCache.get(activeDetailId)) return
     const controller = new AbortController()
@@ -209,6 +229,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const [isMobileCardExpanded, setIsMobileCardExpanded] = useState(false)
   const [currentLocation, setCurrentLocation] = useState<Coordinates | null>(null)
   const [mapCenter, setMapCenter] = useState<Coordinates>(DAEJEON_CITY_HALL)
+  const [distanceSource, setDistanceSource] = useState<DistanceSource>('point')
   const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.matchMedia(DESKTOP_LAYOUT_QUERY).matches)
   const [placeSearchKeyword, setPlaceSearchKeyword] = useState('')
   const [placeSearchResults, setPlaceSearchResults] = useState<KakaoPlace[]>([])
@@ -231,6 +252,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
   const [isAccountOpen, setIsAccountOpen] = useState(false)
+  const [mobileTab, setMobileTab] = useState<MobileTab>('map')
   useLayoutEffect(() => { groupRef.current = selectedCoordinateGroup }, [selectedCoordinateGroup])
   useEffect(() => { onMounted() }, [onMounted])
 
@@ -257,6 +279,9 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     window.history.replaceState(window.history.state, '', url)
 
     try {
+      const pendingTab = window.sessionStorage.getItem(PENDING_MOBILE_TAB_KEY)
+      window.sessionStorage.removeItem(PENDING_MOBILE_TAB_KEY)
+      if (pendingTab === 'account' || pendingTab === 'notifications') setMobileTab(pendingTab)
       const openMyReports = window.sessionStorage.getItem(PENDING_MY_REPORTS_KEY) === 'true'
       window.sessionStorage.removeItem(PENDING_MY_REPORTS_KEY)
       if (openMyReports) {
@@ -347,7 +372,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
 
   const handleLogout = useCallback(() => {
     void logout()
-      .then(() => { setAuthProfile(null); setUnreadNotificationCount(0); setIsNotificationsOpen(false) })
+      .then(() => { setAuthProfile(null); setUnreadNotificationCount(0); setIsNotificationsOpen(false); setIsAccountOpen(false); setIsMyReportsOpen(false); setFocusedReportId(null) })
       .catch((logoutError: unknown) => showLocationMessage(logoutError instanceof Error ? logoutError.message : '로그아웃하지 못했습니다.'))
   }, [showLocationMessage])
 
@@ -365,6 +390,8 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     setIsAccountOpen(false)
     setAuthProfile(null)
     setUnreadNotificationCount(0)
+    setIsMyReportsOpen(false)
+    setIsNotificationsOpen(false)
     showLocationMessage('회원 탈퇴가 완료되었습니다.')
   }, [showLocationMessage])
 
@@ -376,15 +403,24 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
 
   const suppressMapClickFromMarker = useCallback((event: Event) => {
     event.stopPropagation()
-    markerClickUntilRef.current = Date.now() + 250
+    window.kakao.maps.event.preventMap()
+    markerClickUntilRef.current = Date.now() + 750
   }, [])
 
-  const updateReferencePoint = useCallback((coordinates: Coordinates) => {
+  const updateReferencePoint = useCallback((coordinates: Coordinates, source: DistanceSource = 'point') => {
     const map = mapRef.current
     if (!map) return
 
+    referenceRequestGate.invalidate()
+    setIsLocating(false)
     setMapCenter(coordinates)
+    setDistanceSource(source)
     referencePointOverlayRef.current?.setMap(null)
+    referencePointOverlayRef.current = null
+    searchLocationOverlayRef.current?.setMap(null)
+    searchLocationOverlayRef.current = null
+    // GPS already has the blue current-location marker; do not stack a red pin on it.
+    if (source === 'current-location') return
     const content = document.createElement('div')
     content.className = 'map-reference-marker'
     content.setAttribute('aria-label', '거리 기준점')
@@ -396,7 +432,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       zIndex: 4,
     })
     referencePointOverlayRef.current.setMap(map)
-  }, [])
+  }, [referenceRequestGate])
 
   const positionPlaceCardAtToilet = useCallback((toilet: SelectedToilet, cardHeight: number) => {
     const container = mapContainerRef.current
@@ -447,6 +483,38 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     resetDetailCard()
     onNavigate(null)
   }, [onNavigate, resetDetailCard])
+
+  useLayoutEffect(() => { pendingNavigationPath.current = undefined }, [route.path])
+
+  useEffect(() => {
+    if (!isMapReady) return
+    const save = (path: string | null, expanded = isMobileCardExpanded) => {
+      try {
+        if (!path) { window.sessionStorage.removeItem(MAP_RESUME_KEY); return }
+        const map = mapRef.current
+        if (!map) return
+        const center = map.getCenter()
+        saveMapResume(window.sessionStorage, { path,
+          center: { latitude: center.getLat(), longitude: center.getLng() }, level: map.getLevel(),
+          reference: mapCenter, source: distanceSource, currentLocation, expanded, savedAt: Date.now() })
+      } catch { /* Navigation works even when session storage is unavailable. */ }
+    }
+    const beforeNavigation = (event: Event) => {
+      const path = (event as CustomEvent<string | null>).detail
+      pendingNavigationPath.current = path
+      // A newly selected card is collapsed, even if the previous card was expanded.
+      save(path, false)
+    }
+    const beforePageHide = () => save(pendingNavigationPath.current === undefined
+      ? mapNavigationPath(window.location.href, window.location.origin) : pendingNavigationPath.current,
+      pendingNavigationPath.current === undefined ? isMobileCardExpanded : false)
+    window.addEventListener(MAP_NAVIGATION_EVENT, beforeNavigation)
+    window.addEventListener('pagehide', beforePageHide)
+    return () => {
+      window.removeEventListener(MAP_NAVIGATION_EVENT, beforeNavigation)
+      window.removeEventListener('pagehide', beforePageHide)
+    }
+  }, [isMapReady, mapCenter, distanceSource, currentLocation, isMobileCardExpanded])
 
   useEffect(() => {
     const detail = route.detail ? detailCache.get(route.detail.id) ?? route.detail : null
@@ -610,9 +678,12 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     pin.append(logo)
     content.append(pin)
     content.addEventListener('pointerdown', suppressMapClickFromMarker)
+    content.addEventListener('touchstart', suppressMapClickFromMarker, { passive: true })
+    content.addEventListener('mousedown', suppressMapClickFromMarker)
     content.addEventListener('click', suppressMapClickFromMarker)
     const overlay = new window.kakao.maps.CustomOverlay({
       position: new window.kakao.maps.LatLng(selected.latitude, selected.longitude), content, yAnchor: 1, zIndex: 3,
+      clickable: true,
     })
     overlay.setMap(map)
     return () => overlay.setMap(null)
@@ -639,6 +710,8 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
         content.textContent = isCoordinateGroup ? `동일 위치 ${point.count}` : String(point.count)
         content.setAttribute('aria-label', isCoordinateGroup ? `동일 위치에 등록된 화장실 ${point.count}곳 목록 보기` : `${point.count}개의 화장실이 있는 구역 확대하기`)
         content.addEventListener('pointerdown', suppressMapClickFromMarker)
+        content.addEventListener('touchstart', suppressMapClickFromMarker, { passive: true })
+        content.addEventListener('mousedown', suppressMapClickFromMarker)
         content.addEventListener('click', (event) => {
           suppressMapClickFromMarker(event)
           if (isCoordinateGroup) {
@@ -654,6 +727,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
           content,
           yAnchor: 0.5,
           zIndex: 2,
+          clickable: true,
         })
       }
 
@@ -678,6 +752,8 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       }
       content.setAttribute('aria-label', toiletName)
       content.addEventListener('pointerdown', suppressMapClickFromMarker)
+      content.addEventListener('touchstart', suppressMapClickFromMarker, { passive: true })
+      content.addEventListener('mousedown', suppressMapClickFromMarker)
       if (point.id != null) {
         toiletMarkerElementsRef.current.set(point.id, content)
         content.classList.toggle('is-selected', selectedToiletRef.current?.id === point.id)
@@ -692,6 +768,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
         content,
         yAnchor: 1,
         zIndex: 1,
+        clickable: true,
       })
     })
 
@@ -766,7 +843,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     currentLocationOverlayRef.current.setMap(map)
 
     if (shouldCenterMap) {
-      updateReferencePoint(coordinates)
+      updateReferencePoint(coordinates, 'current-location')
       map.setLevel(Math.min(map.getLevel(), 4))
       map.panTo(position)
     }
@@ -787,6 +864,8 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const moveToCurrentLocation = useCallback(async (isInitialRequest = false) => {
     const map = mapRef.current
     if (!map) return
+    const request = referenceRequestGate.begin()
+    const isCurrent = () => referenceRequestGate.isCurrent(request) && mapRef.current === map
 
     if (!navigator.geolocation) {
       if (!isInitialRequest) showLocationMessage('이 브라우저에서는 현재 위치를 지원하지 않습니다.')
@@ -798,6 +877,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     try {
       if ('permissions' in navigator) {
         const permission = await navigator.permissions.query({ name: 'geolocation' })
+        if (!isCurrent()) return
         if (permission.state === 'denied') {
           if (!isInitialRequest) showLocationMessage('위치 권한이 거부되었습니다. 브라우저의 사이트 설정에서 위치를 허용해 주세요.')
           setIsLocating(false)
@@ -808,8 +888,10 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       // Permissions API를 지원하지 않는 브라우저는 Geolocation 요청으로 바로 진행한다.
     }
 
+    if (!isCurrent()) return
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
+        if (!isCurrent()) return
         updateCurrentLocation({ latitude: coords.latitude, longitude: coords.longitude }, true)
         startCurrentLocationWatch()
         window.clearTimeout(locationMessageTimerRef.current)
@@ -817,6 +899,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
         setIsLocating(false)
       },
       (positionError) => {
+        if (!isCurrent()) return
         const messageByCode: Record<number, string> = {
           1: '위치 권한이 거부되었습니다. 브라우저 주소창의 위치 권한을 허용한 뒤 다시 시도해 주세요.',
           2: '현재 위치를 확인할 수 없습니다. GPS·Wi‑Fi 연결을 확인해 주세요.',
@@ -827,7 +910,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       },
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
     )
-  }, [showLocationMessage, startCurrentLocationWatch, updateCurrentLocation])
+  }, [showLocationMessage, startCurrentLocationWatch, updateCurrentLocation, referenceRequestGate])
 
   const moveToSearchPlace = useCallback((place: KakaoPlace) => {
     const map = mapRef.current
@@ -919,15 +1002,23 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       if (!container) return
 
       try {
-        const center = toiletCoordinates(initialRouteRef.current.detail) ?? DAEJEON_CITY_HALL
-        const map = await createKakaoMap(container, center, initialRouteRef.current.detail ? 4 : 6, controller.signal)
+        const center = resume?.center ?? toiletCoordinates(initialRouteRef.current.detail) ?? DAEJEON_CITY_HALL
+        const map = await createKakaoMap(container, center, resume?.level ?? (initialRouteRef.current.detail ? 4 : 6), controller.signal)
         if (disposed) return
         mapRef.current = map
         setIsMapReady(true)
         setMapZoomLevel(map.getLevel())
-        updateReferencePoint(center)
+        updateReferencePoint(resume?.reference ?? center, resume?.source ?? 'point')
+        if (resume) {
+          if (resume.currentLocation) updateCurrentLocation(resume.currentLocation, false)
+          setIsMobileCardExpanded(resume.expanded)
+          try { window.sessionStorage.removeItem(MAP_RESUME_KEY) } catch { /* Storage may be unavailable. */ }
+        }
+        // Save before a DOM resize: SDK getCenter() may already reflect the new element size.
+        let settledViewportCenter = map.getCenter()
         window.kakao.maps.event.addListener(map, 'idle', () => {
           if (disposed) return
+          settledViewportCenter = map.getCenter()
           if (mapInteractionRef.current) {
             mapInteractionRef.current = false
             setIsMobileAreaListOpen(false)
@@ -953,10 +1044,11 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             map.panTo(event.latLng)
           }
         })
-        resizeObserver = new ResizeObserver(() => map.relayout())
+        resizeObserver = new ResizeObserver(() => { if (!disposed) relayoutPreservingCenter(map, settledViewportCenter) })
         resizeObserver.observe(container)
         await loadMapArea()
-        if (!disposed && !initialRouteRef.current.detail) void moveToCurrentLocation(true)
+        if (!disposed && !initialRouteRef.current.detail && !resume) void moveToCurrentLocation(true)
+        if (!disposed && resume?.source === 'current-location') startCurrentLocationWatch()
       } catch (caughtError) {
         if (disposed) return
         setIsLoading(false)
@@ -968,6 +1060,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     return () => {
       disposed = true
       controller.abort()
+      referenceRequestGate.invalidate()
       requestSequenceRef.current += 1
       mapRef.current = null
       setIsMapReady(false)
@@ -985,10 +1078,10 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       window.clearTimeout(mapLoadTimerRef.current)
       window.clearTimeout(locationMessageTimerRef.current)
     }
-  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint])
+  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, startCurrentLocationWatch, referenceRequestGate])
 
-  const distanceReference = isDesktop ? mapCenter : currentLocation
-  const distanceReferenceLabel = isDesktop ? '기준점에서 약' : '내 위치에서 약'
+  const distanceReference = resolveDistanceReference(distanceSource, mapCenter, currentLocation)
+  const distanceReferenceLabel = distanceSource === 'current-location' ? '내 위치에서 약' : '기준점에서 약'
   const distanceToSelectedToilet = distanceReference && selectedToilet
     ? formatDistance(calculateDistanceInMeters(distanceReference, selectedToilet))
     : null
@@ -1057,7 +1150,22 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   }, [areaToilets, openCoordinateGroup, selectToilet])
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell${!isDesktop ? ' has-mobile-navigation' : ''}${!isDesktop && mobileTab !== 'map' ? ' is-mobile-page' : ''}`}>
+      <AppUpdateNotice blocked={Boolean(reportTarget || isLoginDialogOpen || isAccountOpen || isMyReportsOpen || isNotificationsOpen || mobileTab !== 'map' || placeSearchKeyword || selectedCoordinateGroup || isMobileAreaListVisible || authProfile?.consentRequired)}
+        beforeReload={() => {
+          const map = mapRef.current
+          if (!map) return false
+          // Do not reload while URL navigation is still catching up with the selected card.
+          const expectedPath = selectedToilet ? `/toilet/${selectedToilet.id}` : '/'
+          if (window.location.pathname !== expectedPath || route.path !== expectedPath) return false
+          const center = map.getCenter()
+          try {
+            return saveMapResume(window.sessionStorage, {
+              path: expectedPath, center: { latitude: center.getLat(), longitude: center.getLng() }, level: map.getLevel(),
+              reference: mapCenter, source: distanceSource, currentLocation, expanded: isMobileCardExpanded, savedAt: Date.now(),
+            })
+          } catch { return false }
+        }} />
       <header className="topbar">
         <div className="topbar-inner">
         <a className="brand" href="/" aria-label="급똥 지도 홈">급똥</a>
@@ -1070,7 +1178,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             className="place-search-input"
             type="search"
             value={placeSearchKeyword}
-            placeholder="주소 또는 장소 검색"
+            placeholder={isDesktop ? '주소 또는 장소 검색' : '주소·장소 검색'}
             role="combobox"
             aria-autocomplete="list"
             aria-expanded={isPlaceSearchResultsOpen}
@@ -1096,12 +1204,9 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             ><strong>{place.name}</strong><span>{place.address || '주소 정보 없음'}</span></button>)}
           </div>}
         </div>
-        {!isDesktop && <div className="auth-actions">
-          {isAuthLoading && <span className="auth-status">확인 중…</span>}
-          {!isAuthLoading && authProfile && <button type="button" className="notification-button" onClick={() => setIsNotificationsOpen(true)} aria-label={unreadNotificationCount ? `읽지 않은 알림 ${unreadNotificationCount}개` : '알림'}><span aria-hidden="true" />{unreadNotificationCount > 0 && <strong>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</strong>}</button>}
-          {!isAuthLoading && <button type="button" className="auth-button is-secondary" onClick={openMyReports}>내 제보</button>}
-          {!isAuthLoading && authProfile && <><button type="button" className="auth-button is-secondary" onClick={() => setIsAccountOpen(true)}>내 계정</button><button type="button" className="auth-button is-logout" onClick={handleLogout}>로그아웃</button></>}
-          {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}>로그인</button>}
+        {!isDesktop && <div className="mobile-header-actions">
+          {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => setMobileTab('account')}>로그인</button>}
+          <DesktopHeaderMenu compact authenticated={Boolean(authProfile)} onReports={openMyReports} onAccount={() => setMobileTab('account')} onLogout={handleLogout} />
         </div>}
         {isDesktop && <div className="desktop-header-actions">
           {isAuthLoading ? <span className="auth-status">확인 중…</span> : authProfile ? <>
@@ -1114,6 +1219,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       </header>
 
       <section className="map-section" aria-label="공중화장실 지도">
+        <div className="map-stage" inert={!isDesktop && mobileTab !== 'map'} style={!isDesktop && mobileTab !== 'map' ? { visibility: 'hidden' } : undefined}>
         <div ref={mapContainerRef} className="map" />
         {error && result && <div className="connection-status-banner" role="alert">
           <span className="connection-status-dot" aria-hidden="true" />
@@ -1139,7 +1245,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
           <header className="desktop-area-list-header">
             <div>
               <strong>이 지역 {result.meta.total_count.toLocaleString()}곳</strong>
-              <span>지도 중심 기준 가까운 순</span>
+              <span>{distanceSource === 'current-location' ? '현재 위치 기준 가까운 순' : '기준점 기준 가까운 순'}</span>
             </div>
             {isLoading && <em>조회 중…</em>}
           </header>
@@ -1196,27 +1302,28 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             className={`place-card${isMobileCardExpanded ? ' mobile-card-expanded' : ''}${selectedCoordinateGroup ? ' place-card-with-group' : ''}`}
             aria-live="polite"
             style={placeCardPosition ? { left: placeCardPosition.left, top: placeCardPosition.top } : undefined}
-            onTouchStart={(event) => { cardTouchStartYRef.current = event.touches[0]?.clientY ?? null }}
-            onTouchEnd={(event) => {
-              const startY = cardTouchStartYRef.current
-              const endY = event.changedTouches[0]?.clientY
-              cardTouchStartYRef.current = null
-              if (startY != null && endY != null && startY - endY > 36) setIsMobileCardExpanded(true)
-            }}
           >
             <button type="button" className="close-button" onClick={closeDetailCard} aria-label="정보 닫기">×</button>
-            <button type="button" className="mobile-card-handle" onClick={() => setIsMobileCardExpanded((expanded) => !expanded)} aria-expanded={isMobileCardExpanded}>
+            <button type="button" className="mobile-card-handle"
+              onTouchStart={event => cardHandleGesture.start(event.touches)}
+              onTouchMove={event => cardHandleGesture.move(event.touches)}
+              onTouchCancel={() => cardHandleGesture.cancel()}
+              onTouchEnd={event => { if (cardHandleGesture.end(event.changedTouches)) setIsMobileCardExpanded(true) }}
+              onClick={() => {
+                if (!cardHandleGesture.acceptsClick()) return
+                if (cardScrollRef.current) cardScrollRef.current.scrollTop = 0
+                setIsMobileCardExpanded(expanded => !expanded)
+              }} aria-expanded={isMobileCardExpanded}>
               {isMobileCardExpanded ? '상세 정보 접기' : '상세 정보 보기'}
             </button>
             <div className="place-card-summary">
               <span className="card-label">{toiletDetail?.toiletType || selectedToilet.toiletType || '화장실'}</span>
               <h1>{toiletDetail?.name || selectedToilet.name}</h1>
             </div>
-            <div className="card-scroll-content">
-              {toiletDetail && <p className="open-time">{formatOpenTime(toiletDetail)}</p>}
+            <div ref={cardScrollRef} className="card-scroll-content">
+              {toiletDetail ? <p className="open-time">{formatOpenTime(toiletDetail)}</p> : isDetailLoading && <LoadingOpenTime />}
               {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">{distanceReferenceLabel}</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">(직선거리)</span></div>}
-              {toiletDetail && hasValue(getDisplayAddress(toiletDetail.roadAddress, toiletDetail.jibunAddress)) && <div className="summary-address"><DetailRow label="주소" value={getDisplayAddress(toiletDetail.roadAddress, toiletDetail.jibunAddress)} copyable /></div>}
-              {toiletDetail && <button type="button" className="report-entry-button" onClick={() => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude })}>{authProfile ? '정보 제보하기' : '로그인 후 정보 제보하기'}</button>}
+              <ToiletCommunityRow pendingReport={!isDesktop && !toiletDetail} onReport={isDesktop ? undefined : toiletDetail ? () => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) : undefined} />
               {detailError && <div><p className="detail-error" role="alert">{detailError}</p><button type="button" className="detail-retry" onClick={retryDetail}>다시 불러오기</button></div>}
               {!toiletDetail && isDetailLoading && <DetailLoadingFields />}
               {toiletDetail && <ToiletDetailContents toilet={toiletDetail} />}
@@ -1243,32 +1350,38 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
                     isLoading={isDetailLoading}
                     error={detailError}
                     onRetry={retryDetail}
-                    onReport={() => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }}
+                    onReport={isDesktop ? undefined : () => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }}
                   />}
                 </div>
               })}
             </div>
           </aside>
         )}
+        </div>
+        {!isDesktop && mobileTab !== 'map' && <MobilePage tab={mobileTab} profile={authProfile} loading={isAuthLoading} unread={unreadNotificationCount}
+          onSessionExpired={() => { setAuthProfile(null); setUnreadNotificationCount(0); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false) }}
+          onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} onNotifications={() => setIsNotificationsOpen(true)}
+          beforeLogin={tab => { try { window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, tab) } catch { /* 로그인은 계속 제공 */ } }} />}
         {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); setIsMyReportsOpen(true) }} />}
-        {isMyReportsOpen && <MyReportsPanel initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
-        {isNotificationsOpen && <NotificationPanel onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); setFocusedReportId(reportId); setIsMyReportsOpen(true) }} />}
+        {authProfile && isMyReportsOpen && <MyReportsPanel initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
+        {authProfile && isNotificationsOpen && <NotificationPanel onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); setFocusedReportId(reportId); setIsMyReportsOpen(true) }} />}
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
         {authProfile?.consentRequired && <PolicyConsentModal isNewRegistration={authProfile.status === 'PENDING_CONSENT'} onComplete={handleConsentComplete} onLogout={handleLogout} />}
         {authProfile && isAccountOpen && <AccountDialog profile={authProfile} onClose={() => setIsAccountOpen(false)} onWithdrawn={handleWithdrawn} />}
       </section>
-      <footer className="site-footer"><p>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</p><PolicyFooter /></footer>
+      {isDesktop ? <footer className="site-footer"><p>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</p><PolicyFooter /></footer> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
     </main>
   )
 }
 
+
 function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () => void }) {
-  const title = purpose === 'my-reports' ? '로그인하고 내 제보를 확인해 주세요' : purpose === 'report' ? '로그인하고 정보를 제보해 주세요' : '급똥에 로그인해 주세요'
+  const title = '로그인 · 간편가입'
   const description = purpose === 'my-reports' ? '내가 보낸 제보의 대기·승인·반려 상태와 관리자 메모를 확인할 수 있어요.' : '제보 내용은 관리자 확인 후 서비스에 반영됩니다.'
   return <div className="login-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
       <button type="button" className="login-modal-close" onClick={onClose} aria-label="로그인 창 닫기">×</button>
-      <span>급똥 계정</span>
+      <span className="brand login-brand">급똥</span>
       <h1 id="login-modal-title">{title}</h1>
       <p>{description}</p>
       <button type="button" className="social-login google-login" onClick={() => startSocialLogin('google')}>Google로 계속하기</button>
@@ -1279,14 +1392,8 @@ function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () 
   </div>
 }
 
-function DetailLoadingFields() {
-  return <div className="detail-loading-fields" role="status" aria-label="주소와 시설 정보 불러오는 중">
-    {['개방시간', '주소', '시설 정보'].map(label => <div className="detail-loading-field" key={label}><span>{label}</span><span className="detail-loading-bar" aria-hidden="true" /></div>)}
-  </div>
-}
-
-function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRetry }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onReport: () => void; onRetry: () => void }) {
-  if (isLoading && !toilet) return <div className="coordinate-inline-details"><DetailLoadingFields /></div>
+function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRetry }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onReport?: () => void; onRetry: () => void }) {
+  if (isLoading && !toilet) return <div className="coordinate-inline-details"><LoadingOpenTime /><ToiletCommunityRow pendingReport={Boolean(onReport)} /><DetailLoadingFields inline /></div>
   if (error) return <div className="coordinate-inline-details"><p className="detail-error" role="alert">{error}</p><button type="button" className="detail-retry" onClick={onRetry}>다시 불러오기</button></div>
   if (!toilet) return null
 
@@ -1294,6 +1401,7 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
 
   return <div className="coordinate-inline-details">
     <p className="open-time">{formatOpenTime(toilet)}</p>
+    <ToiletCommunityRow onReport={onReport} />
     {address && <DetailRow className="coordinate-inline-address" label="주소" value={address} copyable />}
     <section className="coordinate-inline-section coordinate-inline-capacity-section" aria-label="화장실 수">
       <h2>화장실 수</h2>
@@ -1311,7 +1419,6 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
       </div>
     </section>
     {hasValue(toilet.agencyName) && <DetailRow className="coordinate-inline-agency" label="관리기관" value={toilet.agencyName} />}
-    <button type="button" className="report-entry-button coordinate-report-entry" onClick={onReport}>정보 제보하기</button>
   </div>
 }
 

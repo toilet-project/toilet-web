@@ -24,8 +24,8 @@ export function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse 
 
   return (
     <div className="card-details" tabIndex={0} aria-label="화장실 상세 정보">
-      {regionLabel(toilet.region) && <DetailRow label="지역" value={regionLabel(toilet.region)} />}
       {address && <DetailRow className="detail-address" label="주소" value={address} copyable />}
+      {regionLabel(toilet.region) && <DetailRow label="지역" value={regionLabel(toilet.region)} />}
       {hasValue(toilet.openTimeDetail) && <DetailRow label="개방시간 상세" value={toilet.openTimeDetail} />}
       {hasValue(toilet.installationDate) && <DetailRow label="설치연월" value={formatInstallationDate(toilet.installationDate)} />}
       {(maleCounts.length > 0 || femaleCounts.length > 0) && <section className="detail-section">

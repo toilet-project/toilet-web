@@ -100,6 +100,7 @@
 .google-login { background: #17683a; color: #fff; }
 .kakao-login { background: #fee500; color: #3c3115; }
 .map-section { position: relative; min-height: 0; overflow: hidden; }
+.map-stage { position: absolute; inset: 0; }
 .map { width: 100%; height: 100%; min-height: calc(100svh - 112px); }
 .desktop-area-list, .desktop-map-reference-hint { display: none; }
 .location-button { position: absolute; z-index: 6; right: 18px; bottom: 32px; min-height: 42px; padding: 0 14px; border: 1px solid #d6e0d8; border-radius: 10px; background: rgb(255 255 255 / 96%); box-shadow: 0 2px 12px rgb(31 46 34 / 14%); color: #1f5533; font-size: 14px; font-weight: 700; cursor: pointer; }
@@ -238,10 +239,12 @@
 .coordinate-inline-status { margin: 0; padding-top: 13px; color: #627067; font-size: 13px; }
 .coordinate-inline-details .detail-row { margin-top: 11px; }
 .coordinate-inline-details .detail-row dt, .coordinate-inline-details .detail-row dd { font-size: 12px; }
-.coordinate-inline-address { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 6px; }
-.coordinate-inline-address dd { display: flex; min-width: 0; max-width: none; align-items: center; gap: 6px; }
-.coordinate-inline-address dd > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.coordinate-inline-address .copy-address-button { flex: 0 0 auto; }
+/* A shared address row: label stays left, value aligns toward the right-edge copy action. */
+.detail-row.detail-address, .detail-row.coordinate-inline-address { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; }
+.detail-row.detail-address > dt, .detail-row.coordinate-inline-address > dt { justify-self: start; text-align: left; white-space: nowrap; }
+.detail-row.detail-address > dd, .detail-row.coordinate-inline-address > dd { display: grid; grid-template-columns: minmax(0, 1fr) auto; min-width: 0; max-width: none; align-items: center; gap: 8px; text-align: right; }
+.detail-row.detail-address > dd > span, .detail-row.coordinate-inline-address > dd > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.detail-row.detail-address .copy-address-button, .detail-row.coordinate-inline-address .copy-address-button { justify-self: end; white-space: nowrap; }
 .coordinate-inline-section, .coordinate-inline-facilities { margin-top: 13px; }
 .coordinate-inline-section h2, .coordinate-inline-facilities h2 { margin: 0; color: #526157; font-size: 12px; font-weight: 700; }
 .coordinate-inline-capacity { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 8px 0 0; }
@@ -470,9 +473,7 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
 .place-card-summary h1 { display: block; margin: 0; color: #1d2b21; font: inherit; font-size: 19px; font-weight: 700; }
 .place-card.initial-route-card .card-details { display: block; max-height: none; overflow: visible; }
 .detail-loading-fields {
-  display: grid;
-  gap: 16px;
-  padding: 14px 0;
+  display: block;
 }
 .detail-retry {
   padding: 8px 12px;
@@ -489,20 +490,19 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
   margin: 8px 0;
   font-size: 12px;
 }
-.detail-loading-field {
-  display: grid;
-  grid-template-columns: 64px minmax(0, 1fr);
-  align-items: center;
-  gap: 12px;
-  color: #63766c;
-  font-size: 13px;
-}
 .detail-loading-bar {
   display: block;
   height: 12px;
   border-radius: 6px;
   background: #eaf1ed;
 }
+.detail-loading-open-time { height: 21px; display: flex; align-items: center; }
+.detail-loading-open-time .detail-loading-bar { width: 140px; }
+.detail-loading-fields .copy-address-button:disabled { opacity: .55; cursor: default; }
+.detail-loading-fields .capacity-group .detail-loading-bar { width: 24px; margin-top: 3px; }
+.detail-loading-fields .coordinate-inline-capacity dd { display: flex; height: 20px; align-items: center; }
+.detail-loading-fields .coordinate-inline-capacity .detail-loading-bar { width: 36px; }
+.detail-loading-fields .coordinate-facility > .detail-loading-bar { width: 44px; }
 
 .topbar-inner { display: contents; }
 .desktop-header-actions { display: flex; margin-left: auto; align-items: center; gap: 16px; flex-shrink: 0; }

@@ -1,0 +1,4 @@
+.app-update-notice { position: fixed; z-index: 25; top: 72px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; width: max-content; max-width: calc(100% - 24px); box-sizing: border-box; padding: 6px 8px 6px 14px; border: 1px solid #dce8df; border-radius: 14px; background: #fff; box-shadow: 0 4px 18px rgb(31 46 34 / 12%); color: #34483b; font-size: 12px; }
+.app-update-notice span { min-width: 0; }
+.app-update-notice button { flex-shrink: 0; min-height: 44px; padding: 8px 12px; border: 0; border-radius: 10px; background: #edf6ef; color: #17683a; font: inherit; font-weight: 700; cursor: pointer; }
+.app-update-notice button:disabled { color: #6c7970; background: #f0f3f1; cursor: default; }

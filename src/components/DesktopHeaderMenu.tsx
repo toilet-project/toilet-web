@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-export function DesktopHeaderMenu({ authenticated, onReports, onAccount, onLogout }: {
-  authenticated: boolean; onReports: () => void; onAccount: () => void; onLogout: () => void
+export function DesktopHeaderMenu({ authenticated, onReports, onAccount, onLogout, compact = false }: {
+  authenticated: boolean; onReports: () => void; onAccount: () => void; onLogout: () => void; compact?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
@@ -29,14 +29,14 @@ export function DesktopHeaderMenu({ authenticated, onReports, onAccount, onLogou
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
     </button>
     {open && <nav id="desktop-header-menu" ref={panel} className="header-menu-panel" aria-label="전체 메뉴">
-      <button type="button" onClick={() => action(onReports)}>내 제보</button>
+      {!compact && <><button type="button" onClick={() => action(onReports)}>내 제보</button>
       {authenticated && <button type="button" onClick={() => action(onAccount)}>내 계정</button>}
-      <div className="header-menu-divider" />
-      <a href="/policies/terms">이용약관</a>
-      <a href="/policies/privacy">개인정보 처리방침</a>
-      <a href="/policies/location">위치정보 안내</a>
+      <div className="header-menu-divider" /></>}
+      <a href={compact ? '/policies/all' : '/policies/terms'}>이용약관</a>
+      {!compact && <><a href="/policies/privacy">개인정보 처리방침</a>
+      <a href="/policies/location">위치정보 안내</a></>}
       <a href="mailto:privacy@geupddong.com">문의</a>
-      {authenticated && <><div className="header-menu-divider" /><button type="button" onClick={() => action(onLogout)}>로그아웃</button></>}
+      {authenticated && !compact && <><div className="header-menu-divider" /><button type="button" onClick={() => action(onLogout)}>로그아웃</button></>}
     </nav>}
   </div>
 }

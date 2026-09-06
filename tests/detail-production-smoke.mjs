@@ -37,7 +37,7 @@ const reservation = createServer().listen(0,'127.0.0.1')
 await once(reservation,'listening')
 const port = reservation.address().port
 await new Promise(resolve=>reservation.close(resolve))
-const env = {...process.env, CACHE_RUNTIME:'node', CACHE_REVALIDATION_SECRET:secret, NEXT_BUILD_DIR:'.next-smoke', TOILET_API_ORIGIN:`http://127.0.0.1:${apiPort}`, SITE_INDEXABLE:String(indexable), NEXT_TELEMETRY_DISABLED:'1', NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY:'smoke-public-key'}
+const env = {...process.env, NEXT_DEPLOYMENT_ID:'isolated-release-smoke', CACHE_RUNTIME:'node', CACHE_REVALIDATION_SECRET:secret, NEXT_BUILD_DIR:'.next-smoke', TOILET_API_ORIGIN:`http://127.0.0.1:${apiPort}`, SITE_INDEXABLE:String(indexable), NEXT_TELEMETRY_DISABLED:'1', NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY:'smoke-public-key'}
 let server
 let output = ''
 const run = args => {
@@ -60,6 +60,11 @@ try {
   }
   const first = await fetch(`${origin}/toilet/900001`)
   const html = await first.text()
+  const version = await fetch(`${origin}/version.json`)
+  assert.equal((await version.json()).version, 'isolated-release-smoke')
+  assert.match(version.headers.get('cache-control'), /no-store/)
+  assert.match(html, /data-dpl-id="isolated-release-smoke"/)
+  assert.match(html, /\.css\?dpl=isolated-release-smoke/)
   assert.equal(first.status,200)
   assert.match(html,/<h1[^>]*>검증용 화장실<\/h1>/)
   assert.match(html,/충청남도 천안시 서북구 검증로 1/)

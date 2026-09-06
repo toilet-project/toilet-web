@@ -5,6 +5,7 @@ import Link from 'next/link'
 import type { ToiletDetailResponse } from '../api/toilets'
 import { useMapRouteContext } from './mapRouteContext'
 import { ToiletDetailContents } from './ToiletDetailContents'
+import { ToiletCommunityRow } from './ToiletCommunityRow'
 import { formatOpenTime } from '../lib/detailFormatting'
 import { toiletPath } from '../lib/toiletRoute'
 
@@ -15,10 +16,15 @@ export function ToiletRouteBridge({ detail }: { detail: ToiletDetailResponse | n
 
   // Visible initial card, then the same data/component in the existing interactive map card.
   if (!detail || mounted) return null
-  return <aside className="place-card initial-route-card" aria-label="화장실 상세 정보">
+  return <div className="route-card-stage"><aside className="place-card initial-route-card route-preview-card" aria-label="화장실 상세 정보">
     <Link href="/" className="close-button" aria-label="정보 닫기">×</Link>
-    <h1>{detail.name}</h1>
-    <p className="open-time">{formatOpenTime(detail)}</p>
-    <ToiletDetailContents toilet={detail} />
-  </aside>
+    <button type="button" className="mobile-card-handle" disabled aria-expanded={false}>상세 정보 보기</button>
+    <div className="place-card-summary"><span className="card-label">{detail.toiletType || '화장실'}</span><h1>{detail.name}</h1></div>
+    <div className="card-scroll-content">
+      <p className="open-time">{formatOpenTime(detail)}</p>
+      <div className="distance-from-current" aria-label="거리 계산 중"><span className="distance-label">기준점에서 약</span><strong className="distance-value">—</strong><span className="distance-caption">(직선거리)</span></div>
+      <div className="route-preview-community"><ToiletCommunityRow pendingReport /></div>
+      <ToiletDetailContents toilet={detail} />
+    </div>
+  </aside></div>
 }
