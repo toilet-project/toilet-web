@@ -21,6 +21,17 @@
 .toilet-community-row.is-readonly .toilet-community-metric:last-child { padding-right: 0; }
 .toilet-community-row.is-readonly .toilet-community-metric > span { font-size: 12px; line-height: 14px; }
 .coordinate-inline-details > .toilet-community-row { margin-top: 8px; margin-bottom: 8px; }
+.toilet-community-row .report-icon-button:disabled { cursor: default; opacity: .55; background: transparent; }
+/* First HTML uses the same card shell while the map JavaScript loads. */
+.route-card-stage { position: fixed; inset: 76px 0 58px; pointer-events: none; --desktop-area-list-width: clamp(340px, 25vw, 440px); }
+.route-card-stage .route-preview-card { position: absolute; z-index: 10; right: auto; top: 18px; bottom: auto; height: min(460px, calc(100% - 36px)); max-height: calc(100% - 36px); overflow: hidden; pointer-events: auto; }
+.route-preview-card .place-card-summary h1 { margin: 0; padding-right: 0; }
+@media (min-width: 641px) and (pointer: fine), (min-width: 641px) and (pointer: none), (min-width: 641px) and (min-height: 501px), (min-width: 1025px) {
+  .route-preview-community .report-icon-button { display: none !important; }
+  .route-preview-community .toilet-community-metric { flex: 1 1 0; }
+  .route-preview-community .toilet-community-metric:last-of-type { padding-right: 0; }
+  .route-preview-community .toilet-community-metric > span { font-size: 12px; line-height: 14px; }
+}
 @container (max-width: 240px) {
   .toilet-community-metric { padding-right: 4px; }
   .toilet-community-metric + .toilet-community-metric { padding-left: 4px; }
@@ -127,6 +138,10 @@
   .has-mobile-navigation .place-card, .has-mobile-navigation .coordinate-group-card, .has-mobile-navigation .mobile-area-list { max-height: calc(100% - 80px); }
   .has-mobile-navigation .place-card:not(.mobile-card-expanded) { max-height: min(280px, calc(100% - 80px)); }
   .has-mobile-navigation .mobile-card-expanded .detail-address { display: grid; }
+  .has-mobile-navigation .place-card.mobile-card-expanded { height: min(68svh, 500px); }
+  .route-card-stage { inset: 60px 0 calc(55px + max(2px, env(safe-area-inset-bottom))); }
+  .route-card-stage .route-preview-card { top: auto; bottom: 12px; height: auto; max-height: min(280px, calc(100% - 80px)); }
+  .route-card-stage .route-preview-card .card-details { display: none; }
   .has-mobile-navigation .current-location-marker .current-location-label { font-size: 10px; font-weight: 800; line-height: 1; }
   .map-reference-marker { position: relative; display: block; width: 18px; height: 20px; pointer-events: none; }
   .map-reference-marker-pin { position: absolute; inset: 0; display: block; border: 2px solid #fff; border-radius: 50% 50% 50% 3px; background: #df3a36; box-shadow: 0 2px 7px rgb(126 30 29 / 42%); transform: rotate(-45deg); }

@@ -20,9 +20,10 @@ test('all mobile map sheets reserve the same upper control area', async () => {
 
 test('report login prompt uses brand and concise labels without removing the auth gate', async () => {
   const app = await source('../src/App.tsx')
+  const row = await source('../src/components/ToiletCommunityRow.tsx')
   assert.doesNotMatch(app, /로그인 후 정보 제보하기/)
-  assert.match(app, /aria-label="정보 제공하기" title="정보 제공하기"/)
-  assert.equal((app.match(/<ToiletCommunityRow onReport=/g) || []).length, 2)
+  assert.match(row, /aria-label="정보 제공하기" title="정보 제공하기"/)
+  assert.equal((app.match(/onReport=\{isDesktop \? undefined :/g) || []).length, 2)
   assert.match(app, /className="brand login-brand">급똥/)
   assert.match(app, /const title = '로그인 · 간편가입'/)
 })
@@ -47,7 +48,7 @@ test('compact navigation retains readable labels, touch targets and safe-area pa
 })
 
 test('future toilet metrics are placeholders in a 44px row, with a labeled report action', async () => {
-  const app = await source('../src/App.tsx')
+  const app = await source('../src/components/ToiletCommunityRow.tsx')
   const css = await source('../src/components/mobile-navigation.css')
   for (const label of ['평점: 준비 중', '혼잡도: 준비 중', '휴지 있음 비율: 준비 중']) assert.ok(app.includes(label))
   assert.match(app, /<span>제보<\/span>/)
@@ -69,10 +70,10 @@ test('group details put metrics below hours; desktop single and group cards omit
   const app = await source('../src/App.tsx')
   const inline = app.slice(app.indexOf('function CoordinateGroupInlineDetails'), app.indexOf('function CompactFacilityStatus'))
   assert.match(inline, /<div className="coordinate-inline-details">\s*<p className="open-time">\{formatOpenTime\(toilet\)\}<\/p>\s*<ToiletCommunityRow onReport=\{onReport\} \/>/)
-  assert.equal((inline.match(/<ToiletCommunityRow/g) || []).length, 1)
+  assert.equal((inline.match(/<ToiletCommunityRow/g) || []).length, 2)
   assert.equal((app.match(/onReport=\{isDesktop \? undefined :/g) || []).length, 2)
-  const row = app.slice(app.indexOf('function ToiletCommunityRow'), app.indexOf('function LoginDialog'))
-  assert.match(row, /\{onReport && <button/)
+  const row = await source('../src/components/ToiletCommunityRow.tsx')
+  assert.match(row, /\{\(onReport \|\| pendingReport\) && <button disabled=\{pendingReport\}/)
   for (const label of ['평점: 준비 중', '혼잡도: 준비 중', '휴지 있음 비율: 준비 중']) assert.ok(row.includes(label))
   const css = await source('../src/components/mobile-navigation.css')
   assert.match(css, /\.toilet-community-row.is-readonly \.toilet-community-metric\s*\{ flex: 1 1 0/)
