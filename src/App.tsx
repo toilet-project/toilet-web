@@ -5,6 +5,8 @@ import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, typ
 import { createDetailCache } from './lib/detailCache'
 import { cardPlacement } from './lib/cardPlacement'
 import { DesktopHeaderMenu } from './components/DesktopHeaderMenu'
+import { MobileNavigation, MobilePage, type MobileTab } from './components/MobileNavigation'
+import './components/mobile-navigation.css'
 import { getCurrentUser, logout, startSocialLogin, type AuthProfile } from './api/auth'
 import { createKakaoMap, searchKakaoPlaces, type KakaoMapInstance, type KakaoOverlay, type KakaoPlace } from './lib/kakaoMap'
 import { ToiletReportModal } from './components/ToiletReportModal'
@@ -38,6 +40,7 @@ const PLACE_CARD_WIDTH = 360
 const MAP_EDGE_GAP = 18
 const PENDING_REPORT_TARGET_KEY = 'geupddong.pending-report-target'
 const PENDING_MY_REPORTS_KEY = 'geupddong.pending-my-reports'
+const PENDING_MOBILE_TAB_KEY = 'geupddong.pending-mobile-tab'
 
 
 function calculateDistanceInMeters(from: Coordinates, to: Coordinates) {
@@ -231,6 +234,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
   const [isAccountOpen, setIsAccountOpen] = useState(false)
+  const [mobileTab, setMobileTab] = useState<MobileTab>('map')
   useLayoutEffect(() => { groupRef.current = selectedCoordinateGroup }, [selectedCoordinateGroup])
   useEffect(() => { onMounted() }, [onMounted])
 
@@ -257,6 +261,9 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     window.history.replaceState(window.history.state, '', url)
 
     try {
+      const pendingTab = window.sessionStorage.getItem(PENDING_MOBILE_TAB_KEY)
+      window.sessionStorage.removeItem(PENDING_MOBILE_TAB_KEY)
+      if (pendingTab === 'account' || pendingTab === 'notifications') setMobileTab(pendingTab)
       const openMyReports = window.sessionStorage.getItem(PENDING_MY_REPORTS_KEY) === 'true'
       window.sessionStorage.removeItem(PENDING_MY_REPORTS_KEY)
       if (openMyReports) {
@@ -347,7 +354,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
 
   const handleLogout = useCallback(() => {
     void logout()
-      .then(() => { setAuthProfile(null); setUnreadNotificationCount(0); setIsNotificationsOpen(false) })
+      .then(() => { setAuthProfile(null); setUnreadNotificationCount(0); setIsNotificationsOpen(false); setIsAccountOpen(false); setIsMyReportsOpen(false); setFocusedReportId(null) })
       .catch((logoutError: unknown) => showLocationMessage(logoutError instanceof Error ? logoutError.message : '로그아웃하지 못했습니다.'))
   }, [showLocationMessage])
 
@@ -365,6 +372,8 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     setIsAccountOpen(false)
     setAuthProfile(null)
     setUnreadNotificationCount(0)
+    setIsMyReportsOpen(false)
+    setIsNotificationsOpen(false)
     showLocationMessage('회원 탈퇴가 완료되었습니다.')
   }, [showLocationMessage])
 
@@ -1057,7 +1066,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   }, [areaToilets, openCoordinateGroup, selectToilet])
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell${!isDesktop ? ' has-mobile-navigation' : ''}${!isDesktop && mobileTab !== 'map' ? ' is-mobile-page' : ''}`}>
       <header className="topbar">
         <div className="topbar-inner">
         <a className="brand" href="/" aria-label="급똥 지도 홈">급똥</a>
@@ -1096,12 +1105,9 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             ><strong>{place.name}</strong><span>{place.address || '주소 정보 없음'}</span></button>)}
           </div>}
         </div>
-        {!isDesktop && <div className="auth-actions">
-          {isAuthLoading && <span className="auth-status">확인 중…</span>}
-          {!isAuthLoading && authProfile && <button type="button" className="notification-button" onClick={() => setIsNotificationsOpen(true)} aria-label={unreadNotificationCount ? `읽지 않은 알림 ${unreadNotificationCount}개` : '알림'}><span aria-hidden="true" />{unreadNotificationCount > 0 && <strong>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</strong>}</button>}
-          {!isAuthLoading && <button type="button" className="auth-button is-secondary" onClick={openMyReports}>내 제보</button>}
-          {!isAuthLoading && authProfile && <><button type="button" className="auth-button is-secondary" onClick={() => setIsAccountOpen(true)}>내 계정</button><button type="button" className="auth-button is-logout" onClick={handleLogout}>로그아웃</button></>}
-          {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}>로그인</button>}
+        {!isDesktop && <div className="mobile-header-actions">
+          {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => setMobileTab('account')}>로그인</button>}
+          <DesktopHeaderMenu compact authenticated={Boolean(authProfile)} onReports={openMyReports} onAccount={() => setMobileTab('account')} onLogout={handleLogout} />
         </div>}
         {isDesktop && <div className="desktop-header-actions">
           {isAuthLoading ? <span className="auth-status">확인 중…</span> : authProfile ? <>
@@ -1114,6 +1120,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       </header>
 
       <section className="map-section" aria-label="공중화장실 지도">
+        <div className="map-stage" inert={!isDesktop && mobileTab !== 'map'} style={!isDesktop && mobileTab !== 'map' ? { visibility: 'hidden' } : undefined}>
         <div ref={mapContainerRef} className="map" />
         {error && result && <div className="connection-status-banner" role="alert">
           <span className="connection-status-dot" aria-hidden="true" />
@@ -1250,14 +1257,19 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             </div>
           </aside>
         )}
+        </div>
+        {!isDesktop && mobileTab !== 'map' && <MobilePage tab={mobileTab} profile={authProfile} loading={isAuthLoading} unread={unreadNotificationCount}
+          onSessionExpired={() => { setAuthProfile(null); setUnreadNotificationCount(0); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false) }}
+          onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} onNotifications={() => setIsNotificationsOpen(true)}
+          beforeLogin={tab => { try { window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, tab) } catch { /* 로그인은 계속 제공 */ } }} />}
         {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); setIsMyReportsOpen(true) }} />}
-        {isMyReportsOpen && <MyReportsPanel initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
-        {isNotificationsOpen && <NotificationPanel onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); setFocusedReportId(reportId); setIsMyReportsOpen(true) }} />}
+        {authProfile && isMyReportsOpen && <MyReportsPanel initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
+        {authProfile && isNotificationsOpen && <NotificationPanel onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); setFocusedReportId(reportId); setIsMyReportsOpen(true) }} />}
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
         {authProfile?.consentRequired && <PolicyConsentModal isNewRegistration={authProfile.status === 'PENDING_CONSENT'} onComplete={handleConsentComplete} onLogout={handleLogout} />}
         {authProfile && isAccountOpen && <AccountDialog profile={authProfile} onClose={() => setIsAccountOpen(false)} onWithdrawn={handleWithdrawn} />}
       </section>
-      <footer className="site-footer"><p>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</p><PolicyFooter /></footer>
+      {isDesktop ? <footer className="site-footer"><p>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</p><PolicyFooter /></footer> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { setMobileTab(tab); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
     </main>
   )
 }

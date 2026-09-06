@@ -21,13 +21,14 @@ const formatDate = (value?: string | null) => value
   ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
   : '-'
 
-export function MyReportsPanel({ onClose, initialExpandedId = null }: { onClose: () => void; initialExpandedId?: number | null }) {
+export function MyReportsPanel({ onClose, initialExpandedId = null, embedded = false }: { onClose: () => void; initialExpandedId?: number | null; embedded?: boolean }) {
   const [reports, setReports] = useState<ToiletReport[]>([])
   const [filter, setFilter] = useState<Filter>('ALL')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<number | null>(initialExpandedId)
   const focusedReportRef = useRef<HTMLElement | null>(null)
+  const titleId = embedded ? 'mobile-my-reports-title' : 'my-reports-title'
 
   useEffect(() => {
     let active = true
@@ -48,11 +49,11 @@ export function MyReportsPanel({ onClose, initialExpandedId = null }: { onClose:
     focusedReportRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }, [initialExpandedId, isLoading])
 
-  return <div className="my-reports-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-    <section className="my-reports-panel" role="dialog" aria-modal="true" aria-labelledby="my-reports-title">
+  return <div className={embedded ? 'my-reports-embedded' : 'my-reports-backdrop'} onMouseDown={(event) => { if (!embedded && event.target === event.currentTarget) onClose() }}>
+    <section className="my-reports-panel" role={embedded ? undefined : 'dialog'} aria-modal={embedded ? undefined : true} aria-labelledby={titleId}>
       <header className="my-reports-header">
-        <div><span>급똥 계정</span><h1 id="my-reports-title">내 제보</h1><p>제보 처리 상태와 관리자 검토 내용을 확인할 수 있어요.</p></div>
-        <button type="button" onClick={onClose} aria-label="내 제보 닫기">×</button>
+        <div><span>급똥 계정</span><h1 id={titleId}>내 제보</h1><p>제보 처리 상태와 관리자 검토 내용을 확인할 수 있어요.</p></div>
+        {!embedded && <button type="button" onClick={onClose} aria-label="내 제보 닫기">×</button>}
       </header>
       <nav className="my-reports-filters" aria-label="제보 상태 필터">
         {filters.map((item) => <button key={item.value} type="button" className={filter === item.value ? 'is-active' : ''} onClick={() => setFilter(item.value)}>
