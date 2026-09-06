@@ -34,3 +34,10 @@ test('community availability text belongs to the label, not a floating border ba
   assert.ok(rule)
   assert.doesNotMatch(rule, /position: absolute|top: -/)
 })
+
+test('compact navigation retains readable labels, touch targets and safe-area padding', async () => {
+  const css = await source('../src/components/mobile-navigation.css')
+  assert.match(css, /\.mobile-navigation button\s*\{[^}]*min-height: 52px/)
+  assert.match(css, /max\(2px, env\(safe-area-inset-bottom\)\)/)
+  assert.match(css, /\.mobile-navigation button\s*\{[^}]*font-size: 11px/)
+})
