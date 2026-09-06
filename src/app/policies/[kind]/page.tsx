@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { PolicyPage } from '../../../components/PolicyPage'
 
-const titles = { terms: '서비스 이용약관', privacy: '개인정보 처리방침', location: '위치정보 이용 안내' }
+const titles = { terms: '서비스 이용약관', privacy: '개인정보 처리방침', location: '위치정보 이용 안내', all: '이용약관 및 서비스 정책' }
 type Kind = keyof typeof titles
 type Props = { params: Promise<{ kind: string }> }
 function isKind(kind: string): kind is Kind { return Object.hasOwn(titles, kind) }

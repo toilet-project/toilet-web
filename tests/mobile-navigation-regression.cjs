@@ -1,0 +1,88 @@
+const {chromium, webkit}=require(process.env.PLAYWRIGHT_MODULE_PATH)
+const assert=require('node:assert/strict')
+const {mobileTestOrigin}=require('./mobile-test-origin.cjs')
+const origin=mobileTestOrigin(process.env.MOBILE_TEST_ORIGIN || 'http://127.0.0.1:4174',{allowLoopback:true})
+;(async()=>{
+ const browser=await (process.env.TEST_WEBKIT?webkit:chromium).launch(process.env.TEST_WEBKIT?{headless:true}:{channel:'chrome',headless:true})
+ try {
+ for(const viewport of [{width:375,height:667},{width:390,height:844},{width:844,height:390}]) {
+  const context=await browser.newContext({viewport,isMobile:true,hasTouch:true,serviceWorkers:'block'})
+  let authenticated=false,nickname='테스트 사용자',reportReads=0,profileWrites=0,expireNextSave=false
+  const errors=[]
+  await context.route('**/*',async route=>{
+   const req=route.request(),url=new URL(req.url()),path=url.pathname,method=req.method()
+   const api=path.startsWith('/api/v1/') && [new URL(origin).hostname,'api.geupddong.com'].includes(url.hostname)
+   const json=(body,status=200)=>route.fulfill({status,json:body})
+   if(api && path==='/api/v1/auth/me')return authenticated?json({userId:'7',displayName:nickname,email:null,status:'ACTIVE',roles:['USER'],consentRequired:false}):json({},401)
+   if(api && path.startsWith('/api/v1/auth/login/')) {authenticated=true;return route.fulfill({contentType:'text/html',body:`<script>location.replace(${JSON.stringify(origin+'/?login=success')})</script>`})}
+   if(api && path==='/api/v1/auth/me/profile' && method==='PATCH') {assert.ok(authenticated);if(expireNextSave){expireNextSave=false;authenticated=false;return json({},401)}profileWrites++;nickname=req.postDataJSON().displayName;return json({displayName:nickname})}
+   if(api && path==='/api/v1/auth/logout') {authenticated=false;return json({})}
+   if(api && path==='/api/v1/auth/refresh')return json({},401)
+   if(api && path.includes('/notifications'))return json(path.includes('unread')?{count:0}:{items:[],totalElements:0})
+   if(api && path==='/api/v1/auth/consents/status')return json({agreedPolicies:[],missingPolicies:[],consentRequired:false})
+   if(api && path==='/api/v1/reports/me') {assert.ok(authenticated,'Anonymous reports request');reportReads++;return json([{id:1,toiletId:13144,toiletName:'테스트 화장실',reportType:'COORDINATE_CORRECTION',status:'APPROVED',createdAt:'2026-09-06T10:00:00+09:00',reviewedAt:'2026-09-06T11:00:00+09:00',reason:'위치 수정',roadAddress:'대전광역시 유성구',reviewNote:'확인 완료'}])}
+   if(!['GET','HEAD','OPTIONS'].includes(method)) return route.abort()
+   return route.continue()
+  })
+  const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message))
+  // The local Next dev badge sits on the first nav button; it is not shipped.
+  // Keep runtime-error assertions, but exclude only this development overlay from hit testing.
+  if(new URL(origin).hostname==='127.0.0.1') await page.addInitScript(()=>document.addEventListener('DOMContentLoaded',()=>{
+    const style=document.createElement('style');style.textContent='nextjs-portal { pointer-events: none !important; }';document.head.append(style)
+  }))
+  await page.goto(origin+'/toilet/13144');await page.locator('.toilet-marker').first().waitFor({state:'visible',timeout:30000})
+  const nav=page.getByRole('navigation',{name:'하단 내비게이션'})
+  await nav.waitFor({state:'visible'})
+  assert.equal(await nav.getByRole('button').count(),4)
+  await nav.getByRole('button',{name:'커뮤니티',exact:true}).click()
+  await page.getByRole('status').filter({hasText:'준비 중이에요'}).waitFor()
+  assert.equal(await nav.getByRole('button',{name:'지도',exact:true}).getAttribute('aria-current'),'page')
+  await page.getByText('준비 중이에요',{exact:true}).waitFor({state:'hidden',timeout:3000})
+  const map=await page.locator('.map').elementHandle()
+  const card=await page.locator('.place-card').boundingBox(), navBox=await nav.boundingBox()
+  assert.ok(card.y+card.height<=navBox.y+1,'Card overlaps bottom navigation')
+  await nav.getByRole('button',{name:'알림',exact:true}).click()
+  await page.getByRole('heading',{name:'로그인하고 알림을 확인하세요'}).waitFor()
+  assert.equal(reportReads,0)
+  await nav.getByRole('button',{name:'지도',exact:true}).click()
+  assert.ok(await map.evaluate(el=>el===document.querySelector('.map')))
+  await nav.getByRole('button',{name:'내 페이지',exact:true}).click()
+  await page.getByRole('button',{name:'Kakao로 계속하기'}).click()
+  await page.getByRole('heading',{name:'내 페이지',exact:true}).waitFor()
+  await page.getByRole('button',{name:'프로필 수정',exact:true}).click()
+  await page.getByLabel('닉네임',{exact:true}).fill('변경한 닉네임')
+  await page.getByRole('button',{name:'저장하기',exact:true}).click()
+  await page.getByRole('heading',{name:'변경한 닉네임',exact:true}).waitFor()
+  assert.equal(profileWrites,1)
+  expireNextSave=true
+  await page.getByRole('button',{name:'프로필 수정',exact:true}).click()
+  await page.getByLabel('닉네임',{exact:true}).fill('만료된 변경')
+  assert.ok(Number(await page.getByLabel('닉네임',{exact:true}).evaluate(el=>parseFloat(getComputedStyle(el).fontSize)))>=16)
+  await page.getByRole('button',{name:'저장하기',exact:true}).click()
+  await page.getByRole('heading',{name:'로그인 · 간편가입',exact:true}).waitFor()
+  await page.getByRole('button',{name:'Google로 계속하기'}).click()
+  await page.getByRole('heading',{name:'변경한 닉네임',exact:true}).waitFor()
+  assert.equal(profileWrites,1,'Expired update must not be saved')
+  await nav.getByRole('button',{name:'알림',exact:true}).click()
+  await page.getByLabel('알림 항목',{exact:true}).waitFor()
+  await page.getByRole('button',{name:/테스트 화장실/}).click()
+  await page.getByText('확인 완료',{exact:true}).waitFor()
+  await page.getByRole('button',{name:'받은 알림',exact:true}).click()
+  await page.getByRole('dialog',{name:'알림',exact:true}).waitFor()
+  await page.getByRole('button',{name:'알림 닫기'}).click()
+  await nav.getByRole('button',{name:'내 페이지',exact:true}).click()
+  if(viewport.width===390)await page.screenshot({path:'C:/fork/tiolet/.tmp/mobile-profile-ux.png'})
+  await page.getByRole('button',{name:'로그아웃',exact:true}).click()
+  await page.getByRole('heading',{name:'로그인 · 간편가입',exact:true}).waitFor()
+  assert.equal(await page.getByRole('heading',{name:'변경한 닉네임',exact:true}).count(),0)
+  await page.getByRole('button',{name:'전체 메뉴',exact:true}).click()
+  await page.getByRole('navigation',{name:'전체 메뉴',exact:true}).getByRole('link',{name:'이용약관',exact:true}).click()
+  await page.getByRole('heading',{name:'이용약관 및 서비스 정책',exact:true}).waitFor()
+  for(const name of ['서비스 이용약관','개인정보 처리방침','위치정보 이용 안내']) assert.equal(await page.getByRole('heading',{name,exact:true}).count(),1)
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'Horizontal overflow')
+  assert.deepEqual(errors,[])
+  console.log(JSON.stringify({viewport,pass:true,mapPreserved:true,anonymousProtected:true,oauthTabResume:true,nickname:true,reportReads,realBusinessWrites:0}))
+  await context.close()
+ }
+ }finally{await browser.close()}
+})().catch(e=>{console.error(e);process.exitCode=1})

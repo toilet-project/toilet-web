@@ -66,6 +66,19 @@ export async function logout() {
   if (!response.ok) throw new Error('로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.')
 }
 
+export class AuthExpiredError extends Error {}
+
+export async function updateNickname(displayName: string): Promise<{ displayName: string }> {
+  const response = await fetch(createApiUrl('/api/v1/auth/me/profile'), {
+    method: 'PATCH', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ displayName: displayName.trim() }),
+  })
+  if (response.status === 401) throw new AuthExpiredError('로그인이 만료되었어요. 다시 로그인해 주세요.')
+  if (response.status === 400) throw new Error('닉네임은 공백만 제외한 2~30자로 입력해 주세요. 제어 문자는 사용할 수 없어요.')
+  if (!response.ok) throw new Error('닉네임을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.')
+  return response.json() as Promise<{ displayName: string }>
+}
+
 export async function fetchPolicies(): Promise<PolicyDocument[]> {
   const response = await fetch(createApiUrl('/api/v1/policies'))
   if (!response.ok) throw new Error('약관 정보를 불러오지 못했습니다.')
