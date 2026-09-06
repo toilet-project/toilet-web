@@ -21,7 +21,8 @@ test('all mobile map sheets reserve the same upper control area', async () => {
 test('report login prompt uses brand and concise labels without removing the auth gate', async () => {
   const app = await source('../src/App.tsx')
   assert.doesNotMatch(app, /로그인 후 정보 제보하기/)
-  assert.equal((app.match(/>정보 제공하기<\/button>/g) || []).length, 2)
+  assert.match(app, /aria-label="정보 제공하기" title="정보 제공하기"/)
+  assert.equal((app.match(/<ReportEntryButton onClick=/g) || []).length, 2)
   assert.match(app, /className="brand login-brand">급똥/)
   assert.match(app, /const title = '로그인 · 간편가입'/)
 })

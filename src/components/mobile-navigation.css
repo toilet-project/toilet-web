@@ -1,5 +1,6 @@
 .mobile-navigation, .mobile-header-actions, .mobile-page { display: none; }
 .login-modal > .login-brand { display: block; font-size: 34px; font-weight: 400; line-height: 1; margin: 4px 0 18px; }
+.report-entry-button.report-icon-button { display: grid; width: 44px; min-height: 44px; margin: 8px 0 2px auto; padding: 0; place-items: center; border-radius: 12px; }
 .policy-section-links { display: flex; flex-wrap: wrap; gap: 12px; padding: 16px 0; }
 .policy-combined-section { padding: 20px 0; border-top: 1px solid #e1e8e3; }
 .policy-combined-section > h2 { font-size: 24px; }
@@ -100,6 +101,7 @@
   /* Reserve 12px + 44px controls + 12px gap above sheets and 12px below. */
   .has-mobile-navigation .place-card, .has-mobile-navigation .coordinate-group-card, .has-mobile-navigation .mobile-area-list { max-height: calc(100% - 80px); }
   .has-mobile-navigation .place-card:not(.mobile-card-expanded) { max-height: min(280px, calc(100% - 80px)); }
+  .has-mobile-navigation .mobile-card-expanded .detail-address { display: flex; }
   .has-mobile-navigation .current-location-marker .current-location-label { font-size: 10px; font-weight: 800; line-height: 1; }
   .map-reference-marker { position: relative; display: block; width: 18px; height: 20px; pointer-events: none; }
   .map-reference-marker-pin { position: absolute; inset: 0; display: block; border: 2px solid #fff; border-radius: 50% 50% 50% 3px; background: #df3a36; box-shadow: 0 2px 7px rgb(126 30 29 / 42%); transform: rotate(-45deg); }

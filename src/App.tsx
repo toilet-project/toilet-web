@@ -23,6 +23,7 @@ import { toiletCoordinates } from './lib/toiletRoute'
 import { groupToiletsByCoordinate, representativeToilet, type ToiletMapItem, type MapPoint } from './lib/toiletGrouping'
 import type { MapRouteData } from './components/mapRouteContext'
 import { DESKTOP_LAYOUT_QUERY } from './lib/responsiveLayout'
+import { resolveDistanceReference, type DistanceSource } from './lib/distanceReference'
 const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
 const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
@@ -212,6 +213,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const [isMobileCardExpanded, setIsMobileCardExpanded] = useState(false)
   const [currentLocation, setCurrentLocation] = useState<Coordinates | null>(null)
   const [mapCenter, setMapCenter] = useState<Coordinates>(DAEJEON_CITY_HALL)
+  const [distanceSource, setDistanceSource] = useState<DistanceSource>('point')
   const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.matchMedia(DESKTOP_LAYOUT_QUERY).matches)
   const [placeSearchKeyword, setPlaceSearchKeyword] = useState('')
   const [placeSearchResults, setPlaceSearchResults] = useState<KakaoPlace[]>([])
@@ -388,12 +390,18 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     markerClickUntilRef.current = Date.now() + 250
   }, [])
 
-  const updateReferencePoint = useCallback((coordinates: Coordinates) => {
+  const updateReferencePoint = useCallback((coordinates: Coordinates, source: DistanceSource = 'point') => {
     const map = mapRef.current
     if (!map) return
 
     setMapCenter(coordinates)
+    setDistanceSource(source)
     referencePointOverlayRef.current?.setMap(null)
+    referencePointOverlayRef.current = null
+    searchLocationOverlayRef.current?.setMap(null)
+    searchLocationOverlayRef.current = null
+    // GPS already has the blue current-location marker; do not stack a red pin on it.
+    if (source === 'current-location') return
     const content = document.createElement('div')
     content.className = 'map-reference-marker'
     content.setAttribute('aria-label', '거리 기준점')
@@ -775,7 +783,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     currentLocationOverlayRef.current.setMap(map)
 
     if (shouldCenterMap) {
-      updateReferencePoint(coordinates)
+      updateReferencePoint(coordinates, 'current-location')
       map.setLevel(Math.min(map.getLevel(), 4))
       map.panTo(position)
     }
@@ -996,8 +1004,8 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     }
   }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint])
 
-  const distanceReference = isDesktop ? mapCenter : currentLocation
-  const distanceReferenceLabel = isDesktop ? '기준점에서 약' : '내 위치에서 약'
+  const distanceReference = resolveDistanceReference(distanceSource, mapCenter, currentLocation)
+  const distanceReferenceLabel = distanceSource === 'current-location' ? '내 위치에서 약' : '기준점에서 약'
   const distanceToSelectedToilet = distanceReference && selectedToilet
     ? formatDistance(calculateDistanceInMeters(distanceReference, selectedToilet))
     : null
@@ -1146,7 +1154,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
           <header className="desktop-area-list-header">
             <div>
               <strong>이 지역 {result.meta.total_count.toLocaleString()}곳</strong>
-              <span>지도 중심 기준 가까운 순</span>
+              <span>{distanceSource === 'current-location' ? '현재 위치 기준 가까운 순' : '기준점 기준 가까운 순'}</span>
             </div>
             {isLoading && <em>조회 중…</em>}
           </header>
@@ -1222,8 +1230,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             <div className="card-scroll-content">
               {toiletDetail && <p className="open-time">{formatOpenTime(toiletDetail)}</p>}
               {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">{distanceReferenceLabel}</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">(직선거리)</span></div>}
-              {toiletDetail && hasValue(getDisplayAddress(toiletDetail.roadAddress, toiletDetail.jibunAddress)) && <div className="summary-address"><DetailRow label="주소" value={getDisplayAddress(toiletDetail.roadAddress, toiletDetail.jibunAddress)} copyable /></div>}
-              {toiletDetail && <button type="button" className="report-entry-button" onClick={() => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude })}>정보 제공하기</button>}
+              {toiletDetail && <ReportEntryButton onClick={() => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude })} />}
               {detailError && <div><p className="detail-error" role="alert">{detailError}</p><button type="button" className="detail-retry" onClick={retryDetail}>다시 불러오기</button></div>}
               {!toiletDetail && isDetailLoading && <DetailLoadingFields />}
               {toiletDetail && <ToiletDetailContents toilet={toiletDetail} />}
@@ -1272,6 +1279,12 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       {isDesktop ? <footer className="site-footer"><p>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</p><PolicyFooter /></footer> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
     </main>
   )
+}
+
+function ReportEntryButton({ onClick }: { onClick: () => void }) {
+  return <button type="button" className="report-entry-button report-icon-button" onClick={onClick} aria-label="정보 제공하기" title="정보 제공하기">
+    <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4H5a2 2 0 0 0-2 2v15l4-3h11a2 2 0 0 0 2-2v-5" /><path d="m13 12-4 1 1-4 7-7 3 3-7 7Z" /></svg>
+  </button>
 }
 
 function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () => void }) {
@@ -1323,7 +1336,7 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
       </div>
     </section>
     {hasValue(toilet.agencyName) && <DetailRow className="coordinate-inline-agency" label="관리기관" value={toilet.agencyName} />}
-    <button type="button" className="report-entry-button coordinate-report-entry" onClick={onReport}>정보 제공하기</button>
+    <ReportEntryButton onClick={onReport} />
   </div>
 }
 
