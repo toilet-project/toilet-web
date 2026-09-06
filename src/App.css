@@ -503,3 +503,30 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
   border-radius: 6px;
   background: #eaf1ed;
 }
+
+.topbar-inner { display: contents; }
+.desktop-header-actions { display: flex; margin-left: auto; align-items: center; gap: 16px; flex-shrink: 0; }
+.header-account-button { border: 0; border-radius: 10px; padding: 11px 14px; background: #f2f7f4; color: #243c2c; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.desktop-header-menu { position: relative; }
+.header-menu-trigger { display: grid; place-items: center; width: 42px; height: 42px; padding: 0; border: 1px solid #e3eae5; border-radius: 12px; background: #fff; color: #26382d; cursor: pointer; }
+.header-menu-trigger:hover, .header-menu-trigger[aria-expanded='true'] { background: #f0f6f2; border-color: #b7d4c1; }
+.header-menu-panel { position: absolute; z-index: 40; right: 0; top: calc(100% + 12px); display: grid; width: 220px; padding: 8px; border: 1px solid #e0e9e3; border-radius: 16px; background: #fff; box-shadow: 0 14px 44px rgb(24 49 33 / 14%); }
+.header-menu-panel a, .header-menu-panel button { display: block; padding: 11px 12px; border: 0; border-radius: 9px; background: transparent; color: #304538; font: inherit; font-size: 13px; text-align: left; text-decoration: none; cursor: pointer; }
+.header-menu-panel a:hover, .header-menu-panel button:hover { background: #f0f7f2; }
+.header-menu-divider { height: 1px; margin: 5px 10px; background: #e9efeb; }
+.header-menu-trigger:focus-visible, .header-account-button:focus-visible, .header-menu-panel :focus-visible { outline: 2px solid #27804a; outline-offset: 3px; }
+@media (min-width: 641px) and (pointer: fine), (min-width: 641px) and (pointer: none), (min-width: 641px) and (min-height: 501px), (min-width: 1025px) {
+  .topbar { position: relative; z-index: 20; min-height: 76px; padding: 0 28px; }
+  .app-shell { height: 100svh; min-height: 0; }
+  .map { min-height: 0; }
+  .topbar-inner { display: flex; width: 100%; max-width: 1200px; min-height: 76px; margin: 0 auto; align-items: center; gap: 20px; }
+  .topbar .brand { flex: 0 0 auto; font-size: 32px; }
+  .topbar .subtitle { display: none; }
+  .topbar .place-search { flex: 1 1 420px; max-width: 440px; min-width: 120px; margin-left: 14px; }
+  .topbar .place-search-input { height: 44px; border-color: #e0e8e2; border-radius: 12px; background: #f6f8f6; }
+  /* Reserve the existing maximum size during partial loading; no later anchor jump. */
+  .place-card:not(.initial-route-card) { bottom: auto; height: min(460px, calc(100% - 36px)); max-height: calc(100% - 36px); }
+  .place-card .card-scroll-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+  .place-card .card-scroll-content .card-details { max-height: none; overflow: visible; }
+  .place-card .place-card-summary h1 { max-height: 4.5em; overflow-y: auto; }
+}

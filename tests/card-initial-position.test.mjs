@@ -6,6 +6,9 @@ test('direct-link card positioning reruns after the async map is ready and layou
  const app=await readFile(new URL('../src/App.tsx',import.meta.url),'utf8')
  assert.match(app,/if \(!isMapReady \|\| !selectedToilet \|\| !placeCardRef.current\) return/)
  assert.match(app,/\[isMapReady, isDesktop, selectedToilet, toiletDetail, isDetailLoading, detailError, positionPlaceCardAtToilet\]/)
+ const layout=app.slice(app.indexOf('    // Synchronous layout measurement:'),app.indexOf('  const positionSelectedCard'))
+ assert.doesNotMatch(layout,/requestAnimationFrame/)
+ assert.match(layout,/observer.observe\(placeCardRef.current\)/)
 })
 
 test('desktop card fallback stays in map bounds without changing the mobile override',async()=>{
