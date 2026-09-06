@@ -16,6 +16,12 @@
 .toilet-community-row .report-entry-button.report-icon-button { display: flex; flex: 0 0 44px; box-sizing: border-box; width: 44px; height: 44px; min-height: 44px; flex-direction: column; align-items: center; justify-content: center; gap: 3px; margin: 0 0 0 12px; padding: 0; border: 1px solid #e6ece8; border-radius: 12px; background: transparent; color: #17683a; }
 .toilet-community-row .report-icon-button span { font-size: 11px; font-weight: 700; line-height: 12px; }
 .toilet-community-row .report-icon-button:hover { background: #edf6ef; }
+/* Desktop cards have three balanced information columns and no empty action slot. */
+.toilet-community-row.is-readonly .toilet-community-metric { flex: 1 1 0; }
+.toilet-community-row.is-readonly .toilet-community-metric:last-child { padding-right: 0; }
+.toilet-community-row.is-readonly .toilet-community-metric > span { font-size: 12px; line-height: 14px; }
+.coordinate-inline-details > .toilet-community-row { margin-top: 8px; margin-bottom: 8px; }
+.coordinate-inline-details > .toilet-community-row + .open-time { margin-top: 0; }
 @container (max-width: 240px) {
   .toilet-community-metric { padding-right: 4px; }
   .toilet-community-metric + .toilet-community-metric { padding-left: 4px; }

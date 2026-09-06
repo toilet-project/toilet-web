@@ -1321,7 +1321,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             <div ref={cardScrollRef} className="card-scroll-content">
               {toiletDetail && <p className="open-time">{formatOpenTime(toiletDetail)}</p>}
               {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">{distanceReferenceLabel}</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">(직선거리)</span></div>}
-              {toiletDetail && <ReportEntryButton onClick={() => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude })} />}
+              {toiletDetail && <ToiletCommunityRow onReport={isDesktop ? undefined : () => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude })} />}
               {detailError && <div><p className="detail-error" role="alert">{detailError}</p><button type="button" className="detail-retry" onClick={retryDetail}>다시 불러오기</button></div>}
               {!toiletDetail && isDetailLoading && <DetailLoadingFields />}
               {toiletDetail && <ToiletDetailContents toilet={toiletDetail} />}
@@ -1348,7 +1348,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
                     isLoading={isDetailLoading}
                     error={detailError}
                     onRetry={retryDetail}
-                    onReport={() => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }}
+                    onReport={isDesktop ? undefined : () => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }}
                   />}
                 </div>
               })}
@@ -1372,8 +1372,8 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   )
 }
 
-function ReportEntryButton({ onClick }: { onClick: () => void }) {
-  return <div className="toilet-community-row">
+function ToiletCommunityRow({ onReport }: { onReport?: () => void }) {
+  return <div className={`toilet-community-row${onReport ? '' : ' is-readonly'}`}>
     <div className="toilet-community-metric" aria-label="평점: 준비 중" title="평점 기능 준비 중">
       <span><svg className="metric-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" /></svg>평점</span><strong>— <small>/ 5.0</small></strong>
     </div>
@@ -1383,10 +1383,10 @@ function ReportEntryButton({ onClick }: { onClick: () => void }) {
     <div className="toilet-community-metric" aria-label="휴지 있음 비율: 준비 중" title="휴지 있음 비율 기능 준비 중">
       <span><svg className="metric-paper" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><ellipse cx="6" cy="9" rx="3" ry="6" /><path d="M6 3h10c2.8 0 5 2.7 5 6v12H9V9M6 15h3M6 8v2M12 16h1m3 0h1" /></svg>휴지 있음</span><strong>—<small>%</small></strong>
     </div>
-    <button type="button" className="report-entry-button report-icon-button" onClick={onClick} aria-label="정보 제공하기" title="정보 제공하기">
+    {onReport && <button type="button" className="report-entry-button report-icon-button" onClick={onReport} aria-label="정보 제공하기" title="정보 제공하기">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 4H5a2 2 0 0 0-2 2v15l4-3h11a2 2 0 0 0 2-2v-5" /><path d="m13 12-4 1 1-4 7-7 3 3-7 7Z" /></svg>
       <span>제보</span>
-    </button>
+    </button>}
   </div>
 }
 
@@ -1413,7 +1413,7 @@ function DetailLoadingFields() {
   </div>
 }
 
-function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRetry }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onReport: () => void; onRetry: () => void }) {
+function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRetry }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onReport?: () => void; onRetry: () => void }) {
   if (isLoading && !toilet) return <div className="coordinate-inline-details"><DetailLoadingFields /></div>
   if (error) return <div className="coordinate-inline-details"><p className="detail-error" role="alert">{error}</p><button type="button" className="detail-retry" onClick={onRetry}>다시 불러오기</button></div>
   if (!toilet) return null
@@ -1421,6 +1421,7 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
   const address = getDisplayAddress(toilet.roadAddress, toilet.jibunAddress)
 
   return <div className="coordinate-inline-details">
+    <ToiletCommunityRow onReport={onReport} />
     <p className="open-time">{formatOpenTime(toilet)}</p>
     {address && <DetailRow className="coordinate-inline-address" label="주소" value={address} copyable />}
     <section className="coordinate-inline-section coordinate-inline-capacity-section" aria-label="화장실 수">
@@ -1439,7 +1440,6 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
       </div>
     </section>
     {hasValue(toilet.agencyName) && <DetailRow className="coordinate-inline-agency" label="관리기관" value={toilet.agencyName} />}
-    <ReportEntryButton onClick={onReport} />
   </div>
 }
 
