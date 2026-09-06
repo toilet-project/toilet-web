@@ -1071,7 +1071,8 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
         <div className="topbar-inner">
         <a className="brand" href="/" aria-label="급똥 지도 홈">급똥</a>
         <span className="subtitle">내 주변 공중화장실 찾기</span>
-        <div className="place-search">
+        <div className={`place-search${!isDesktop && isPlaceSearchFocused ? ' is-mobile-searching' : ''}`}>
+          {!isDesktop && <button type="button" className="mobile-search-close" aria-label="검색 닫기" onMouseDown={event => event.preventDefault()} onClick={() => { setIsPlaceSearchFocused(false); placeSearchInputRef.current?.blur() }}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m14 5-7 7 7 7" /></svg></button>}
           <label className="sr-only" htmlFor="place-search-input">주소 또는 장소 검색</label>
           <input
             ref={placeSearchInputRef}
@@ -1079,7 +1080,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             className="place-search-input"
             type="search"
             value={placeSearchKeyword}
-            placeholder="주소 또는 장소 검색"
+            placeholder={isDesktop ? '주소 또는 장소 검색' : '주소·장소 검색'}
             role="combobox"
             aria-autocomplete="list"
             aria-expanded={isPlaceSearchResultsOpen}
@@ -1088,7 +1089,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             onChange={(event) => handlePlaceSearchChange(event.target.value)}
             onKeyDown={handlePlaceSearchKeyDown}
             onFocus={handlePlaceSearchFocus}
-            onBlur={() => setIsPlaceSearchFocused(false)}
+            onBlur={() => { if (isDesktop) setIsPlaceSearchFocused(false) }}
           />
           {isPlaceSearchResultsOpen && <div id="place-search-results" className="place-search-results" role="listbox" aria-label="장소 검색 결과">
             {isPlaceSearching && <p className="place-search-status">검색 중…</p>}
@@ -1269,7 +1270,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
         {authProfile?.consentRequired && <PolicyConsentModal isNewRegistration={authProfile.status === 'PENDING_CONSENT'} onComplete={handleConsentComplete} onLogout={handleLogout} />}
         {authProfile && isAccountOpen && <AccountDialog profile={authProfile} onClose={() => setIsAccountOpen(false)} onWithdrawn={handleWithdrawn} />}
       </section>
-      {isDesktop ? <footer className="site-footer"><p>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</p><PolicyFooter /></footer> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { setMobileTab(tab); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
+      {isDesktop ? <footer className="site-footer"><p>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</p><PolicyFooter /></footer> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
     </main>
   )
 }
