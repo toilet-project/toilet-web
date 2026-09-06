@@ -18,6 +18,7 @@ import { NotificationPanel } from './components/NotificationPanel'
 import { PolicyConsentModal } from './components/PolicyConsentModal'
 import { PolicyFooter } from './components/PolicyPage'
 import { AccountDialog } from './components/AccountDialog'
+import { AccountRecoveryDialog } from './components/AccountRecoveryDialog'
 import { fetchUnreadNotificationCount } from './api/notifications'
 import { getDisplayAddress } from './lib/address'
 import { ToiletDetailContents, DetailRow } from './components/ToiletDetailContents'
@@ -386,13 +387,13 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     resumePendingLoginAction()
   }, [resumePendingLoginAction, showLocationMessage])
 
-  const handleWithdrawn = useCallback(() => {
+  const handleWithdrawn = useCallback((message: string) => {
     setIsAccountOpen(false)
     setAuthProfile(null)
     setUnreadNotificationCount(0)
     setIsMyReportsOpen(false)
     setIsNotificationsOpen(false)
-    showLocationMessage('회원 탈퇴가 완료되었습니다.')
+    showLocationMessage(message)
   }, [showLocationMessage])
 
   const clearOverlays = useCallback(() => {
@@ -1368,6 +1369,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
         {authProfile?.consentRequired && <PolicyConsentModal isNewRegistration={authProfile.status === 'PENDING_CONSENT'} onComplete={handleConsentComplete} onLogout={handleLogout} />}
         {authProfile && isAccountOpen && <AccountDialog profile={authProfile} onClose={() => setIsAccountOpen(false)} onWithdrawn={handleWithdrawn} />}
+        {!isAuthLoading && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('recovery') === 'required' && <AccountRecoveryDialog />}
       </section>
       {isDesktop ? <footer className="site-footer"><p>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</p><PolicyFooter /></footer> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
     </main>
