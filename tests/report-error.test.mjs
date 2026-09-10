@@ -24,3 +24,14 @@ test('report panel exposes a read-only retry and guards stale completion', () =>
   assert.match(source,/return \(\) => \{ active = false \}/)
   assert.doesNotMatch(source,/createToiletReport|method:\s*['"]POST/)
 })
+
+test('retry design keeps guidance and touch-friendly action in one centered group', () => {
+  const source = readFileSync(new URL('../src/components/MyReportsPanel.tsx', import.meta.url), 'utf8')
+  const css = readFileSync(new URL('../src/App.css', import.meta.url), 'utf8')
+  assert.match(source, /className="my-reports-retry-message" role="alert"/)
+  assert.match(source, /className="my-reports-retry-icon" aria-hidden="true"/)
+  assert.match(css, /\.my-reports-retry \{[^}]*align-items: center;[^}]*gap: 16px;/)
+  assert.match(css, /\.my-reports-retry-message \{[^}]*padding: 0;/)
+  assert.match(css, /\.my-reports-retry-button \{[^}]*min-height: 44px;/)
+  assert.match(css, /\.my-reports-retry-button:focus-visible/)
+})

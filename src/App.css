@@ -65,6 +65,14 @@
 .my-reports-content { min-height: 0; padding: 14px 20px 24px; flex: 1; overflow-y: auto; overscroll-behavior: contain; }
 .my-reports-state, .my-reports-empty { margin: 0; padding: 64px 18px; color: #68756d; text-align: center; }
 .my-reports-state.is-error { color: #b42318; }
+.my-reports-retry { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 28px 16px 32px; text-align: center; }
+.my-reports-retry-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #f1f6f3; color: #597464; }
+.my-reports-retry-icon svg { width: 24px; height: 24px; }
+.my-reports-retry-message { margin: 0; padding: 0; max-width: 30ch; color: #5c6e63; font-size: 14px; line-height: 1.65; word-break: keep-all; overflow-wrap: anywhere; }
+.my-reports-retry-button { min-height: 44px; max-width: 100%; padding: 10px 20px; border: 1px solid #17683a; border-radius: 12px; background: #17683a; color: #fff; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+.my-reports-retry-button:hover { background: #12532e; }
+.my-reports-retry-button:focus-visible { outline: 2px solid #17683a; outline-offset: 3px; }
+.my-reports-retry-button:disabled { opacity: .6; cursor: wait; }
 .my-reports-empty strong { color: #293a2f; font-size: 16px; }
 .my-reports-empty p { margin: 8px 0 0; font-size: 13px; line-height: 1.55; }
 .my-report-item { margin-bottom: 10px; overflow: hidden; border: 1px solid #e0e9e2; border-radius: 14px; background: #fff; transition: border-color 140ms ease, box-shadow 140ms ease; }

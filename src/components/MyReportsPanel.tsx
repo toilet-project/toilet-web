@@ -72,8 +72,11 @@ export function MyReportsPanel({ onClose, initialExpandedId = null, embedded = f
       <div className="my-reports-content" aria-busy={isLoading}>
         {isLoading && <p className="my-reports-state" role="status">내 제보를 불러오는 중…</p>}
         {error && <div className="my-reports-retry">
-          <p className="my-reports-state is-error" role="alert">{error}</p>
-          <button type="button" className="detail-retry" onClick={retryReports} disabled={isLoading}>다시 불러오기</button>
+          <span className="my-reports-retry-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4M9 16h6M9 12h3" /><circle cx="18" cy="6" r="4" /><path d="M18 4.5v1.8M18 8h.01" /></svg>
+          </span>
+          <p className="my-reports-retry-message" role="alert">{error}</p>
+          <button type="button" className="my-reports-retry-button" onClick={retryReports} disabled={isLoading}>다시 불러오기</button>
         </div>}
         {!isLoading && !error && visibleReports.length === 0 && <div className="my-reports-empty"><strong>표시할 제보가 없어요</strong><p>화장실 상세 정보에서 위치나 개방시간 정보를 제보할 수 있습니다.</p></div>}
         {!isLoading && !error && visibleReports.map((report) => {
