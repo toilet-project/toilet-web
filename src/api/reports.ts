@@ -1,4 +1,5 @@
 import { createApiUrl } from '../config/api'
+import { fetchSessionRead } from './session'
 
 export type CreateToiletReportRequest = {
   toiletId: number
@@ -45,7 +46,7 @@ export async function createToiletReport(request: CreateToiletReportRequest) {
 }
 
 export async function fetchMyToiletReports(): Promise<ToiletReport[]> {
-  const response = await fetch(createApiUrl('/api/v1/reports/me'), { credentials: 'include' })
+  const response = await fetchSessionRead(createApiUrl('/api/v1/reports/me'))
   if (response.status === 401) throw new Error('로그인이 필요합니다.')
   if (!response.ok) throw new Error('내 제보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
   return response.json() as Promise<ToiletReport[]>
