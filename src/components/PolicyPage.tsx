@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react'
+import { accountPolicyPublication, policyPublicationAttributes } from '../lib/accountPolicyPublication'
 
 type PolicyPageKind = 'terms' | 'privacy' | 'location' | 'all'
 
 // This unpublished feature is a review draft, not a retroactively effective policy.
-const publicationNotice = '검토용 개정안 · 시행일 미정'
+const publicationNotice = accountPolicyPublication.status === 'draft' ? '검토용 개정안 · 시행일 미정'
+  : `개정 정책 · 공지: ${new Date(accountPolicyPublication.announcedAt!).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} · 시행: ${new Date(accountPolicyPublication.effectiveAt!).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} (한국시간)`
 
 function PolicyLayout({ title, children, embedded = false }: { title: string; children: ReactNode; embedded?: boolean }) {
   if (embedded) return <section className="policy-combined-section"><h2>{title}</h2>{children}</section>
@@ -12,11 +14,11 @@ function PolicyLayout({ title, children, embedded = false }: { title: string; ch
       <a href="/" className="policy-brand">급똥</a>
       <a href="/" className="policy-home-link">지도로 돌아가기</a>
     </header>
-    <article className="policy-document">
+    <article className="policy-document" {...policyPublicationAttributes(accountPolicyPublication)}>
       <p className="policy-eyebrow">급똥 정책 안내</p>
       <h1>{title}</h1>
       <p className="policy-effective">{publicationNotice}</p>
-      <p className="policy-draft-notice">아직 시행되지 않은 검토안입니다. 회원정보의 실제 보관 구조, 개인정보 사본·재생 방지 기록의 종료 절차와 공지 일정을 확인한 뒤 확정합니다. 현재 시행 중인 정책을 대체하지 않습니다.</p>
+      {accountPolicyPublication.status === 'draft' && <p className="policy-draft-notice">아직 시행되지 않은 검토안입니다. 회원정보의 실제 보관 구조, 개인정보 사본·재생 방지 기록의 종료 절차와 공지 일정을 확인한 뒤 확정합니다. 현재 시행 중인 정책을 대체하지 않습니다.</p>}
       {children}
       <section>
         <h2>문의처</h2>
