@@ -1,5 +1,6 @@
 import { createApiUrl } from '../config/api'
 import { socialLoginPath } from '../lib/oauthReturn'
+import { lifecycleErrorMessage, recoveryReceipt, withdrawalReceipt } from '../lib/accountLifecycle'
 
 export type AuthProfile = {
   userId: string
@@ -104,7 +105,7 @@ export async function fetchPolicyConsentStatus(): Promise<PolicyConsentStatus> {
 export type WithdrawalOptions = { enabled: boolean; consentVersion: string; purgeAfter: string }
 export async function fetchWithdrawalOptions(): Promise<WithdrawalOptions> {
   const response = await fetch(createApiUrl('/api/v1/auth/withdrawal-options'), { credentials: 'include', cache: 'no-store' })
-  if (!response.ok) throw new Error('탈퇴 안내를 불러오지 못했습니다. 다시 시도해 주세요.')
+  if (!response.ok) throw new Error(lifecycleErrorMessage(response.status, '탈퇴 안내를 불러오지 못했습니다. 다시 시도해 주세요.'))
   return response.json() as Promise<WithdrawalOptions>
 }
 
@@ -113,23 +114,21 @@ export async function withdrawAccount(retainForRecovery: boolean, consentVersion
     method: 'DELETE', credentials: 'include', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ retainForRecovery, consentVersion }),
   })
-  if (!response.ok) throw new Error('회원 탈퇴를 처리하지 못했습니다.')
-  const receipt = response.status === 200 ? await response.json() as { purgeAfter?: string } : null
-  return { erasurePending: response.status === 202, purgeAfter: receipt?.purgeAfter }
+  const receipt: unknown = response.status === 200 ? await response.json() : undefined
+  return withdrawalReceipt(response.status, retainForRecovery, receipt)
 }
 
 export type RecoveryStatus = { purgeAfter: string; displayName: string | null }
 export async function fetchRecoveryStatus(): Promise<RecoveryStatus> {
   const response = await fetch(createApiUrl('/api/v1/auth/recovery'), { credentials: 'include', cache: 'no-store' })
-  if (!response.ok) throw new Error('복구 확인 시간이 지났거나 보관 기간이 끝났어요. 다시 소셜 로그인해 주세요.')
+  if (!response.ok) throw new Error(lifecycleErrorMessage(response.status, '복구 정보를 확인하지 못했어요. 잠시 후 다시 시도해 주세요.'))
   return response.json() as Promise<RecoveryStatus>
 }
 export async function decideRecovery(action: 'RESTORE' | 'ERASE') {
   const response = await fetch(createApiUrl('/api/v1/auth/recovery'), {
     method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }),
   })
-  if (!response.ok) throw new Error('요청을 완료하지 못했어요. 다시 소셜 로그인한 뒤 계정 상태를 확인해 주세요.')
-  return { erasurePending: response.status === 202 }
+  return recoveryReceipt(response.status, action)
 }
 export async function cancelRecovery() {
   const response = await fetch(createApiUrl('/api/v1/auth/recovery'), { method: 'DELETE', credentials: 'include' })

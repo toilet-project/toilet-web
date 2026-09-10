@@ -226,6 +226,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     return () => { disposed = true; controller.abort(); window.clearTimeout(timeout) }
   }, [activeDetailId, detailCache, detailRetry])
   const [locationMessage, setLocationMessage] = useState<string | null>(null)
+  const [withdrawalNotice, setWithdrawalNotice] = useState<string | null>(null)
   const [isLocating, setIsLocating] = useState(false)
   const [isMobileCardExpanded, setIsMobileCardExpanded] = useState(false)
   const [currentLocation, setCurrentLocation] = useState<Coordinates | null>(null)
@@ -393,8 +394,8 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     setUnreadNotificationCount(0)
     setIsMyReportsOpen(false)
     setIsNotificationsOpen(false)
-    showLocationMessage(message)
-  }, [showLocationMessage])
+    setWithdrawalNotice(message)
+  }, [])
 
   const clearOverlays = useCallback(() => {
     overlaysRef.current.forEach((overlay) => overlay.setMap(null))
@@ -1369,6 +1370,12 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
         {authProfile?.consentRequired && <PolicyConsentModal isNewRegistration={authProfile.status === 'PENDING_CONSENT'} onComplete={handleConsentComplete} onLogout={handleLogout} />}
         {authProfile && isAccountOpen && <AccountDialog profile={authProfile} onClose={() => setIsAccountOpen(false)} onWithdrawn={handleWithdrawn} />}
+        {withdrawalNotice && <div className="account-backdrop"><section className="account-dialog account-recovery account-result" role="dialog" aria-modal="true" aria-labelledby="withdrawal-result-title">
+          <h1 id="withdrawal-result-title">탈퇴 처리 안내</h1>
+          <p role="status">{withdrawalNotice}</p>
+          <p><a href="mailto:privacy@geupddong.com">개인정보 문의</a></p>
+          <div className="recovery-actions"><button type="button" className="recovery-primary" onClick={() => setWithdrawalNotice(null)}>확인</button></div>
+        </section></div>}
         {!isAuthLoading && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('recovery') === 'required' && <AccountRecoveryDialog />}
       </section>
       {isDesktop ? <footer className="site-footer"><p>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</p><PolicyFooter /></footer> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
