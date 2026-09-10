@@ -5,7 +5,7 @@ import { accountPolicyPublication, policyPublicationAttributes } from '../src/li
 test('approved release explicitly separates publication and effective instants', () => {
   assert.equal(accountPolicyPublication.status, 'published')
   assert.equal(accountPolicyPublication.announcedAt, '2026-09-10T08:45:00Z')
-  assert.equal(policyPublicationAttributes(accountPolicyPublication)['data-account-policy-effective-at'], '2026-09-10T15:00:00Z')
+  assert.equal(policyPublicationAttributes(accountPolicyPublication)['data-account-policy-effective-at'], '2026-09-10T09:00:00Z')
   assert.ok(Date.parse(accountPolicyPublication.announcedAt) < Date.parse(accountPolicyPublication.effectiveAt))
 })
 test('publication has explicit version and UTC instants, displayed in Korean time by the page', () => {

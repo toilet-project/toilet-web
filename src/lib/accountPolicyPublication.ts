@@ -11,7 +11,7 @@ export const accountPolicyPublication: AccountPolicyPublication = {
   status: 'published',
   version: 'account-local-retention-v1',
   announcedAt: '2026-09-10T08:45:00Z',
-  effectiveAt: '2026-09-10T15:00:00Z',
+  effectiveAt: '2026-09-10T09:00:00Z',
 }
 
 export function policyPublicationAttributes(value: AccountPolicyPublication) {
