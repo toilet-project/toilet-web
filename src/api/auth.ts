@@ -1,6 +1,7 @@
 import { createApiUrl } from '../config/api'
 import { socialLoginPath } from '../lib/oauthReturn'
 import { lifecycleErrorMessage, recoveryReceipt, withdrawalReceipt } from '../lib/accountLifecycle'
+import { fetchSessionRead } from './session'
 
 export type AuthProfile = {
   userId: string
@@ -37,19 +38,8 @@ export type PolicyConsentStatus = {
   agreedPolicies: PolicyAgreement[]
 }
 
-async function fetchProfile() {
-  return fetch(createApiUrl('/api/v1/auth/me'), { credentials: 'include' })
-}
-
 export async function getCurrentUser(): Promise<AuthProfile | null> {
-  let response = await fetchProfile()
-
-  if (response.status === 401) {
-    const refreshed = await fetch(createApiUrl('/api/v1/auth/refresh'), {
-      method: 'POST', credentials: 'include',
-    })
-    if (refreshed.ok) response = await fetchProfile()
-  }
+  const response = await fetchSessionRead(createApiUrl('/api/v1/auth/me'))
 
   if (response.status === 401) return null
   if (!response.ok) throw new Error('로그인 상태를 확인하지 못했습니다.')
