@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { fetchMyToiletReports, type ToiletReport, type ToiletReportStatus } from '../api/reports'
 import { getDisplayAddress } from '../lib/address'
+import { reportReadErrorMessage } from '../lib/report-error'
 
 type Filter = 'ALL' | ToiletReportStatus
 
@@ -26,6 +27,7 @@ export function MyReportsPanel({ onClose, initialExpandedId = null, embedded = f
   const [filter, setFilter] = useState<Filter>('ALL')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [requestVersion, setRequestVersion] = useState(0)
   const [expandedId, setExpandedId] = useState<number | null>(initialExpandedId)
   const focusedReportRef = useRef<HTMLElement | null>(null)
   const titleId = embedded ? 'mobile-my-reports-title' : 'my-reports-title'
@@ -34,10 +36,17 @@ export function MyReportsPanel({ onClose, initialExpandedId = null, embedded = f
     let active = true
     void fetchMyToiletReports()
       .then((items) => { if (active) setReports(items) })
-      .catch((reason: unknown) => { if (active) setError(reason instanceof Error ? reason.message : '내 제보를 불러오지 못했습니다.') })
+      .catch((reason: unknown) => { if (active) setError(reportReadErrorMessage(reason)) })
       .finally(() => { if (active) setIsLoading(false) })
     return () => { active = false }
-  }, [])
+  }, [requestVersion])
+
+  const retryReports = () => {
+    if (isLoading) return
+    setError(null)
+    setIsLoading(true)
+    setRequestVersion((version) => version + 1)
+  }
 
   const visibleReports = useMemo(
     () => filter === 'ALL' ? reports : reports.filter((report) => report.status === filter),
@@ -60,9 +69,12 @@ export function MyReportsPanel({ onClose, initialExpandedId = null, embedded = f
           {item.label}<span>{item.value === 'ALL' ? reports.length : reports.filter((report) => report.status === item.value).length}</span>
         </button>)}
       </nav>
-      <div className="my-reports-content">
-        {isLoading && <p className="my-reports-state">내 제보를 불러오는 중…</p>}
-        {error && <p className="my-reports-state is-error" role="alert">{error}</p>}
+      <div className="my-reports-content" aria-busy={isLoading}>
+        {isLoading && <p className="my-reports-state" role="status">내 제보를 불러오는 중…</p>}
+        {error && <div className="my-reports-retry">
+          <p className="my-reports-state is-error" role="alert">{error}</p>
+          <button type="button" className="detail-retry" onClick={retryReports} disabled={isLoading}>다시 불러오기</button>
+        </div>}
         {!isLoading && !error && visibleReports.length === 0 && <div className="my-reports-empty"><strong>표시할 제보가 없어요</strong><p>화장실 상세 정보에서 위치나 개방시간 정보를 제보할 수 있습니다.</p></div>}
         {!isLoading && !error && visibleReports.map((report) => {
           const expanded = expandedId === report.id
