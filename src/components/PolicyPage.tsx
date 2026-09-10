@@ -3,7 +3,7 @@ import { accountPolicyPublication, policyPublicationAttributes } from '../lib/ac
 
 type PolicyPageKind = 'terms' | 'privacy' | 'location' | 'all'
 
-// This unpublished feature is a review draft, not a retroactively effective policy.
+// Publication and feature activation are separate. The backend remains authoritative.
 const publicationNotice = accountPolicyPublication.status === 'draft' ? '검토용 개정안 · 시행일 미정'
   : `개정 정책 · 공지: ${new Date(accountPolicyPublication.announcedAt!).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} · 시행: ${new Date(accountPolicyPublication.effectiveAt!).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} (한국시간)`
 
@@ -19,6 +19,11 @@ function PolicyLayout({ title, children, embedded = false }: { title: string; ch
       <h1>{title}</h1>
       <p className="policy-effective">{publicationNotice}</p>
       <p><a href="/policy-history/2026-09-01.html">이전 정책 보기 (2026년 9월 1일)</a></p>
+      {accountPolicyPublication.status === 'published' && <section className="policy-change-notice" aria-label="정책 변경 안내">
+        <h2>회원 탈퇴·복구 정책 변경 안내</h2>
+        <p>아래 개정 내용은 표시된 시행 시각부터 적용하며, 그 전에는 이전 정책을 적용합니다. 정책 공지만으로 회원 기능이 자동 개시되거나 복구용 보관에 동의한 것으로 처리하지 않습니다. 기능 이용 가능 여부는 계정 화면에서 안내합니다.</p>
+        <ul><li>탈퇴 시 별도 선택 동의한 경우에만 복구용 정보를 3개월 보관합니다.</li><li>미동의·삭제 요청·기간 만료 시 회원 개인정보를 파기 대상으로 처리하며, 개인정보를 제거한 제보·감사 업무 이력은 유지합니다.</li><li>국내 암호화 재생 방지 기록의 보관 목적과 종료 절차를 안내합니다.</li></ul>
+      </section>}
       {accountPolicyPublication.status === 'draft' && <p className="policy-draft-notice">아직 시행되지 않은 검토안입니다. 회원정보의 실제 보관 구조, 개인정보 사본·재생 방지 기록의 종료 절차와 공지 일정을 확인한 뒤 확정합니다. 현재 시행 중인 정책을 대체하지 않습니다.</p>}
       {children}
       <section>

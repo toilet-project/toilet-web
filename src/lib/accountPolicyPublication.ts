@@ -5,12 +5,13 @@ export type AccountPolicyPublication = {
   effectiveAt: string | null
 }
 
-// Dates/status are changed only in a separately approved policy publication release.
+// Approved publication release. Deploy at the announcement instant or reissue the
+// candidate with a new instant before publishing; do not backdate a late release.
 export const accountPolicyPublication: AccountPolicyPublication = {
-  status: 'draft',
+  status: 'published',
   version: 'account-local-retention-v1',
-  announcedAt: null,
-  effectiveAt: null,
+  announcedAt: '2026-09-10T08:45:00Z',
+  effectiveAt: '2026-09-10T15:00:00Z',
 }
 
 export function policyPublicationAttributes(value: AccountPolicyPublication) {

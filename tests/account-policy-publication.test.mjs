@@ -2,9 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { accountPolicyPublication, policyPublicationAttributes } from '../src/lib/accountPolicyPublication.ts'
 
-test('current release remains an undated draft, never an implicit effective policy', () => {
-  assert.equal(accountPolicyPublication.status, 'draft')
-  assert.equal(policyPublicationAttributes(accountPolicyPublication)['data-account-policy-effective-at'], '')
+test('approved release explicitly separates publication and effective instants', () => {
+  assert.equal(accountPolicyPublication.status, 'published')
+  assert.equal(accountPolicyPublication.announcedAt, '2026-09-10T08:45:00Z')
+  assert.equal(policyPublicationAttributes(accountPolicyPublication)['data-account-policy-effective-at'], '2026-09-10T15:00:00Z')
+  assert.ok(Date.parse(accountPolicyPublication.announcedAt) < Date.parse(accountPolicyPublication.effectiveAt))
 })
 test('publication has explicit version and UTC instants, displayed in Korean time by the page', () => {
   const value = { status: 'published', version: 'synthetic-v1', announcedAt: '2026-09-01T00:00:00Z', effectiveAt: '2026-09-08T00:00:00Z' }

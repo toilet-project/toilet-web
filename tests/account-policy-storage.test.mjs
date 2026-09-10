@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
-test('unpublished policy describes local ledger without claiming all external copies are gone', async () => {
+test('policy describes local ledger without claiming all external copies are gone or implicit consent', async () => {
   const source = await readFile(new URL('../src/components/PolicyPage.tsx', import.meta.url), 'utf8')
   assert.match(source, /검토용 개정안 · 시행일 미정/)
   assert.match(source, /국내 서버의 별도 파일 영역/)
@@ -23,4 +23,6 @@ test('unpublished policy describes local ledger without claiming all external co
   assert.match(source, /법정 보관 기간이나 자동 삭제일이 아닙니다/)
   assert.match(source, /자료가 없거나 확인에 실패하면 사본이 없다고 처리하지 않습니다/)
   assert.match(source, /policy-history\/2026-09-01.html/)
+  assert.match(source, /그 전에는 이전 정책을 적용/)
+  assert.match(source, /정책 공지만으로 회원 기능이 자동 개시되거나 복구용 보관에 동의한 것으로 처리하지 않습니다/)
 })
