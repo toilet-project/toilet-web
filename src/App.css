@@ -424,6 +424,27 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
 .account-agreements a { color: #1d6d3d; font-size: 12px; font-weight: 800; }
 .account-agreements span { flex: 0 0 auto; color: #7b877f; font-size: 11px; }
 .account-withdraw { border: 0; background: transparent; color: #a84e43; font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
+.withdrawal-choice { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.5; }
+.withdrawal-choice input { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 2px; accent-color: #176b43; }
+.withdrawal-details { font-size: 12px; line-height: 1.6; color: #52665b; }
+.account-erasure-notice { margin: 12px 0; font-size: 12px; line-height: 1.6; color: #52665b; }
+.account-erasure-notice summary { min-height: 36px; display: list-item; align-content: center; cursor: pointer; font-weight: 700; }
+.account-erasure-notice p { margin: 8px 0; }
+.account-erasure-notice a { color: #176b43; text-underline-offset: 3px; }
+.policy-draft-notice { padding: 12px; border: 1px solid #e5d8b7; border-radius: 10px; background: #fffaf0; color: #66532c; font-size: 13px; line-height: 1.65; }
+.policy-storage-facts { display: grid; gap: 14px; }
+.policy-storage-facts dt { font-weight: 700; }
+.policy-storage-facts dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+.account-recovery { display: grid; gap: 14px; }
+.account-recovery > p, .recovery-actions > p { margin: 0; color: #52665b; font-size: 14px; line-height: 1.6; font-weight: 400; }
+.account-recovery > h1 { margin: 0; font-size: 22px; line-height: 1.4; }
+.account-recovery > .policy-brand { color: #176b43; font-size: 18px; }
+.recovery-actions { display: grid; gap: 10px; margin-top: 4px; }
+.recovery-actions button { min-height: 44px; padding: 10px 14px; border-radius: 10px; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.recovery-primary { border: 1px solid #176b43; background: #176b43; color: white; }
+.recovery-delete { border: 1px solid #e6ceca; background: #fff; color: #a44739; }
+.recovery-cancel { min-height: 44px; border: 0; background: transparent; color: #66776e; font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
+.account-recovery button:disabled { opacity: .55; cursor: wait; }
 .account-confirm { padding: 14px; border: 1px solid #ecd4d0; border-radius: 12px; background: #fff8f7; }
 .account-confirm strong { color: #7f342d; }
 .account-confirm p { color: #785e5a; font-size: 12px; line-height: 1.55; }
