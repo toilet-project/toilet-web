@@ -1,4 +1,4 @@
-/** Client-side preview eligibility only; the review API must enforce its own rules. */
+/** Client eligibility is advisory; the review API enforces these rules again. */
 export type ReviewPoint = { latitude: number | null; longitude: number | null }
 export type ReviewFix = { coords: { latitude: number; longitude: number; accuracy: number }; timestamp: number }
 export class ReviewGateError extends Error {
@@ -25,6 +25,11 @@ export function reviewLocationProblem(target: ReviewPoint, fix: ReviewFix, now =
 }
 
 export async function requireReviewLocation(target: ReviewPoint, { fresh = false }: { fresh?: boolean } = {}): Promise<number> {
+  return (await requireReviewFix(target, { fresh })).timestamp
+}
+
+/** Ephemeral fix for a create request only. Never persist it or put it in a URL. */
+export async function requireReviewFix(target: ReviewPoint, { fresh = false }: { fresh?: boolean } = {}): Promise<ReviewFix> {
   if (!validPoint(target)) throw new ReviewGateError('이 화장실의 위치를 확인할 수 없어 리뷰를 작성할 수 없어요.')
   if (!navigator.geolocation) throw new ReviewGateError('이 브라우저에서는 현재 위치를 확인할 수 없어요.')
   const fix = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -39,6 +44,5 @@ export async function requireReviewLocation(target: ReviewPoint, { fresh = false
   })
   const problem = reviewLocationProblem(target, fix)
   if (problem) throw new ReviewGateError(problem, problem === OUTSIDE_REVIEW_RANGE ? 'distance' : 'location')
-  // Do not retain or transmit the user's coordinates.
-  return fix.timestamp
+  return { coords: { latitude: fix.coords.latitude, longitude: fix.coords.longitude, accuracy: fix.coords.accuracy }, timestamp: fix.timestamp }
 }

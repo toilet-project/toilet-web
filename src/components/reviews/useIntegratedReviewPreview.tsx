@@ -2,19 +2,21 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ReviewDialog, ReviewIcon, ReviewModal, type ReviewEligibility } from './ReviewDialog'
-import { canManageReview, type Review, type ReviewInput } from '../../lib/review'
+import { canManageReview, recentToiletReview, type Review, type ReviewInput } from '../../lib/review'
 import { requireReviewLocation, ReviewGateError, REVIEW_LOCATION_MAX_AGE_MS, type ReviewPoint } from '../../lib/reviewLocation'
 
 import { MyReviewsPanel } from './MyReviewsPanel'
 
 export const REVIEW_DESIGN_PREVIEW = process.env.NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW === 'true'
-type Target = { id: number; name: string } & ReviewPoint
+export type ReviewTarget = { id: number; name: string } & ReviewPoint
+type Target = ReviewTarget
 type LocatedReview = Review & ReviewPoint
-type Access = { requireLogin: () => void; verifySession: (isCurrent: () => boolean) => Promise<boolean> }
-export type PreviewReviewSummary = { count: number; rating: string; paper: number; congestion: string }
+export type ReviewAccess = { requireLogin: () => void; verifySession: (isCurrent: () => boolean) => Promise<boolean> }
+type Access = ReviewAccess
+export type PreviewReviewSummary = { count: number; rating: string; paper: number | null; congestion: string; source?: 'api' }
 export type ReviewEntryState = { status: 'checking' | 'retry' | 'notice'; message: string }
 type Entry = ReviewEntryState & { id: number }
-type MineNavigation = { embedded: boolean; onOpen: () => void; onClose: () => void; contextKey: string }
+export type MineNavigation = { embedded: boolean; onOpen: () => void; onClose: () => void; contextKey: string; toiletId?: number }
 
 /** Real session/GPS eligibility, but reviews remain preview-only memory data. */
 export function useIntegratedReviewPreview(owner: string | null, access: Access, mineNavigation?: MineNavigation) {
@@ -26,6 +28,8 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
   const [message, setMessage] = useState('')
   const [checking, setChecking] = useState(false)
   const [mineError, setMineError] = useState('')
+  const [mineFocus, setMineFocus] = useState<{ id?: string; visit: number }>({ visit: 0 })
+  const saving = useRef(false)
   const [entry, setEntry] = useState<Entry | null>(null)
   const entryRef = useRef<Entry | null>(null)
   const updateEntry = (value: Entry | null) => { entryRef.current = value; setEntry(value) }
@@ -91,14 +95,25 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
     const fresh = entryRef.current?.id === next.id && entryRef.current.status === 'retry'
     setTarget(null); setEditing(null)
     setMine(false); setSaved(false); setMessage('')
+    const recent = recentToiletReview(reviews, next.id)
+    if (recent) {
+      if (recent.authorRemoved) updateEntry({ id: next.id, status: 'notice', message: '작성 후 24시간이 지나야 다시 리뷰를 남길 수 있어요.' })
+      else void loadMine(recent.id)
+      return
+    }
     // Keep the map/card still. Only a successful check opens the complete editor.
     void checkEligibility({ id: next.id, name: next.name, latitude: next.latitude, longitude: next.longitude }, fresh, true)
   }
   const openMine = async () => {
+    await loadMine()
+  }
+  const loadMine = async (focusedReviewId?: string) => {
     if (!REVIEW_DESIGN_PREVIEW) return
     if (!owner) { access.requireLogin(); return }
     const token = ++request.current
     updateEntry(null)
+    setMineFocus(value => ({ id: focusedReviewId, visit: value.visit + 1 }))
+    setMessage(focusedReviewId ? '작성한 리뷰 내역이 있습니다. 기존 리뷰를 확인하거나 수정해 주세요.' : '')
     setMine(true); setMineError(''); setTarget(null); setEditing(null); setSaved(false)
     mineNavigation?.onOpen()
     setChecking(true)
@@ -111,9 +126,21 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
   }
   const close = () => { request.current++; updateEntry(null); setChecking(false); setTarget(null); setEditing(null); setMine(false); setSaved(false); setMessage('') }
   const save = async (value: ReviewInput) => {
+    if (saving.current) throw new ReviewGateError('리뷰를 저장하고 있어요. 잠시 기다려 주세요.')
+    saving.current = true
+    try { await persistReview(value) } finally { saving.current = false }
+  }
+  const persistReview = async (value: ReviewInput) => {
     if (!REVIEW_DESIGN_PREVIEW || !target || ownerRef.current !== owner) throw new Error('Preview session changed')
     if (!editing && eligibility.status !== 'ready') throw new ReviewGateError('로그인과 위치 확인을 먼저 완료해 주세요.')
     if (editing && !canManageReview(editing)) throw new Error('Preview edit window expired')
+    if (!editing) {
+      const recent = recentToiletReview(reviews, target.id)
+      if (recent) {
+        if (!recent.authorRemoved) { await loadMine(recent.id); return }
+        throw new ReviewGateError('작성 후 24시간이 지나야 다시 리뷰를 남길 수 있어요.')
+      }
+    }
     const token = ++request.current
     // Recheck both in parallel; browser cache never extends a fix's original timestamp.
     // Editing a previously verified review only requires the same signed-in author within seven days.
@@ -138,7 +165,7 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
     if (!mine) { close(); return }
     request.current++; setTarget(null); setEditing(null); setSaved(false)
   }
-  const mineContent = <MyReviewsPanel key={owner} reviews={reviews} loading={checking} error={mineError} message={message} onRetry={openMine}
+  const mineContent = <MyReviewsPanel key={`${owner}:${mineFocus.visit}`} focusedReviewId={mineFocus.id} reviews={reviews} loading={checking} error={mineError} message={message} onRetry={() => { void loadMine(mineFocus.id) }}
     onBack={mineNavigation?.embedded ? () => { close(); mineNavigation.onClose() } : undefined}
     onEdit={item => { setEditing(item); setTarget({ id: item.toiletId, name: item.toiletName, latitude: item.latitude, longitude: item.longitude }) }}
     onDetach={item => {

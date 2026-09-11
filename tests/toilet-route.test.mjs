@@ -51,7 +51,7 @@ test('loading and first HTML retain current card rows and mobile geometry withou
   assert.match(loading, /className="copy-address-button" type="button" disabled/)
   assert.doesNotMatch(loading, /미설치|설치됨|0m/)
   assert.match(bridge, /route-card-stage/)
-  assert.match(bridge, /<ToiletCommunityRow pendingReport pendingReview=\{process.env.NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW === 'true'\} \/>/)
+  assert.match(bridge, /<ToiletCommunityRow pendingReport pendingReview=\{reviewsEnabled\} \/>/)
   assert.match(bridge, /aria-label="거리 계산 중"/)
   assert.match(css, /\.has-mobile-navigation \.place-card.mobile-card-expanded \{ height: min\(68svh, 500px\); \}/)
   assert.match(css, /\.route-card-stage \.route-preview-card \.card-details \{ display: none; \}/)

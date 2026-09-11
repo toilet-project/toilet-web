@@ -27,7 +27,7 @@ test('fixture is isolated from business data and cannot bypass session or GPS el
   assert.match(app, /toiletId === testToilet\?\.id \? testToilet : detailCache/)
   assert.match(app, /if \(toiletId === testToilet\?\.id\) onNavigate\(null\)\s+else onNavigate\(toiletId\)/)
   assert.match(app, /if \(target.toilet.id < 0\) return/)
-  assert.match(app, /onReview=\{REVIEW_DESIGN_PREVIEW && toiletDetail \? \(\) => reviewPreview.open\(toiletDetail\)/)
+  assert.match(app, /onReview=\{REVIEW_UI_ENABLED && toiletDetail \? \(\) => reviewPreview.open\(toiletDetail\)/)
   const fixture = readFileSync(new URL('../src/lib/reviewTestToilet.ts', import.meta.url), 'utf8')
   assert.doesNotMatch(fixture, /fetch\(|localStorage|sessionStorage|geolocation|getCurrentPosition/)
 })

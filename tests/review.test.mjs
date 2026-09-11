@@ -1,11 +1,22 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { blankReview, validateReview, canManageReview, waitLabel, reviewLength, reviewAverageLabel } from '../src/lib/review.ts'
+import { blankReview, validateReview, canManageReview, waitLabel, reviewLength, reviewAverageLabel, recentToiletReview, REVIEW_CREATE_INTERVAL_MS } from '../src/lib/review.ts'
 import { reviewLocationProblem, REVIEW_LOCATION_MAX_AGE_MS } from '../src/lib/reviewLocation.ts'
 import { reviewInputScrollDelta } from '../src/lib/reviewViewport.ts'
 
 const valid = () => ({ ...blankReview(), satisfaction: 4, cleanliness: 5, paper: true })
+test('per-toilet cooldown is rolling 24 hours, survives unlink and ignores edits', () => {
+  const created = Date.parse('2026-09-11T14:59:00Z')
+  const review = { toiletId: 1, createdAt: new Date(created).toISOString(), updatedAt: '2099-01-01', authorRemoved: true }
+  assert.equal(REVIEW_CREATE_INTERVAL_MS, 86400000)
+  for (const age of [0, 60_000, 86399999]) assert.equal(recentToiletReview([review], 1, created + age), review)
+  assert.equal(recentToiletReview([review], 1, created + 86400000), undefined)
+  assert.equal(recentToiletReview([review], 2, created), undefined)
+  assert.equal(recentToiletReview([{ ...review, createdAt: 'invalid' }], 1, created), undefined)
+  const newer = { ...review, createdAt: new Date(created + 1000).toISOString() }
+  assert.equal(recentToiletReview([review, newer], 1, created + 2000), newer)
+})
 test('my-review summary averages both ratings with exactly one decimal and preserves the originals', () => {
   for (let satisfaction = 1; satisfaction <= 5; satisfaction++) {
     for (let cleanliness = 1; cleanliness <= 5; cleanliness++) {
@@ -83,7 +94,7 @@ test('existing map review integration is build-gated and memory-only with accoun
   const hook = readFileSync(new URL('../src/components/reviews/useIntegratedReviewPreview.tsx', import.meta.url), 'utf8')
   const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
   const config = readFileSync(new URL('../next.config.ts', import.meta.url), 'utf8')
-  assert.match(config, /NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW: process.env.SITE_INDEXABLE === 'false' \? 'true' : 'false'/)
+  assert.match(config, /NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW: process.env.SITE_INDEXABLE === 'false' && process.env.REVIEW_API_ENABLED !== 'true' \? 'true' : 'false'/)
   assert.match(hook, /ownerRef.current !== owner/)
   assert.match(hook, /setReviews\(\[\]\)/)
   assert.doesNotMatch(hook, /\bfetch\s*\(|navigator\.geolocation|localStorage|sessionStorage/)
@@ -91,8 +102,8 @@ test('existing map review integration is build-gated and memory-only with accoun
   assert.match(hook, /requireReviewLocation\(next, \{ fresh \}\)/)
   assert.match(hook, /!editing \? requireReviewLocation\(target\)/)
   assert.match(hook, /access.verifySession\(/)
-  assert.match(app, /onReview=\{REVIEW_DESIGN_PREVIEW/)
-  assert.match(app, /onReviews=\{REVIEW_DESIGN_PREVIEW \? reviewPreview.openMine : undefined\}/)
+  assert.match(app, /onReview=\{REVIEW_UI_ENABLED/)
+  assert.match(app, /onReviews=\{REVIEW_UI_ENABLED \? reviewPreview.openMine : undefined\}/)
   assert.match(app, /reviewPreview.active \|\| reportTarget/)
 })
 

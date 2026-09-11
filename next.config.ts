@@ -13,7 +13,9 @@ const config: NextConfig = {
   env: {
     NEXT_PUBLIC_APP_VERSION: process.env.NEXT_DEPLOYMENT_ID || 'development',
     // Build-time preview gate, never controlled by query strings or local storage.
-    NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW: process.env.SITE_INDEXABLE === 'false' ? 'true' : 'false',
+    NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW: process.env.SITE_INDEXABLE === 'false' && process.env.REVIEW_API_ENABLED !== 'true' ? 'true' : 'false',
+    // Server integration candidate is preview-only; production activation needs a separate reviewed change.
+    NEXT_PUBLIC_REVIEW_API_ENABLED: process.env.SITE_INDEXABLE === 'false' && process.env.REVIEW_API_ENABLED === 'true' ? 'true' : 'false',
   },
   distDir: process.env.NEXT_BUILD_DIR || '.next',
   poweredByHeader: false,

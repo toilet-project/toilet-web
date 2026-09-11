@@ -23,7 +23,8 @@ import { fetchUnreadNotificationCount } from './api/notifications'
 import { getDisplayAddress } from './lib/address'
 import { ToiletDetailContents, DetailRow } from './components/ToiletDetailContents'
 import { ToiletCommunityRow, ToiletReportEntry } from './components/ToiletCommunityRow'
-import { REVIEW_DESIGN_PREVIEW, useIntegratedReviewPreview, type PreviewReviewSummary, type ReviewEntryState } from './components/reviews/useIntegratedReviewPreview'
+import { REVIEW_DESIGN_PREVIEW, type PreviewReviewSummary, type ReviewEntryState } from './components/reviews/useIntegratedReviewPreview'
+import { REVIEW_API_ENABLED, REVIEW_UI_ENABLED, useReviews } from './components/reviews/useReviews'
 import { readReviewTestToilet } from './lib/reviewTestToilet'
 import { DetailLoadingFields, LoadingOpenTime } from './components/ToiletCardLoading'
 import { hasValue, formatOpenTime, formatFacilityLocation } from './lib/detailFormatting'
@@ -284,7 +285,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
     locationMessageTimerRef.current = window.setTimeout(() => setLocationMessage(null), 4_000)
   }, [])
 
-  const reviewPreview = useIntegratedReviewPreview(authProfile?.status === 'ACTIVE' && !authProfile.consentRequired ? authProfile.userId : null, {
+  const reviewPreview = useReviews(authProfile?.status === 'ACTIVE' && !authProfile.consentRequired ? authProfile.userId : null, {
     requireLogin: () => {
       if (isAuthLoading) { showLocationMessage('로그인 상태를 확인하고 있어요. 잠시 후 다시 눌러 주세요.'); return }
       if (authProfile?.consentRequired) { showLocationMessage('필수 약관 동의를 먼저 완료해 주세요.'); return }
@@ -298,7 +299,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
       else if (profile.userId !== authProfile?.userId) showLocationMessage('로그인 계정이 변경됐어요. 리뷰를 다시 눌러 주세요.')
       return Boolean(profile && profile.userId === authProfile?.userId && profile.status === 'ACTIVE' && !profile.consentRequired)
     },
-  }, { embedded: !isDesktop, contextKey: `${selectedToilet?.id}:${expandedCoordinateToilet?.id}:${mobileTab}:${testToiletHash}`, onOpen: () => { if (!isDesktop) { setMobileTab('account'); setMobileAccountView('reviews') } }, onClose: () => setMobileAccountView('home') })
+  }, { embedded: !isDesktop, toiletId: expandedCoordinateToilet?.id ?? selectedToilet?.id, contextKey: `${selectedToilet?.id}:${expandedCoordinateToilet?.id}:${mobileTab}:${testToiletHash}`, onOpen: () => { if (!isDesktop) { setMobileTab('account'); setMobileAccountView('reviews') } }, onClose: () => setMobileAccountView('home') })
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(DESKTOP_LAYOUT_QUERY)
@@ -1250,7 +1251,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
   }, [areaToilets, openCoordinateGroup, selectToilet])
 
   return (
-    <main data-review-design-preview={REVIEW_DESIGN_PREVIEW || undefined} className={`app-shell${!isDesktop ? ' has-mobile-navigation' : ''}${!isDesktop && mobileTab !== 'map' ? ' is-mobile-page' : ''}`}>
+    <main data-review-design-preview={REVIEW_DESIGN_PREVIEW || undefined} data-review-api={REVIEW_API_ENABLED || undefined} className={`app-shell${!isDesktop ? ' has-mobile-navigation' : ''}${!isDesktop && mobileTab !== 'map' ? ' is-mobile-page' : ''}`}>
       <AppUpdateNotice blocked={Boolean(reviewPreview.active || reportTarget || isLoginDialogOpen || isAccountOpen || isMyReportsOpen || isNotificationsOpen || mobileTab !== 'map' || placeSearchKeyword || selectedCoordinateGroup || isMobileAreaListVisible || authProfile?.consentRequired)}
         beforeReload={() => {
           const map = mapRef.current
@@ -1313,7 +1314,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
             <button type="button" className="notification-button" onClick={() => setIsNotificationsOpen(true)} aria-label={unreadNotificationCount ? `읽지 않은 알림 ${unreadNotificationCount}개` : '알림'}><span aria-hidden="true" />{unreadNotificationCount > 0 && <strong>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</strong>}</button>
             <button type="button" className="header-account-button" onClick={() => setIsAccountOpen(true)}>내 계정</button>
           </> : <button type="button" className="header-account-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}>로그인 / 회원가입</button>}
-          <DesktopHeaderMenu authenticated={Boolean(authProfile)} onReviews={REVIEW_DESIGN_PREVIEW ? reviewPreview.openMine : undefined} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} />
+          <DesktopHeaderMenu authenticated={Boolean(authProfile)} onReviews={REVIEW_UI_ENABLED ? reviewPreview.openMine : undefined} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} />
         </div>}
         </div>
       </header>
@@ -1393,7 +1394,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
             <h1>{toiletDetail.name}</h1>
             <p>등록된 좌표가 없어 지도에 위치를 표시할 수 없습니다.</p>
             <p className="open-time">{formatOpenTime(toiletDetail)}</p>
-            {REVIEW_DESIGN_PREVIEW && <ToiletCommunityRow onReview={() => reviewPreview.open(toiletDetail)} reviewEntry={reviewPreview.entryState(toiletDetail.id)} previewSummary={reviewPreview.summary(toiletDetail.id)} />}
+            {REVIEW_UI_ENABLED && <ToiletCommunityRow onReview={() => reviewPreview.open(toiletDetail)} reviewEntry={reviewPreview.entryState(toiletDetail.id)} previewSummary={reviewPreview.summary(toiletDetail.id)} />}
             <ToiletDetailContents toilet={toiletDetail} />
           </aside>
         )}
@@ -1419,13 +1420,13 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
             </button>
             <div className="place-card-summary">
               <span className="card-label">{toiletDetail?.toiletType || selectedToilet.toiletType || '화장실'}</span>
-              {REVIEW_DESIGN_PREVIEW ? <div className="review-card-title-row"><h1>{toiletDetail?.name || selectedToilet.name}</h1><ToiletReportEntry disabled={!toiletDetail || selectedToilet.id === testToilet?.id} onClick={() => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) }} /></div> : <h1>{toiletDetail?.name || selectedToilet.name}</h1>}
+              {REVIEW_UI_ENABLED ? <div className="review-card-title-row"><h1>{toiletDetail?.name || selectedToilet.name}</h1><ToiletReportEntry disabled={!toiletDetail || selectedToilet.id === testToilet?.id} onClick={() => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) }} /></div> : <h1>{toiletDetail?.name || selectedToilet.name}</h1>}
             </div>
             <div ref={cardScrollRef} className="card-scroll-content">
               {toiletDetail ? <p className="open-time">{toiletDetail.id === testToilet?.id ? '프리뷰 전용 · 운영 데이터에 저장되지 않아요' : formatOpenTime(toiletDetail)}</p> : isDetailLoading && <LoadingOpenTime />}
               {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">{distanceReferenceLabel}</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">(직선거리)</span></div>}
               <ToiletCommunityRow pendingReport={!isDesktop && !toiletDetail} onReport={isDesktop ? undefined : toiletDetail ? () => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) : undefined}
-                pendingReview={REVIEW_DESIGN_PREVIEW && !toiletDetail} onReview={REVIEW_DESIGN_PREVIEW && toiletDetail ? () => reviewPreview.open(toiletDetail) : undefined} reviewEntry={reviewPreview.entryState(selectedToilet.id)} previewSummary={REVIEW_DESIGN_PREVIEW ? reviewPreview.summary(selectedToilet.id) : undefined} />
+                pendingReview={REVIEW_UI_ENABLED && !toiletDetail} onReview={REVIEW_UI_ENABLED && toiletDetail ? () => reviewPreview.open(toiletDetail) : undefined} reviewEntry={reviewPreview.entryState(selectedToilet.id)} previewSummary={REVIEW_UI_ENABLED ? reviewPreview.summary(selectedToilet.id) : undefined} />
               {detailError && <div><p className="detail-error" role="alert">{detailError}</p><button type="button" className="detail-retry" onClick={retryDetail}>다시 불러오기</button></div>}
               {!toiletDetail && isDetailLoading && <DetailLoadingFields />}
               {toiletDetail && (toiletDetail.id === testToilet?.id
@@ -1444,21 +1445,21 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
               {selectedCoordinateGroup.toilets.map((toilet, index) => {
                 const isExpanded = expandedCoordinateToilet?.id === toilet.id
                 return <div key={toilet.id} ref={(node) => { if (node) coordinateGroupItemRefs.current.set(toilet.id, node); else coordinateGroupItemRefs.current.delete(toilet.id) }} className={`coordinate-group-item${isExpanded ? ' is-expanded' : ''}`}>
-                  <div className={REVIEW_DESIGN_PREVIEW ? 'review-group-title-row' : undefined}><button type="button" className="coordinate-group-item-toggle" onClick={() => void toggleCoordinateToiletDetail(toilet)} aria-expanded={isExpanded}>
+                  <div className={REVIEW_UI_ENABLED ? 'review-group-title-row' : undefined}><button type="button" className="coordinate-group-item-toggle" onClick={() => void toggleCoordinateToiletDetail(toilet)} aria-expanded={isExpanded}>
                     <span className="coordinate-group-index" aria-hidden="true">{index + 1}</span>
                     <span className="coordinate-group-name">{toilet.name || '이름 없는 공중화장실'}</span>
                     <span className="coordinate-group-toggle-label">{isExpanded ? '접기' : '상세 보기'}</span>
-                  </button>{REVIEW_DESIGN_PREVIEW && isExpanded && <ToiletReportEntry disabled={!toiletDetail || toiletDetail.id !== toilet.id} onClick={() => { if (toiletDetail?.id === toilet.id) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }} />}</div>
+                  </button>{REVIEW_UI_ENABLED && isExpanded && <ToiletReportEntry disabled={!toiletDetail || toiletDetail.id !== toilet.id} onClick={() => { if (toiletDetail?.id === toilet.id) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }} />}</div>
                   {isExpanded && <CoordinateGroupInlineDetails
                     toilet={toiletDetail}
                     isLoading={isDetailLoading}
                     error={detailError}
                     onRetry={retryDetail}
                     onReport={isDesktop ? undefined : () => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }}
-                    pendingReview={REVIEW_DESIGN_PREVIEW && !toiletDetail}
-                    onReview={REVIEW_DESIGN_PREVIEW && toiletDetail?.id === toilet.id ? () => reviewPreview.open(toiletDetail) : undefined}
+                    pendingReview={REVIEW_UI_ENABLED && !toiletDetail}
+                    onReview={REVIEW_UI_ENABLED && toiletDetail?.id === toilet.id ? () => reviewPreview.open(toiletDetail) : undefined}
                     reviewEntry={reviewPreview.entryState(toilet.id)}
-                    previewSummary={REVIEW_DESIGN_PREVIEW ? reviewPreview.summary(toilet.id) : undefined}
+                    previewSummary={REVIEW_UI_ENABLED ? reviewPreview.summary(toilet.id) : undefined}
                   />}
                 </div>
               })}
@@ -1470,7 +1471,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
           accountView={mobileAccountView} focusedReportId={focusedReportId} reviewPage={reviewPreview.page}
           onBackAccount={() => { reviewPreview.close(); setMobileAccountView('home'); setFocusedReportId(null) }}
           onSessionExpired={handleSessionExpired}
-          onReviews={REVIEW_DESIGN_PREVIEW ? reviewPreview.openMine : undefined}
+          onReviews={REVIEW_UI_ENABLED ? reviewPreview.openMine : undefined}
           onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} onCountChange={refreshNotificationCount} onOpenReport={showReportHistory}
           beforeLogin={tab => { try { window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, tab) } catch { /* 로그인은 계속 제공 */ } }} />}
         {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); showReportHistory() }} />}

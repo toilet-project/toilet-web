@@ -5,6 +5,7 @@ import { attachReportViewport } from '../../lib/reportViewport'
 import { attachReviewInputVisibility } from '../../lib/reviewViewport'
 import { blankReview, reviewLength, validateReview, waitLabel, type ReviewInput } from '../../lib/review'
 import { ReviewGateError } from '../../lib/reviewLocation'
+import { ReviewApiError } from '../../lib/reviewApi'
 
 export function ReviewIcon({ name, size = 22, className }: { name: 'star' | 'review' | 'siren' | 'paper' | 'people' | 'close' | 'back' | 'check' | 'refresh' | 'trash'; size?: number; className?: string }) {
   const paths: Record<typeof name, ReactNode> = {
@@ -63,7 +64,7 @@ export function ReviewDialog({ toiletName, initial, onClose, onSave, eligibility
     if (problem) { setError(problem); return }
     busy.current=true; setSaving(true); setError('')
     try { await onSave({...value, comment:value.comment.trim()}) }
-    catch (error) { if (active.current) setError(error instanceof ReviewGateError ? error.message : '저장하지 못했어요. 입력 내용은 유지되니 다시 시도해 주세요.') }
+    catch (error) { if (active.current) setError(error instanceof ReviewGateError || error instanceof ReviewApiError ? error.message : '저장하지 못했어요. 입력 내용은 유지되니 다시 시도해 주세요.') }
     finally { busy.current=false; if (active.current) setSaving(false) }
   }
   const eligibilityPending = eligibility && eligibility.status !== 'ready'
