@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { historyDateLabel, historyRange, selectHistory } from '../../lib/history'
-import { canManageReview, waitLabel, type Review } from '../../lib/review'
+import { canManageReview, reviewAverageLabel, waitLabel, type Review } from '../../lib/review'
 import { HistoryFilters, HistoryHeading, HistoryMore } from '../HistoryControls'
 import { useHistoryWindow } from '../../lib/useHistoryWindow'
 
@@ -21,7 +21,7 @@ export function MyReviewsPanel<T extends Review>({ reviews, loading, error, mess
       {matching.slice(0, page.count).map(item => <article className="history-card" key={item.id}>
         <button type="button" className="history-review-summary rv-my-item" aria-expanded={expanded === item.id} onClick={() => { setExpanded(expanded === item.id ? null : item.id); setRemoving(null) }}>
           <span className="rv-my-top"><strong>{item.toiletName}</strong><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></span>
-          <span className="rv-my-stars">★ {item.satisfaction} / 5 <small>청결 {item.cleanliness} / 5 · 휴지 {item.paper ? '있음' : '없음'}</small></span>
+          <span className="rv-my-stars"><span title="만족도·청결도 평균">★ {reviewAverageLabel(item)} / 5</span> <small>휴지 {item.paper ? '있음' : '없음'}</small></span>
           <span className="rv-my-comment">{item.comment || '별점과 선택 항목으로 남긴 리뷰예요.'}</span>
           <span className="rv-my-meta"><time dateTime={item.createdAt}>{historyDateLabel(item.createdAt)}</time><b>{canManageReview(item) ? '수정 가능' : '7일 경과'}</b></span>
         </button>

@@ -2,6 +2,8 @@ export type ReviewInput = { satisfaction: number; cleanliness: number; paper: bo
 export type Review = ReviewInput & { id: string; toiletId: number; toiletName: string; createdAt: string; updatedAt: string; authorRemoved: boolean }
 export const blankReview = (): ReviewInput => ({ satisfaction: 0, cleanliness: 0, paper: null, waitMinutes: 0, comment: '' })
 export const reviewLength = (text: string) => Array.from(text).length
+/** Display-only average for one review; preserve the original ratings for detail/edit. */
+export const reviewAverageLabel = (review: Pick<Review, 'satisfaction' | 'cleanliness'>) => ((review.satisfaction + review.cleanliness) / 2).toFixed(1)
 export const waitLabel = (minutes: number) => minutes === 60 ? '1시간 이상' : `${minutes}분`
 export const canManageReview = (review: Pick<Review, 'authorRemoved' | 'createdAt'>, now = Date.now()) => {
   const created = Date.parse(review.createdAt)

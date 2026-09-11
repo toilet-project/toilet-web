@@ -1,11 +1,24 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
-import { blankReview, validateReview, canManageReview, waitLabel, reviewLength } from '../src/lib/review.ts'
+import { blankReview, validateReview, canManageReview, waitLabel, reviewLength, reviewAverageLabel } from '../src/lib/review.ts'
 import { reviewLocationProblem, REVIEW_LOCATION_MAX_AGE_MS } from '../src/lib/reviewLocation.ts'
 import { reviewInputScrollDelta } from '../src/lib/reviewViewport.ts'
 
 const valid = () => ({ ...blankReview(), satisfaction: 4, cleanliness: 5, paper: true })
+test('my-review summary averages both ratings with exactly one decimal and preserves the originals', () => {
+  for (let satisfaction = 1; satisfaction <= 5; satisfaction++) {
+    for (let cleanliness = 1; cleanliness <= 5; cleanliness++) {
+      const review = Object.freeze({ satisfaction, cleanliness })
+      const label = reviewAverageLabel(review)
+      assert.equal(Number(label), (satisfaction + cleanliness) / 2)
+      assert.match(label, /^[1-5]\.[05]$/)
+      assert.deepEqual(review, { satisfaction, cleanliness })
+    }
+  }
+  assert.equal(reviewAverageLabel({ satisfaction: 4, cleanliness: 5 }), '4.5')
+  assert.equal(reviewAverageLabel({ satisfaction: 5, cleanliness: 5 }), '5.0')
+})
 test('review requires both ratings and a boolean paper selection, optional fields may be blank', () => {
   assert.notEqual(validateReview(blankReview()), null)
   assert.equal(validateReview(valid()), null)
