@@ -37,6 +37,7 @@ const origin = 'http://127.0.0.1:4187'
    return route.continue()
   })
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message))
+  page.on('console', message => { if (/same key|Cannot update|unmounted component/i.test(message.text())) errors.push(message.text()) })
   await page.addInitScript(()=>document.addEventListener('DOMContentLoaded',()=>{const s=document.createElement('style');s.textContent='nextjs-portal {pointer-events:none!important}';document.head.append(s)}))
   await page.goto(origin+'/toilet/13144')
   const nav=page.getByRole('navigation',{name:'하단 내비게이션'})

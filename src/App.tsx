@@ -1388,13 +1388,13 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
           </aside>
         )}
         </div>
-        {!isDesktop && mobileTab !== 'map' && <MobilePage key={authProfile?.userId ?? 'anonymous'} tab={mobileTab} profile={authProfile} loading={isAuthLoading} unread={unreadNotificationCount}
+        {!isDesktop && mobileTab !== 'map' && <MobilePage key={`mobile-${authProfile?.userId ?? 'anonymous'}`} tab={mobileTab} profile={authProfile} loading={isAuthLoading} unread={unreadNotificationCount}
           onSessionExpired={handleSessionExpired}
           onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} onNotifications={() => setIsNotificationsOpen(true)}
           beforeLogin={tab => { try { window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, tab) } catch { /* 로그인은 계속 제공 */ } }} />}
         {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); setIsMyReportsOpen(true) }} />}
-        {authProfile && isMyReportsOpen && <MyReportsPanel key={authProfile.userId} onSessionExpired={handleSessionExpired} initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
-        {authProfile && isNotificationsOpen && <NotificationPanel key={authProfile.userId} onSessionExpired={handleSessionExpired} onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); setFocusedReportId(reportId); setIsMyReportsOpen(true) }} />}
+        {authProfile && isMyReportsOpen && <MyReportsPanel key={`reports-${authProfile.userId}`} onSessionExpired={handleSessionExpired} initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
+        {authProfile && isNotificationsOpen && <NotificationPanel key={`inbox-${authProfile.userId}`} onSessionExpired={handleSessionExpired} onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); setFocusedReportId(reportId); setIsMyReportsOpen(true) }} />}
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
         {authProfile?.consentRequired && <PolicyConsentModal isNewRegistration={authProfile.status === 'PENDING_CONSENT'} onComplete={handleConsentComplete} onLogout={handleLogout} />}
         {authProfile && isAccountOpen && <AccountDialog profile={authProfile} onClose={() => setIsAccountOpen(false)} onWithdrawn={handleWithdrawn} />}

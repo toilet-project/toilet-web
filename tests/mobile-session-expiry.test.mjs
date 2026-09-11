@@ -12,8 +12,8 @@ test('report and notification 401 share the profile expiration signal', () => {
 })
 test('private panels remount per owner and late notification counters are guarded', () => {
   const app = source('App.tsx')
-  assert.match(app, /<MyReportsPanel key=\{authProfile.userId\}/)
-  assert.match(app, /<NotificationPanel key=\{authProfile.userId\}/)
+  assert.ok(app.includes('<MyReportsPanel key={`reports-${authProfile.userId}`}'))
+  assert.ok(app.includes('<NotificationPanel key={`inbox-${authProfile.userId}`}'))
   assert.match(app, /currentUserRef.current === owner/)
   assert.match(source('components/MobileNavigation.tsx'), /<MyReportsPanel key=\{profile.userId\}/)
   assert.match(source('components/MobileNavigation.tsx'), /if \(!active.current\) return/)
