@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ReviewDialog, ReviewIcon, ReviewModal, type ReviewEligibility } from './ReviewDialog'
 import { canManageReview, waitLabel, type Review, type ReviewInput } from '../../lib/review'
-import { requireReviewLocation, ReviewGateError, type ReviewPoint } from '../../lib/reviewLocation'
+import { requireReviewLocation, ReviewGateError, REVIEW_LOCATION_MAX_AGE_MS, type ReviewPoint } from '../../lib/reviewLocation'
 
 export const REVIEW_DESIGN_PREVIEW = process.env.NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW === 'true'
 type Target = { id: number; name: string } & ReviewPoint
@@ -60,7 +60,7 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access)
         requireReviewLocation(next, { fresh }).then(timestamp => { locationDone = true; progress(); return timestamp }),
       ])
       if (token !== request.current || ownerRef.current !== owner) return
-      if (Date.now() - measuredAt > 60_000) throw new ReviewGateError('위치 확인 후 시간이 지났어요. 다시 확인해 주세요.')
+      if (Date.now() - measuredAt > REVIEW_LOCATION_MAX_AGE_MS) throw new ReviewGateError('위치 확인 후 시간이 지났어요. 다시 확인해 주세요.')
       setEligibility({ status: 'ready', message: '' })
     } catch (error) {
       failed = true
@@ -98,7 +98,7 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access)
     // Editing a previously verified review only requires the same signed-in author within seven days.
     const [, measuredAt] = await Promise.all([session(token), !editing ? requireReviewLocation(target) : Promise.resolve(null)])
     if (token !== request.current || ownerRef.current !== owner) throw new ReviewGateError('로그인이 변경됐어요. 다시 확인해 주세요.')
-    if (measuredAt !== null && Date.now() - measuredAt > 60_000) throw new ReviewGateError('위치 확인 후 시간이 지났어요. 다시 저장해 주세요.')
+    if (measuredAt !== null && Date.now() - measuredAt > REVIEW_LOCATION_MAX_AGE_MS) throw new ReviewGateError('위치 확인 후 시간이 지났어요. 다시 저장해 주세요.')
     if (editing && !canManageReview(editing)) throw new ReviewGateError('작성 후 7일이 지나 수정할 수 없어요.')
     const now = new Date().toISOString()
     setReviews(items => editing

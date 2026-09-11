@@ -2,6 +2,7 @@
 export type ReviewPoint = { latitude: number | null; longitude: number | null }
 export type ReviewFix = { coords: { latitude: number; longitude: number; accuracy: number }; timestamp: number }
 export class ReviewGateError extends Error {}
+export const REVIEW_LOCATION_MAX_AGE_MS = 5 * 60_000
 
 const validPoint = (point: ReviewPoint) => typeof point.latitude === 'number' && Number.isFinite(point.latitude) && Math.abs(point.latitude) <= 90
   && typeof point.longitude === 'number' && Number.isFinite(point.longitude) && Math.abs(point.longitude) <= 180
@@ -10,8 +11,8 @@ export function reviewLocationProblem(target: ReviewPoint, fix: ReviewFix, now =
   if (!validPoint(target)) return '이 화장실의 위치를 확인할 수 없어 리뷰를 작성할 수 없어요.'
   if (!validPoint(fix.coords) || !Number.isFinite(fix.coords.accuracy) || fix.coords.accuracy < 0 || fix.coords.accuracy > 50)
     return '위치 정확도가 50m 이하여야 해요. 정확한 위치를 켜고 다시 시도해 주세요.'
-  if (!Number.isFinite(fix.timestamp) || now - fix.timestamp > 60_000 || fix.timestamp - now > 5_000)
-    return '최근 1분 이내 위치를 확인하지 못했어요. 다시 시도해 주세요.'
+  if (!Number.isFinite(fix.timestamp) || now - fix.timestamp > REVIEW_LOCATION_MAX_AGE_MS || fix.timestamp - now > 5_000)
+    return '최근 5분 이내 위치를 확인하지 못했어요. 다시 시도해 주세요.'
   const radians = (degrees: number) => degrees * Math.PI / 180
   const a = Math.sin(radians(fix.coords.latitude - target.latitude!) / 2) ** 2
     + Math.cos(radians(target.latitude!)) * Math.cos(radians(fix.coords.latitude)) * Math.sin(radians(fix.coords.longitude - target.longitude!) / 2) ** 2
@@ -28,9 +29,9 @@ export async function requireReviewLocation(target: ReviewPoint, { fresh = false
     navigator.geolocation.getCurrentPosition(position => { window.clearTimeout(timer); resolve(position) }, error => {
       window.clearTimeout(timer)
       reject(new ReviewGateError(error.code === 1 ? '리뷰를 쓰려면 현재 위치 권한을 허용해 주세요.' : '현재 위치를 확인하지 못했어요. 잠시 후 다시 시도해 주세요.'))
-    // A browser-owned fix within the agreed one-minute window is sufficient.
+    // A browser-owned fix within the agreed five-minute window is sufficient.
     // Explicit retry requests a new fix, not the same inaccurate cached result.
-    }, { enableHighAccuracy: true, maximumAge: fresh ? 0 : 60_000, timeout: 10_000 })
+    }, { enableHighAccuracy: true, maximumAge: fresh ? 0 : REVIEW_LOCATION_MAX_AGE_MS, timeout: 10_000 })
   })
   const problem = reviewLocationProblem(target, fix)
   if (problem) throw new ReviewGateError(problem)

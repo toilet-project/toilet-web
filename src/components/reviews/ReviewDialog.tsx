@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useDialogFocus } from '../../lib/useDialogFocus'
 import { attachReportViewport } from '../../lib/reportViewport'
+import { attachReviewInputVisibility } from '../../lib/reviewViewport'
 import { blankReview, reviewLength, validateReview, waitLabel, type ReviewInput } from '../../lib/review'
 import { ReviewGateError } from '../../lib/reviewLocation'
 
@@ -21,7 +22,12 @@ export function ReviewIcon({ name, size = 22, className }: { name: 'star' | 'rev
 export function ReviewModal({ title, onClose, onBack, children, footer }: { title: string; onClose: () => void; onBack?: () => void; children: ReactNode; footer?: ReactNode }) {
   const dialog = useDialogFocus(true, onClose)
   const backdrop = useRef<HTMLDivElement>(null)
-  useEffect(() => { if (backdrop.current) return attachReportViewport(backdrop.current) }, [])
+  useEffect(() => {
+    if (!backdrop.current) return
+    const detachViewport = attachReportViewport(backdrop.current)
+    const detachInput = attachReviewInputVisibility(backdrop.current)
+    return () => { detachInput(); detachViewport() }
+  }, [])
   return <div className="rv-backdrop" ref={backdrop} onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
     <section className="rv-dialog" ref={dialog} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
       <header className="rv-toolbar">{onBack ? <button type="button" className="rv-icon-button" onClick={onBack} aria-label="뒤로가기"><ReviewIcon name="back" /></button> : <span className="rv-toolbar-mark"><ReviewIcon name="review" size={19} /></span>}<strong>{title}</strong><button type="button" className="rv-icon-button" aria-label="닫기" onClick={onClose}><ReviewIcon name="close" /></button></header>

@@ -2,7 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { blankReview, validateReview, canManageReview, waitLabel, reviewLength } from '../src/lib/review.ts'
-import { reviewLocationProblem } from '../src/lib/reviewLocation.ts'
+import { reviewLocationProblem, REVIEW_LOCATION_MAX_AGE_MS } from '../src/lib/reviewLocation.ts'
+import { reviewInputScrollDelta } from '../src/lib/reviewViewport.ts'
 
 const valid = () => ({ ...blankReview(), satisfaction: 4, cleanliness: 5, paper: true })
 test('review requires both ratings and a boolean paper selection, optional fields may be blank', () => {
@@ -84,10 +85,11 @@ test('existing map review integration is build-gated and memory-only with accoun
 
 test('review location rejects far, inaccurate, stale, invalid and implausibly future measurements', () => {
   const now = 1_800_000_000_000, target = { latitude: 36.35, longitude: 127.35 }
-  const fix = { coords: { ...target, accuracy: 50 }, timestamp: now - 60_000 }
-  assert.equal(reviewLocationProblem(target, fix, now), null)
+  const fix = { coords: { ...target, accuracy: 50 }, timestamp: now - REVIEW_LOCATION_MAX_AGE_MS }
+  assert.equal(REVIEW_LOCATION_MAX_AGE_MS, 300_000)
+  for (const age of [0, 60_001, 299_999, 300_000]) assert.equal(reviewLocationProblem(target, { ...fix, timestamp: now - age }, now), null)
   for (const accuracy of [-1, 50.001, NaN, Infinity]) assert.match(reviewLocationProblem(target, { ...fix, coords: { ...fix.coords, accuracy } }, now), /정확도/)
-  for (const timestamp of [now - 60_001, now + 5_001, NaN]) assert.match(reviewLocationProblem(target, { ...fix, timestamp }, now), /1분/)
+  for (const timestamp of [now - 300_001, now + 5_001, NaN]) assert.match(reviewLocationProblem(target, { ...fix, timestamp }, now), /5분/)
   for (const metres of [149.9, 150.1]) {
     const coords = { ...fix.coords, latitude: target.latitude + metres / 6_371_000 * 180 / Math.PI }
     assert.equal(reviewLocationProblem(target, { ...fix, coords }, now) === null, metres < 150)
@@ -118,7 +120,8 @@ test('review check opens immediately; input starts only after eligibility and su
   assert.match(form, /!canWrite \? <div className="rv-preflight"/)
   assert.match(form, /\{canWrite && <button/)
   assert.match(form, /setStarted\(true\); setError\(''\); setValue/)
-  assert.match(location, /maximumAge: fresh \? 0 : 60_000/)
+  assert.match(location, /maximumAge: fresh \? 0 : REVIEW_LOCATION_MAX_AGE_MS/)
+  assert.equal((hook.match(/Date.now\(\) - measuredAt > REVIEW_LOCATION_MAX_AGE_MS/g) ?? []).length, 2)
   assert.doesNotMatch(hook, /리뷰 이용 조건을 확인하고 있어요/)
 })
 
@@ -128,4 +131,18 @@ test('paper choice has distinct blue and red selected states while retaining tex
   assert.match(form, /data-paper=\{paper \? 'available' : 'missing'\} aria-pressed/)
   assert.match(css, /button\[data-paper=available\]\[aria-pressed=true\].*color: #245e9c/)
   assert.match(css, /button\[data-paper=missing\]\[aria-pressed=true\].*color: #a53b36/)
+})
+
+test('review keyboard visibility prioritises input and label inside the card body', () => {
+  const body = { top: 100, bottom: 320 }
+  assert.equal(reviewInputScrollDelta(body, { top: 150, bottom: 230 }, 125), 0)
+  assert.equal(reviewInputScrollDelta(body, { top: 300, bottom: 380 }, 275), 163)
+  assert.equal(reviewInputScrollDelta(body, { top: 90, bottom: 170 }, 65), -47)
+  assert.equal(reviewInputScrollDelta({ top: 100, bottom: 204 }, { top: 300, bottom: 380 }, 275), 188)
+  assert.equal(reviewInputScrollDelta({ top: 100, bottom: 110 }, { top: 300, bottom: 380 }, 275), 0)
+  const source = readFileSync(new URL('../src/lib/reviewViewport.ts', import.meta.url), 'utf8')
+  assert.match(source, /body.scrollTop \+= delta/)
+  assert.match(source, /observer\?\.disconnect\(\)/)
+  assert.match(source, /viewport.scale - 1/)
+  assert.doesNotMatch(source, /window.scrollTo\(|\.scrollIntoView\(/)
 })
