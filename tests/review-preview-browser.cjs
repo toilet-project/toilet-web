@@ -14,7 +14,7 @@ const visible = async locator => assert.equal(await locator.isVisible(), true)
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 })
     const page = await context.newPage()
     const writes = [], errors = []
-    page.on('request', r => { if (!['GET', 'HEAD'].includes(r.method())) writes.push(r.method()) })
+    page.on('request', r => { if (!['GET', 'HEAD'].includes(r.method())) { const u = new URL(r.url()); writes.push({ method: r.method(), origin: u.origin, path: u.pathname }) } })
     page.on('pageerror', e => errors.push(e.message))
     await page.goto(origin + '/review-preview', { waitUntil: 'networkidle' })
     await page.screenshot({ path: path.join(output, 'review-card-mobile.png'), fullPage: true })
@@ -97,8 +97,11 @@ const visible = async locator => assert.equal(await locator.isVisible(), true)
       await p.screenshot({ path: path.join(output, `review-form-${width}.png`) })
       await ctx.close()
     }
-    assert.deepEqual(writes, [], 'preview must never submit a request')
+    // Cloudflare's existing same-origin RUM beacon is infrastructure telemetry,
+    // not a review mutation. Do not permit any other POST or API write.
+    const infrastructureBeacons = writes.filter(r => r.method === 'POST' && r.origin === 'https://preview.geupddong.com' && r.path === '/cdn-cgi/rum')
+    assert.deepEqual(writes.filter(r => !infrastructureBeacons.includes(r)), [], 'preview must never submit review/member writes')
     assert.deepEqual(errors, [])
-    console.log('REVIEW_PREVIEW_PASS create/edit/detach/retention/7day/150m/failure/login/reset/320/390/1280; no HTTP writes')
+    console.log(`REVIEW_PREVIEW_PASS create/edit/detach/retention/7day/150m/failure/login/reset/320/390/1280; no review/member writes; existing RUM beacons=${infrastructureBeacons.length}`)
   } finally { await browser.close() }
 })().catch(e => { console.error(e); process.exitCode = 1 })
