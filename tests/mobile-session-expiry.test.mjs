@@ -16,6 +16,7 @@ test('private panels remount per owner and late notification counters are guarde
   assert.match(app, /<NotificationPanel key=\{authProfile.userId\}/)
   assert.match(app, /currentUserRef.current === owner/)
   assert.match(source('components/MobileNavigation.tsx'), /<MyReportsPanel key=\{profile.userId\}/)
+  assert.match(source('components/MobileNavigation.tsx'), /if \(!active.current\) return/)
 })
 test('expired session clears private details and retains only a navigation intent', () => {
   const app = source('App.tsx')

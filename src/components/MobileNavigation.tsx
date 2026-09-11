@@ -53,13 +53,16 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
   const [nickname, setNickname] = useState(profile.displayName || '')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
+  const active = useRef(false)
+  useEffect(() => { active.current = true; return () => { active.current = false } }, [])
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); setSaving(true); setMessage('')
     try {
       const result = await updateNickname(nickname)
+      if (!active.current) return
       onProfile({ ...profile, displayName: result.displayName }); setEditing(false); setMessage('닉네임을 변경했어요.')
-    } catch (reason) { if (reason instanceof AuthExpiredError) onSessionExpired(); else setMessage(reason instanceof Error ? reason.message : '닉네임을 저장하지 못했어요.') }
-    finally { setSaving(false) }
+    } catch (reason) { if (!active.current) return; if (reason instanceof AuthExpiredError) onSessionExpired(); else setMessage(reason instanceof Error ? reason.message : '닉네임을 저장하지 못했어요.') }
+    finally { if (active.current) setSaving(false) }
   }
   return <section className="mobile-profile-card" aria-label="내 프로필">
     <div className="mobile-avatar-wrap"><div className="mobile-avatar" role="img" aria-label="기본 프로필 이미지"><Icon name="account" /></div>
