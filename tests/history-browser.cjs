@@ -100,7 +100,7 @@ const iso = age => new Date(now-age*day).toISOString()
     await page.evaluate(time=>{window.historyTestNow=time},now-i*1000)
     await page.locator('.map-stage .place-card').getByRole('button',{name:'리뷰',exact:true}).click()
     const form=page.getByRole('dialog',{name:'리뷰 쓰기',exact:true})
-    await form.getByRole('radio',{name:'만족도 4점'}).check();await form.getByRole('radio',{name:'청결도 5점'}).check();await form.getByRole('button',{name:'있었어요',exact:true}).click();await form.locator('textarea').fill(`리뷰 목록 시험 ${String(i+1).padStart(2,'0')}`);await form.getByRole('button',{name:'리뷰 남기기',exact:true}).click();await page.getByRole('button',{name:'카드로 돌아가기',exact:true}).click()
+    await form.getByRole('radio',{name:'만족도 4점'}).check();await form.getByRole('radio',{name:'청결도 5점'}).check();await form.getByRole('button',{name:'있었어요',exact:true}).click();await form.locator('textarea').fill(`리뷰 목록 시험 ${String(i+1).padStart(2,'0')}`);await form.getByRole('button',{name:'리뷰 남기기',exact:true}).click();await page.getByRole('button',{name:'지도로 돌아가기',exact:true}).click()
    }
    await page.evaluate(time=>{window.historyTestNow=time},now)
    await nav.getByRole('button',{name:'내 페이지',exact:true}).click();await shell.getByRole('button',{name:'내 리뷰',exact:true}).click()

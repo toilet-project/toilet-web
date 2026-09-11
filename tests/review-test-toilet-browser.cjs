@@ -75,7 +75,7 @@ const hash = '#review-test=36.3504,127.3845' // Public city hall; never commit p
       await form.getByRole('button', { name: '있었어요', exact: true }).click()
       await form.getByRole('button', { name: '리뷰 남기기', exact: true }).click()
       await page.getByRole('dialog', { name: '리뷰를 저장했어요', exact: true }).waitFor()
-      await page.getByRole('button', { name: '카드로 돌아가기', exact: true }).click()
+      await page.getByRole('button', { name: '지도로 돌아가기', exact: true }).click()
       for (let i=0;i<2;i++) {
         if (i === 1) await page.evaluate(() => { const now = Date.now; Date.now = () => now() + 61000 })
         await card.getByRole('button', { name: '정보 닫기' }).click()
