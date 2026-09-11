@@ -1,10 +1,10 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { historyRange, historyRangeProblem, historyToday, type HistoryRange } from '../lib/history'
 import { historyScroller } from '../lib/useHistoryWindow'
-export function HistoryHeading({ title, description, onBack, id }: { title: string; description: string; onBack?: () => void; id?: string }) {
-  return <header className="history-heading">{onBack && <button type="button" className="history-back" onClick={onBack} aria-label="내 페이지로 돌아가기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 5-7 7 7 7" /></svg><span>내 페이지</span></button>}<h1 id={id}>{title}</h1><p>{description}</p></header>
+export function HistoryHeading({ title, description, onClose, id }: { title: string; description: string; onClose?: () => void; id?: string }) {
+  return <header className="history-heading"><div className="history-title-row"><h1 id={id}>{title}</h1>{onClose && <button type="button" className="history-close" onClick={onClose} aria-label={`${title} 닫기`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" /></svg></button>}</div><p>{description}</p></header>
 }
-export function HistoryFilters({ value, onChange, count }: { value: HistoryRange; onChange: (value: HistoryRange) => void; count: number }) {
+export function HistoryFilters({ value, onChange, count, countLabel }: { value: HistoryRange; onChange: (value: HistoryRange) => void; count: number; countLabel?: string }) {
   const [open, setOpen] = useState(false)
   const [from, setFrom] = useState(value.from), [to, setTo] = useState(value.to)
   const [error, setError] = useState('')
@@ -23,10 +23,10 @@ export function HistoryFilters({ value, onChange, count }: { value: HistoryRange
       {error && <p id={`${id}-error`} role="alert">{error}</p>}
       <div className="history-date-actions"><button type="button" onClick={() => { setOpen(false); toggle.current?.focus() }}>취소</button><button type="submit">적용하기</button></div>
     </form>}
-    <div className="history-range-caption"><span>{value.period === 'all' ? '전체 기간' : `${value.from.replaceAll('-', '.')} – ${value.to.replaceAll('-', '.')}`}</span><span>{count}개 · 최신순</span></div>
+    <div className="history-range-caption"><span>{value.period === 'all' ? '전체 기간' : `${value.from.replaceAll('-', '.')} – ${value.to.replaceAll('-', '.')}`}</span><span>{countLabel ?? `${count}개 · 최신순`}</span></div>
   </div>
 }
-export function HistoryMore({ count, total, onMore }: { count: number; total: number; onMore: () => void }) {
+export function HistoryMore({ count, total, onMore, label }: { count: number; total: number; onMore: () => void; label?: string }) {
   const button = useRef<HTMLButtonElement>(null)
   const latest = useRef(onMore)
   useEffect(() => { latest.current = onMore }, [onMore])
@@ -38,5 +38,5 @@ export function HistoryMore({ count, total, onMore }: { count: number; total: nu
     observer.observe(button.current)
     return () => observer.disconnect()
   }, [count, total])
-  return count < total ? <button ref={button} type="button" className="history-more" onClick={onMore}>더 보기 <span>{count} / {total}</span></button> : total > 0 ? <p className="history-end">모든 내역을 확인했어요</p> : null
+  return count < total ? <button ref={button} type="button" className="history-more" onClick={onMore}>{label ?? <>더 보기 <span>{count} / {total}</span></>}</button> : total > 0 ? <p className="history-end">모든 내역을 확인했어요</p> : null
 }

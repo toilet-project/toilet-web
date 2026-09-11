@@ -80,8 +80,7 @@ export function MyReportsPanel({ onClose, onSessionExpired, initialExpandedId = 
   return <div className={`history-list ${embedded ? 'my-reports-embedded' : 'my-reports-backdrop'}`} onMouseDown={(event) => { if (!embedded && event.target === event.currentTarget) onClose() }}>
     <section ref={dialog} tabIndex={embedded ? undefined : -1} className="my-reports-panel" role={embedded ? undefined : 'dialog'} aria-modal={embedded ? undefined : true} aria-labelledby={titleId}>
       <div className="my-reports-header">
-        <HistoryHeading id={titleId} title="내 제보" description="제보 처리 상태와 관리자 검토 내용을 확인할 수 있어요." onBack={onBack} />
-        {!embedded && <button type="button" onClick={onClose} aria-label="내 제보 닫기">×</button>}
+        <HistoryHeading id={titleId} title="내 제보" description="제보 처리 상태와 관리자 검토 내용을 확인할 수 있어요." onClose={embedded ? onBack : onClose} />
       </div>
       <HistoryFilters value={range} onChange={value => { reset(); setRange(value) }} count={matchingReports.length} />
       <nav className="my-reports-filters" aria-label="제보 상태 필터">

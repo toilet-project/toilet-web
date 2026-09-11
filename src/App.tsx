@@ -285,7 +285,6 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
   }, [])
 
   const reviewPreview = useIntegratedReviewPreview(authProfile?.status === 'ACTIVE' && !authProfile.consentRequired ? authProfile.userId : null, {
-    notify: showLocationMessage,
     requireLogin: () => {
       if (isAuthLoading) { showLocationMessage('로그인 상태를 확인하고 있어요. 잠시 후 다시 눌러 주세요.'); return }
       if (authProfile?.consentRequired) { showLocationMessage('필수 약관 동의를 먼저 완료해 주세요.'); return }
@@ -323,7 +322,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
       if (pendingTab === 'account' || pendingTab === 'notifications') setMobileTab(pendingTab)
       const openInbox = window.sessionStorage.getItem(PENDING_INBOX_KEY) === 'true'
       window.sessionStorage.removeItem(PENDING_INBOX_KEY)
-      if (openInbox) { setIsNotificationsOpen(true); return }
+      if (openInbox) { if (isDesktop) setIsNotificationsOpen(true); else setMobileTab('notifications'); return }
       const openMyReports = window.sessionStorage.getItem(PENDING_MY_REPORTS_KEY) === 'true'
       window.sessionStorage.removeItem(PENDING_MY_REPORTS_KEY)
       if (openMyReports) {
@@ -341,7 +340,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
     } catch {
       try { window.sessionStorage.removeItem(PENDING_REPORT_TARGET_KEY) } catch { /* 저장소 사용 불가 환경 */ }
     }
-  }, [showReportHistory])
+  }, [isDesktop, showReportHistory])
 
   useEffect(() => {
     let active = true
@@ -1472,12 +1471,12 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
           onBackAccount={() => { reviewPreview.close(); setMobileAccountView('home'); setFocusedReportId(null) }}
           onSessionExpired={handleSessionExpired}
           onReviews={REVIEW_DESIGN_PREVIEW ? reviewPreview.openMine : undefined}
-          onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} onNotifications={() => setIsNotificationsOpen(true)}
+          onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} onCountChange={refreshNotificationCount} onOpenReport={showReportHistory}
           beforeLogin={tab => { try { window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, tab) } catch { /* 로그인은 계속 제공 */ } }} />}
         {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); showReportHistory() }} />}
         {reviewPreview.modal}
         {authProfile && isDesktop && isMyReportsOpen && <MyReportsPanel key={`reports-${authProfile.userId}`} onSessionExpired={handleSessionExpired} initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
-        {authProfile && isNotificationsOpen && <NotificationPanel key={`inbox-${authProfile.userId}`} onSessionExpired={handleSessionExpired} onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); showReportHistory(reportId) }} />}
+        {authProfile && isDesktop && isNotificationsOpen && <NotificationPanel key={`inbox-${authProfile.userId}`} unread={unreadNotificationCount} onSessionExpired={handleSessionExpired} onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); showReportHistory(reportId) }} />}
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
         {authProfile?.consentRequired && <PolicyConsentModal isNewRegistration={authProfile.status === 'PENDING_CONSENT'} onComplete={handleConsentComplete} onLogout={handleLogout} />}
         {authProfile && isAccountOpen && <AccountDialog profile={authProfile} onClose={() => setIsAccountOpen(false)} onWithdrawn={handleWithdrawn} />}

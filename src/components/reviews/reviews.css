@@ -58,6 +58,9 @@
 .review-entry.is-checking { opacity: 1; cursor: wait; }
 .review-entry.is-checking>svg { animation: review-entry-spin 1s linear infinite; }
 .review-entry-status { position: absolute!important; width: 1px!important; height: 1px!important; margin: -1px!important; padding: 0!important; overflow: hidden!important; clip-path: inset(50%); white-space: nowrap; }
-.app-shell[data-review-design-preview=true] .location-message { z-index: 8; top: 72px; bottom: auto; left: 50%; right: auto; transform: translateX(-50%); width: max-content; max-width: min(320px,calc(100% - 24px)); }
+.review-entry-hint { position: fixed; z-index: 75; visibility: hidden; box-sizing: border-box; width: max-content; max-width: min(310px,calc(100vw - 24px)); padding: 11px 14px; border-radius: 12px; background: #244e38; color: #fff; font-size: 13px; line-height: 1.55; box-shadow: 0 5px 18px #18392426; pointer-events: none; }
+.review-entry-hint::after { position: absolute; left: var(--hint-arrow,50%); width: 9px; height: 9px; background: #244e38; transform: translateX(-50%) rotate(45deg); content: ''; }
+.review-entry-hint[data-side=above]::after { bottom: -4px; }
+.review-entry-hint[data-side=below]::after { top: -4px; }
 @keyframes review-entry-spin { to { transform: rotate(360deg); } }
 @media(prefers-reduced-motion:reduce) { .review-entry.is-checking>svg { animation: none; } }

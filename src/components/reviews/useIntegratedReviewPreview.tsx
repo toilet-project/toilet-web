@@ -10,9 +10,9 @@ import { MyReviewsPanel } from './MyReviewsPanel'
 export const REVIEW_DESIGN_PREVIEW = process.env.NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW === 'true'
 type Target = { id: number; name: string } & ReviewPoint
 type LocatedReview = Review & ReviewPoint
-type Access = { requireLogin: () => void; verifySession: (isCurrent: () => boolean) => Promise<boolean>; notify: (message: string) => void }
+type Access = { requireLogin: () => void; verifySession: (isCurrent: () => boolean) => Promise<boolean> }
 export type PreviewReviewSummary = { count: number; rating: string; paper: number; congestion: string }
-export type ReviewEntryState = { status: 'checking' | 'retry'; message: string }
+export type ReviewEntryState = { status: 'checking' | 'retry' | 'notice'; message: string }
 type Entry = ReviewEntryState & { id: number }
 type MineNavigation = { embedded: boolean; onOpen: () => void; onClose: () => void; contextKey: string }
 
@@ -80,8 +80,7 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
       request.current++ // A failed check must not surface the other late completion.
       const message = error instanceof ReviewGateError ? error.message : '위치를 확인하지 못했어요. 다시 시도해 주세요.'
       if (fromCard) {
-        updateEntry(error instanceof ReviewGateError && error.code === 'distance' ? null : { id: next.id, status: 'retry', message })
-        access.notify(message)
+        updateEntry({ id: next.id, status: error instanceof ReviewGateError && error.code === 'distance' ? 'notice' : 'retry', message })
       } else setEligibility({ status: 'blocked', message })
     }
   }

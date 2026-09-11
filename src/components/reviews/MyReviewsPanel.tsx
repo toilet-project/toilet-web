@@ -13,7 +13,7 @@ export function MyReviewsPanel<T extends Review>({ reviews, loading, error, mess
   const matching = useMemo(() => selectHistory(reviews.filter(item => !item.authorRemoved), range), [reviews, range])
   const page = useHistoryWindow(matching.length, JSON.stringify(range))
   return <section className="history-list history-reviews" aria-label="내 리뷰 목록">
-    <HistoryHeading title="내 리뷰" description="내가 남긴 이용 경험을 한곳에서 확인해요." onBack={onBack} />
+    <HistoryHeading title="내 리뷰" description="내가 남긴 이용 경험을 한곳에서 확인해요." onClose={onBack} />
     <HistoryFilters value={range} count={matching.length} onChange={value => { page.reset(); setRange(value); setExpanded(null); setRemoving(null) }} />
     {loading ? <p className="mobile-page-loading" role="status">로그인 상태를 확인하고 있어요.</p> : error ? <div className="my-reports-retry"><p className="my-reports-retry-message" role="alert">{error}</p><button type="button" className="my-reports-retry-button" onClick={onRetry}>다시 확인</button></div> : <>
       {message && <p className="rv-retention-note" role="status">{message}</p>}
