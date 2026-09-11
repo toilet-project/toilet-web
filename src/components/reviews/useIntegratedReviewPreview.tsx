@@ -70,7 +70,7 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access)
   const open = (next: Target) => {
     if (!REVIEW_DESIGN_PREVIEW) return
     if (!owner) { access.requireLogin(); return }
-    // Draft UI is immediate; registration stays disabled until both checks pass.
+    // Show the check immediately, but reveal inputs only after both checks pass.
     setTarget({ id: next.id, name: next.name, latitude: next.latitude, longitude: next.longitude }); setEditing(null)
     setSelected(null); setRemoving(false); setMine(false); setSaved(false); setMessage('')
     void checkEligibility(next)

@@ -52,3 +52,10 @@
 .rv-location-refresh:disabled { opacity: .4; cursor: default; }
 .rv-save-error { display: flex; align-items: center; gap: 8px; }
 .rv-save-error>span { flex: 1; min-width: 0; }
+.rv-paper-field button[data-paper=available][aria-pressed=true] { background: #edf5ff; border-color: #8eb6e8; color: #245e9c; }
+.rv-paper-field button[data-paper=missing][aria-pressed=true] { background: #fff1f0; border-color: #e6aaa6; color: #a53b36; }
+.rv-preflight { padding: 12px 0 4px; }
+.rv-preflight strong { font-size: 15px; color: #375541; }
+.rv-preflight p { margin: 10px 0 0; color: #778b7d; font-size: 13px; line-height: 1.8; }
+.rv-dialog:has(.rv-preflight) .rv-target { margin-bottom: 8px; }
+.rv-dialog:has(.rv-preflight) .rv-eligibility { margin-bottom: 0; }

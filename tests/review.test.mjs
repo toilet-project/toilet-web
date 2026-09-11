@@ -105,7 +105,7 @@ test('review form uses aligned ten-minute tap targets and integer ratings withou
   assert.match(css, /\.rv-dialog:has\(\.rv-required-fields\) \{ height: min\(760px,100%\)/)
 })
 
-test('review draft opens before parallel eligibility checks; only verified submission is enabled', () => {
+test('review check opens immediately; input starts only after eligibility and subsequent retry preserves drafts', () => {
   const hook = readFileSync(new URL('../src/components/reviews/useIntegratedReviewPreview.tsx', import.meta.url), 'utf8')
   const form = readFileSync(new URL('../src/components/reviews/ReviewDialog.tsx', import.meta.url), 'utf8')
   const location = readFileSync(new URL('../src/lib/reviewLocation.ts', import.meta.url), 'utf8')
@@ -114,6 +114,18 @@ test('review draft opens before parallel eligibility checks; only verified submi
   assert.match(hook, /Promise.all\(/)
   assert.match(hook, /eligibility.status !== 'ready'/)
   assert.match(form, /disabled=\{saving \|\| Boolean\(eligibilityPending\)\}/)
+  assert.match(form, /const canWrite = started \|\| !eligibility \|\| eligibility.status === 'ready'/)
+  assert.match(form, /!canWrite \? <div className="rv-preflight"/)
+  assert.match(form, /\{canWrite && <button/)
+  assert.match(form, /setStarted\(true\); setError\(''\); setValue/)
   assert.match(location, /maximumAge: fresh \? 0 : 60_000/)
   assert.doesNotMatch(hook, /리뷰 이용 조건을 확인하고 있어요/)
+})
+
+test('paper choice has distinct blue and red selected states while retaining text and pressed semantics', () => {
+  const form = readFileSync(new URL('../src/components/reviews/ReviewDialog.tsx', import.meta.url), 'utf8')
+  const css = readFileSync(new URL('../src/components/reviews/reviews.css', import.meta.url), 'utf8')
+  assert.match(form, /data-paper=\{paper \? 'available' : 'missing'\} aria-pressed/)
+  assert.match(css, /button\[data-paper=available\]\[aria-pressed=true\].*color: #245e9c/)
+  assert.match(css, /button\[data-paper=missing\]\[aria-pressed=true\].*color: #a53b36/)
 })
