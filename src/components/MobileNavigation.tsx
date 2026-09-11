@@ -87,7 +87,7 @@ export function MobilePage({ tab, profile, loading, unread, onProfile, onReports
   onReviews?: () => void;
 }) {
   return <section className="mobile-page" aria-label={tab === 'account' ? '내 페이지' : '알림 페이지'}>
-    {loading ? <p className="mobile-page-loading" role="status">불러오는 중…</p> : !profile ? <><LoginLanding tab={tab} onLogin={provider => { beforeLogin(tab); startSocialLogin(provider) }} />{onReviews && tab === 'account' && <div className="mobile-account-links"><button type="button" onClick={onReviews}><Icon name="community" /><span>내 리뷰</span><small>프리뷰 체험</small><span aria-hidden="true">›</span></button></div>}</> : tab === 'account' ? <>
+    {loading ? <p className="mobile-page-loading" role="status">불러오는 중…</p> : !profile ? <LoginLanding tab={tab} onLogin={provider => { beforeLogin(tab); startSocialLogin(provider) }} /> : tab === 'account' ? <>
       <header className="mobile-page-heading"><h1>내 페이지</h1></header>
       <ProfileCard key={profile.userId} profile={profile} onProfile={onProfile} onSessionExpired={onSessionExpired} />
       <div className="mobile-account-links">{onReviews && <button type="button" onClick={onReviews}><Icon name="community" /><span>내 리뷰</span><span aria-hidden="true">›</span></button>}<button type="button" onClick={onReports}><Icon name="community" /><span>내 제보</span><span aria-hidden="true">›</span></button><button type="button" onClick={onAccount}><Icon name="settings" /><span>계정 관리 · 동의 내역</span><span aria-hidden="true">›</span></button></div>

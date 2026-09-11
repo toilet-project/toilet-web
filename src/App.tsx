@@ -42,7 +42,7 @@ type SelectedCoordinateGroup = { latitude: number; longitude: number; toilets: T
 type CardPosition = { left: number; top: number }
 type Coordinates = { latitude: number; longitude: number }
 type ReportTarget = { toilet: ToiletDetailResponse; latitude: number; longitude: number }
-type LoginPurpose = 'general' | 'report' | 'my-reports'
+type LoginPurpose = 'general' | 'report' | 'my-reports' | 'review'
 
 const PLACE_CARD_WIDTH = 360
 const MAP_EDGE_GAP = 18
@@ -248,7 +248,6 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const [mapZoomLevel, setMapZoomLevel] = useState(3)
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null)
   const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null)
-  const reviewPreview = useIntegratedReviewPreview(authProfile?.userId ?? 'preview-guest')
   const currentUserRef = useRef<string | null>(null)
   useLayoutEffect(() => { currentUserRef.current = authProfile?.userId ?? null }, [authProfile?.userId])
   const [isAuthLoading, setIsAuthLoading] = useState(true)
@@ -268,6 +267,23 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     setLocationMessage(message)
     locationMessageTimerRef.current = window.setTimeout(() => setLocationMessage(null), 4_000)
   }, [])
+
+  const reviewPreview = useIntegratedReviewPreview(authProfile?.status === 'ACTIVE' && !authProfile.consentRequired ? authProfile.userId : null, {
+    notify: showLocationMessage,
+    requireLogin: () => {
+      if (isAuthLoading) { showLocationMessage('로그인 상태를 확인하고 있어요. 잠시 후 다시 눌러 주세요.'); return }
+      if (authProfile?.consentRequired) { showLocationMessage('필수 약관 동의를 먼저 완료해 주세요.'); return }
+      setLoginPurpose('review'); setIsLoginDialogOpen(true)
+    },
+    verifySession: async () => {
+      const profile = await getCurrentUser()
+      if (currentUserRef.current !== authProfile?.userId) return false
+      setAuthProfile(profile)
+      if (!profile) { setLoginPurpose('review'); setIsLoginDialogOpen(true) }
+      else if (profile.userId !== authProfile?.userId) showLocationMessage('로그인 계정이 변경됐어요. 리뷰를 다시 눌러 주세요.')
+      return Boolean(profile && profile.userId === authProfile?.userId && profile.status === 'ACTIVE' && !profile.consentRequired)
+    },
+  })
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(DESKTOP_LAYOUT_QUERY)
@@ -1423,7 +1439,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
 
 function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () => void }) {
   const title = '로그인 · 간편가입'
-  const description = purpose === 'my-reports' ? '내가 보낸 제보의 대기·승인·반려 상태와 관리자 메모를 확인할 수 있어요.' : '제보 내용은 관리자 확인 후 서비스에 반영됩니다.'
+  const description = purpose === 'review' ? '리뷰는 로그인 후 이용할 수 있어요. 로그인한 뒤 리뷰 버튼을 다시 눌러 주세요. 새 리뷰는 화장실 150m 이내에서 현재 위치를 확인해요.' : purpose === 'my-reports' ? '내가 보낸 제보의 대기·승인·반려 상태와 관리자 메모를 확인할 수 있어요.' : '제보 내용은 관리자 확인 후 서비스에 반영됩니다.'
   return <div className="login-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
       <button type="button" className="login-modal-close" onClick={onClose} aria-label="로그인 창 닫기">×</button>

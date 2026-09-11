@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { blankReview, validateReview, canManageReview, waitLabel, reviewLength } from '../src/lib/review.ts'
+import { reviewLocationProblem } from '../src/lib/reviewLocation.ts'
 
 const valid = () => ({ ...blankReview(), satisfaction: 4, cleanliness: 5, paper: true })
 test('review requires both ratings and a boolean paper selection, optional fields may be blank', () => {
@@ -57,7 +58,34 @@ test('existing map review integration is build-gated and memory-only with accoun
   assert.match(hook, /ownerRef.current !== owner/)
   assert.match(hook, /setReviews\(\[\]\)/)
   assert.doesNotMatch(hook, /\bfetch\s*\(|navigator\.geolocation|localStorage|sessionStorage/)
+  assert.match(hook, /if \(!owner\) \{ access.requireLogin\(\)/)
+  assert.match(hook, /await requireReviewLocation\(next\)/)
+  assert.match(hook, /!editing \? await requireReviewLocation\(target\)/)
+  assert.match(hook, /access.verifySession\(\)/)
   assert.match(app, /onReview=\{REVIEW_DESIGN_PREVIEW/)
   assert.match(app, /onReviews=\{REVIEW_DESIGN_PREVIEW \? reviewPreview.openMine : undefined\}/)
   assert.match(app, /reviewPreview.active \|\| reportTarget/)
+})
+
+test('review location rejects far, inaccurate, stale, invalid and implausibly future measurements', () => {
+  const now = 1_800_000_000_000, target = { latitude: 36.35, longitude: 127.35 }
+  const fix = { coords: { ...target, accuracy: 50 }, timestamp: now - 60_000 }
+  assert.equal(reviewLocationProblem(target, fix, now), null)
+  for (const accuracy of [-1, 50.001, NaN, Infinity]) assert.match(reviewLocationProblem(target, { ...fix, coords: { ...fix.coords, accuracy } }, now), /정확도/)
+  for (const timestamp of [now - 60_001, now + 5_001, NaN]) assert.match(reviewLocationProblem(target, { ...fix, timestamp }, now), /1분/)
+  for (const metres of [149.9, 150.1]) {
+    const coords = { ...fix.coords, latitude: target.latitude + metres / 6_371_000 * 180 / Math.PI }
+    assert.equal(reviewLocationProblem(target, { ...fix, coords }, now) === null, metres < 150)
+  }
+  for (const latitude of [null, NaN, 91]) assert.match(reviewLocationProblem({ ...target, latitude }, fix, now), /화장실의 위치/)
+})
+
+test('review form uses aligned ten-minute tap targets and integer ratings without preview banner', () => {
+  const form = readFileSync(new URL('../src/components/reviews/ReviewDialog.tsx', import.meta.url), 'utf8')
+  const css = readFileSync(new URL('../src/components/reviews/reviews.css', import.meta.url), 'utf8')
+  assert.match(form, /\[0,10,20,30,40,50,60\]/)
+  assert.match(form, /<small>\/ 5<\/small>/)
+  assert.doesNotMatch(form, /previewNotice|rv-integrated-notice/)
+  assert.match(css, /grid-template-columns: repeat\(7,minmax\(0,1fr\)\)/)
+  assert.match(css, /\.rv-dialog:has\(\.rv-required-fields\) \{ height: min\(760px,100%\)/)
 })
