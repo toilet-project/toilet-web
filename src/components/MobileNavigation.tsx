@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { AuthExpiredError, startSocialLogin, updateNickname, type AuthProfile } from '../api/auth'
 import { MyReportsPanel } from './MyReportsPanel'
 
@@ -88,7 +88,9 @@ export function MobilePage({ tab, profile, loading, unread, onProfile, onReports
   onReviews?: () => void;
   accountView?: MobileAccountView; onBackAccount: () => void; reviewPage?: ReactNode; focusedReportId?: number | null;
 }) {
-  return <section className="mobile-page" aria-label={tab === 'account' ? '내 페이지' : '알림 페이지'}>
+  const page = useRef<HTMLElement>(null)
+  useLayoutEffect(() => { if (page.current) page.current.scrollTop = 0 }, [tab, accountView])
+  return <section ref={page} className="mobile-page" aria-label={tab === 'account' ? '내 페이지' : '알림 페이지'}>
     {loading ? <p className="mobile-page-loading" role="status">불러오는 중…</p> : !profile ? <LoginLanding tab={tab} onLogin={provider => { beforeLogin(tab); startSocialLogin(provider) }} />
       : tab === 'account' && accountView === 'reports' ? <MyReportsPanel key={`account-reports-${profile.userId}-${focusedReportId ?? 'list'}`} embedded onSessionExpired={onSessionExpired} initialExpandedId={focusedReportId} onClose={onBackAccount} onBack={onBackAccount} />
       : tab === 'account' && accountView === 'reviews' && onReviews ? reviewPage
