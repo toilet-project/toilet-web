@@ -254,7 +254,6 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null)
   const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null)
   const currentUserRef = useRef<string | null>(null)
-  useLayoutEffect(() => { currentUserRef.current = authProfile?.userId ?? null }, [authProfile?.userId])
   const [isAuthLoading, setIsAuthLoading] = useState(true)
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false)
   const [loginPurpose, setLoginPurpose] = useState<LoginPurpose>('general')
@@ -264,6 +263,18 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
   const [isAccountOpen, setIsAccountOpen] = useState(false)
   const [mobileTab, setMobileTab] = useState<MobileTab>('map')
+  const [mobileAccountView, setMobileAccountView] = useState<'home' | 'reports' | 'reviews'>('home')
+  useLayoutEffect(() => {
+    const next = authProfile?.userId ?? null
+    // Initial OAuth return may already have selected a pending history destination.
+    if (currentUserRef.current && currentUserRef.current !== next) setMobileAccountView('home')
+    currentUserRef.current = next
+  }, [authProfile?.userId])
+  const showReportHistory = useCallback((reportId: number | null = null) => {
+    setFocusedReportId(reportId)
+    if (window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) setIsMyReportsOpen(true)
+    else { setIsMyReportsOpen(false); setMobileTab('account'); setMobileAccountView('reports') }
+  }, [])
   useLayoutEffect(() => { groupRef.current = selectedCoordinateGroup }, [selectedCoordinateGroup])
   useEffect(() => { onMounted() }, [onMounted])
 
@@ -287,7 +298,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
       else if (profile.userId !== authProfile?.userId) showLocationMessage('로그인 계정이 변경됐어요. 리뷰를 다시 눌러 주세요.')
       return Boolean(profile && profile.userId === authProfile?.userId && profile.status === 'ACTIVE' && !profile.consentRequired)
     },
-  })
+  }, { embedded: !isDesktop, onOpen: () => { if (!isDesktop) { setMobileTab('account'); setMobileAccountView('reviews') } }, onClose: () => setMobileAccountView('home') })
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(DESKTOP_LAYOUT_QUERY)
@@ -315,7 +326,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
       const openMyReports = window.sessionStorage.getItem(PENDING_MY_REPORTS_KEY) === 'true'
       window.sessionStorage.removeItem(PENDING_MY_REPORTS_KEY)
       if (openMyReports) {
-        setIsMyReportsOpen(true)
+        showReportHistory()
         return
       }
       const savedTarget = window.sessionStorage.getItem(PENDING_REPORT_TARGET_KEY)
@@ -329,7 +340,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
     } catch {
       try { window.sessionStorage.removeItem(PENDING_REPORT_TARGET_KEY) } catch { /* 저장소 사용 불가 환경 */ }
     }
-  }, [])
+  }, [showReportHistory])
 
   useEffect(() => {
     let active = true
@@ -379,9 +390,8 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
       showLocationMessage('내 제보를 확인하려면 필수 약관에 먼저 동의해 주세요.')
       return
     }
-    setFocusedReportId(null)
-    setIsMyReportsOpen(true)
-  }, [authProfile, showLocationMessage])
+    showReportHistory()
+  }, [authProfile, showLocationMessage, showReportHistory])
 
   const handleSessionExpired = useCallback(() => {
     if (!currentUserRef.current) return
@@ -392,14 +402,14 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
       window.sessionStorage.removeItem(PENDING_INBOX_KEY)
       if (!isDesktop) window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, mobileTab === 'map' ? 'notifications' : mobileTab)
       if (isNotificationsOpen) window.sessionStorage.setItem(PENDING_INBOX_KEY, 'true')
-      else if (isMyReportsOpen) window.sessionStorage.setItem(PENDING_MY_REPORTS_KEY, 'true')
+      else if (isMyReportsOpen || mobileAccountView === 'reports') window.sessionStorage.setItem(PENDING_MY_REPORTS_KEY, 'true')
     } catch { /* Login remains available when storage is disabled. */ }
-    setAuthProfile(null); setUnreadNotificationCount(0); setFocusedReportId(null)
+    setAuthProfile(null); setUnreadNotificationCount(0); setFocusedReportId(null); setMobileAccountView('home')
     setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setReportTarget(null)
     showLocationMessage('로그인이 만료되었어요. 다시 로그인해 주세요.')
     if (isDesktop) { setLoginPurpose('general'); setIsLoginDialogOpen(true) }
     else if (mobileTab === 'map') setMobileTab('notifications')
-  }, [isDesktop, mobileTab, isNotificationsOpen, isMyReportsOpen, showLocationMessage])
+  }, [isDesktop, mobileTab, mobileAccountView, isNotificationsOpen, isMyReportsOpen, showLocationMessage])
 
   const refreshNotificationCount = useCallback(() => {
     if (!authProfile) return
@@ -1296,7 +1306,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
         </div>
         {!isDesktop && <div className="mobile-header-actions">
           {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => setMobileTab('account')}>로그인</button>}
-          <DesktopHeaderMenu compact authenticated={Boolean(authProfile)} onReports={openMyReports} onAccount={() => setMobileTab('account')} onLogout={handleLogout} />
+          <DesktopHeaderMenu compact authenticated={Boolean(authProfile)} onReports={openMyReports} onAccount={() => { reviewPreview.close(); setMobileTab('account'); setMobileAccountView('home') }} onLogout={handleLogout} />
         </div>}
         {isDesktop && <div className="desktop-header-actions">
           {isAuthLoading ? <span className="auth-status">확인 중…</span> : authProfile ? <>
@@ -1456,14 +1466,16 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
         )}
         </div>
         {!isDesktop && mobileTab !== 'map' && <MobilePage key={`mobile-${authProfile?.userId ?? 'anonymous'}`} tab={mobileTab} profile={authProfile} loading={isAuthLoading} unread={unreadNotificationCount}
+          accountView={mobileAccountView} focusedReportId={focusedReportId} reviewPage={reviewPreview.page}
+          onBackAccount={() => { reviewPreview.close(); setMobileAccountView('home'); setFocusedReportId(null) }}
           onSessionExpired={handleSessionExpired}
           onReviews={REVIEW_DESIGN_PREVIEW ? reviewPreview.openMine : undefined}
           onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} onNotifications={() => setIsNotificationsOpen(true)}
           beforeLogin={tab => { try { window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, tab) } catch { /* 로그인은 계속 제공 */ } }} />}
-        {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); setIsMyReportsOpen(true) }} />}
+        {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); showReportHistory() }} />}
         {reviewPreview.modal}
-        {authProfile && isMyReportsOpen && <MyReportsPanel key={`reports-${authProfile.userId}`} onSessionExpired={handleSessionExpired} initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
-        {authProfile && isNotificationsOpen && <NotificationPanel key={`inbox-${authProfile.userId}`} onSessionExpired={handleSessionExpired} onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); setFocusedReportId(reportId); setIsMyReportsOpen(true) }} />}
+        {authProfile && isDesktop && isMyReportsOpen && <MyReportsPanel key={`reports-${authProfile.userId}`} onSessionExpired={handleSessionExpired} initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
+        {authProfile && isNotificationsOpen && <NotificationPanel key={`inbox-${authProfile.userId}`} onSessionExpired={handleSessionExpired} onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); showReportHistory(reportId) }} />}
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
         {authProfile?.consentRequired && <PolicyConsentModal isNewRegistration={authProfile.status === 'PENDING_CONSENT'} onComplete={handleConsentComplete} onLogout={handleLogout} />}
         {authProfile && isAccountOpen && <AccountDialog profile={authProfile} onClose={() => setIsAccountOpen(false)} onWithdrawn={handleWithdrawn} />}
@@ -1475,7 +1487,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
         </section></div>}
         {!isAuthLoading && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('recovery') === 'required' && <AccountRecoveryDialog />}
       </section>
-      {isDesktop ? <footer className="site-footer"><p>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</p><PolicyFooter /></footer> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
+      {isDesktop ? <footer className="site-footer"><p>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</p><PolicyFooter /></footer> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { reviewPreview.close(); setMobileAccountView('home'); setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
     </main>
   )
 }

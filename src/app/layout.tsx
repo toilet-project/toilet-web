@@ -6,6 +6,7 @@ import '../App.css'
 import '../components/mobile-navigation.css'
 import '../components/app-update.css'
 import '../components/reviews/reviews.css'
+import '../components/history.css'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://geupddong.com'),
