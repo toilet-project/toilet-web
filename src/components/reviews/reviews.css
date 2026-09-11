@@ -54,8 +54,10 @@
 .rv-save-error>span { flex: 1; min-width: 0; }
 .rv-paper-field button[data-paper=available][aria-pressed=true] { background: #edf5ff; border-color: #8eb6e8; color: #245e9c; }
 .rv-paper-field button[data-paper=missing][aria-pressed=true] { background: #fff1f0; border-color: #e6aaa6; color: #a53b36; }
-.rv-preflight { padding: 12px 0 4px; }
-.rv-preflight strong { font-size: 15px; color: #375541; }
-.rv-preflight p { margin: 10px 0 0; color: #778b7d; font-size: 13px; line-height: 1.8; }
-.rv-dialog:has(.rv-preflight) .rv-target { margin-bottom: 8px; }
-.rv-dialog:has(.rv-preflight) .rv-eligibility { margin-bottom: 0; }
+.review-entry { -webkit-tap-highlight-color: transparent; }
+.review-entry.is-checking { opacity: 1; cursor: wait; }
+.review-entry.is-checking>svg { animation: review-entry-spin 1s linear infinite; }
+.review-entry-status { position: absolute!important; width: 1px!important; height: 1px!important; margin: -1px!important; padding: 0!important; overflow: hidden!important; clip-path: inset(50%); white-space: nowrap; }
+.app-shell[data-review-design-preview=true] .location-message { z-index: 8; top: 72px; bottom: auto; left: 50%; right: auto; transform: translateX(-50%); width: max-content; max-width: min(320px,calc(100% - 24px)); }
+@keyframes review-entry-spin { to { transform: rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) { .review-entry.is-checking>svg { animation: none; } }

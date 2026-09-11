@@ -69,7 +69,7 @@ test('future toilet metrics are placeholders in a 44px row, with a labeled repor
 test('group details put metrics below hours; desktop single and group cards omit only report action', async () => {
   const app = await source('../src/App.tsx')
   const inline = app.slice(app.indexOf('function CoordinateGroupInlineDetails'), app.indexOf('function CompactFacilityStatus'))
-  assert.match(inline, /<div className="coordinate-inline-details">\s*<p className="open-time">\{formatOpenTime\(toilet\)\}<\/p>\s*<ToiletCommunityRow onReport=\{onReport\} onReview=\{onReview\} previewSummary=\{previewSummary\} \/>/)
+  assert.match(inline, /<div className="coordinate-inline-details">\s*<p className="open-time">\{formatOpenTime\(toilet\)\}<\/p>\s*<ToiletCommunityRow onReport=\{onReport\} onReview=\{onReview\} reviewEntry=\{reviewEntry\} previewSummary=\{previewSummary\} \/>/)
   assert.equal((inline.match(/<ToiletCommunityRow/g) || []).length, 2)
   assert.equal((app.match(/onReport=\{isDesktop \? undefined :/g) || []).length, 2)
   const row = await source('../src/components/ToiletCommunityRow.tsx')

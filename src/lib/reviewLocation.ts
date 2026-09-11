@@ -1,7 +1,11 @@
 /** Client-side preview eligibility only; the review API must enforce its own rules. */
 export type ReviewPoint = { latitude: number | null; longitude: number | null }
 export type ReviewFix = { coords: { latitude: number; longitude: number; accuracy: number }; timestamp: number }
-export class ReviewGateError extends Error {}
+export class ReviewGateError extends Error {
+  readonly code: 'location' | 'distance' | 'session'
+  constructor(message: string, code: 'location' | 'distance' | 'session' = 'location') { super(message); this.code = code }
+}
+const OUTSIDE_REVIEW_RANGE = '150m 이내에서 작성할 수 있어요'
 export const REVIEW_LOCATION_MAX_AGE_MS = 5 * 60_000
 
 const validPoint = (point: ReviewPoint) => typeof point.latitude === 'number' && Number.isFinite(point.latitude) && Math.abs(point.latitude) <= 90
@@ -17,7 +21,7 @@ export function reviewLocationProblem(target: ReviewPoint, fix: ReviewFix, now =
   const a = Math.sin(radians(fix.coords.latitude - target.latitude!) / 2) ** 2
     + Math.cos(radians(target.latitude!)) * Math.cos(radians(fix.coords.latitude)) * Math.sin(radians(fix.coords.longitude - target.longitude!) / 2) ** 2
   const distance = 2 * 6_371_000 * Math.asin(Math.sqrt(Math.min(1, Math.max(0, a))))
-  return distance > 150 ? '150m 이내에서 작성할 수 있어요' : null
+  return distance > 150 ? OUTSIDE_REVIEW_RANGE : null
 }
 
 export async function requireReviewLocation(target: ReviewPoint, { fresh = false }: { fresh?: boolean } = {}): Promise<number> {
@@ -34,7 +38,7 @@ export async function requireReviewLocation(target: ReviewPoint, { fresh = false
     }, { enableHighAccuracy: true, maximumAge: fresh ? 0 : REVIEW_LOCATION_MAX_AGE_MS, timeout: 10_000 })
   })
   const problem = reviewLocationProblem(target, fix)
-  if (problem) throw new ReviewGateError(problem)
+  if (problem) throw new ReviewGateError(problem, problem === OUTSIDE_REVIEW_RANGE ? 'distance' : 'location')
   // Do not retain or transmit the user's coordinates.
   return fix.timestamp
 }
