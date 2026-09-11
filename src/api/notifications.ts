@@ -1,4 +1,6 @@
 import { createApiUrl } from '../config/api'
+import { AuthExpiredError } from './auth'
+import { fetchSessionRead } from './session'
 
 export type UserNotification = {
   id: number
@@ -21,19 +23,19 @@ export type UserNotificationPage = {
 }
 
 async function checked(response: Response, fallback: string) {
-  if (response.status === 401) throw new Error('로그인이 필요합니다.')
+  if (response.status === 401) throw new AuthExpiredError('로그인이 만료되었어요. 다시 로그인해 주세요.')
   if (!response.ok) throw new Error(fallback)
   return response
 }
 
 export async function fetchNotifications(unreadOnly = false, page = 0): Promise<UserNotificationPage> {
   const query = new URLSearchParams({ unreadOnly: String(unreadOnly), page: String(page), size: '20' })
-  const response = await checked(await fetch(createApiUrl(`/api/v1/notifications?${query}`), { credentials: 'include' }), '알림을 불러오지 못했습니다.')
+  const response = await checked(await fetchSessionRead(createApiUrl(`/api/v1/notifications?${query}`)), '알림을 불러오지 못했습니다.')
   return response.json() as Promise<UserNotificationPage>
 }
 
 export async function fetchUnreadNotificationCount(): Promise<number> {
-  const response = await checked(await fetch(createApiUrl('/api/v1/notifications/unread-count'), { credentials: 'include' }), '알림 수를 확인하지 못했습니다.')
+  const response = await checked(await fetchSessionRead(createApiUrl('/api/v1/notifications/unread-count')), '알림 수를 확인하지 못했습니다.')
   const payload = await response.json() as { count: number }
   return payload.count
 }
