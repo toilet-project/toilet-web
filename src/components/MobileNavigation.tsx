@@ -91,7 +91,7 @@ export function MobilePage({ tab, profile, loading, unread, onProfile, onReports
     </> : <>
       <header className="mobile-page-heading"><h1>알림</h1><label className="mobile-notification-category"><span className="sr-only">알림 항목</span><select aria-label="알림 항목" value="my-reports" onChange={() => {}}><option value="my-reports">내 제보</option></select></label></header>
       <button type="button" className="mobile-inbox-link" onClick={onNotifications}><Icon name="notifications" /><span>받은 알림</span>{unread > 0 && <b>{unread}</b>}<span aria-hidden="true">›</span></button>
-      <MyReportsPanel embedded onClose={() => {}} />
+      <MyReportsPanel key={profile.userId} embedded onSessionExpired={onSessionExpired} onClose={() => {}} />
     </>}
   </section>
 }

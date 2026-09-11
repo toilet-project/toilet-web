@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { fetchMyToiletReports, type ToiletReport, type ToiletReportStatus } from '../api/reports'
 import { getDisplayAddress } from '../lib/address'
 import { reportReadErrorMessage } from '../lib/report-error'
+import { AuthExpiredError } from '../api/auth'
+import { useDialogFocus } from '../lib/useDialogFocus'
 
 type Filter = 'ALL' | ToiletReportStatus
 
@@ -22,7 +24,10 @@ const formatDate = (value?: string | null) => value
   ? new Intl.DateTimeFormat('ko-KR', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
   : '-'
 
-export function MyReportsPanel({ onClose, initialExpandedId = null, embedded = false }: { onClose: () => void; initialExpandedId?: number | null; embedded?: boolean }) {
+export function MyReportsPanel({ onClose, onSessionExpired, initialExpandedId = null, embedded = false }: { onClose: () => void; onSessionExpired: () => void; initialExpandedId?: number | null; embedded?: boolean }) {
+  const dialog = useDialogFocus(!embedded, onClose)
+  const expireRef = useRef(onSessionExpired)
+  useEffect(() => { expireRef.current = onSessionExpired }, [onSessionExpired])
   const [reports, setReports] = useState<ToiletReport[]>([])
   const [filter, setFilter] = useState<Filter>('ALL')
   const [isLoading, setIsLoading] = useState(true)
@@ -36,7 +41,11 @@ export function MyReportsPanel({ onClose, initialExpandedId = null, embedded = f
     let active = true
     void fetchMyToiletReports()
       .then((items) => { if (active) setReports(items) })
-      .catch((reason: unknown) => { if (active) setError(reportReadErrorMessage(reason)) })
+      .catch((reason: unknown) => {
+        if (!active) return
+        if (reason instanceof AuthExpiredError) { setReports([]); expireRef.current(); return }
+        setError(reportReadErrorMessage(reason))
+      })
       .finally(() => { if (active) setIsLoading(false) })
     return () => { active = false }
   }, [requestVersion])
@@ -59,13 +68,13 @@ export function MyReportsPanel({ onClose, initialExpandedId = null, embedded = f
   }, [initialExpandedId, isLoading])
 
   return <div className={embedded ? 'my-reports-embedded' : 'my-reports-backdrop'} onMouseDown={(event) => { if (!embedded && event.target === event.currentTarget) onClose() }}>
-    <section className="my-reports-panel" role={embedded ? undefined : 'dialog'} aria-modal={embedded ? undefined : true} aria-labelledby={titleId}>
+    <section ref={dialog} tabIndex={embedded ? undefined : -1} className="my-reports-panel" role={embedded ? undefined : 'dialog'} aria-modal={embedded ? undefined : true} aria-labelledby={titleId}>
       <header className="my-reports-header">
         <div><span>급똥 계정</span><h1 id={titleId}>내 제보</h1><p>제보 처리 상태와 관리자 검토 내용을 확인할 수 있어요.</p></div>
         {!embedded && <button type="button" onClick={onClose} aria-label="내 제보 닫기">×</button>}
       </header>
       <nav className="my-reports-filters" aria-label="제보 상태 필터">
-        {filters.map((item) => <button key={item.value} type="button" className={filter === item.value ? 'is-active' : ''} onClick={() => setFilter(item.value)}>
+        {filters.map((item) => <button key={item.value} type="button" aria-pressed={filter === item.value} className={filter === item.value ? 'is-active' : ''} onClick={() => setFilter(item.value)}>
           {item.label}<span>{item.value === 'ALL' ? reports.length : reports.filter((report) => report.status === item.value).length}</span>
         </button>)}
       </nav>

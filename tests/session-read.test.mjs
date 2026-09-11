@@ -112,11 +112,14 @@ test('initial network failure does not trigger refresh', async () => {
   assert.equal(calls, 1)
 })
 
-test('only current-user and my-report reads opt into replay', () => {
+test('account, report and notification GET reads opt into replay, mutations do not', () => {
   const source = (file) => readFileSync(new URL(`../src/api/${file}.ts`, import.meta.url), 'utf8')
   assert.match(source('reports'), /fetchSessionRead\(createApiUrl\('\/api\/v1\/reports\/me'\)\)/)
   assert.match(source('reports'), /fetch\(createApiUrl\('\/api\/v1\/reports'\)/)
   assert.equal((source('auth').match(/await fetchSessionRead\(/g) ?? []).length, 1)
   assert.match(source('auth'), /fetchSessionRead\(createApiUrl\('\/api\/v1\/auth\/me'\)\)/)
   assert.match(source('auth'), /method: 'DELETE'/)
+  assert.equal((source('notifications').match(/await fetchSessionRead\(/g) ?? []).length, 2)
+  assert.match(source('notifications'), /await fetch\(createApiUrl\(`\/api\/v1\/notifications\/\$\{notificationId\}\/read`\)/)
+  assert.match(source('notifications'), /await fetch\(createApiUrl\('\/api\/v1\/notifications\/read-all'\)/)
 })

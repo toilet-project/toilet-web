@@ -10,7 +10,7 @@ import { MobileNavigation, MobilePage, type MobileTab } from './components/Mobil
 import { AppUpdateNotice } from './components/AppUpdateNotice'
 import { readMapResume, saveMapResume, MAP_RESUME_KEY } from './lib/appUpdate'
 import { MAP_NAVIGATION_EVENT, mapNavigationPath } from './lib/navigationCache'
-import { getCurrentUser, logout, startSocialLogin, type AuthProfile } from './api/auth'
+import { AuthExpiredError, getCurrentUser, logout, startSocialLogin, type AuthProfile } from './api/auth'
 import { createKakaoMap, searchKakaoPlaces, type KakaoMapInstance, type KakaoOverlay, type KakaoPlace } from './lib/kakaoMap'
 import { ToiletReportModal } from './components/ToiletReportModal'
 import { MyReportsPanel } from './components/MyReportsPanel'
@@ -48,6 +48,7 @@ const MAP_EDGE_GAP = 18
 const PENDING_REPORT_TARGET_KEY = 'geupddong.pending-report-target'
 const PENDING_MY_REPORTS_KEY = 'geupddong.pending-my-reports'
 const PENDING_MOBILE_TAB_KEY = 'geupddong.pending-mobile-tab'
+const PENDING_INBOX_KEY = 'geupddong.pending-inbox'
 
 
 function calculateDistanceInMeters(from: Coordinates, to: Coordinates) {
@@ -246,6 +247,8 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const [mapZoomLevel, setMapZoomLevel] = useState(3)
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null)
   const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null)
+  const currentUserRef = useRef<string | null>(null)
+  useLayoutEffect(() => { currentUserRef.current = authProfile?.userId ?? null }, [authProfile?.userId])
   const [isAuthLoading, setIsAuthLoading] = useState(true)
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false)
   const [loginPurpose, setLoginPurpose] = useState<LoginPurpose>('general')
@@ -284,6 +287,9 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       const pendingTab = window.sessionStorage.getItem(PENDING_MOBILE_TAB_KEY)
       window.sessionStorage.removeItem(PENDING_MOBILE_TAB_KEY)
       if (pendingTab === 'account' || pendingTab === 'notifications') setMobileTab(pendingTab)
+      const openInbox = window.sessionStorage.getItem(PENDING_INBOX_KEY) === 'true'
+      window.sessionStorage.removeItem(PENDING_INBOX_KEY)
+      if (openInbox) { setIsNotificationsOpen(true); return }
       const openMyReports = window.sessionStorage.getItem(PENDING_MY_REPORTS_KEY) === 'true'
       window.sessionStorage.removeItem(PENDING_MY_REPORTS_KEY)
       if (openMyReports) {
@@ -354,14 +360,35 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     setIsMyReportsOpen(true)
   }, [authProfile, showLocationMessage])
 
+  const handleSessionExpired = useCallback(() => {
+    if (!currentUserRef.current) return
+    currentUserRef.current = null
+    try {
+      window.sessionStorage.removeItem(PENDING_REPORT_TARGET_KEY)
+      window.sessionStorage.removeItem(PENDING_MY_REPORTS_KEY)
+      window.sessionStorage.removeItem(PENDING_INBOX_KEY)
+      if (!isDesktop) window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, mobileTab === 'map' ? 'notifications' : mobileTab)
+      if (isNotificationsOpen) window.sessionStorage.setItem(PENDING_INBOX_KEY, 'true')
+      else if (isMyReportsOpen) window.sessionStorage.setItem(PENDING_MY_REPORTS_KEY, 'true')
+    } catch { /* Login remains available when storage is disabled. */ }
+    setAuthProfile(null); setUnreadNotificationCount(0); setFocusedReportId(null)
+    setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setReportTarget(null)
+    showLocationMessage('로그인이 만료되었어요. 다시 로그인해 주세요.')
+    if (isDesktop) { setLoginPurpose('general'); setIsLoginDialogOpen(true) }
+    else if (mobileTab === 'map') setMobileTab('notifications')
+  }, [isDesktop, mobileTab, isNotificationsOpen, isMyReportsOpen, showLocationMessage])
+
   const refreshNotificationCount = useCallback(() => {
     if (!authProfile) return
-    void fetchUnreadNotificationCount().then(setUnreadNotificationCount).catch(() => undefined)
-  }, [authProfile])
+    const owner = authProfile.userId
+    void fetchUnreadNotificationCount()
+      .then(count => { if (currentUserRef.current === owner) setUnreadNotificationCount(count) })
+      .catch(reason => { if (currentUserRef.current === owner && reason instanceof AuthExpiredError) handleSessionExpired() })
+  }, [authProfile, handleSessionExpired])
 
   useEffect(() => {
     if (!authProfile) return
-    void fetchUnreadNotificationCount().then(setUnreadNotificationCount).catch(() => undefined)
+    refreshNotificationCount()
     const interval = window.setInterval(refreshNotificationCount, 60_000)
     return () => window.clearInterval(interval)
   }, [authProfile, refreshNotificationCount])
@@ -369,6 +396,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const closeLoginDialog = useCallback(() => {
     try { window.sessionStorage.removeItem(PENDING_REPORT_TARGET_KEY) } catch { /* 저장소 사용 불가 환경 */ }
     try { window.sessionStorage.removeItem(PENDING_MY_REPORTS_KEY) } catch { /* 저장소 사용 불가 환경 */ }
+    try { window.sessionStorage.removeItem(PENDING_INBOX_KEY) } catch { /* 저장소 사용 불가 환경 */ }
     setIsLoginDialogOpen(false)
   }, [])
 
@@ -1360,13 +1388,13 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
           </aside>
         )}
         </div>
-        {!isDesktop && mobileTab !== 'map' && <MobilePage tab={mobileTab} profile={authProfile} loading={isAuthLoading} unread={unreadNotificationCount}
-          onSessionExpired={() => { setAuthProfile(null); setUnreadNotificationCount(0); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false) }}
+        {!isDesktop && mobileTab !== 'map' && <MobilePage key={authProfile?.userId ?? 'anonymous'} tab={mobileTab} profile={authProfile} loading={isAuthLoading} unread={unreadNotificationCount}
+          onSessionExpired={handleSessionExpired}
           onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} onNotifications={() => setIsNotificationsOpen(true)}
           beforeLogin={tab => { try { window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, tab) } catch { /* 로그인은 계속 제공 */ } }} />}
         {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); setIsMyReportsOpen(true) }} />}
-        {authProfile && isMyReportsOpen && <MyReportsPanel initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
-        {authProfile && isNotificationsOpen && <NotificationPanel onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); setFocusedReportId(reportId); setIsMyReportsOpen(true) }} />}
+        {authProfile && isMyReportsOpen && <MyReportsPanel key={authProfile.userId} onSessionExpired={handleSessionExpired} initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
+        {authProfile && isNotificationsOpen && <NotificationPanel key={authProfile.userId} onSessionExpired={handleSessionExpired} onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); setFocusedReportId(reportId); setIsMyReportsOpen(true) }} />}
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
         {authProfile?.consentRequired && <PolicyConsentModal isNewRegistration={authProfile.status === 'PENDING_CONSENT'} onComplete={handleConsentComplete} onLogout={handleLogout} />}
         {authProfile && isAccountOpen && <AccountDialog profile={authProfile} onClose={() => setIsAccountOpen(false)} onWithdrawn={handleWithdrawn} />}
