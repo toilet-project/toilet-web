@@ -36,7 +36,9 @@ function Stars({ label, value, onChange }: { label: string; value: number; onCha
   </div></fieldset>
 }
 
-export function ReviewDialog({ toiletName, initial, onClose, onSave }: { toiletName: string; initial?: ReviewInput; onClose: () => void; onSave: (value: ReviewInput) => Promise<void> }) {
+export type ReviewEligibility = { status: 'checking' | 'ready' | 'blocked'; message: string }
+
+export function ReviewDialog({ toiletName, initial, onClose, onSave, eligibility, onRetryEligibility }: { toiletName: string; initial?: ReviewInput; onClose: () => void; onSave: (value: ReviewInput) => Promise<void>; eligibility?: ReviewEligibility; onRetryEligibility?: () => void }) {
   const [value, setValue] = useState<ReviewInput>(initial ?? blankReview)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -47,7 +49,7 @@ export function ReviewDialog({ toiletName, initial, onClose, onSave }: { toiletN
   const dirty = JSON.stringify(value) !== JSON.stringify(initial ?? blankReview())
   const close = () => { if (busy.current) return; if (dirty) setDiscard(true); else onClose() }
   const submit = async () => {
-    if (busy.current) return
+    if (busy.current || (eligibility && eligibility.status !== 'ready')) return
     const problem=validateReview(value)
     if (problem) { setError(problem); return }
     busy.current=true; setSaving(true); setError('')
@@ -55,7 +57,9 @@ export function ReviewDialog({ toiletName, initial, onClose, onSave }: { toiletN
     catch (error) { if (active.current) setError(error instanceof ReviewGateError ? error.message : '저장하지 못했어요. 입력 내용은 유지되니 다시 시도해 주세요.') }
     finally { busy.current=false; if (active.current) setSaving(false) }
   }
-  return <ReviewModal title={discard ? '작성을 그만둘까요?' : initial ? '리뷰 수정' : '리뷰 쓰기'} onClose={close} onBack={discard ? () => setDiscard(false) : close} footer={discard ? <div className="rv-two-actions"><button className="rv-secondary" onClick={() => setDiscard(false)}>계속 작성</button><button className="rv-primary" onClick={onClose}>그만두기</button></div> : <>{error ? <p role="alert" className="rv-error">{error}</p> : <span className="rv-footer-hint">별점 두 개와 화장지 유무만 선택하면 돼요</span>}<button className="rv-primary rv-full" disabled={saving} onClick={() => void submit()}>{saving ? '저장 중…' : initial ? '수정한 내용 저장' : '리뷰 남기기'}<ReviewIcon name="check" size={18} /></button></>}>
+  const eligibilityPending = eligibility && eligibility.status !== 'ready'
+  const retry = () => { setError(''); onRetryEligibility?.() }
+  return <ReviewModal title={discard ? '작성을 그만둘까요?' : initial ? '리뷰 수정' : '리뷰 쓰기'} onClose={close} onBack={discard ? () => setDiscard(false) : close} footer={discard ? <div className="rv-two-actions"><button className="rv-secondary" onClick={() => setDiscard(false)}>계속 작성</button><button className="rv-primary" onClick={onClose}>그만두기</button></div> : <>{eligibilityPending ? <div className={`rv-eligibility is-${eligibility.status}`} role={eligibility.status === 'blocked' ? 'alert' : 'status'}><span>{eligibility.message}</span>{eligibility.status === 'blocked' && <button type="button" onClick={retry}>다시 확인</button>}</div> : error ? <div role="alert" className="rv-error">{error}{onRetryEligibility && <button className="rv-eligibility-retry" type="button" onClick={retry}>위치 다시 확인</button>}</div> : <span className="rv-footer-hint">별점 두 개와 화장지 유무만 선택하면 돼요</span>}<button className="rv-primary rv-full" disabled={saving || Boolean(eligibilityPending)} onClick={() => void submit()}>{saving ? '저장 중…' : initial ? '수정한 내용 저장' : '리뷰 남기기'}<ReviewIcon name="check" size={18} /></button></>}>
     {discard ? <p className="rv-discard-copy">아직 저장하지 않은 내용은 사라져요.</p> : <>
       <div className="rv-target"><span>이용한 화장실</span><h1>{toiletName}</h1></div>
       <div className="rv-required-fields">

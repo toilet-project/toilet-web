@@ -19,16 +19,25 @@ const local = origin.includes('127.0.0.1')
         window.reviewTestGeoCalls = 0
         // Explicit synthetic geolocation, confined to this disposable test context.
         Object.defineProperty(navigator, 'geolocation', { value: {
-          getCurrentPosition(ok, fail) { window.reviewTestGeoCalls++; const fix = { ...window.reviewTestFix }; setTimeout(() => fix.denied ? fail({ code: 1 }) : ok({ coords: fix, timestamp: Date.now() - fix.age }), 30) },
+          getCurrentPosition(ok, fail, options) {
+            window.reviewTestGeoCalls++; window.reviewTestGeoOptions = options
+            const fix = { ...window.reviewTestFix }
+            const complete = () => fix.denied ? fail({ code: 1 }) : ok({ coords: fix, timestamp: Date.now() - fix.age })
+            if (fix.hold) window.reviewReleaseGeo = complete; else setTimeout(complete, 30)
+          },
           watchPosition() { return 1 }, clearWatch() {},
         } })
       })
       let signedIn = true
+      let authHold = null
       let businessWrites = 0
       const errors = []
       await context.route('**/*', async route => {
         const req = route.request(), u = new URL(req.url())
-        if (u.pathname === '/api/v1/auth/me') return route.fulfill({ json: signedIn ? { userId: 'review-map-fixture', displayName: '리뷰 검증 사용자', status: 'ACTIVE', roles: ['USER'], consentRequired: false } : null })
+        if (u.pathname === '/api/v1/auth/me') {
+          if (authHold) await authHold
+          return route.fulfill({ json: signedIn ? { userId: 'review-map-fixture', displayName: '리뷰 검증 사용자', status: 'ACTIVE', roles: ['USER'], consentRequired: false } : null })
+        }
         if (u.pathname === '/api/v1/notifications/unread-count') return route.fulfill({ json: { count: 0 } })
         if (u.pathname === '/cdn-cgi/rum' && req.method() === 'POST') return route.fulfill({ status: 204 })
         if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method())) { businessWrites++; return route.abort() }
@@ -69,9 +78,24 @@ const local = origin.includes('127.0.0.1')
       const url = page.url()
       assert.equal(await card.locator('.review-card-title-row').getByRole('button',{name:'정보 제공하기'}).count(),1)
       await page.screenshot({path:path.join(output,`map-review-card-${width}.png`)})
+      let releaseAuth
+      authHold = new Promise(resolve => { releaseAuth = resolve })
+      await page.evaluate(()=>{window.reviewTestFix.hold=true})
+      const openStarted = Date.now()
       await card.getByRole('button',{name:'리뷰',exact:true}).click()
       const form = page.getByRole('dialog',{name:'리뷰 쓰기',exact:true})
-      await form.getByRole('heading',{name,exact:true}).waitFor()
+      await form.getByRole('heading',{name,exact:true}).waitFor({timeout:1000})
+      const openMs = Date.now() - openStarted
+      assert.equal(await form.getByRole('button',{name:'리뷰 남기기',exact:true}).isDisabled(),true,'draft opens immediately; unverified submission remains blocked')
+      await page.screenshot({path:path.join(output,`map-review-pending-${width}.png`)})
+      await page.waitForFunction(()=>typeof window.reviewReleaseGeo==='function')
+      assert.equal(await page.evaluate(()=>window.reviewTestGeoOptions.maximumAge),60000,'reuse only browser fixes within one minute')
+      await form.getByRole('radio',{name:'만족도 4점'}).check()
+      await page.evaluate(()=>{window.reviewReleaseGeo();window.reviewTestFix.hold=false;delete window.reviewReleaseGeo})
+      await form.getByRole('status').filter({hasText:'로그인 상태'}).waitFor()
+      assert.equal(await form.getByRole('button',{name:'리뷰 남기기',exact:true}).isDisabled(),true,'GPS alone cannot authorize a submission')
+      releaseAuth(); authHold = null
+      await page.waitForFunction(()=>!document.querySelector('.rv-dialog-footer .rv-primary').disabled)
       await form.getByRole('radio',{name:'만족도 4점'}).check()
       await form.getByRole('radio',{name:'청결도 5점'}).check()
       await form.getByRole('button',{name:'있었어요',exact:true}).click()
@@ -142,9 +166,31 @@ const local = origin.includes('127.0.0.1')
       for (const [change, expected] of [[{accuracy:51},'50m'],[{accuracy:10,age:60001},'1분'],[{age:0,latitude:0},'150m'],[{latitude:groupDetail.latitude,denied:true},'위치 권한']]) {
         await page.evaluate(value=>Object.assign(window.reviewTestFix,value),change)
         await expanded.getByRole('button',{name:'리뷰',exact:true}).click()
-        await page.locator('.location-message').filter({hasText:expected}).waitFor()
-        assert.equal(await page.getByRole('dialog',{name:'리뷰 쓰기',exact:true}).count(),0)
+        const blocked = page.getByRole('dialog',{name:'리뷰 쓰기',exact:true})
+        await blocked.getByRole('alert').filter({hasText:expected}).waitFor()
+        assert.equal(await blocked.getByRole('button',{name:'리뷰 남기기',exact:true}).isDisabled(),true)
+        if(expected==='위치 권한') {
+          await page.evaluate(()=>{window.reviewTestFix.denied=false})
+          await blocked.getByRole('button',{name:'다시 확인',exact:true}).click()
+          await page.waitForFunction(()=>!document.querySelector('.rv-dialog-footer .rv-primary').disabled)
+          assert.equal(await page.evaluate(()=>window.reviewTestGeoOptions.maximumAge),0,'retry bypasses an inaccurate cached fix')
+        }
+        await blocked.getByRole('button',{name:'닫기',exact:true}).click()
       }
+      // Closing a pending form invalidates both completions; a late auth response
+      // must not reopen login or the review dialog.
+      authHold = new Promise(resolve => { releaseAuth = resolve })
+      await page.evaluate(()=>{window.reviewTestFix.hold=true})
+      await expanded.getByRole('button',{name:'리뷰',exact:true}).click()
+      await page.waitForFunction(()=>typeof window.reviewReleaseGeo==='function')
+      await page.getByRole('dialog',{name:'리뷰 쓰기',exact:true}).getByRole('button',{name:'닫기',exact:true}).click()
+      const authCompleted = page.waitForResponse(r=>new URL(r.url()).pathname==='/api/v1/auth/me')
+      signedIn = false
+      releaseAuth(); authHold=null
+      await page.evaluate(()=>{window.reviewReleaseGeo();window.reviewTestFix.hold=false;delete window.reviewReleaseGeo})
+      await authCompleted
+      await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))))
+      assert.equal(await page.getByRole('dialog').count(),0,'closed form stays closed after late checks')
       signedIn = false
       await expanded.getByRole('button',{name:'리뷰',exact:true}).click()
       await page.getByRole('dialog',{name:'로그인 · 간편가입',exact:true}).waitFor()
@@ -157,7 +203,7 @@ const local = origin.includes('127.0.0.1')
       assert.equal(businessWrites,0)
       assert.deepEqual(errors,[])
       await context.close()
-      console.log(`PASS actual map ${width}; integer stars; first-touch slider/ticks; stable dialog; login/GPS/accuracy/freshness gates; save recheck; create/edit/detach; no business writes`)
+      console.log(`PASS actual map ${width}; form visible ${openMs}ms while auth/GPS held; parallel checks; blocked submission/retry/cancel; create/edit/detach; no business writes`)
     }
   } finally { await browser.close() }
 })().catch(e=>{console.error(e);process.exitCode=1})

@@ -269,15 +269,14 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   }, [])
 
   const reviewPreview = useIntegratedReviewPreview(authProfile?.status === 'ACTIVE' && !authProfile.consentRequired ? authProfile.userId : null, {
-    notify: showLocationMessage,
     requireLogin: () => {
       if (isAuthLoading) { showLocationMessage('로그인 상태를 확인하고 있어요. 잠시 후 다시 눌러 주세요.'); return }
       if (authProfile?.consentRequired) { showLocationMessage('필수 약관 동의를 먼저 완료해 주세요.'); return }
       setLoginPurpose('review'); setIsLoginDialogOpen(true)
     },
-    verifySession: async () => {
+    verifySession: async (isCurrent) => {
       const profile = await getCurrentUser()
-      if (currentUserRef.current !== authProfile?.userId) return false
+      if (!isCurrent() || currentUserRef.current !== authProfile?.userId) return false
       setAuthProfile(profile)
       if (!profile) { setLoginPurpose('review'); setIsLoginDialogOpen(true) }
       else if (profile.userId !== authProfile?.userId) showLocationMessage('로그인 계정이 변경됐어요. 리뷰를 다시 눌러 주세요.')

@@ -19,7 +19,7 @@ export function reviewLocationProblem(target: ReviewPoint, fix: ReviewFix, now =
   return distance > 150 ? '화장실에서 150m 이내에 있어야 리뷰를 작성할 수 있어요.' : null
 }
 
-export async function requireReviewLocation(target: ReviewPoint): Promise<number> {
+export async function requireReviewLocation(target: ReviewPoint, { fresh = false }: { fresh?: boolean } = {}): Promise<number> {
   if (!validPoint(target)) throw new ReviewGateError('이 화장실의 위치를 확인할 수 없어 리뷰를 작성할 수 없어요.')
   if (!navigator.geolocation) throw new ReviewGateError('이 브라우저에서는 현재 위치를 확인할 수 없어요.')
   const fix = await new Promise<GeolocationPosition>((resolve, reject) => {
@@ -28,7 +28,9 @@ export async function requireReviewLocation(target: ReviewPoint): Promise<number
     navigator.geolocation.getCurrentPosition(position => { window.clearTimeout(timer); resolve(position) }, error => {
       window.clearTimeout(timer)
       reject(new ReviewGateError(error.code === 1 ? '리뷰를 쓰려면 현재 위치 권한을 허용해 주세요.' : '현재 위치를 확인하지 못했어요. 잠시 후 다시 시도해 주세요.'))
-    }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10_000 })
+    // A browser-owned fix within the agreed one-minute window is sufficient.
+    // Explicit retry requests a new fix, not the same inaccurate cached result.
+    }, { enableHighAccuracy: true, maximumAge: fresh ? 0 : 60_000, timeout: 10_000 })
   })
   const problem = reviewLocationProblem(target, fix)
   if (problem) throw new ReviewGateError(problem)

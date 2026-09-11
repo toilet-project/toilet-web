@@ -36,5 +36,8 @@
 .rv-dialog-body .rv-my-comment { min-width: 0; }
 .route-preview-community .toilet-community-row[data-review-preview] .report-icon-button { display: flex !important; }
 .rv-dialog:has(.rv-required-fields) { height: min(760px,100%); }
-.rv-location-check { position: fixed; z-index: 81; left: 50%; bottom: calc(88px + env(safe-area-inset-bottom)); transform: translateX(-50%); display: flex; align-items: center; gap: 12px; width: min(350px,calc(100% - 32px)); box-sizing: border-box; padding: 8px 14px; background: #243d2fed; border-radius: 14px; color: #fff; box-shadow: 0 5px 25px #10271820; font-size: 12px; }
-.rv-location-check button { margin-left: auto; min-width: 44px; min-height: 44px; padding: 0; background: transparent; color: #d7e9dd; border: 0; font: inherit; cursor: pointer; }
+.rv-eligibility { display: flex; align-items: center; gap: 10px; min-height: 26px; margin: 0 0 8px; color: #667f6f; font-size: 11px; line-height: 1.5; }
+.rv-eligibility.is-checking::before { content: ''; width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; background: #9bbfa5; }
+.rv-eligibility.is-blocked { color: #94604c; }
+.rv-eligibility button,.rv-eligibility-retry { flex-shrink: 0; min-height: 44px; padding: 6px 10px; border: 1px solid #dfe8df; border-radius: 9px; background: #f5f8f3; color: #376749; font: inherit; cursor: pointer; }
+.rv-eligibility-retry { display: block; margin-top: 8px; }
