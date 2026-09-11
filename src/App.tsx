@@ -24,6 +24,7 @@ import { getDisplayAddress } from './lib/address'
 import { ToiletDetailContents, DetailRow } from './components/ToiletDetailContents'
 import { ToiletCommunityRow, ToiletReportEntry } from './components/ToiletCommunityRow'
 import { REVIEW_DESIGN_PREVIEW, useIntegratedReviewPreview, type PreviewReviewSummary } from './components/reviews/useIntegratedReviewPreview'
+import { readReviewTestToilet } from './lib/reviewTestToilet'
 import { DetailLoadingFields, LoadingOpenTime } from './components/ToiletCardLoading'
 import { hasValue, formatOpenTime, formatFacilityLocation } from './lib/detailFormatting'
 import { toiletCoordinates } from './lib/toiletRoute'
@@ -143,10 +144,14 @@ function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
   })
 }
 
-function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavigate: (id: number | null) => void; onMounted: () => void }) {
+function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: MapRouteData; onNavigate: (id: number | null) => void; onMounted: () => void; testToiletHash?: string }) {
   const [initialRoute] = useState(route)
+  // MapShell remounts only when this explicit test link changes, clearing its memory reviews.
+  const [testToilet] = useState(() => readReviewTestToilet(testToiletHash, REVIEW_DESIGN_PREVIEW))
+  const initialDetail = initialRoute.detail ?? testToilet
   const pendingNavigationPath = useRef<string | null | undefined>(undefined)
   const [resume] = useState(() => {
+    if (testToilet) return null
     try { return readMapResume(window.sessionStorage, window.location.pathname) } catch { return null }
   })
   const initialRouteRef = useRef(initialRoute)
@@ -155,9 +160,9 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     if (route.detail) cache.set(route.detail)
     return cache
   })
-  const initialCoordinates = toiletCoordinates(initialRoute.detail)
-  const initialSelected = initialCoordinates && initialRoute.detail
-    ? { id: initialRoute.detail.id, name: initialRoute.detail.name, ...initialCoordinates } : null
+  const initialCoordinates = toiletCoordinates(initialDetail)
+  const initialSelected = initialCoordinates && initialDetail
+    ? { id: initialDetail.id, name: initialDetail.name, ...initialCoordinates } : null
   const groupRef = useRef<SelectedCoordinateGroup | null>(null)
   const preserveGroupOnHomeRef = useRef(false)
   const mapContainerRef = useRef<HTMLDivElement>(null)
@@ -191,7 +196,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const [selectedCoordinateGroup, setSelectedCoordinateGroup] = useState<SelectedCoordinateGroup | null>(null)
   const [expandedCoordinateToilet, setExpandedCoordinateToilet] = useState<SelectedToilet | null>(null)
   const [placeCardPosition, setPlaceCardPosition] = useState<CardPosition | null>(null)
-  const [toiletDetail, setToiletDetail] = useState<ToiletDetailResponse | null>(initialRoute.detail)
+  const [toiletDetail, setToiletDetail] = useState<ToiletDetailResponse | null>(initialDetail)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
   const [detailRetry, setDetailRetry] = useState(0)
@@ -209,7 +214,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     cardHandleGesture.cancel()
   }, [activeDetailId, cardHandleGesture])
   useEffect(() => {
-    if (activeDetailId === null || detailCache.get(activeDetailId)) return
+    if (activeDetailId === null || activeDetailId === testToilet?.id || detailCache.get(activeDetailId)) return
     const controller = new AbortController()
     let disposed = false
     const timeout = window.setTimeout(() => controller.abort(), 10_000)
@@ -226,7 +231,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       setIsDetailLoading(false)
     }).finally(() => window.clearTimeout(timeout))
     return () => { disposed = true; controller.abort(); window.clearTimeout(timeout) }
-  }, [activeDetailId, detailCache, detailRetry])
+  }, [activeDetailId, detailCache, detailRetry, testToilet])
   const [locationMessage, setLocationMessage] = useState<string | null>(null)
   const [withdrawalNotice, setWithdrawalNotice] = useState<string | null>(null)
   const [isLocating, setIsLocating] = useState(false)
@@ -349,6 +354,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   }, [resumePendingLoginAction, showLocationMessage])
 
   const openReport = useCallback((target: ReportTarget) => {
+    if (target.toilet.id < 0) return // Browser fixtures cannot enter the real report/auth-resume flow.
     if (!authProfile) {
       try { window.sessionStorage.setItem(PENDING_REPORT_TARGET_KEY, JSON.stringify(target)) } catch { /* 저장소 사용 불가 환경에서도 로그인은 계속 제공한다. */ }
       setLoginPurpose('report')
@@ -566,6 +572,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   useEffect(() => {
     const detail = route.detail ? detailCache.get(route.detail.id) ?? route.detail : null
     if (!detail) {
+      if (testToilet && selectedToiletRef.current?.id === testToilet.id) return
       if (preserveGroupOnHomeRef.current) {
         preserveGroupOnHomeRef.current = false
         setToiletDetail(null)
@@ -596,7 +603,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       })
       return () => window.cancelAnimationFrame(frame)
     }
-  }, [route, resetDetailCard, detailCache])
+  }, [route, resetDetailCard, detailCache, testToilet])
 
   useEffect(() => {
     const keyword = placeSearchKeyword.trim()
@@ -656,12 +663,48 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     setSelectedToilet(selected)
     setPlaceCardPosition(null)
     setIsMobileCardExpanded(false)
-    const cached = detailCache.get(toiletId)
+    const cached = toiletId === testToilet?.id ? testToilet : detailCache.get(toiletId)
     setToiletDetail(cached)
     setDetailError(null)
     setIsDetailLoading(!cached)
-    onNavigate(toiletId)
-  }, [onNavigate, detailCache])
+    if (toiletId === testToilet?.id) onNavigate(null)
+    else onNavigate(toiletId)
+  }, [onNavigate, detailCache, testToilet])
+
+  useEffect(() => {
+    const map = mapRef.current
+    const point = toiletCoordinates(testToilet)
+    if (!isMapReady || !map || !testToilet || !point) return
+    // Separate overlay: never mix this item into API lists, totals, caches or clusters.
+    const content = document.createElement('button')
+    content.type = 'button'
+    content.className = `toilet-marker review-test-marker${selectedToilet?.id === testToilet.id ? ' is-selected' : ''}`
+    content.setAttribute('aria-label', `${testToilet.name} · 실제 시설 아님`)
+    const pin = document.createElement('span')
+    pin.className = 'toilet-marker-pin'
+    const logo = document.createElement('img')
+    logo.src = toiletMarkerLogo
+    logo.className = 'toilet-marker-logo'
+    logo.alt = ''
+    pin.append(logo)
+    const name = document.createElement('span')
+    name.className = 'toilet-marker-name'
+    name.textContent = '리뷰 테스트 · 가상'
+    content.append(pin, name)
+    content.addEventListener('pointerdown', suppressMapClickFromMarker)
+    content.addEventListener('touchstart', suppressMapClickFromMarker, { passive: true })
+    content.addEventListener('mousedown', suppressMapClickFromMarker)
+    content.addEventListener('click', event => {
+      suppressMapClickFromMarker(event)
+      selectToilet(testToilet.id, testToilet.name, point.latitude, point.longitude, false, testToilet.toiletType)
+    })
+    const overlay = new window.kakao.maps.CustomOverlay({
+      position: new window.kakao.maps.LatLng(point.latitude, point.longitude), content,
+      yAnchor: 1, zIndex: 4, clickable: true,
+    })
+    overlay.setMap(map)
+    return () => overlay.setMap(null)
+  }, [isMapReady, testToilet, selectToilet, selectedToilet?.id, suppressMapClickFromMarker])
 
   const openCoordinateGroup = useCallback((point: MapPoint) => {
     if (!point.toilets) return
@@ -709,7 +752,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   useEffect(() => {
     const selected = selectedToilet ?? expandedCoordinateToilet
     const map = mapRef.current
-    if (!isMapReady || !selected || !map || toiletMarkerElementsRef.current.has(selected.id)) return
+    if (!isMapReady || !selected || selected.id === testToilet?.id || !map || toiletMarkerElementsRef.current.has(selected.id)) return
     // A directly linked toilet can be absent from the current clustered/bounds response.
     // Show its real coordinate without moving the map or requesting the list again.
     const content = document.createElement('button')
@@ -734,7 +777,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     })
     overlay.setMap(map)
     return () => overlay.setMap(null)
-  }, [selectedToilet, expandedCoordinateToilet, result, isMapReady, suppressMapClickFromMarker])
+  }, [selectedToilet, expandedCoordinateToilet, result, isMapReady, suppressMapClickFromMarker, testToilet])
 
   const renderResult = useCallback((map: KakaoMapInstance, response: ToiletMapSearchResponse) => {
     clearOverlays()
@@ -1049,8 +1092,8 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       if (!container) return
 
       try {
-        const center = resume?.center ?? toiletCoordinates(initialRouteRef.current.detail) ?? DAEJEON_CITY_HALL
-        const map = await createKakaoMap(container, center, resume?.level ?? (initialRouteRef.current.detail ? 4 : 6), controller.signal)
+        const center = resume?.center ?? toiletCoordinates(initialRouteRef.current.detail) ?? toiletCoordinates(testToilet) ?? DAEJEON_CITY_HALL
+        const map = await createKakaoMap(container, center, resume?.level ?? (initialRouteRef.current.detail || testToilet ? 4 : 6), controller.signal)
         if (disposed) return
         mapRef.current = map
         setIsMapReady(true)
@@ -1094,7 +1137,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
         resizeObserver = new ResizeObserver(() => { if (!disposed) relayoutPreservingCenter(map, settledViewportCenter) })
         resizeObserver.observe(container)
         await loadMapArea()
-        if (!disposed && !initialRouteRef.current.detail && !resume) void moveToCurrentLocation(true)
+        if (!disposed && !initialRouteRef.current.detail && !resume && !testToilet) void moveToCurrentLocation(true)
         if (!disposed && resume?.source === 'current-location') startCurrentLocationWatch()
       } catch (caughtError) {
         if (disposed) return
@@ -1125,7 +1168,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       window.clearTimeout(mapLoadTimerRef.current)
       window.clearTimeout(locationMessageTimerRef.current)
     }
-  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, startCurrentLocationWatch, referenceRequestGate])
+  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, startCurrentLocationWatch, referenceRequestGate, testToilet])
 
   const distanceReference = resolveDistanceReference(distanceSource, mapCenter, currentLocation)
   const distanceReferenceLabel = distanceSource === 'current-location' ? '내 위치에서 약' : '기준점에서 약'
@@ -1366,16 +1409,18 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             </button>
             <div className="place-card-summary">
               <span className="card-label">{toiletDetail?.toiletType || selectedToilet.toiletType || '화장실'}</span>
-              {REVIEW_DESIGN_PREVIEW ? <div className="review-card-title-row"><h1>{toiletDetail?.name || selectedToilet.name}</h1><ToiletReportEntry disabled={!toiletDetail} onClick={() => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) }} /></div> : <h1>{toiletDetail?.name || selectedToilet.name}</h1>}
+              {REVIEW_DESIGN_PREVIEW ? <div className="review-card-title-row"><h1>{toiletDetail?.name || selectedToilet.name}</h1><ToiletReportEntry disabled={!toiletDetail || selectedToilet.id === testToilet?.id} onClick={() => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) }} /></div> : <h1>{toiletDetail?.name || selectedToilet.name}</h1>}
             </div>
             <div ref={cardScrollRef} className="card-scroll-content">
-              {toiletDetail ? <p className="open-time">{formatOpenTime(toiletDetail)}</p> : isDetailLoading && <LoadingOpenTime />}
+              {toiletDetail ? <p className="open-time">{toiletDetail.id === testToilet?.id ? '프리뷰 전용 · 운영 데이터에 저장되지 않아요' : formatOpenTime(toiletDetail)}</p> : isDetailLoading && <LoadingOpenTime />}
               {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">{distanceReferenceLabel}</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">(직선거리)</span></div>}
               <ToiletCommunityRow pendingReport={!isDesktop && !toiletDetail} onReport={isDesktop ? undefined : toiletDetail ? () => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) : undefined}
                 pendingReview={REVIEW_DESIGN_PREVIEW && !toiletDetail} onReview={REVIEW_DESIGN_PREVIEW && toiletDetail ? () => reviewPreview.open(toiletDetail) : undefined} previewSummary={REVIEW_DESIGN_PREVIEW ? reviewPreview.summary(selectedToilet.id) : undefined} />
               {detailError && <div><p className="detail-error" role="alert">{detailError}</p><button type="button" className="detail-retry" onClick={retryDetail}>다시 불러오기</button></div>}
               {!toiletDetail && isDetailLoading && <DetailLoadingFields />}
-              {toiletDetail && <ToiletDetailContents toilet={toiletDetail} />}
+              {toiletDetail && (toiletDetail.id === testToilet?.id
+                ? <div className="card-details"><p>실제 시설이 아닌 리뷰 테스트 지점이에요. 로그인과 실제 현재 위치 확인은 그대로 적용돼요.</p></div>
+                : <ToiletDetailContents toilet={toiletDetail} />)}
             </div>
           </aside>
         )}
