@@ -79,17 +79,18 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
   </section>
 }
 
-export function MobilePage({ tab, profile, loading, unread, onProfile, onReports, onAccount, onLogout, onNotifications, beforeLogin, onSessionExpired }: {
+export function MobilePage({ tab, profile, loading, unread, onProfile, onReports, onAccount, onLogout, onNotifications, beforeLogin, onSessionExpired, onReviews }: {
   tab: Exclude<MobileTab, 'map'>; profile: AuthProfile | null; loading: boolean; unread: number;
   onProfile: (profile: AuthProfile) => void; onReports: () => void; onAccount: () => void; onLogout: () => void; onNotifications: () => void;
   beforeLogin: (tab: MobileTab) => void;
   onSessionExpired: () => void;
+  onReviews?: () => void;
 }) {
   return <section className="mobile-page" aria-label={tab === 'account' ? '내 페이지' : '알림 페이지'}>
-    {loading ? <p className="mobile-page-loading" role="status">불러오는 중…</p> : !profile ? <LoginLanding tab={tab} onLogin={provider => { beforeLogin(tab); startSocialLogin(provider) }} /> : tab === 'account' ? <>
+    {loading ? <p className="mobile-page-loading" role="status">불러오는 중…</p> : !profile ? <><LoginLanding tab={tab} onLogin={provider => { beforeLogin(tab); startSocialLogin(provider) }} />{onReviews && tab === 'account' && <div className="mobile-account-links"><button type="button" onClick={onReviews}><Icon name="community" /><span>내 리뷰</span><small>프리뷰 체험</small><span aria-hidden="true">›</span></button></div>}</> : tab === 'account' ? <>
       <header className="mobile-page-heading"><h1>내 페이지</h1></header>
       <ProfileCard key={profile.userId} profile={profile} onProfile={onProfile} onSessionExpired={onSessionExpired} />
-      <div className="mobile-account-links"><button type="button" onClick={onReports}><Icon name="community" /><span>내 제보</span><span aria-hidden="true">›</span></button><button type="button" onClick={onAccount}><Icon name="settings" /><span>계정 관리 · 동의 내역</span><span aria-hidden="true">›</span></button></div>
+      <div className="mobile-account-links">{onReviews && <button type="button" onClick={onReviews}><Icon name="community" /><span>내 리뷰</span><span aria-hidden="true">›</span></button>}<button type="button" onClick={onReports}><Icon name="community" /><span>내 제보</span><span aria-hidden="true">›</span></button><button type="button" onClick={onAccount}><Icon name="settings" /><span>계정 관리 · 동의 내역</span><span aria-hidden="true">›</span></button></div>
       <div className="mobile-account-support"><PolicyLinks /><button type="button" className="mobile-logout" onClick={onLogout}>로그아웃</button></div>
     </> : <>
       <header className="mobile-page-heading"><h1>알림</h1><label className="mobile-notification-category"><span className="sr-only">알림 항목</span><select aria-label="알림 항목" value="my-reports" onChange={() => {}}><option value="my-reports">내 제보</option></select></label></header>

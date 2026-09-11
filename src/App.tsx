@@ -22,7 +22,8 @@ import { AccountRecoveryDialog } from './components/AccountRecoveryDialog'
 import { fetchUnreadNotificationCount } from './api/notifications'
 import { getDisplayAddress } from './lib/address'
 import { ToiletDetailContents, DetailRow } from './components/ToiletDetailContents'
-import { ToiletCommunityRow } from './components/ToiletCommunityRow'
+import { ToiletCommunityRow, ToiletReportEntry } from './components/ToiletCommunityRow'
+import { REVIEW_DESIGN_PREVIEW, useIntegratedReviewPreview, type PreviewReviewSummary } from './components/reviews/useIntegratedReviewPreview'
 import { DetailLoadingFields, LoadingOpenTime } from './components/ToiletCardLoading'
 import { hasValue, formatOpenTime, formatFacilityLocation } from './lib/detailFormatting'
 import { toiletCoordinates } from './lib/toiletRoute'
@@ -247,6 +248,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const [mapZoomLevel, setMapZoomLevel] = useState(3)
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null)
   const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null)
+  const reviewPreview = useIntegratedReviewPreview(authProfile?.userId ?? 'preview-guest')
   const currentUserRef = useRef<string | null>(null)
   useLayoutEffect(() => { currentUserRef.current = authProfile?.userId ?? null }, [authProfile?.userId])
   const [isAuthLoading, setIsAuthLoading] = useState(true)
@@ -1180,8 +1182,8 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   }, [areaToilets, openCoordinateGroup, selectToilet])
 
   return (
-    <main className={`app-shell${!isDesktop ? ' has-mobile-navigation' : ''}${!isDesktop && mobileTab !== 'map' ? ' is-mobile-page' : ''}`}>
-      <AppUpdateNotice blocked={Boolean(reportTarget || isLoginDialogOpen || isAccountOpen || isMyReportsOpen || isNotificationsOpen || mobileTab !== 'map' || placeSearchKeyword || selectedCoordinateGroup || isMobileAreaListVisible || authProfile?.consentRequired)}
+    <main data-review-design-preview={REVIEW_DESIGN_PREVIEW || undefined} className={`app-shell${!isDesktop ? ' has-mobile-navigation' : ''}${!isDesktop && mobileTab !== 'map' ? ' is-mobile-page' : ''}`}>
+      <AppUpdateNotice blocked={Boolean(reviewPreview.active || reportTarget || isLoginDialogOpen || isAccountOpen || isMyReportsOpen || isNotificationsOpen || mobileTab !== 'map' || placeSearchKeyword || selectedCoordinateGroup || isMobileAreaListVisible || authProfile?.consentRequired)}
         beforeReload={() => {
           const map = mapRef.current
           if (!map) return false
@@ -1243,7 +1245,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             <button type="button" className="notification-button" onClick={() => setIsNotificationsOpen(true)} aria-label={unreadNotificationCount ? `읽지 않은 알림 ${unreadNotificationCount}개` : '알림'}><span aria-hidden="true" />{unreadNotificationCount > 0 && <strong>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</strong>}</button>
             <button type="button" className="header-account-button" onClick={() => setIsAccountOpen(true)}>내 계정</button>
           </> : <button type="button" className="header-account-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}>로그인 / 회원가입</button>}
-          <DesktopHeaderMenu authenticated={Boolean(authProfile)} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} />
+          <DesktopHeaderMenu authenticated={Boolean(authProfile)} onReviews={REVIEW_DESIGN_PREVIEW ? reviewPreview.openMine : undefined} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} />
         </div>}
         </div>
       </header>
@@ -1323,6 +1325,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             <h1>{toiletDetail.name}</h1>
             <p>등록된 좌표가 없어 지도에 위치를 표시할 수 없습니다.</p>
             <p className="open-time">{formatOpenTime(toiletDetail)}</p>
+            {REVIEW_DESIGN_PREVIEW && <ToiletCommunityRow onReview={() => reviewPreview.open(toiletDetail)} previewSummary={reviewPreview.summary(toiletDetail.id)} />}
             <ToiletDetailContents toilet={toiletDetail} />
           </aside>
         )}
@@ -1348,12 +1351,13 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             </button>
             <div className="place-card-summary">
               <span className="card-label">{toiletDetail?.toiletType || selectedToilet.toiletType || '화장실'}</span>
-              <h1>{toiletDetail?.name || selectedToilet.name}</h1>
+              {REVIEW_DESIGN_PREVIEW ? <div className="review-card-title-row"><h1>{toiletDetail?.name || selectedToilet.name}</h1><ToiletReportEntry disabled={!toiletDetail} onClick={() => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) }} /></div> : <h1>{toiletDetail?.name || selectedToilet.name}</h1>}
             </div>
             <div ref={cardScrollRef} className="card-scroll-content">
               {toiletDetail ? <p className="open-time">{formatOpenTime(toiletDetail)}</p> : isDetailLoading && <LoadingOpenTime />}
               {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">{distanceReferenceLabel}</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">(직선거리)</span></div>}
-              <ToiletCommunityRow pendingReport={!isDesktop && !toiletDetail} onReport={isDesktop ? undefined : toiletDetail ? () => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) : undefined} />
+              <ToiletCommunityRow pendingReport={!isDesktop && !toiletDetail} onReport={isDesktop ? undefined : toiletDetail ? () => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) : undefined}
+                pendingReview={REVIEW_DESIGN_PREVIEW && !toiletDetail} onReview={REVIEW_DESIGN_PREVIEW && toiletDetail ? () => reviewPreview.open(toiletDetail) : undefined} previewSummary={REVIEW_DESIGN_PREVIEW ? reviewPreview.summary(selectedToilet.id) : undefined} />
               {detailError && <div><p className="detail-error" role="alert">{detailError}</p><button type="button" className="detail-retry" onClick={retryDetail}>다시 불러오기</button></div>}
               {!toiletDetail && isDetailLoading && <DetailLoadingFields />}
               {toiletDetail && <ToiletDetailContents toilet={toiletDetail} />}
@@ -1370,17 +1374,20 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
               {selectedCoordinateGroup.toilets.map((toilet, index) => {
                 const isExpanded = expandedCoordinateToilet?.id === toilet.id
                 return <div key={toilet.id} ref={(node) => { if (node) coordinateGroupItemRefs.current.set(toilet.id, node); else coordinateGroupItemRefs.current.delete(toilet.id) }} className={`coordinate-group-item${isExpanded ? ' is-expanded' : ''}`}>
-                  <button type="button" className="coordinate-group-item-toggle" onClick={() => void toggleCoordinateToiletDetail(toilet)} aria-expanded={isExpanded}>
+                  <div className={REVIEW_DESIGN_PREVIEW ? 'review-group-title-row' : undefined}><button type="button" className="coordinate-group-item-toggle" onClick={() => void toggleCoordinateToiletDetail(toilet)} aria-expanded={isExpanded}>
                     <span className="coordinate-group-index" aria-hidden="true">{index + 1}</span>
                     <span className="coordinate-group-name">{toilet.name || '이름 없는 공중화장실'}</span>
                     <span className="coordinate-group-toggle-label">{isExpanded ? '접기' : '상세 보기'}</span>
-                  </button>
+                  </button>{REVIEW_DESIGN_PREVIEW && isExpanded && <ToiletReportEntry disabled={!toiletDetail || toiletDetail.id !== toilet.id} onClick={() => { if (toiletDetail?.id === toilet.id) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }} />}</div>
                   {isExpanded && <CoordinateGroupInlineDetails
                     toilet={toiletDetail}
                     isLoading={isDetailLoading}
                     error={detailError}
                     onRetry={retryDetail}
                     onReport={isDesktop ? undefined : () => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }}
+                    pendingReview={REVIEW_DESIGN_PREVIEW && !toiletDetail}
+                    onReview={REVIEW_DESIGN_PREVIEW && toiletDetail?.id === toilet.id ? () => reviewPreview.open(toiletDetail) : undefined}
+                    previewSummary={REVIEW_DESIGN_PREVIEW ? reviewPreview.summary(toilet.id) : undefined}
                   />}
                 </div>
               })}
@@ -1390,9 +1397,11 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
         </div>
         {!isDesktop && mobileTab !== 'map' && <MobilePage key={`mobile-${authProfile?.userId ?? 'anonymous'}`} tab={mobileTab} profile={authProfile} loading={isAuthLoading} unread={unreadNotificationCount}
           onSessionExpired={handleSessionExpired}
+          onReviews={REVIEW_DESIGN_PREVIEW ? reviewPreview.openMine : undefined}
           onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} onNotifications={() => setIsNotificationsOpen(true)}
           beforeLogin={tab => { try { window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, tab) } catch { /* 로그인은 계속 제공 */ } }} />}
         {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); setIsMyReportsOpen(true) }} />}
+        {reviewPreview.modal}
         {authProfile && isMyReportsOpen && <MyReportsPanel key={`reports-${authProfile.userId}`} onSessionExpired={handleSessionExpired} initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
         {authProfile && isNotificationsOpen && <NotificationPanel key={`inbox-${authProfile.userId}`} onSessionExpired={handleSessionExpired} onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); setFocusedReportId(reportId); setIsMyReportsOpen(true) }} />}
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
@@ -1429,8 +1438,8 @@ function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () 
   </div>
 }
 
-function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRetry }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onReport?: () => void; onRetry: () => void }) {
-  if (isLoading && !toilet) return <div className="coordinate-inline-details"><LoadingOpenTime /><ToiletCommunityRow pendingReport={Boolean(onReport)} /><DetailLoadingFields inline /></div>
+function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRetry, onReview, pendingReview, previewSummary }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onReport?: () => void; onRetry: () => void; onReview?: () => void; pendingReview?: boolean; previewSummary?: PreviewReviewSummary }) {
+  if (isLoading && !toilet) return <div className="coordinate-inline-details"><LoadingOpenTime /><ToiletCommunityRow pendingReport={Boolean(onReport)} pendingReview={pendingReview} /><DetailLoadingFields inline /></div>
   if (error) return <div className="coordinate-inline-details"><p className="detail-error" role="alert">{error}</p><button type="button" className="detail-retry" onClick={onRetry}>다시 불러오기</button></div>
   if (!toilet) return null
 
@@ -1438,7 +1447,7 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
 
   return <div className="coordinate-inline-details">
     <p className="open-time">{formatOpenTime(toilet)}</p>
-    <ToiletCommunityRow onReport={onReport} />
+    <ToiletCommunityRow onReport={onReport} onReview={onReview} previewSummary={previewSummary} />
     {address && <DetailRow className="coordinate-inline-address" label="주소" value={address} copyable />}
     <section className="coordinate-inline-section coordinate-inline-capacity-section" aria-label="화장실 수">
       <h2>화장실 수</h2>

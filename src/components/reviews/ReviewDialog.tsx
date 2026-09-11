@@ -36,7 +36,7 @@ function Stars({ label, value, onChange }: { label: string; value: number; onCha
   </div></fieldset>
 }
 
-export function ReviewDialog({ toiletName, initial, onClose, onSave }: { toiletName: string; initial?: ReviewInput; onClose: () => void; onSave: (value: ReviewInput) => Promise<void> }) {
+export function ReviewDialog({ toiletName, initial, onClose, onSave, previewNotice = false }: { toiletName: string; initial?: ReviewInput; onClose: () => void; onSave: (value: ReviewInput) => Promise<void>; previewNotice?: boolean }) {
   const [value, setValue] = useState<ReviewInput>(initial ?? blankReview)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -57,6 +57,7 @@ export function ReviewDialog({ toiletName, initial, onClose, onSave }: { toiletN
   }
   return <ReviewModal title={discard ? '작성을 그만둘까요?' : initial ? '리뷰 수정' : '리뷰 쓰기'} onClose={close} onBack={discard ? () => setDiscard(false) : close} footer={discard ? <div className="rv-two-actions"><button className="rv-secondary" onClick={() => setDiscard(false)}>계속 작성</button><button className="rv-primary" onClick={onClose}>그만두기</button></div> : <>{error ? <p role="alert" className="rv-error">{error}</p> : <span className="rv-footer-hint">별점 두 개와 화장지 유무만 선택하면 돼요</span>}<button className="rv-primary rv-full" disabled={saving} onClick={() => void submit()}>{saving ? '저장 중…' : initial ? '수정한 내용 저장' : '리뷰 남기기'}<ReviewIcon name="check" size={18} /></button></>}>
     {discard ? <p className="rv-discard-copy">아직 저장하지 않은 내용은 사라져요.</p> : <>
+      {previewNotice && <p className="rv-integrated-notice">리뷰 디자인 프리뷰 · 실제 저장·위치 인증 없이 체험해요. 새로고침하면 초기화돼요.</p>}
       <div className="rv-target"><span>방금 이용한 화장실</span><h1>{toiletName}</h1><p>작은 후기가 다음 사람에게 큰 도움이 돼요.</p></div>
       <div className="rv-required-fields">
         <Stars label="만족도" value={value.satisfaction} onChange={n=>change('satisfaction',n)} />

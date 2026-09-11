@@ -10,7 +10,11 @@ const securityHeaders = [
 
 const config: NextConfig = {
   deploymentId: process.env.NEXT_DEPLOYMENT_ID,
-  env: { NEXT_PUBLIC_APP_VERSION: process.env.NEXT_DEPLOYMENT_ID || 'development' },
+  env: {
+    NEXT_PUBLIC_APP_VERSION: process.env.NEXT_DEPLOYMENT_ID || 'development',
+    // Build-time preview gate, never controlled by query strings or local storage.
+    NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW: process.env.SITE_INDEXABLE === 'false' ? 'true' : 'false',
+  },
   distDir: process.env.NEXT_BUILD_DIR || '.next',
   poweredByHeader: false,
   reactStrictMode: true,

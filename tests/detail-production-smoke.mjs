@@ -69,6 +69,7 @@ try {
   assert.equal((await version.json()).version, 'isolated-release-smoke')
   assert.match(version.headers.get('cache-control'), /no-store/)
   assert.match(html, /data-dpl-id="isolated-release-smoke"/)
+  assert.equal(html.includes('review-card-title-row'), !indexable, 'preview report layout must be excluded from production first HTML')
   assert.match(html, /\.css\?dpl=isolated-release-smoke/)
   assert.equal(first.status,200)
   assert.match(html,/<h1[^>]*>검증용 화장실<\/h1>/)

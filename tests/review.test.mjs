@@ -48,3 +48,16 @@ test('design preview is non-indexable, production-gated and does not contact the
   assert.match(ui, /급똥 회원 탈퇴는 아닙니다/)
   assert.match(ui, /작성한 글은 삭제되지 않아요/)
 })
+
+test('existing map review integration is build-gated and memory-only with account isolation', () => {
+  const hook = readFileSync(new URL('../src/components/reviews/useIntegratedReviewPreview.tsx', import.meta.url), 'utf8')
+  const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
+  const config = readFileSync(new URL('../next.config.ts', import.meta.url), 'utf8')
+  assert.match(config, /NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW: process.env.SITE_INDEXABLE === 'false' \? 'true' : 'false'/)
+  assert.match(hook, /ownerRef.current !== owner/)
+  assert.match(hook, /setReviews\(\[\]\)/)
+  assert.doesNotMatch(hook, /\bfetch\s*\(|navigator\.geolocation|localStorage|sessionStorage/)
+  assert.match(app, /onReview=\{REVIEW_DESIGN_PREVIEW/)
+  assert.match(app, /onReviews=\{REVIEW_DESIGN_PREVIEW \? reviewPreview.openMine : undefined\}/)
+  assert.match(app, /reviewPreview.active \|\| reportTarget/)
+})
