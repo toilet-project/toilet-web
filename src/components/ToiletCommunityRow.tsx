@@ -6,7 +6,7 @@ export function ToiletCommunityRow({ onReport, pendingReport = false, onReview, 
   const hasReview = Boolean(onReview || pendingReview)
   return <div className={`toilet-community-row${onReport || pendingReport || hasReview ? '' : ' is-readonly'}`} data-review-preview={hasReview || undefined}>
     <div className="toilet-community-metric" aria-label={previewSummary ? `체험 리뷰 평점: ${previewSummary.rating}` : '평점: 준비 중'} title={previewSummary ? '프리뷰 체험 리뷰 기준 · 실제 통계 아님' : '평점 기능 준비 중'}>
-      <span><svg className="metric-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" /></svg>평점</span><strong>{previewSummary?.rating ?? '—'} <small>/ {hasReview ? '5' : '5.0'}</small></strong>
+      <span><ReviewIcon name="star" className="metric-star" size={16} />평점</span><strong>{previewSummary?.rating ?? '—'} <small>/ {hasReview ? '5' : '5.0'}</small></strong>
     </div>
     <div className="toilet-community-metric" aria-label={previewSummary ? `체험 혼잡도: ${previewSummary.congestion}` : '혼잡도: 준비 중'} title="혼잡도 기능 준비 중">
       <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /><circle cx="9" cy="7" r="4" /></svg>혼잡도</span><strong className="metric-pending">{previewSummary?.congestion ?? '준비 중'}</strong>

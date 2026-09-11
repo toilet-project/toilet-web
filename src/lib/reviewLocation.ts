@@ -16,7 +16,7 @@ export function reviewLocationProblem(target: ReviewPoint, fix: ReviewFix, now =
   const a = Math.sin(radians(fix.coords.latitude - target.latitude!) / 2) ** 2
     + Math.cos(radians(target.latitude!)) * Math.cos(radians(fix.coords.latitude)) * Math.sin(radians(fix.coords.longitude - target.longitude!) / 2) ** 2
   const distance = 2 * 6_371_000 * Math.asin(Math.sqrt(Math.min(1, Math.max(0, a))))
-  return distance > 150 ? '화장실에서 150m 이내에 있어야 리뷰를 작성할 수 있어요.' : null
+  return distance > 150 ? '150m 이내에서 작성할 수 있어요' : null
 }
 
 export async function requireReviewLocation(target: ReviewPoint, { fresh = false }: { fresh?: boolean } = {}): Promise<number> {

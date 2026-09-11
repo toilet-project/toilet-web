@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { ReviewDialog, ReviewIcon, ReviewModal } from './ReviewDialog'
-import { canManageReview, congestionLabel, waitLabel, type Review, type ReviewInput } from '../../lib/review'
+import { canManageReview, waitLabel, type Review, type ReviewInput } from '../../lib/review'
 
 const TOILET = '월드컵경기장역'
 type View = 'map' | 'account' | 'mine'
@@ -47,7 +47,7 @@ export function ReviewPreview() {
   }
   const rating=reviews.length?(reviews.reduce((sum,r)=>sum+r.satisfaction,0)/reviews.length).toFixed(1):'—'
   const paper=reviews.length?Math.round(reviews.filter(r=>r.paper).length/reviews.length*100):'—'
-  const latest=reviews.find(r=>r.congestion)
+  const latest=reviews.reduce<Review | null>((current, item)=>!current || item.updatedAt > current.updatedAt ? item : current, null)
   const mine=reviews.filter(r=>!r.authorRemoved)
   const canEdit=Boolean(selected&&!expired&&canManageReview(selected))
   return <div className="rv-preview">
@@ -61,7 +61,7 @@ export function ReviewPreview() {
             {mode==='list'&&<div className="rv-list-context"><span>이 지역 화장실</span><span>1 / 3</span></div>}
             <div className="rv-card-heading"><div><span className="rv-card-tag">도시철도 · 대전</span><h2>{TOILET}</h2></div><button className="rv-report-entry" aria-label="시설 정보 제보" onClick={()=>tell('사이렌 버튼은 기존 시설 정보 제보로 연결될 자리예요. 실제 제보는 접수하지 않아요.')}><ReviewIcon name="siren" size={19}/><span>제보</span></button></div>
             <p className="rv-opening">개방시간 <b>역사 운영시간 내</b><span>80m · 예시 거리</span></p>
-            <div className="rv-metrics"><div><span><ReviewIcon name="star" size={17}/>평점</span><strong>{rating}<small> / 5.0</small></strong></div><div><span><ReviewIcon name="people" size={17}/>혼잡도</span><strong>{latest?congestionLabel(latest.congestion):'정보 없음'}</strong></div><div><span><ReviewIcon name="paper" size={17}/>휴지 있음</span><strong>{paper}<small>%</small></strong></div><button onClick={start} className="rv-review-entry"><ReviewIcon name="review" size={17}/><span>리뷰</span></button></div>
+            <div className="rv-metrics"><div><span><ReviewIcon name="star" size={17}/>평점</span><strong>{rating}<small> / 5.0</small></strong></div><div><span><ReviewIcon name="people" size={17}/>혼잡도</span><strong>{latest?(latest.waitMinutes>0?'대기':'원활'):'정보 없음'}</strong></div><div><span><ReviewIcon name="paper" size={17}/>휴지 있음</span><strong>{paper}<small>%</small></strong></div><button onClick={start} className="rv-review-entry"><ReviewIcon name="review" size={17}/><span>리뷰</span></button></div>
             <div className="rv-address"><span>주소</span><span>대전광역시 유성구 월드컵경기장역</span><button aria-label="예시 주소 복사" onClick={()=>tell('주소 복사 버튼 위치 예시예요.')}>복사</button></div>
             <p className="rv-stat-note">체험 리뷰 {reviews.length}개 기준 · 실제 서비스 통계가 아니에요.</p>
           </article>
@@ -77,7 +77,7 @@ export function ReviewPreview() {
     {editor&&<ReviewDialog toiletName={TOILET} initial={editor==='new'?undefined:editor} onClose={()=>setEditor(null)} onSave={save}/>}
     {saved&&<ReviewModal title="리뷰를 남겼어요" onClose={()=>setSaved(false)} footer={<div className="rv-two-actions"><button className="rv-secondary" onClick={()=>setSaved(false)}>카드로 돌아가기</button><button className="rv-primary" onClick={()=>{setSaved(false);setView('mine')}}>내 리뷰 보기</button></div>}><div className="rv-complete"><span><ReviewIcon name="check" size={34}/></span><h1>덕분에 더 안심할 수 있어요</h1><p>별점과 이용 경험이 체험 화면에 반영됐어요.</p><small>프리뷰 데이터 · 실제 리뷰 DB 저장 아님</small></div></ReviewModal>}
     {selected&&<ReviewModal title={remove?'작성자 정보 지우기':'내 리뷰 상세'} onClose={()=>{setSelected(null);setRemove(false)}} onBack={remove?()=>setRemove(false):()=>setSelected(null)} footer={remove?<div className="rv-two-actions"><button className="rv-secondary" onClick={()=>setRemove(false)}>취소</button><button className="rv-danger" onClick={()=>{if(!canEdit)return;setReviews(items=>items.map(r=>r.id===selected.id?{...r,authorRemoved:true}:r));setSelected(null);setRemove(false);tell('작성자 정보만 지웠어요. 리뷰 내용과 평가는 남아 있어요.')}}>정보 지우기</button></div>:canEdit?<div className="rv-two-actions"><button className="rv-secondary" onClick={()=>setRemove(true)}>작성자 정보 지우기</button><button className="rv-primary" onClick={()=>{setEditor(selected);setSelected(null)}}>수정하기</button></div>:<p className="rv-deadline">작성 후 7일이 지나 수정·작성자 정보 지우기가 종료됐어요.</p>}>
-      {remove?<div className="rv-delete-copy"><h1>리뷰는 그대로 남아요</h1><p>별점, 화장지 유무, 혼잡도, <b>작성한 글은 삭제되지 않아요.</b> 작성자만 ‘탈퇴한 사용자’로 표시됩니다.</p><p>내 리뷰에서 사라지고 다시 수정하거나 연결을 복구할 수 없어요. <b>급똥 회원 탈퇴는 아닙니다.</b></p></div>:<div className="rv-full-review"><span className="rv-card-tag">내 이용 기록</span><h1>{selected.toiletName}</h1><span className="rv-review-date">{date(selected.createdAt)}</span><dl><div><dt>만족도</dt><dd>★ {selected.satisfaction}.0</dd></div><div><dt>청결도</dt><dd>★ {selected.cleanliness}.0</dd></div><div><dt>화장지</dt><dd>{selected.paper?'있었어요':'없었어요'}</dd></div><div><dt>혼잡도</dt><dd>{congestionLabel(selected.congestion)}{['WAITING','CROWDED'].includes(selected.congestion)?` · ${waitLabel(selected.waitMinutes)}`:''}</dd></div></dl><p className="rv-full-comment">{selected.comment||'작성한 내용이 없어요.'}</p><p className="rv-retention-note">수정 가능 기한: {date(new Date(Date.parse(selected.createdAt)+7*86400000).toISOString())}까지 · 최초 작성 시각 기준</p></div>}
+      {remove?<div className="rv-delete-copy"><h1>리뷰는 그대로 남아요</h1><p>별점, 화장지 유무, 대기시간, <b>작성한 글은 삭제되지 않아요.</b> 작성자만 ‘탈퇴한 사용자’로 표시됩니다.</p><p>내 리뷰에서 사라지고 다시 수정하거나 연결을 복구할 수 없어요. <b>급똥 회원 탈퇴는 아닙니다.</b></p></div>:<div className="rv-full-review"><span className="rv-card-tag">내 이용 기록</span><h1>{selected.toiletName}</h1><span className="rv-review-date">{date(selected.createdAt)}</span><dl><div><dt>만족도</dt><dd>★ {selected.satisfaction}.0</dd></div><div><dt>청결도</dt><dd>★ {selected.cleanliness}.0</dd></div><div><dt>화장지</dt><dd>{selected.paper?'있었어요':'없었어요'}</dd></div><div><dt>대기시간</dt><dd>{waitLabel(selected.waitMinutes)}</dd></div></dl><p className="rv-full-comment">{selected.comment||'작성한 내용이 없어요.'}</p><p className="rv-retention-note">수정 가능 기한: {date(new Date(Date.parse(selected.createdAt)+7*86400000).toISOString())}까지 · 최초 작성 시각 기준</p></div>}
     </ReviewModal>}
   </div>
 }

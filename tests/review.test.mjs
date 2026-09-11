@@ -16,12 +16,27 @@ test('review requires both ratings and a boolean paper selection, optional field
   for (const paper of [null, undefined, 'true']) assert.notEqual(validateReview({ ...valid(), paper }), null)
 })
 test('review waiting slider accepts 0 through 60 in ten-minute steps', () => {
-  for (const congestion of ['WAITING', 'CROWDED']) {
-    for (let waitMinutes = 0; waitMinutes <= 60; waitMinutes += 10) assert.equal(validateReview({ ...valid(), congestion, waitMinutes }), null)
-    for (const waitMinutes of [-1, 5, 61, NaN]) assert.notEqual(validateReview({ ...valid(), congestion, waitMinutes }), null)
-  }
+  assert.equal(blankReview().waitMinutes, 0)
+  assert.equal('congestion' in blankReview(), false)
+  for (let waitMinutes = 0; waitMinutes <= 60; waitMinutes += 10) assert.equal(validateReview({ ...valid(), waitMinutes }), null)
+  for (const waitMinutes of [-1, 5, 61, NaN, Infinity, null, undefined]) assert.notEqual(validateReview({ ...valid(), waitMinutes }), null)
   assert.equal(waitLabel(60), '1시간 이상')
   assert.equal(waitLabel(0), '0분')
+})
+
+test('review touch controls use shared stars, direct waiting time and an accessible refreshing status', () => {
+  const form = readFileSync(new URL('../src/components/reviews/ReviewDialog.tsx', import.meta.url), 'utf8')
+  const card = readFileSync(new URL('../src/components/ToiletCommunityRow.tsx', import.meta.url), 'utf8')
+  const css = readFileSync(new URL('../src/components/reviews/reviews.css', import.meta.url), 'utf8')
+  assert.match(card, /<ReviewIcon name="star" className="metric-star"/)
+  assert.match(form, /rv-rating-line/)
+  assert.doesNotMatch(form, /rv-congestion|value.congestion|type Congestion/)
+  assert.match(form, /aria-label="위치 새로고침"/)
+  assert.match(form, /disabled=\{eligibility.status === 'checking'\}/)
+  assert.match(css, /rv-location-pulse 1.2s/)
+  assert.match(css, /prefers-reduced-motion: reduce/)
+  assert.match(css, /\.rv-backdrop input, \.rv-backdrop svg \{ -webkit-tap-highlight-color: transparent/)
+  assert.doesNotMatch(css, /float: right|\.rv-stars label:active/)
 })
 test('review free text limit counts Unicode code points', () => {
   assert.equal(reviewLength('🙂'.repeat(200)), 200)
