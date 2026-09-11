@@ -60,7 +60,8 @@
 .history-review-detail .rv-full-comment { padding: 0; font-size: 13px; }
 .history-review-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 .history-review-actions button { min-height: 44px; padding: 8px 13px; border: 1px solid #dce7df; border-radius: 10px; background: #fff; color: #5c7565; font: inherit; font-size: 11px; }
-.history-review-actions button:last-child { background: #17683a; border-color: #17683a; color: #fff; }
+.history-review-actions .history-review-edit, .history-remove-confirm .history-review-actions button:last-child { background: #17683a; border-color: #17683a; color: #fff; }
+.history-review-actions .history-review-remove { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; }
 .history-remove-confirm { padding: 14px; border-radius: 12px; background: #faf5f2; font-size: 12px; color: #795b4c; line-height: 1.7; }
 .history-remove-confirm p { margin: 8px 0; }
 .history-empty { padding: 44px 16px; border-radius: 16px; background: #f6f9f6; text-align: center; color: #79907f; }

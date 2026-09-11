@@ -74,7 +74,7 @@ test('design preview is non-indexable, production-gated and does not contact the
   assert.match(page, /notFound\(\)/)
   assert.match(page, /index: false/)
   assert.doesNotMatch(ui, /\bfetch\s*\(|XMLHttpRequest|navigator\.geolocation|localStorage|sessionStorage/)
-  assert.match(ui, /작성자만 ‘탈퇴한 사용자’/)
+  assert.match(ui, /이 리뷰의 작성자 이름만 ‘익명’/)
   assert.match(ui, /급똥 회원 탈퇴는 아닙니다/)
   assert.match(ui, /작성한 글은 삭제되지 않아요/)
 })

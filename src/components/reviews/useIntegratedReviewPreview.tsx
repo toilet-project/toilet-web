@@ -143,6 +143,7 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
     onEdit={item => { setEditing(item); setTarget({ id: item.toiletId, name: item.toiletName, latitude: item.latitude, longitude: item.longitude }) }}
     onDetach={item => {
       if (!canManageReview(item) || ownerRef.current !== owner) return
+      // Explicit unlink of this one review only; never change the profile or other authors.
       setReviews(items => items.map(review => review.id === item.id ? { ...review, authorRemoved: true } : review))
       setMessage('작성자 정보만 지웠어요. 글과 평가는 남고, 내 리뷰에서는 제외됐어요.')
     }} />
