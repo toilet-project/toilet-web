@@ -9,7 +9,7 @@ export function useDialogFocus(enabled: boolean, onClose: () => void) {
     if (!enabled || !dialog.current) return
     const element = dialog.current
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    const focusable = () => Array.from(element.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), [tabindex="0"]')).filter(item => item.getClientRects().length > 0)
+    const focusable = () => Array.from(element.querySelectorAll<HTMLElement>('button:not(:disabled), a[href], input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex="0"]')).filter(item => item.getClientRects().length > 0)
     ;(focusable()[0] ?? element).focus()
     const keydown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); close.current(); return }

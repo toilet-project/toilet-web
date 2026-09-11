@@ -1,0 +1,50 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { blankReview, validateReview, canManageReview, waitLabel, reviewLength } from '../src/lib/review.ts'
+
+const valid = () => ({ ...blankReview(), satisfaction: 4, cleanliness: 5, paper: true })
+test('review requires both ratings and a boolean paper selection, optional fields may be blank', () => {
+  assert.notEqual(validateReview(blankReview()), null)
+  assert.equal(validateReview(valid()), null)
+  assert.equal(validateReview({ ...valid(), paper: false }), null)
+  for (const n of [0, 6, NaN, 1.5]) {
+    assert.notEqual(validateReview({ ...valid(), satisfaction: n }), null)
+    assert.notEqual(validateReview({ ...valid(), cleanliness: n }), null)
+  }
+  for (const paper of [null, undefined, 'true']) assert.notEqual(validateReview({ ...valid(), paper }), null)
+})
+test('review waiting slider accepts 0 through 60 in ten-minute steps', () => {
+  for (const congestion of ['WAITING', 'CROWDED']) {
+    for (let waitMinutes = 0; waitMinutes <= 60; waitMinutes += 10) assert.equal(validateReview({ ...valid(), congestion, waitMinutes }), null)
+    for (const waitMinutes of [-1, 5, 61, NaN]) assert.notEqual(validateReview({ ...valid(), congestion, waitMinutes }), null)
+  }
+  assert.equal(waitLabel(60), '1시간 이상')
+  assert.equal(waitLabel(0), '0분')
+})
+test('review free text limit counts Unicode code points', () => {
+  assert.equal(reviewLength('🙂'.repeat(200)), 200)
+  assert.equal(validateReview({ ...valid(), comment: '🙂'.repeat(200) }), null)
+  assert.notEqual(validateReview({ ...valid(), comment: '🙂'.repeat(201) }), null)
+})
+test('seven-day boundary uses original creation and detached reviews cannot be managed', () => {
+  const created = Date.parse('2026-09-11T00:00:00Z')
+  const r = { authorRemoved: false, createdAt: new Date(created).toISOString(), updatedAt: '2099-01-01' }
+  assert.equal(canManageReview(r, created), true)
+  assert.equal(canManageReview(r, created + 7 * 86400000 - 1), true)
+  assert.equal(canManageReview(r, created + 7 * 86400000), false)
+  assert.equal(canManageReview(r, created - 1), false)
+  assert.equal(canManageReview({ ...r, authorRemoved: true }, created), false)
+  assert.equal(canManageReview({ ...r, createdAt: 'invalid' }, created), false)
+})
+test('design preview is non-indexable, production-gated and does not contact the member or review API', () => {
+  const page = readFileSync(new URL('../src/app/review-preview/page.tsx', import.meta.url), 'utf8')
+  const ui = readFileSync(new URL('../src/components/reviews/ReviewPreview.tsx', import.meta.url), 'utf8')
+  assert.match(page, /SITE_INDEXABLE === 'true'/)
+  assert.match(page, /notFound\(\)/)
+  assert.match(page, /index: false/)
+  assert.doesNotMatch(ui, /\bfetch\s*\(|XMLHttpRequest|navigator\.geolocation|localStorage|sessionStorage/)
+  assert.match(ui, /작성자만 ‘탈퇴한 사용자’/)
+  assert.match(ui, /급똥 회원 탈퇴는 아닙니다/)
+  assert.match(ui, /작성한 글은 삭제되지 않아요/)
+})

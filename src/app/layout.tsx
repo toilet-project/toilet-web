@@ -5,6 +5,7 @@ import '../App.css'
 // Keep global override order deterministic on initial, cached and restored routes.
 import '../components/mobile-navigation.css'
 import '../components/app-update.css'
+import '../components/reviews/reviews.css'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://geupddong.com'),

@@ -59,6 +59,11 @@ try {
     await delay(100)
   }
   const first = await fetch(`${origin}/toilet/900001`)
+  const reviewPreview = await fetch(`${origin}/review-preview`)
+  assert.equal(reviewPreview.status, indexable ? 404 : 200, 'review design preview must not be published on production')
+  const reviewPreviewHtml = await reviewPreview.text()
+  if (!indexable) assert.match(reviewPreviewHtml, /디자인 체험용/)
+  else assert.doesNotMatch(reviewPreviewHtml, /프리뷰 시나리오 설정/)
   const html = await first.text()
   const version = await fetch(`${origin}/version.json`)
   assert.equal((await version.json()).version, 'isolated-release-smoke')
