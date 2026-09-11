@@ -1,8 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { historyRange, historyRangeProblem, historyToday, type HistoryRange } from '../lib/history'
 import { historyScroller } from '../lib/useHistoryWindow'
-export function HistoryHeading({ title, description, onClose, id }: { title: string; description: string; onClose?: () => void; id?: string }) {
-  return <header className="history-heading"><div className="history-title-row"><h1 id={id}>{title}</h1>{onClose && <button type="button" className="history-close" onClick={onClose} aria-label={`${title} 닫기`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" /></svg></button>}</div><p>{description}</p></header>
+export function HistoryHeading({ title, description, onClose, id }: { title: string; description?: string; onClose?: () => void; id?: string }) {
+  return <header className="history-heading"><div className="history-title-row"><h1 id={id}>{title}</h1>{onClose && <button type="button" className="history-close" onClick={onClose} aria-label={`${title} 닫기`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" /></svg></button>}</div>{description && <p>{description}</p>}</header>
 }
 export function HistoryFilters({ value, onChange, count, countLabel }: { value: HistoryRange; onChange: (value: HistoryRange) => void; count: number; countLabel?: string }) {
   const [open, setOpen] = useState(false)

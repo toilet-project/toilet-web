@@ -68,6 +68,7 @@ const iso = age => new Date(now-age*day).toISOString()
    const count=async n=>page.waitForFunction(n=>document.querySelectorAll('.notification-item').length===n,n)
    const append=async n=>{await scroll.evaluate(el=>{el.scrollTop=el.scrollHeight});await count(n)}
    await open();await ready();await count(10)
+   assert.equal(await panel.locator('.history-heading p').count(),0,'notification heading has no subtitle or empty paragraph')
    assert.equal(await panel.getByRole('button',{name:'최근 7일',exact:true}).getAttribute('aria-pressed'),'true')
    assert.equal(reads,0,'notification navigation does not load report history')
    if(width<600){
@@ -105,4 +106,3 @@ const iso = age => new Date(now-age*day).toISOString()
   }
  } finally {await browser.close()}
 })().catch(error=>{console.error(error);process.exitCode=1})
-
