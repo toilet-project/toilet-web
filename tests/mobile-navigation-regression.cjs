@@ -42,7 +42,7 @@ const origin=mobileTestOrigin(process.env.MOBILE_TEST_ORIGIN || 'http://127.0.0.
   const card=await page.locator('.place-card').boundingBox(), navBox=await nav.boundingBox()
   assert.ok(card.y+card.height<=navBox.y+1,'Card overlaps bottom navigation')
   await nav.getByRole('button',{name:'알림',exact:true}).click()
-  await page.getByRole('heading',{name:'로그인하고 알림을 확인하세요'}).waitFor()
+  await page.getByRole('heading',{name:'로그인 · 간편가입',exact:true}).waitFor()
   assert.equal(reportReads,0)
   await nav.getByRole('button',{name:'지도',exact:true}).click()
   assert.ok(await map.evaluate(el=>el===document.querySelector('.map')))

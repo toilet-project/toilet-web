@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { agreeToRequiredPolicies, fetchPolicies, type PolicyDocument, type PolicyKey } from '../api/auth'
+import { PolicyDisclosure } from './PolicyDisclosure'
 
 export function PolicyConsentModal({ isNewRegistration, onComplete, onLogout }: {
   isNewRegistration: boolean
@@ -41,7 +42,7 @@ export function PolicyConsentModal({ isNewRegistration, onComplete, onLogout }: 
       <p className="consent-description">지도는 동의 없이 볼 수 있어요. 동의 후 제보 기능을 이용할 수 있습니다.</p>
       <label className="consent-all"><input type="checkbox" checked={allChecked} onChange={() => setChecked(allChecked ? new Set() : new Set(required.map((policy) => policy.key)))} /><strong>필수 항목 모두 동의</strong></label>
       <div className="consent-list">
-        {required.map((policy) => <label key={policy.id}><input type="checkbox" checked={checked.has(policy.key)} onChange={() => toggle(policy.key)} /><span><strong>[필수] {policy.title}</strong><small>v{policy.version} · {policy.effectiveAt}</small></span><a href={policy.contentPath} target="_blank" rel="noreferrer" aria-label={`${policy.title} 전문 보기`}>보기</a></label>)}
+        {required.map((policy) => <PolicyDisclosure key={`${policy.id}-${policy.version}-${policy.contentPath}`} title={`[필수] ${policy.title}`} meta={`v${policy.version} · ${policy.effectiveAt}`} contentPath={policy.contentPath} selection={<label className="policy-consent-selection"><input type="checkbox" aria-label={`[필수] ${policy.title} 동의`} checked={checked.has(policy.key)} onChange={() => toggle(policy.key)} /></label>} />)}
       </div>
       <p className="consent-age-note">만 14세 이상 확인은 계정당 한 번만 기록됩니다.</p>
       {error && <p className="consent-error" role="alert">{error}</p>}

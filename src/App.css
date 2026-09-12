@@ -220,7 +220,7 @@
 .toilet-marker, .cluster-marker, .coordinate-group-marker { border: 0; cursor: pointer; box-shadow: 0 3px 8px rgb(23 104 58 / 25%); }
 .toilet-marker { position: relative; width: 34px; height: 34px; padding: 0; background: transparent; box-shadow: none; }
 .toilet-marker-pin { position: absolute; inset: 1px; display: grid; place-items: center; border: 3px solid #fff; border-radius: 50% 50% 50% 5px; background: #17683a; box-shadow: 0 2px 6px rgb(23 104 58 / 42%); transform: rotate(-45deg); }
-.toilet-marker-logo { width: 19px; height: 19px; transform: rotate(45deg); }
+.toilet-marker-logo { width: 19px; height: 19px; transform: rotate(45deg); pointer-events: none; -webkit-user-drag: none; user-select: none; }
 .toilet-marker-name { position: absolute; top: calc(100% + 4px); left: 50%; color: #111; font-size: 11px; font-weight: 800; line-height: 1.2; pointer-events: none; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 1px 2px #fff; transform: translateX(-50%); white-space: nowrap; }
 .toilet-marker.is-selected { z-index: 3; }
 .toilet-marker.is-selected .toilet-marker-pin { background: #e66f22; box-shadow: 0 0 0 4px rgb(241 146 73 / 72%), 0 4px 11px rgb(165 66 12 / 52%); animation: selected-marker-pulse 1.35s ease-out infinite; transform: rotate(-45deg) scale(1.12); }
@@ -401,15 +401,10 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
 .consent-eyebrow, .account-dialog > p { margin: 0; color: #27804a; font-size: 12px; font-weight: 800; }
 .consent-modal h1, .account-dialog h1 { margin: 7px 0 8px; color: #1c3022; font-size: 24px; letter-spacing: -.6px; }
 .consent-modal > p { color: #657269; font-size: 13px; line-height: 1.55; }
-.consent-all, .consent-list label { display: grid; align-items: center; cursor: pointer; }
+.consent-all { display: grid; align-items: center; cursor: pointer; }
 .consent-all { grid-template-columns: 22px 1fr; gap: 9px; margin-top: 22px; padding: 15px; border: 1px solid #b9d7c1; border-radius: 12px; background: #f0f8f2; color: #194f2d; }
 .consent-list { display: grid; gap: 8px; margin-top: 10px; }
-.consent-list label { grid-template-columns: 22px minmax(0, 1fr) auto; gap: 9px; padding: 12px 10px; border-bottom: 1px solid #edf1ee; }
 .consent-modal input { width: 17px; height: 17px; accent-color: #17683a; }
-.consent-list span { display: grid; gap: 3px; }
-.consent-list strong { color: #2b3930; font-size: 13px; }
-.consent-list small { color: #849087; font-size: 10px; }
-.consent-list a { color: #17683a; font-size: 12px; font-weight: 800; }
 .consent-age-note { padding: 10px 12px; border-radius: 9px; background: #fff7ed; color: #95602d !important; }
 .consent-error { color: #c34232 !important; font-size: 12px !important; }
 .consent-submit { width: 100%; min-height: 48px; border: 0; border-radius: 12px; background: #17683a; color: #fff; font: inherit; font-size: 15px; font-weight: 800; cursor: pointer; }
@@ -424,13 +419,6 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
 .account-dialog dl div { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 12px; padding: 12px; border-radius: 10px; background: #f5f8f5; }
 .account-dialog dt { color: #728078; font-size: 12px; }
 .account-dialog dd { margin: 0; overflow-wrap: anywhere; color: #26372c; font-size: 13px; font-weight: 700; }
-.account-agreements { margin: 0 0 20px; padding: 14px; border: 1px solid #dce8df; border-radius: 12px; background: #fbfdfb; }
-.account-agreements h2 { margin: 0 0 10px; color: #26372c; font-size: 14px; }
-.account-agreements > p { margin: 0; color: #728078; font-size: 12px; }
-.account-agreements ul { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
-.account-agreements li { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
-.account-agreements a { color: #1d6d3d; font-size: 12px; font-weight: 800; }
-.account-agreements span { flex: 0 0 auto; color: #7b877f; font-size: 11px; }
 .account-withdraw { border: 0; background: transparent; color: #a84e43; font: inherit; font-size: 12px; text-decoration: underline; cursor: pointer; }
 .withdrawal-choice { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; line-height: 1.5; }
 .withdrawal-choice input { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 2px; accent-color: #176b43; }
@@ -475,12 +463,10 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
   .policy-footer small { display: block; margin-top: 10px; }
   .consent-backdrop, .account-backdrop { padding: 0; align-items: end; }
   .consent-modal { width: calc(100% - 20px); max-height: calc(100svh - 20px); margin: 0 10px 10px; padding: 18px 16px max(16px, env(safe-area-inset-bottom)); border-radius: 20px; }
-  .consent-modal h1 { margin: 4px 0 5px; font-size: 19px; letter-spacing: -.35px; }
+  .consent-modal h1 { margin: 4px 0 5px; font-size: 19px; letter-spacing: -.35px; word-break: keep-all; text-wrap: balance; }
   .consent-modal > .consent-description { margin: 0; font-size: 11px; line-height: 1.45; }
   .consent-all { min-height: 42px; margin-top: 13px; padding: 10px 11px; }
   .consent-list { gap: 0; margin-top: 4px; }
-  .consent-list label { padding: 8px 6px; }
-  .consent-list strong { font-size: 12px; }
   .consent-age-note { margin: 7px 0; padding: 7px 9px; font-size: 10px !important; line-height: 1.4 !important; }
   .consent-submit { min-height: 43px; font-size: 14px; }
   .consent-logout { margin-top: 9px; }
@@ -492,7 +478,6 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
   .place-card:not(.mobile-card-expanded) .card-scroll-content { overflow-y: auto; overscroll-behavior: contain; padding-right: 2px; }
   .place-card .report-entry-button { margin-bottom: 2px; }
   .coordinate-inline-details { padding-bottom: 12px; }
-  .coordinate-inline-details .coordinate-report-entry { margin-bottom: 0; }
   .report-field input, .report-field textarea { font-size: 16px; }
 }
 
@@ -556,6 +541,7 @@ footer { padding: 14px 24px; background: #fff; border-top: 1px solid #e3e8e1; co
   /* Reserve the existing maximum size during partial loading; no later anchor jump. */
   .place-card:not(.initial-route-card) { bottom: auto; height: min(460px, calc(100% - 36px)); max-height: calc(100% - 36px); }
   .place-card .card-scroll-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; }
+  .place-card-summary:has(.review-card-title-row) { overflow: hidden; scrollbar-gutter: stable; }
   .place-card .card-scroll-content .card-details { max-height: none; overflow: visible; }
   .place-card .place-card-summary h1 { max-height: 4.5em; overflow-y: auto; }
 }

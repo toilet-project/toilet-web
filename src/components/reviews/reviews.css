@@ -26,13 +26,17 @@
 .review-card-title-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .place-card-summary:has(.review-card-title-row) { padding-right: 0; }
 .review-card-title-row h1 { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.review-card-report { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; flex: 0 0 44px; min-height: 44px; border: 1px solid #e6ece8; border-radius: 11px; color: #587464; background: transparent; font: inherit; cursor: pointer; }
+.review-card-report { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; flex: 0 0 44px; min-height: 44px; border: 0; border-radius: 11px; color: #c4403c; background: transparent; font: inherit; cursor: pointer; }
 .review-card-report span { font-size: 10px; line-height: 12px; }
-.review-card-report:hover { background: #edf6ef; }
+.review-card-report:hover:enabled { color: #a83230; }
+.review-card-report:focus-visible { outline: 3px solid #d7756c; outline-offset: 2px; }
 .review-card-report:disabled { opacity: .5; cursor: default; }
-.review-group-title-row { display: flex; align-items: center; gap: 4px; padding-right: 10px; }
-.review-group-title-row .coordinate-group-item-toggle { flex: 1; min-width: 0; padding-right: 4px; }
-.review-group-title-row .coordinate-group-item-toggle .coordinate-group-toggle-label { font-size: 10px; }
+.coordinate-opening-row { display: flex; align-items: center; gap: 12px; min-width: 0; margin: 8px 0 4px; }
+.coordinate-opening-row .open-time { flex: 1; min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.coordinate-opening-row .review-card-report.is-icon-only { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #c4403c; }
+.coordinate-opening-row .review-card-report svg { stroke-width: 1.8; }
+.coordinate-opening-row .review-card-report:hover:enabled { color: #a83230; }
+.coordinate-opening-row .review-card-report:focus-visible { outline: 3px solid #d7756c; outline-offset: 2px; }
 .rv-dialog-body .rv-my-item { box-sizing: border-box; min-width: 0; font: inherit; }
 .rv-dialog-body .rv-my-comment { min-width: 0; }
 .route-preview-community .toilet-community-row[data-review-preview] .report-icon-button { display: flex !important; }

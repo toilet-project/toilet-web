@@ -15,6 +15,30 @@ export function createReferenceRequestGate() {
 }
 
 type TouchPoint = { identifier: number; clientX: number; clientY: number }
+type MarkerPointer = { pointerId: number; clientX: number; clientY: number }
+export function createMarkerTapGesture() {
+  let start: MarkerPointer | null = null
+  let startedAt = 0, accepted = false
+  return {
+    start(point: MarkerPointer, now = Date.now()) { start = { pointerId: point.pointerId, clientX: point.clientX, clientY: point.clientY }; startedAt = now; accepted = true },
+    move(point: MarkerPointer) {
+      if (start && point.pointerId === start.pointerId && Math.hypot(point.clientX - start.clientX, point.clientY - start.clientY) > 8) accepted = false
+    },
+    end(point: MarkerPointer, now = Date.now()) {
+      if (!start || point.pointerId !== start.pointerId) return
+      if (Math.hypot(point.clientX - start.clientX, point.clientY - start.clientY) > 8 || now - startedAt > 750) accepted = false
+      start = null
+    },
+    cancel() { start = null; accepted = false },
+    acceptsClick(detail: number) {
+      if (detail === 0) return true // Enter/Space and assistive-technology activation.
+      const result = accepted && start === null
+      accepted = false
+      return result
+    },
+  }
+}
+
 export function createCardHandleGesture() {
   let start: TouchPoint | null = null
   let ignoreClickUntil = 0

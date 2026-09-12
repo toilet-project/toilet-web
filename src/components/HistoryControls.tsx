@@ -1,53 +1,65 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
-import { historyRange, historyRangeProblem, historyToday, type HistoryRange } from '../lib/history'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { historyRange, type HistoryRange } from '../lib/history'
 import { historyScroller } from '../lib/useHistoryWindow'
-export function HistoryHeading({ title, description, onClose, id }: { title: string; description?: string; onClose?: () => void; id?: string }) {
-  return <><header className="history-heading"><div className="history-title-row"><h1 id={id}>{title}</h1>{onClose && <button type="button" className="history-close" onClick={onClose} aria-label={`${title} 닫기`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" /></svg></button>}</div></header>{description && <p className="history-heading-description">{description}</p>}</>
+import { HistoryDatePicker } from './HistoryDatePicker'
+export function HistoryHeading({ title, onClose, id, closeDisabled = false }: { title: string; onClose?: () => void; id?: string; closeDisabled?: boolean }) {
+  return <header className="history-heading"><div className="history-title-row"><h1 id={id} tabIndex={-1}>{title}</h1>{onClose && <button type="button" className="history-close" disabled={closeDisabled} onClick={onClose} aria-label={`${title} 닫기`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" /></svg></button>}</div></header>
 }
-export function HistoryFilters({ value, onChange, count, countLabel, collapsible = false, children }: { value: HistoryRange; onChange: (value: HistoryRange) => void; count: number; countLabel?: string; collapsible?: boolean; children?: ReactNode }) {
-  const [expanded, setExpanded] = useState(true), [open, setOpen] = useState(false)
-  const [from, setFrom] = useState(value.from), [to, setTo] = useState(value.to)
-  const [error, setError] = useState('')
-  const id = useId(), root = useRef<HTMLDivElement>(null), toggle = useRef<HTMLButtonElement>(null), lastScroll = useRef(0), manuallyExpanded = useRef(false)
-  useEffect(() => {
-    if (!collapsible || !root.current) return
-    const scroll = historyScroller(root.current)
+export function HistoryFilters({ value, onChange, count, countLabel, embedded = false, floatingCalendar = embedded, children }: { value: HistoryRange; onChange: (value: HistoryRange) => void; count: number; countLabel?: string; embedded?: boolean; floatingCalendar?: boolean; children?: ReactNode }) {
+  const [open, setOpen] = useState(false)
+  const id = useId(), root = useRef<HTMLDivElement>(null), periods = useRef<HTMLDivElement>(null), calendar = useRef<HTMLDivElement>(null), toggle = useRef<HTMLButtonElement>(null)
+  useLayoutEffect(() => {
+    if (!floatingCalendar || !root.current) return
+    const scroll = historyScroller(root.current) ?? root.current.closest<HTMLElement>('.notification-panel')
     if (!scroll) return
-    lastScroll.current = scroll.scrollTop
-    const collapse = () => {
-      const next = scroll.scrollTop
-      if (!manuallyExpanded.current && next > 72 && next > lastScroll.current + 8) { setExpanded(false); setOpen(false); setError('') }
-      lastScroll.current = next
+    const update = () => {
+      if (!root.current || !periods.current) return
+      // Only the calendar floats; filter controls stay at the start of the scroll content.
+      const row = periods.current.getBoundingClientRect(), viewport = scroll.getBoundingClientRect()
+      const visibleBottom = window.visualViewport ? window.visualViewport.offsetTop + window.visualViewport.height : window.innerHeight
+      root.current.style.setProperty('--history-calendar-top', `${row.bottom + 8}px`)
+      root.current.style.setProperty('--history-calendar-left', `${viewport.left}px`)
+      root.current.style.setProperty('--history-calendar-width', `${viewport.width}px`)
+      root.current.style.setProperty('--history-calendar-max-height', `${Math.max(0, Math.min(viewport.bottom, visibleBottom) - row.bottom - 16)}px`)
     }
-    const allowCollapse = (event: Event) => {
-      if (!root.current?.contains(event.target as Node)) manuallyExpanded.current = false
-    }
-    scroll.addEventListener('scroll', collapse, { passive: true })
-    document.addEventListener('pointerdown', allowCollapse)
-    document.addEventListener('keydown', allowCollapse)
-    return () => { scroll.removeEventListener('scroll', collapse); document.removeEventListener('pointerdown', allowCollapse); document.removeEventListener('keydown', allowCollapse) }
-  }, [collapsible])
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(root.current)
+    observer.observe(scroll)
+    scroll.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
+    window.visualViewport?.addEventListener('resize', update)
+    return () => { observer.disconnect(); scroll.removeEventListener('scroll', update); window.removeEventListener('resize', update); window.visualViewport?.removeEventListener('resize', update) }
+  }, [floatingCalendar])
+  useEffect(() => {
+    if (!open || !root.current) return
+    const scroll = historyScroller(root.current) ?? root.current.closest('.notification-panel')?.querySelector<HTMLElement>('.notification-list'), startingScroll = scroll?.scrollTop ?? 0
+    const close = () => setOpen(false)
+    const outside = (event: Event) => { if (!calendar.current?.contains(event.target as Node) && !toggle.current?.contains(event.target as Node)) close() }
+    const onScroll = () => { if (scroll && Math.abs(scroll.scrollTop - startingScroll) > 8) close() }
+    document.addEventListener('pointerdown', outside)
+    document.addEventListener('focusin', outside)
+    if (floatingCalendar) scroll?.addEventListener('scroll', onScroll, { passive: true })
+    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('focusin', outside); if (floatingCalendar) scroll?.removeEventListener('scroll', onScroll) }
+  }, [floatingCalendar, open])
   const change = (next: HistoryRange) => {
-    onChange(next); setOpen(false); setError('')
+    onChange(next); setOpen(false)
     if (root.current) { const scroll = historyScroller(root.current); if (scroll) scroll.scrollTop = 0 }
   }
   const rangeLabel = value.period === 'all' ? '전체 기간' : `${value.from.replaceAll('-', '.')} – ${value.to.replaceAll('-', '.')}`
-  return <div className={`history-filter-shell${collapsible ? ' is-collapsible' : ''}`} ref={root}>
-    {collapsible && <button type="button" className="history-filter-disclosure" aria-expanded={expanded} aria-controls={`${id}-filters`} onClick={() => { const next = !expanded; manuallyExpanded.current = next; setExpanded(next); if (!next) { setOpen(false); setError('') } }}><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4" /></svg>필터</span><small>{rangeLabel}</small><svg className="history-filter-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg></button>}
-    <div id={`${id}-filters`} className="history-filter-body" hidden={collapsible && !expanded}>
-      <div className="history-filters">
-        <div className="history-periods" role="group" aria-label="조회 기간">
-          {(['7', '30', 'all'] as const).map(period => <button type="button" key={period} aria-pressed={value.period === period} onClick={() => change(historyRange(period))}>{period === 'all' ? '전체' : `최근 ${period}일`}</button>)}
-          <button type="button" ref={toggle} className="history-date-toggle" aria-label="날짜 직접 선택" title={open ? '날짜 선택 닫기' : '날짜 직접 선택'} aria-expanded={open} aria-controls={`${id}-dates`} aria-pressed={value.period === 'custom'} onClick={() => { setFrom(value.from); setTo(value.to); setError(''); setOpen(!open) }}><svg viewBox="0 0 24 24" aria-hidden="true">{open ? <path d="m6 15 6-6 6 6" /> : <><path d="M3 7h7m4 0h7M3 17h3m4 0h11" /><circle cx="12" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></>}</svg></button>
-        </div>
-        {open && <form id={`${id}-dates`} className="history-date-picker" onSubmit={event => { event.preventDefault(); const problem = historyRangeProblem(from, to); if (problem) { setError(problem); return }; change({ period: 'custom', from, to }); toggle.current?.focus() }}>
-          <div className="history-date-inputs"><label><span className="sr-only">시작일</span><input aria-label="시작일" type="date" value={from} max={historyToday()} onChange={event => setFrom(event.target.value)} aria-describedby={error ? `${id}-error` : undefined} /></label><span aria-hidden="true">–</span><label><span className="sr-only">종료일</span><input aria-label="종료일" type="date" value={to} max={historyToday()} onChange={event => setTo(event.target.value)} aria-describedby={error ? `${id}-error` : undefined} /></label><button type="submit">적용</button></div>
-          {error && <p id={`${id}-error`} role="alert">{error}</p>}
-        </form>}
-        <div className="history-range-caption"><span>{rangeLabel}</span><span>{countLabel ?? `${count}개 · 최신순`}</span></div>
+  return <div className={`history-filter-shell${embedded ? ' is-embedded' : ''}${floatingCalendar ? ' has-floating-calendar' : ''}`} ref={root} onKeyDownCapture={event => {
+    // Dismiss the date popup before the enclosing dialog's native Escape listener.
+    if (open && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); toggle.current?.focus({ preventScroll: true }); setOpen(false) }
+  }}>
+    <div className="history-filters">
+      <div ref={periods} className="history-periods" role="group" aria-label="조회 기간">
+        {(['7', '30', 'all'] as const).map(period => <button type="button" key={period} aria-pressed={value.period === period} onClick={() => change(historyRange(period))}>{period === 'all' ? '전체' : `최근 ${period}일`}</button>)}
+        <button type="button" ref={toggle} className="history-date-toggle" aria-label="날짜 직접 선택" title={open ? '날짜 선택 닫기' : '날짜 직접 선택'} aria-expanded={open} aria-controls={`${id}-dates`} aria-pressed={value.period === 'custom'} onClick={() => setOpen(!open)}><svg viewBox="0 0 24 24" aria-hidden="true">{open ? <path d="m6 15 6-6 6 6" /> : <><path d="M3 7h7m4 0h7M3 17h3m4 0h11" /><circle cx="12" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></>}</svg></button>
       </div>
-      {children}
+      {open && <div ref={calendar} className="history-date-popover"><HistoryDatePicker id={`${id}-dates`} initialFrom={value.from} initialTo={value.to} onApply={(from, to) => { change({ period: 'custom', from, to }); toggle.current?.focus({ preventScroll: true }) }} onClose={() => { setOpen(false); toggle.current?.focus({ preventScroll: true }) }} /></div>}
+      <div className="history-range-caption"><span>{rangeLabel}</span><span>{countLabel ?? `${count}개 · 최신순`}</span></div>
     </div>
+    {children}
   </div>
 }
 export function HistoryMore({ count, total, onMore, label }: { count: number; total: number; onMore: () => void; label?: string }) {

@@ -74,13 +74,15 @@ export function MyReportsPanel({ onClose, onSessionExpired, initialExpandedId = 
   useEffect(() => {
     if (!focusInitial || !initialExpandedId || isLoading || !focusedReportRef.current) return
     const scroll = historyScroller(focusedReportRef.current)
-    if (scroll) scroll.scrollTop += focusedReportRef.current.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 16
-  }, [initialExpandedId, isLoading, focusInitial])
+    const heading = embedded ? focusedReportRef.current.closest('.my-reports-panel')?.querySelector<HTMLElement>('.history-heading') : null
+    const headingHeight = heading && getComputedStyle(heading).position === 'sticky' ? heading.getBoundingClientRect().height : 0
+    if (scroll) scroll.scrollTop += focusedReportRef.current.getBoundingClientRect().top - scroll.getBoundingClientRect().top - headingHeight - 16
+  }, [initialExpandedId, isLoading, focusInitial, embedded])
 
   return <div className={`history-list ${embedded ? 'my-reports-embedded' : 'my-reports-backdrop'}`} onMouseDown={(event) => { if (!embedded && event.target === event.currentTarget) onClose() }}>
     <section ref={dialog} tabIndex={embedded ? undefined : -1} className="my-reports-panel" role={embedded ? undefined : 'dialog'} aria-modal={embedded ? undefined : true} aria-labelledby={titleId}>
-      <HistoryHeading id={titleId} title="내 제보" description="제보 처리 상태와 관리자 검토 내용을 확인할 수 있어요." onClose={embedded ? onBack : onClose} />
-      <HistoryFilters collapsible={embedded} value={range} onChange={value => { reset(); setRange(value) }} count={matchingReports.length}>
+      <HistoryHeading id={titleId} title="내 제보" onClose={embedded ? onBack : onClose} />
+      <HistoryFilters embedded={embedded} value={range} onChange={value => { reset(); setRange(value) }} count={matchingReports.length}>
         <nav className="my-reports-filters" aria-label="제보 상태 필터">
           {filters.map((item) => <button key={item.value} type="button" aria-pressed={filter === item.value} className={filter === item.value ? 'is-active' : ''} onClick={() => { reset(); setFilter(item.value) }}>
             {item.label}<span>{item.value === 'ALL' ? datedReports.length : datedReports.filter((report) => report.status === item.value).length}</span>

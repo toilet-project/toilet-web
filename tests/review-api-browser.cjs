@@ -1,6 +1,7 @@
 // Local API-mode UI against a synthetic HTTP boundary, not a live member/review service.
 // Only public facility reads may leave the browser. All review writes are intercepted below.
 const assert = require('node:assert/strict')
+const { selectCalendarDate } = require('./history-calendar-browser.cjs')
 const fs = require('node:fs'), path = require('node:path')
 const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE || 'playwright')
 const origin = 'http://127.0.0.1:4187'
@@ -138,7 +139,7 @@ const iso = time => new Date(time).toISOString()
       assert.equal(await list.locator('.history-card').count(),26)
       assert.ok(mineReads.some(r=>r.cursor==='10') && mineReads.some(r=>r.cursor==='20'))
       await list.getByRole('button',{name:'날짜 직접 선택'}).click()
-      await list.getByLabel('시작일',{exact:true}).fill('2026-08-03');await list.getByLabel('종료일',{exact:true}).fill('2026-08-03');await list.getByRole('button',{name:'적용',exact:true}).click()
+      await selectCalendarDate(list,'시작일','2026-08-03');await selectCalendarDate(list,'종료일','2026-08-03');await list.getByRole('button',{name:'적용',exact:true}).click()
       await list.getByText('40일 전 합성 리뷰',{exact:true}).waitFor();assert.equal(await list.locator('.history-card').count(),1)
       await page.screenshot({path:path.join(output,`api-history-${width}.png`)})
       if(width<600){await list.getByRole('button',{name:'내 리뷰 닫기'}).click();await page.getByRole('navigation',{name:'하단 내비게이션'}).getByRole('button',{name:'지도',exact:true}).click()}

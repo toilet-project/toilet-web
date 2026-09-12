@@ -23,9 +23,34 @@ test('report login prompt uses brand and concise labels without removing the aut
   const row = await source('../src/components/ToiletCommunityRow.tsx')
   assert.doesNotMatch(app, /로그인 후 정보 제보하기/)
   assert.match(row, /aria-label="정보 제공하기" title="정보 제공하기"/)
-  assert.equal((app.match(/onReport=\{isDesktop \? undefined :/g) || []).length, 2)
+  assert.equal((app.match(/onReport=\{isDesktop \? undefined :/g) || []).length, 1)
+  assert.match(app, /onReport=\{isDesktop && !REVIEW_UI_ENABLED \? undefined/)
   assert.match(app, /className="brand login-brand">급똥/)
   assert.match(app, /const title = '로그인 · 간편가입'/)
+})
+
+test('login entry copy is one short purpose sentence and notifications use the shared title', async () => {
+  const app = await source('../src/App.tsx')
+  const mobile = await source('../src/components/MobileNavigation.tsx')
+  assert.match(app, /review: '리뷰는 로그인 후 이용할 수 있어요\.'/)
+  assert.match(app, /'my-reports': '내 제보는 로그인 후 확인할 수 있어요\.'/)
+  assert.match(app, /report: '제보는 로그인 후 이용할 수 있어요\.'/)
+  assert.doesNotMatch(app, /로그인한 뒤 리뷰 버튼을 다시 눌러 주세요\. 새 리뷰는/)
+  assert.match(mobile, /<h1>로그인 · 간편가입<\/h1>/)
+  assert.doesNotMatch(mobile, /로그인하고 알림을 확인하세요/)
+  assert.match(app, /첫 가입 시 만 14세 이상 확인·필수 약관 동의가 필요해요\./)
+})
+
+test('all login entry surfaces put Google before Kakao with matching provider handlers', async () => {
+  for (const file of ['../src/App.tsx', '../src/components/MobileNavigation.tsx']) {
+    const content = await source(file)
+    const buttons = [...content.matchAll(/<button\b[^>]*className="social-login ([^"]+)"[^\r\n]+/g)].map(match => match[0])
+    assert.equal(buttons.length, 2)
+    assert.match(buttons[0], /google-login.*(?:startSocialLogin|onLogin)\('google'\)/)
+    assert.match(buttons[1], /kakao-login.*(?:startSocialLogin|onLogin)\('kakao'\)/)
+    assert.match(content, /구글·카카오로 간편하게 로그인하세요\./)
+    assert.doesNotMatch(content, /카카오·구글로/)
+  }
 })
 
 test('community uses the shared three-second transient notice without navigating', async () => {
@@ -76,13 +101,18 @@ test('future toilet metrics are placeholders in a 44px row, with a labeled repor
   assert.match(app, /m13 12-4 1 1-4 7-7 3 3-7 7Z/)
 })
 
-test('group details put metrics below hours; desktop single and group cards omit only report action', async () => {
+test('group report action sits beside hours, apart from collapse; metrics and single-card behavior remain', async () => {
   const app = await source('../src/App.tsx')
   const inline = app.slice(app.indexOf('function CoordinateGroupInlineDetails'), app.indexOf('function CompactFacilityStatus'))
-  assert.match(inline, /<div className="coordinate-inline-details">\s*<p className="open-time">\{formatOpenTime\(toilet\)\}<\/p>\s*<ToiletCommunityRow onReport=\{onReport\} onReview=\{onReview\} reviewEntry=\{reviewEntry\} previewSummary=\{previewSummary\} \/>/)
+  assert.match(inline, /className="coordinate-opening-row"><p className="open-time">\{formatOpenTime\(toilet\)\}<\/p>\{onReport && <ToiletReportEntry iconOnly onClick=\{onReport\} \/>\}<\/div>\s*<ToiletCommunityRow onReview=\{onReview\}/)
+  assert.match(inline, /<ToiletReportEntry iconOnly disabled \/>/)
+  assert.doesNotMatch(app, /review-group-title-row/)
   assert.equal((inline.match(/<ToiletCommunityRow/g) || []).length, 2)
-  assert.equal((app.match(/onReport=\{isDesktop \? undefined :/g) || []).length, 2)
+  assert.equal((app.match(/onReport=\{isDesktop \? undefined :/g) || []).length, 1)
+  assert.match(app, /onReport=\{isDesktop && !REVIEW_UI_ENABLED \? undefined/)
   const row = await source('../src/components/ToiletCommunityRow.tsx')
+  assert.match(row, /size=\{iconOnly \? 20 : 18\}/)
+  assert.match(row, /!iconOnly && <span>제보<\/span>/)
   assert.match(row, /: \(onReport \|\| pendingReport\) && <button disabled=\{pendingReport\}/)
   for (const label of ['평점: 준비 중', '혼잡도: 준비 중', '휴지 있음 비율: 준비 중']) assert.ok(row.includes(label))
   const css = await source('../src/components/mobile-navigation.css')
