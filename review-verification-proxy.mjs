@@ -37,7 +37,7 @@ export async function reviewVerificationResponse(request, env) {
   if (idempotency && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(idempotency)) forwarded.set('Idempotency-Key', idempotency)
   // In particular: never forward real site Cookie, Authorization, CSRF or user-provided forwarding headers.
   try {
-    const result = await fetch(env.REVIEW_VERIFICATION_ORIGIN + path + url.search, { method: request.method, headers: forwarded, body, redirect: 'manual', signal: AbortSignal.timeout(14000) })
+    const result = await fetch(env.REVIEW_VERIFICATION_ORIGIN + path + url.search, { method: request.method, headers: forwarded, body, cache: 'no-store', redirect: 'manual', signal: AbortSignal.timeout(14000) })
     if (result.status >= 300 && result.status < 400) { await result.body?.cancel(); return reject(502) }
     return new Response(result.body, { status: result.status, headers })
   } catch { return reject(503) }

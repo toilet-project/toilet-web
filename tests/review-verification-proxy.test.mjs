@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { reviewVerificationResponse } from '../review-verification-proxy.mjs'
 const base = 'https://preview.geupddong.com/__review-verification'
 const env = () => ({ SITE_INDEXABLE: 'false', REVIEW_VERIFICATION_ORIGIN: 'https://synthetic-only-fixture.trycloudflare.com', REVIEW_VERIFICATION_EXPIRES_AT: new Date(Date.now() + 3600000).toISOString() })
@@ -23,8 +24,17 @@ test('only synthetic gateway receives requests; real cookies and authorization n
     assert.equal(response.status, 200); assert.equal(calls.length, 1)
     assert.equal(calls[0].url, env().REVIEW_VERIFICATION_ORIGIN + '/api/v1/reviews')
     assert.equal(calls[0].options.headers.get('Cookie'), null); assert.equal(calls[0].options.headers.get('Authorization'), null)
+    assert.equal(calls[0].options.cache, 'no-store')
     assert.equal(response.headers.get('Set-Cookie'), null); assert.equal(response.headers.get('Cache-Control'), 'private, no-store')
   } finally { globalThis.fetch = original }
+})
+test('synthetic SSR uses the same bounded proxy instead of a production facility or persistent cache', () => {
+  const source = readFileSync(new URL('../src/server/toilets.ts', import.meta.url), 'utf8')
+  assert.match(source, /NEXT_PUBLIC_REVIEW_API_ENABLED === 'true'/)
+  assert.match(source, /NEXT_PUBLIC_API_BASE_URL === 'https:\/\/preview\.geupddong\.com\/__review-verification'/)
+  const fixture = source.slice(source.indexOf('if (verification)'), source.indexOf('} else {'))
+  assert.match(fixture, /reviewVerificationResponse/)
+  assert.doesNotMatch(fixture, /TOILET_API_ORIGIN|api\.geupddong\.com|revalidate:/)
 })
 test('mutations require same origin and a bounded JSON body; redirects never escape sandbox', async () => {
   const original = globalThis.fetch; let calls = 0
