@@ -12,6 +12,7 @@ import { MyReviewsPanel } from './MyReviewsPanel'
 import type { MineNavigation, PreviewReviewSummary, ReviewAccess, ReviewEntryState, ReviewTarget } from './useIntegratedReviewPreview'
 
 type Entry = ReviewEntryState & { id: number }
+type ExistingPrompt = { reviewId: string; toiletId: number; toiletName: string }
 const apiMessage = (error: unknown) => error instanceof ReviewApiError || error instanceof ReviewGateError ? error.message : '리뷰를 불러오지 못했어요. 다시 확인해 주세요.'
 const sameInput = (toiletId: number, v: ReviewInput) => JSON.stringify([toiletId, v.satisfaction, v.cleanliness, v.paper, v.waitMinutes, v.comment])
 
@@ -19,6 +20,7 @@ const sameInput = (toiletId: number, v: ReviewInput) => JSON.stringify([toiletId
 export function useReviewApi(owner: string | null, access: ReviewAccess, navigation?: MineNavigation) {
   const [target, setTarget] = useState<ReviewTarget | null>(null), [editing, setEditing] = useState<StoredReview | null>(null)
   const [mine, setMine] = useState(false), [saved, setSaved] = useState(false)
+  const [existingPrompt, setExistingPrompt] = useState<ExistingPrompt | null>(null)
   const [entry, setEntry] = useState<Entry | null>(null), entryRef = useRef<Entry | null>(null)
   const [eligibility, setEligibility] = useState<ReviewEligibility>({ status: 'ready', message: '' })
   const [items, setItems] = useState<StoredReview[]>([]), [range, setRange] = useState(() => historyRange())
@@ -40,7 +42,7 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
   useLayoutEffect(() => {
     if (ownerRef.current === owner) return
     ownerRef.current = owner; epoch.current++; attempt.current = null
-    updateEntry(null); setItems([]); setMine(false); setTarget(null); setEditing(null); setSaved(false)
+    updateEntry(null); setItems([]); setMine(false); setTarget(null); setEditing(null); setSaved(false); setExistingPrompt(null)
     setListLoading(false); setListError(''); setMoreError(''); setMoreLoading(false); setHasMore(false); setCursor(null); setMessage(''); setSummaries({})
   }, [owner])
   useLayoutEffect(() => {
@@ -71,13 +73,13 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
     }
   }
   function close() {
-    epoch.current++; updateEntry(null); setTarget(null); setEditing(null); setSaved(false); setMine(false)
+    epoch.current++; updateEntry(null); setTarget(null); setEditing(null); setSaved(false); setMine(false); setExistingPrompt(null)
     setItems([]); setListLoading(false); setMoreLoading(false); setMessage(''); attempt.current = null
   }
   async function loadMine(nextRange = historyRange(), focusedId?: string, expectedToilet?: number) {
     if (!owner) { access.requireLogin(); return }
     const token = ++epoch.current
-    updateEntry(null); setMine(true); setTarget(null); setEditing(null); setSaved(false); setRange(nextRange)
+    updateEntry(null); setMine(true); setTarget(null); setEditing(null); setSaved(false); setExistingPrompt(null); setRange(nextRange)
     setFocus(value => ({ id: focusedId, visit: value.visit + 1 })); setItems([]); setCursor(null); setHasMore(false)
     setMessage(focusedId ? '작성한 리뷰 내역이 있습니다. 기존 리뷰를 확인하거나 수정해 주세요.' : '')
     setListLoading(true); setListError(''); setMoreError(''); setMoreLoading(false); navigation?.onOpen()
@@ -93,6 +95,16 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
     finally { if (current(token)) setListLoading(false) }
   }
   const openMine = () => loadMine()
+  function promptExisting(next: ReviewTarget, reviewId: string) {
+    updateEntry(null); setMine(false); setTarget(null); setEditing(null); setSaved(false)
+    setExistingPrompt({ reviewId, toiletId: next.id, toiletName: next.name })
+  }
+  function dismissExisting() { epoch.current++; setExistingPrompt(null) }
+  function viewExisting() {
+    const prompt = existingPrompt
+    if (!prompt) return
+    setExistingPrompt(null); void loadMine(historyRange(), prompt.reviewId, prompt.toiletId)
+  }
   async function more() {
     if (loadingMore.current === epoch.current || listLoading || !hasMore || !cursor) return
     const token = epoch.current, next = cursor
@@ -117,7 +129,7 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
       const [, status] = await Promise.all([session(token), reviewApi.status(next.id)])
       if (!current(token)) return
       if (!status.canCreate) {
-        if (status.existingReviewId) { await loadMine(historyRange(), status.existingReviewId, next.id); return }
+        if (status.existingReviewId) { promptExisting(next, status.existingReviewId); return }
         throw new ReviewApiError('REVIEW_ALREADY_EXISTS', '작성 후 24시간이 지나야 다시 리뷰를 남길 수 있어요.')
       }
       if (!inEditor) updateEntry({ id: next.id, status: 'checking', message: '현재 위치 확인 중' })
@@ -140,7 +152,7 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
       return
     }
     const fresh = entryRef.current?.id === next.id && entryRef.current.status === 'retry'
-    setMine(false); setSaved(false); setTarget(null); setEditing(null)
+    setMine(false); setSaved(false); setTarget(null); setEditing(null); setExistingPrompt(null)
     void check(next, fresh)
   }
   async function edit(item: StoredReview) {
@@ -172,7 +184,7 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
         const status = await reviewApi.status(facility.id)
         if (!current(token)) return
         if (!status.canCreate) {
-          if (status.existingReviewId) { await loadMine(historyRange(), status.existingReviewId, facility.id); return }
+          if (status.existingReviewId) { promptExisting(facility, status.existingReviewId); return }
           throw new ReviewApiError('REVIEW_ALREADY_EXISTS', '작성 후 24시간이 지나야 다시 리뷰를 남길 수 있어요.')
         }
         const fix = await requireReviewFix(facility)
@@ -188,7 +200,7 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
       setTarget(null); setEditing(null); setSaved(true); void refreshSummary(facility.id)
     } catch (error) {
       if (!current(token)) return
-      if (error instanceof ReviewApiError && error.code === 'REVIEW_ALREADY_EXISTS' && error.existingReviewId) { await loadMine(historyRange(), error.existingReviewId, facility.id); return }
+      if (error instanceof ReviewApiError && error.code === 'REVIEW_ALREADY_EXISTS' && error.existingReviewId) { promptExisting(facility, error.existingReviewId); return }
       authFailure(error); throw error
     } finally { writing.current = false }
   }
@@ -212,9 +224,10 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
   const modal = target ? <ReviewDialog key={`${owner}:${editing?.id ?? target.id}`} toiletName={target.name} initial={editing ?? undefined} onClose={closeOverlay} onSave={save}
     eligibility={editing ? undefined : eligibility} onRetryEligibility={editing ? undefined : () => { void check(target, true, true) }} />
     : saved ? <ReviewModal title="리뷰를 저장했어요" onClose={closeOverlay} footer={<div className="rv-two-actions"><button className="rv-secondary" onClick={closeOverlay}>{mine ? '목록으로 돌아가기' : '지도로 돌아가기'}</button><button className="rv-primary" onClick={() => { void openMine() }}>내 리뷰 보기</button></div>}><div className="rv-complete"><h1>이용 경험을 남겼어요</h1><p>저장한 리뷰는 내 리뷰에서 다시 확인할 수 있어요.</p></div></ReviewModal>
+    : existingPrompt ? <ReviewModal title="작성한 리뷰가 있어요" onClose={dismissExisting} footer={<div className="rv-two-actions"><button className="rv-secondary" onClick={dismissExisting}>뒤로 가기</button><button className="rv-primary" onClick={viewExisting}>내 리뷰 보기</button></div>}><div className="rv-complete"><h1>{existingPrompt.toiletName}</h1><p>이 화장실에 오늘 작성한 리뷰가 있어요. 기존 리뷰를 확인할까요?</p></div></ReviewModal>
     : mine && !navigation?.embedded ? <ReviewModal title="내 리뷰" onClose={() => { if (!writing.current) close() }}>{content}</ReviewModal> : null
   return { open, openMine, close, summary: (id: number) => summaries[id], entryState: (id: number) => entry?.id === id ? entry : undefined,
-    modal, page: mine && navigation?.embedded ? content : null, active: Boolean(target || saved || mine || listLoading || entry?.status === 'checking') }
+    modal, page: mine && navigation?.embedded ? content : null, active: Boolean(target || saved || existingPrompt || mine || listLoading || entry?.status === 'checking') }
 }
 function summaryValue(value: Awaited<ReturnType<typeof reviewApi.summary>>): PreviewReviewSummary {
   return { count: value.count, rating: value.rating === null ? '—' : String(value.rating), paper: value.paperPercent,
