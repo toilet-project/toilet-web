@@ -74,8 +74,10 @@ export function MyReportsPanel({ onClose, onSessionExpired, initialExpandedId = 
   useEffect(() => {
     if (!focusInitial || !initialExpandedId || isLoading || !focusedReportRef.current) return
     const scroll = historyScroller(focusedReportRef.current)
-    if (scroll) scroll.scrollTop += focusedReportRef.current.getBoundingClientRect().top - scroll.getBoundingClientRect().top - 16
-  }, [initialExpandedId, isLoading, focusInitial])
+    const heading = embedded ? focusedReportRef.current.closest('.my-reports-panel')?.querySelector<HTMLElement>('.history-heading') : null
+    const headingHeight = heading && getComputedStyle(heading).position === 'sticky' ? heading.getBoundingClientRect().height : 0
+    if (scroll) scroll.scrollTop += focusedReportRef.current.getBoundingClientRect().top - scroll.getBoundingClientRect().top - headingHeight - 16
+  }, [initialExpandedId, isLoading, focusInitial, embedded])
 
   return <div className={`history-list ${embedded ? 'my-reports-embedded' : 'my-reports-backdrop'}`} onMouseDown={(event) => { if (!embedded && event.target === event.currentTarget) onClose() }}>
     <section ref={dialog} tabIndex={embedded ? undefined : -1} className="my-reports-panel" role={embedded ? undefined : 'dialog'} aria-modal={embedded ? undefined : true} aria-labelledby={titleId}>

@@ -52,8 +52,8 @@
   .has-mobile-navigation .place-search-input { height: 40px; padding: 0 12px; border: 1px solid transparent; border-radius: 14px; background: #f2f5f3; color: #334039; font-size: 16px; letter-spacing: -.5px; box-shadow: none; }
   .has-mobile-navigation .place-search-input:focus { border-color: #abcbb7; outline: none; background: #f7faf8; }
   .has-mobile-navigation .place-search-input::placeholder { color: #7c8780; font-size: 13px; }
-  .is-mobile-page .place-search { display: none; }
-  .is-mobile-page .mobile-header-actions { margin-left: auto; }
+  .has-mobile-navigation.is-mobile-page { grid-template-rows: minmax(0, 1fr) auto; padding-top: env(safe-area-inset-top, 0px); background: #fff; }
+  .has-mobile-navigation.is-mobile-page .topbar { display: none; }
   .mobile-header-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 4px; }
   .mobile-header-actions .auth-button { min-width: 44px; min-height: 44px; padding: 0 6px; border: 0; border-radius: 14px; background: transparent; color: #17683a; font-family: inherit; font-size: 12px; font-weight: 700; }
   .mobile-header-actions .header-menu-trigger { width: 40px; height: 40px; border: 0; border-radius: 14px; background: #f2f5f3; color: #52685a; box-shadow: none; }

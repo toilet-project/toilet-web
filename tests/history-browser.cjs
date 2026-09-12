@@ -24,7 +24,7 @@ const iso = age => new Date(now-age*day).toISOString()
     if(u.pathname.startsWith('/api/v1/auth/login/')) {owner=nextOwner;reportMode='';return route.fulfill({contentType:'text/html',body:`<script>location.replace('${origin}/?login=success#review-test=36.3504,127.3845')</script>`})}
     if(u.pathname==='/api/v1/auth/refresh')return route.fulfill({status:401,json:{}})
     if(u.pathname==='/api/v1/notifications/unread-count')return route.fulfill({json:{count:0}})
-    if(u.pathname==='/api/v1/notifications')return route.fulfill({json:{items:[{id:1,type:'REPORT_APPROVED',referenceType:'TOILET_REPORT',referenceId:41,title:'오래된 제보 확인',message:'읽음 상태의 합성 알림',read:true,createdAt:iso(0)}],page:0,size:20,totalElements:1,totalPages:1}})
+    if(u.pathname==='/api/v1/notifications')return route.fulfill({json:{items:[{id:1,type:'REPORT_APPROVED',referenceType:'TOILET_REPORT',referenceId:41,title:'오래된 제보 확인',message:'읽음 상태의 합성 알림',read:true,createdAt:iso(0)},{id:2,type:'REPORT_APPROVED',referenceType:'TOILET_REPORT',referenceId:15,title:'중간 제보 확인',message:'상단 위치 검사용 합성 알림',read:true,createdAt:iso(0)}],page:0,size:20,totalElements:2,totalPages:1}})
     if(u.pathname==='/api/v1/reports/me') {
      reads++
      if(reportMode==='offline')return route.abort('internetdisconnected')
@@ -60,11 +60,13 @@ const iso = age => new Date(now-age*day).toISOString()
    const stable=async()=>{
     assert.equal(page.url(),original)
     for(const el of [header,navElement,map])assert.equal(await el.evaluate(el=>el.isConnected),true,'shell/map should not remount')
-    const bounds=await shell.boundingBox(),top=await page.locator('.topbar').boundingBox(),bottom=await nav.boundingBox()
-    assert.ok(bounds.y>=top.y+top.height-1 && bounds.y+bounds.height<=bottom.y+1,'history inside header/nav')
+    const bounds=await shell.boundingBox(),bottom=await nav.boundingBox()
+    assert.equal(await page.locator('.topbar').isVisible(),false,'account, report/review details and notification pages hide the map header')
+    assert.equal(bounds.y,0,'history reclaims the old header space')
+    assert.ok(bounds.y+bounds.height<=bottom.y+1,'history stays above bottom navigation')
     assert.equal(await shell.evaluate(el=>el.scrollWidth>el.clientWidth),false,'no horizontal overflow')
    }
-   const showReports=async()=>{await nav.getByRole('button',{name:'내 페이지',exact:true}).click();await shell.getByRole('button',{name:'내 제보',exact:true}).click()}
+   const showReports=async()=>{await nav.getByRole('button',{name:'내 페이지',exact:true}).click();assert.equal(await page.locator('.topbar').isVisible(),false,'account home also hides the map header');await shell.getByRole('button',{name:'내 제보',exact:true}).click()}
    const backToTop=async()=>{
     if(await shell.evaluate(el=>el.scrollTop)>=400)await shell.getByRole('button',{name:'맨 위로 이동'}).click()
     else await shell.evaluate(el=>el.scrollTo({top:0,behavior:'instant'}))
@@ -156,10 +158,19 @@ const iso = age => new Date(now-age*day).toISOString()
    await nav.getByRole('button',{name:/^알림/}).click()
    await shell.getByRole('region',{name:'받은 알림 목록',exact:true}).getByRole('button',{name:/오래된 제보 확인/}).click()
    await shell.getByText('합성 제보 내용',{exact:true}).waitFor()
+   await page.waitForFunction(()=>{const card=document.querySelector('.my-report-item.is-focused')?.getBoundingClientRect(),heading=document.querySelector('.my-reports-panel .history-heading')?.getBoundingClientRect();return card&&heading&&card.top>=heading.bottom+15})
+   assert.equal(await shell.locator('.my-report-item.is-focused .my-report-summary').getAttribute('aria-expanded'),'true')
+   await page.screenshot({path:path.join(output,`notification-report-target-${width}.png`)})
    await backToTop()
    assert.equal(await shell.getByRole('group',{name:'조회 기간'}).getByRole('button',{name:'전체',exact:true}).getAttribute('aria-pressed'),'true')
    assert.equal(await shell.locator('.my-report-item').count(),27)
    await stable()
+   await nav.getByRole('button',{name:/^알림/}).click()
+   await shell.getByRole('button',{name:/중간 제보 확인/}).click()
+   await shell.locator('.my-report-item.is-focused .my-report-detail').waitFor()
+   await page.waitForFunction(()=>{const card=document.querySelector('.my-report-item.is-focused')?.getBoundingClientRect(),heading=document.querySelector('.my-reports-panel .history-heading')?.getBoundingClientRect();return card&&heading&&Math.abs(card.top-heading.bottom-16)<=1})
+   assert.match(await shell.locator('.my-report-item.is-focused .my-report-summary strong').innerText(),/목록 시험 15/)
+   await stable();await page.screenshot({path:path.join(output,`notification-middle-report-${width}.png`)})
    // Create actual memory-only reviews through the UI, never inject review state.
    const reviewCount=width===390?13:1
    for(let i=0;i<reviewCount;i++) {
@@ -245,6 +256,7 @@ const iso = age => new Date(now-age*day).toISOString()
    await shell.getByRole('button',{name:'내 제보 닫기'}).click();assert.equal(await page.locator('.history-scroll-top').count(),0,'no TOP on account home')
    await nav.getByRole('button',{name:/^알림/}).click();assert.equal(await page.locator('.history-scroll-top').count(),0,'no TOP added to notifications')
    await nav.getByRole('button',{name:'지도',exact:true}).click();assert.equal(await page.locator('.history-scroll-top').count(),0,'no TOP on map')
+   assert.equal(await page.locator('.topbar').isVisible(),true,'returning to the map restores the logo and search header')
    assert.equal(writes,0);assert.deepEqual(errors,[])
    console.log(`PASS history ${width}: embedded reports/reviews, 7/30/all/custom, sorted, 10-item auto append, inline detail/edit return, offline retry, expiry, stable shell; reads=${reads}; no business writes`)
    await context.close()

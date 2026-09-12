@@ -5,21 +5,22 @@ import { HistoryDatePicker } from './HistoryDatePicker'
 export function HistoryHeading({ title, onClose, id }: { title: string; onClose?: () => void; id?: string }) {
   return <header className="history-heading"><div className="history-title-row"><h1 id={id} tabIndex={-1}>{title}</h1>{onClose && <button type="button" className="history-close" onClick={onClose} aria-label={`${title} 닫기`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" /></svg></button>}</div></header>
 }
-export function HistoryFilters({ value, onChange, count, countLabel, embedded = false, children }: { value: HistoryRange; onChange: (value: HistoryRange) => void; count: number; countLabel?: string; embedded?: boolean; children?: ReactNode }) {
+export function HistoryFilters({ value, onChange, count, countLabel, embedded = false, floatingCalendar = embedded, children }: { value: HistoryRange; onChange: (value: HistoryRange) => void; count: number; countLabel?: string; embedded?: boolean; floatingCalendar?: boolean; children?: ReactNode }) {
   const [open, setOpen] = useState(false)
   const id = useId(), root = useRef<HTMLDivElement>(null), periods = useRef<HTMLDivElement>(null), calendar = useRef<HTMLDivElement>(null), toggle = useRef<HTMLButtonElement>(null)
   useLayoutEffect(() => {
-    if (!embedded || !root.current) return
-    const scroll = historyScroller(root.current)
+    if (!floatingCalendar || !root.current) return
+    const scroll = historyScroller(root.current) ?? root.current.closest<HTMLElement>('.notification-panel')
     if (!scroll) return
     const update = () => {
       if (!root.current || !periods.current) return
       // Only the calendar floats; filter controls stay at the start of the scroll content.
       const row = periods.current.getBoundingClientRect(), viewport = scroll.getBoundingClientRect()
+      const visibleBottom = window.visualViewport ? window.visualViewport.offsetTop + window.visualViewport.height : window.innerHeight
       root.current.style.setProperty('--history-calendar-top', `${row.bottom + 8}px`)
       root.current.style.setProperty('--history-calendar-left', `${viewport.left}px`)
       root.current.style.setProperty('--history-calendar-width', `${viewport.width}px`)
-      root.current.style.setProperty('--history-calendar-max-height', `${Math.max(0, viewport.bottom - row.bottom - 16)}px`)
+      root.current.style.setProperty('--history-calendar-max-height', `${Math.max(0, Math.min(viewport.bottom, visibleBottom) - row.bottom - 16)}px`)
     }
     update()
     const observer = new ResizeObserver(update)
@@ -29,24 +30,25 @@ export function HistoryFilters({ value, onChange, count, countLabel, embedded = 
     window.addEventListener('resize', update)
     window.visualViewport?.addEventListener('resize', update)
     return () => { observer.disconnect(); scroll.removeEventListener('scroll', update); window.removeEventListener('resize', update); window.visualViewport?.removeEventListener('resize', update) }
-  }, [embedded])
+  }, [floatingCalendar])
   useEffect(() => {
     if (!open || !root.current) return
-    const scroll = historyScroller(root.current), startingScroll = scroll?.scrollTop ?? 0
+    const scroll = historyScroller(root.current) ?? root.current.closest('.notification-panel')?.querySelector<HTMLElement>('.notification-list'), startingScroll = scroll?.scrollTop ?? 0
     const close = () => setOpen(false)
     const outside = (event: Event) => { if (!calendar.current?.contains(event.target as Node) && !toggle.current?.contains(event.target as Node)) close() }
     const onScroll = () => { if (scroll && Math.abs(scroll.scrollTop - startingScroll) > 8) close() }
     document.addEventListener('pointerdown', outside)
     document.addEventListener('focusin', outside)
-    if (embedded) scroll?.addEventListener('scroll', onScroll, { passive: true })
-    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('focusin', outside); if (embedded) scroll?.removeEventListener('scroll', onScroll) }
-  }, [embedded, open])
+    if (floatingCalendar) scroll?.addEventListener('scroll', onScroll, { passive: true })
+    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('focusin', outside); if (floatingCalendar) scroll?.removeEventListener('scroll', onScroll) }
+  }, [floatingCalendar, open])
   const change = (next: HistoryRange) => {
     onChange(next); setOpen(false)
     if (root.current) { const scroll = historyScroller(root.current); if (scroll) scroll.scrollTop = 0 }
   }
   const rangeLabel = value.period === 'all' ? '전체 기간' : `${value.from.replaceAll('-', '.')} – ${value.to.replaceAll('-', '.')}`
-  return <div className={`history-filter-shell${embedded ? ' is-embedded' : ''}`} ref={root} onKeyDown={event => {
+  return <div className={`history-filter-shell${embedded ? ' is-embedded' : ''}${floatingCalendar ? ' has-floating-calendar' : ''}`} ref={root} onKeyDownCapture={event => {
+    // Dismiss the date popup before the enclosing dialog's native Escape listener.
     if (open && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); toggle.current?.focus({ preventScroll: true }); setOpen(false) }
   }}>
     <div className="history-filters">
