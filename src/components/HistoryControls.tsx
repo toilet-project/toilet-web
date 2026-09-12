@@ -2,8 +2,8 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } f
 import { historyRange, type HistoryRange } from '../lib/history'
 import { historyScroller } from '../lib/useHistoryWindow'
 import { HistoryDatePicker } from './HistoryDatePicker'
-export function HistoryHeading({ title, onClose, id }: { title: string; onClose?: () => void; id?: string }) {
-  return <header className="history-heading"><div className="history-title-row"><h1 id={id} tabIndex={-1}>{title}</h1>{onClose && <button type="button" className="history-close" onClick={onClose} aria-label={`${title} 닫기`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" /></svg></button>}</div></header>
+export function HistoryHeading({ title, onClose, id, closeDisabled = false }: { title: string; onClose?: () => void; id?: string; closeDisabled?: boolean }) {
+  return <header className="history-heading"><div className="history-title-row"><h1 id={id} tabIndex={-1}>{title}</h1>{onClose && <button type="button" className="history-close" disabled={closeDisabled} onClick={onClose} aria-label={`${title} 닫기`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" /></svg></button>}</div></header>
 }
 export function HistoryFilters({ value, onChange, count, countLabel, embedded = false, floatingCalendar = embedded, children }: { value: HistoryRange; onChange: (value: HistoryRange) => void; count: number; countLabel?: string; embedded?: boolean; floatingCalendar?: boolean; children?: ReactNode }) {
   const [open, setOpen] = useState(false)

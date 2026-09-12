@@ -99,8 +99,23 @@ const items = [
       await page.locator(width < 600 ? '.mobile-area-list-item' : '.desktop-area-list-item').filter({ hasText: '단일 카드 시험' }).click()
       const single = page.locator('.place-card .review-card-title-row .review-card-report')
       await single.waitFor()
+      await page.waitForFunction(() => document.querySelector('.place-card .review-card-report')?.disabled === false)
       assert.equal(await single.innerText(), '제보', 'single-card report retains its text and title-row position')
-      assert.notEqual(await single.evaluate(el => getComputedStyle(el).color), 'rgb(196, 64, 60)')
+      assert.equal(await single.evaluate(el => getComputedStyle(el).color), 'rgb(196, 64, 60)')
+      assert.equal(await single.locator('span').evaluate(el => getComputedStyle(el).color), 'rgb(196, 64, 60)', 'single-card text is also red')
+      assert.equal(await single.evaluate(el => getComputedStyle(el).borderTopWidth), '0px')
+      assert.equal(await single.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)')
+      if (width > 600) {
+        const review = page.locator('.place-card .review-entry')
+        const aligned = async () => {
+          const a = await single.boundingBox(), b = await review.boundingBox()
+          assert.ok(Math.abs(a.x + a.width - b.x - b.width) < 1, 'desktop report and review right edges align including scrollbar gutter')
+        }
+        await aligned()
+        await page.locator('.card-scroll-content').evaluate(el => { el.style.maxHeight = '220px' })
+        await aligned()
+      }
+      await page.screenshot({ path: path.join(output, `single-report-entry-${width}.png`) })
       signedIn = false
       await page.close()
       page = await context.newPage()
@@ -113,7 +128,7 @@ const items = [
       await page.getByRole('dialog', { name: '로그인 · 간편가입', exact: true }).waitFor()
       assert.equal(await page.locator('.report-modal').count(), 0, 'signed-out report still requires login')
       assert.equal(writes, 0); assert.deepEqual(errors, [])
-      console.log(`PASS group report ${width}: hours-row red siren, 44px hit area, no duplicate/collapse collision, loading guard, correct target, login guard, single-card unchanged; no business writes`)
+      console.log(`PASS group report ${width}: unboxed red sirens and text, 44px hit area, correct target, login guard, desktop report/review alignment; no business writes`)
       await context.close()
     }
   } finally { await browser.close() }

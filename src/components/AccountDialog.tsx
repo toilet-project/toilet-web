@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { fetchPolicyConsentStatus, fetchWithdrawalOptions, withdrawAccount, type AuthProfile, type PolicyAgreement, type WithdrawalOptions } from '../api/auth'
 import { AccountErasureNotice } from './AccountErasureNotice'
+import { HistoryHeading } from './HistoryControls'
+import { PolicyDisclosure } from './PolicyDisclosure'
 
-export function AccountDialog({ profile, onClose, onWithdrawn }: { profile: AuthProfile; onClose: () => void; onWithdrawn: (message: string) => void }) {
+export function AccountDialog({ profile, onClose, onWithdrawn, embedded = false }: { profile: AuthProfile; onClose: () => void; onWithdrawn: (message: string) => void; embedded?: boolean }) {
   const [confirming, setConfirming] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [agreements, setAgreements] = useState<PolicyAgreement[]>([])
+  const [agreementsLoading, setAgreementsLoading] = useState(true)
   const [retainForRecovery, setRetainForRecovery] = useState(false)
   const [options, setOptions] = useState<WithdrawalOptions | null>(null)
   const optionsRequest = useRef(0)
@@ -22,6 +25,7 @@ export function AccountDialog({ profile, onClose, onWithdrawn }: { profile: Auth
     void fetchPolicyConsentStatus()
       .then((status) => setAgreements(status.agreedPolicies))
       .catch(() => setError('약관 동의 내역을 불러오지 못했습니다.'))
+      .finally(() => setAgreementsLoading(false))
   }, [])
   const submit = async () => {
     if (isSubmitting || !options?.enabled) return
@@ -33,12 +37,10 @@ export function AccountDialog({ profile, onClose, onWithdrawn }: { profile: Auth
     }
     catch (reason) { setError(reason instanceof Error ? reason.message : '회원 탈퇴를 처리하지 못했습니다.'); setIsSubmitting(false) }
   }
-  return <div className="account-backdrop" onMouseDown={(event) => { if (!isSubmitting && event.target === event.currentTarget) onClose() }}>
-    <section className="account-dialog" role="dialog" aria-modal="true" aria-labelledby="account-title" aria-busy={isSubmitting}>
-      <button type="button" className="login-modal-close" disabled={isSubmitting} onClick={onClose} aria-label="계정 창 닫기">×</button>
-      <p>급똥 계정</p><h1 id="account-title">내 계정</h1>
-      <dl><div><dt>이름</dt><dd>{profile.displayName || '이름 없음'}</dd></div><div><dt>이메일</dt><dd>{profile.email || '제공되지 않음'}</dd></div></dl>
-      <section className="account-agreements" aria-labelledby="agreement-title"><h2 id="agreement-title">약관 동의 내역</h2>{agreements.length === 0 ? <p>저장된 동의 내역이 없습니다.</p> : <ul>{agreements.map((agreement) => <li key={`${agreement.key}-${agreement.version}`}><a href={agreement.contentPath} target="_blank" rel="noreferrer">{agreement.title}</a><span>v{agreement.version} · {new Date(agreement.agreedAt).toLocaleDateString('ko-KR')}</span></li>)}</ul>}</section>
+  const panel = <section className={embedded ? 'account-embedded' : 'account-dialog'} role={embedded ? undefined : 'dialog'} aria-modal={embedded ? undefined : true} aria-labelledby="account-title" aria-busy={isSubmitting}>
+      {embedded ? <HistoryHeading title="계정 관리" id="account-title" onClose={onClose} closeDisabled={isSubmitting} /> : <><button type="button" className="login-modal-close" disabled={isSubmitting} onClick={onClose} aria-label="계정 창 닫기">×</button><p>급똥 계정</p><h1 id="account-title">내 계정</h1></>}
+      <dl className="account-profile-details"><div><dt>이름</dt><dd>{profile.displayName || '이름 없음'}</dd></div><div><dt>이메일</dt><dd>{profile.email || '제공되지 않음'}</dd></div></dl>
+      <section className="account-agreements-inline" aria-labelledby="agreement-title"><h2 id="agreement-title">약관 동의 내역</h2>{agreementsLoading ? <p role="status">동의 내역을 불러오는 중…</p> : agreements.length === 0 ? !error && <p>저장된 동의 내역이 없습니다.</p> : agreements.map((agreement) => <PolicyDisclosure key={`${agreement.key}-${agreement.version}-${agreement.contentPath}`} title={agreement.title} meta={`${new Date(agreement.agreedAt).toLocaleDateString('ko-KR')} 동의 · v${agreement.version}`} contentPath={agreement.contentPath} />)}</section>
       {!confirming && <button type="button" className="account-withdraw" onClick={() => void openWithdrawal()}>회원 탈퇴</button>}
       {confirming && <div className="account-confirm"><strong>정말 탈퇴할까요?</strong>
         {!options && !error && <p role="status">탈퇴 안내를 불러오는 중…</p>}
@@ -54,5 +56,5 @@ export function AccountDialog({ profile, onClose, onWithdrawn }: { profile: Auth
       </div>}
       {error && <p className="consent-error" role="alert">{error} <a href="mailto:privacy@geupddong.com">개인정보 문의</a></p>}
     </section>
-  </div>
+  return embedded ? panel : <div className="account-backdrop" onMouseDown={(event) => { if (!isSubmitting && event.target === event.currentTarget) onClose() }}>{panel}</div>
 }

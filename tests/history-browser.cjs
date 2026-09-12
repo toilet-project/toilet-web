@@ -66,7 +66,7 @@ const iso = age => new Date(now-age*day).toISOString()
     assert.ok(bounds.y+bounds.height<=bottom.y+1,'history stays above bottom navigation')
     assert.equal(await shell.evaluate(el=>el.scrollWidth>el.clientWidth),false,'no horizontal overflow')
    }
-   const showReports=async()=>{await nav.getByRole('button',{name:'내 페이지',exact:true}).click();assert.equal(await page.locator('.topbar').isVisible(),false,'account home also hides the map header');await shell.getByRole('button',{name:'내 제보',exact:true}).click()}
+   const showReports=async()=>{await nav.getByRole('button',{name:'내 페이지',exact:true}).click();assert.equal(await page.locator('.topbar').isVisible(),false,'account home also hides the map header');const homeTitle=await shell.locator('.mobile-page-heading h1').boundingBox();await shell.getByRole('button',{name:'내 제보',exact:true}).click();if(reportMode!=='401'){await shell.locator('.history-heading h1').waitFor();const reportTitle=await shell.locator('.history-heading h1').boundingBox();assert.ok(Math.abs(homeTitle.y-reportTitle.y)<1&&homeTitle.x===reportTitle.x,'report title matches account home position')}}
    const backToTop=async()=>{
     if(await shell.evaluate(el=>el.scrollTop)>=400)await shell.getByRole('button',{name:'맨 위로 이동'}).click()
     else await shell.evaluate(el=>el.scrollTo({top:0,behavior:'instant'}))

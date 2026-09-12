@@ -3,10 +3,11 @@ import { AuthExpiredError, startSocialLogin, updateNickname, type AuthProfile } 
 import { MyReportsPanel } from './MyReportsPanel'
 import { NotificationPanel } from './NotificationPanel'
 import { HistoryScrollTop } from './HistoryScrollTop'
+import { AccountDialog } from './AccountDialog'
 import { TRANSIENT_NOTICE_MS } from '../lib/uiTiming'
 
 export type MobileTab = 'map' | 'notifications' | 'account'
-export type MobileAccountView = 'home' | 'reports' | 'reviews'
+export type MobileAccountView = 'home' | 'reports' | 'reviews' | 'settings'
 type IconName = MobileTab | 'community' | 'settings'
 
 function Icon({ name }: { name: IconName }) {
@@ -90,21 +91,23 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
   </section>
 }
 
-export function MobilePage({ tab, profile, loading, unread, onProfile, onReports, onAccount, onLogout, onCountChange, onOpenReport, beforeLogin, onSessionExpired, onReviews, accountView = 'home', onBackAccount, reviewPage, focusedReportId }: {
+export function MobilePage({ tab, profile, loading, unread, onProfile, onReports, onAccount, onLogout, onCountChange, onOpenReport, beforeLogin, onSessionExpired, onReviews, accountView = 'home', onBackAccount, reviewPage, focusedReportId, onWithdrawn }: {
   tab: Exclude<MobileTab, 'map'>; profile: AuthProfile | null; loading: boolean; unread: number;
   onProfile: (profile: AuthProfile) => void; onReports: () => void; onAccount: () => void; onLogout: () => void; onCountChange: () => void; onOpenReport: (reportId: number) => void;
   beforeLogin: (tab: MobileTab) => void;
   onSessionExpired: () => void;
+  onWithdrawn: (message: string) => void;
   onReviews?: () => void;
   accountView?: MobileAccountView; onBackAccount: () => void; reviewPage?: ReactNode; focusedReportId?: number | null;
 }) {
   const page = useRef<HTMLElement>(null)
   useLayoutEffect(() => { if (page.current) page.current.scrollTop = 0 }, [tab, accountView])
-  const historyPage = tab === 'account' && (accountView === 'reports' || accountView === 'reviews')
+  const historyPage = tab === 'account' && accountView !== 'home'
   return <section ref={page} className={`mobile-page${historyPage ? ' is-history-page' : ''}`} aria-label={tab === 'account' ? '내 페이지' : '알림 페이지'}>
     {loading ? <p className="mobile-page-loading" role="status">불러오는 중…</p> : !profile ? <LoginLanding tab={tab} onLogin={provider => { beforeLogin(tab); startSocialLogin(provider) }} />
       : tab === 'account' && accountView === 'reports' ? <MyReportsPanel key={`account-reports-${profile.userId}-${focusedReportId ?? 'list'}`} embedded onSessionExpired={onSessionExpired} initialExpandedId={focusedReportId} onClose={onBackAccount} onBack={onBackAccount} />
       : tab === 'account' && accountView === 'reviews' && onReviews ? reviewPage
+      : tab === 'account' && accountView === 'settings' ? <AccountDialog key={profile.userId} embedded profile={profile} onClose={onBackAccount} onWithdrawn={onWithdrawn} />
       : tab === 'account' ? <>
       <header className="mobile-page-heading"><h1>내 페이지</h1></header>
       <ProfileCard key={profile.userId} profile={profile} onProfile={onProfile} onSessionExpired={onSessionExpired} />
