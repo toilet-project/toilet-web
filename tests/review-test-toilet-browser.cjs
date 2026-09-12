@@ -6,13 +6,14 @@ const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE || 'playwright')
 const origin = process.env.REVIEW_PREVIEW_ORIGIN || 'http://127.0.0.1:4187'
 assert.ok(['http://127.0.0.1:4187', 'https://preview.geupddong.com'].includes(origin))
 const output = process.env.REVIEW_SCREENSHOT_DIR || path.resolve('.tmp-review-screenshots')
+const mobileUserAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1'
 fs.mkdirSync(output, { recursive: true })
 const hash = '#review-test=36.3504,127.3845' // Public city hall; never commit personal test coordinates.
 ;(async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true })
   try {
     for (const width of [390, 320, 1280]) {
-      const context = await browser.newContext({ viewport: { width, height: width > 600 ? 1000 : 844 }, isMobile: width < 600, hasTouch: width < 600, serviceWorkers: 'block' })
+      const context = await browser.newContext({ viewport: { width, height: width > 600 ? 1000 : 844 }, isMobile: width < 600, hasTouch: width < 600, serviceWorkers: 'block', userAgent: mobileUserAgent })
       let signedIn = true, writes = 0, fakeRequests = 0
       await context.route('**/*', async route => {
         const request = route.request(), u = new URL(request.url())

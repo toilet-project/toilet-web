@@ -5,7 +5,7 @@ export class ReviewGateError extends Error {
   readonly code: 'location' | 'distance' | 'session'
   constructor(message: string, code: 'location' | 'distance' | 'session' = 'location') { super(message); this.code = code }
 }
-const OUTSIDE_REVIEW_RANGE = '150m 이내에서 작성할 수 있어요'
+const OUTSIDE_REVIEW_RANGE = '리뷰는 화장실 150m 이내에서 가능해요.'
 export const REVIEW_LOCATION_MAX_AGE_MS = 5 * 60_000
 
 const validPoint = (point: ReviewPoint) => typeof point.latitude === 'number' && Number.isFinite(point.latitude) && Math.abs(point.latitude) <= 90
@@ -14,7 +14,7 @@ const validPoint = (point: ReviewPoint) => typeof point.latitude === 'number' &&
 export function reviewLocationProblem(target: ReviewPoint, fix: ReviewFix, now = Date.now()): string | null {
   if (!validPoint(target)) return '이 화장실의 위치를 확인할 수 없어 리뷰를 작성할 수 없어요.'
   if (!validPoint(fix.coords) || !Number.isFinite(fix.coords.accuracy) || fix.coords.accuracy < 0 || fix.coords.accuracy > 50)
-    return '위치 정확도가 50m 이하여야 해요. 정확한 위치를 켜고 다시 시도해 주세요.'
+    return OUTSIDE_REVIEW_RANGE
   if (!Number.isFinite(fix.timestamp) || now - fix.timestamp > REVIEW_LOCATION_MAX_AGE_MS || fix.timestamp - now > 5_000)
     return '최근 5분 이내 위치를 확인하지 못했어요. 다시 시도해 주세요.'
   const radians = (degrees: number) => degrees * Math.PI / 180

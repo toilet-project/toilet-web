@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ReviewDialog, ReviewIcon, ReviewModal, type ReviewEligibility } from './ReviewDialog'
 import { canManageReview, recentToiletReview, type Review, type ReviewInput } from '../../lib/review'
 import { requireReviewLocation, ReviewGateError, REVIEW_LOCATION_MAX_AGE_MS, type ReviewPoint } from '../../lib/reviewLocation'
+import { isMobileReviewDevice, MOBILE_REVIEW_ONLY_MESSAGE } from '../../lib/reviewDevice'
 
 import { MyReviewsPanel } from './MyReviewsPanel'
 
@@ -90,6 +91,10 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
   }
   const open = (next: Target) => {
     if (!REVIEW_DESIGN_PREVIEW) return
+    if (!isMobileReviewDevice()) {
+      updateEntry({ id: next.id, status: 'notice', message: MOBILE_REVIEW_ONLY_MESSAGE })
+      return
+    }
     if (!owner) { access.requireLogin(); return }
     if (entryRef.current?.id === next.id && entryRef.current.status === 'checking') return
     const fresh = entryRef.current?.id === next.id && entryRef.current.status === 'retry'
