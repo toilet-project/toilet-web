@@ -87,7 +87,7 @@ test('group report action sits beside hours, apart from collapse; metrics and si
   assert.equal((app.match(/onReport=\{isDesktop \? undefined :/g) || []).length, 1)
   assert.match(app, /onReport=\{isDesktop && !REVIEW_UI_ENABLED \? undefined/)
   const row = await source('../src/components/ToiletCommunityRow.tsx')
-  assert.match(row, /size=\{iconOnly \? 24 : 18\}/)
+  assert.match(row, /size=\{iconOnly \? 20 : 18\}/)
   assert.match(row, /!iconOnly && <span>제보<\/span>/)
   assert.match(row, /: \(onReport \|\| pendingReport\) && <button disabled=\{pendingReport\}/)
   for (const label of ['평점: 준비 중', '혼잡도: 준비 중', '휴지 있음 비율: 준비 중']) assert.ok(row.includes(label))

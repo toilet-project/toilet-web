@@ -32,9 +32,9 @@
 .review-card-report:disabled { opacity: .5; cursor: default; }
 .coordinate-opening-row { display: flex; align-items: center; gap: 12px; min-width: 0; margin: 8px 0 4px; }
 .coordinate-opening-row .open-time { flex: 1; min-width: 0; margin: 0; overflow-wrap: anywhere; }
-.coordinate-opening-row .review-card-report.is-icon-only { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border-color: #f0d5d1; border-radius: 12px; background: #fff5f3; color: #c4403c; }
-.coordinate-opening-row .review-card-report svg { stroke-width: 1.9; }
-.coordinate-opening-row .review-card-report:hover:enabled { background: #fce8e4; border-color: #e7b4ad; }
+.coordinate-opening-row .review-card-report.is-icon-only { display: grid; place-items: center; flex: 0 0 44px; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #c4403c; }
+.coordinate-opening-row .review-card-report svg { stroke-width: 1.8; }
+.coordinate-opening-row .review-card-report:hover:enabled { color: #a83230; }
 .coordinate-opening-row .review-card-report:focus-visible { outline: 3px solid #d7756c; outline-offset: 2px; }
 .rv-dialog-body .rv-my-item { box-sizing: border-box; min-width: 0; font: inherit; }
 .rv-dialog-body .rv-my-comment { min-width: 0; }

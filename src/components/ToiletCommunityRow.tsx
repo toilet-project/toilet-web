@@ -27,5 +27,5 @@ export function ToiletCommunityRow({ onReport, pendingReport = false, onReview, 
 }
 
 export function ToiletReportEntry({ onClick, disabled = false, iconOnly = false }: { onClick?: () => void; disabled?: boolean; iconOnly?: boolean }) {
-  return <button type="button" className={`review-card-report${iconOnly ? ' is-icon-only' : ''}`} onClick={onClick} disabled={disabled} aria-label="정보 제공하기" title="시설 정보 제보"><ReviewIcon name="siren" size={iconOnly ? 24 : 18} />{!iconOnly && <span>제보</span>}</button>
+  return <button type="button" className={`review-card-report${iconOnly ? ' is-icon-only' : ''}`} onClick={onClick} disabled={disabled} aria-label="정보 제공하기" title="시설 정보 제보"><ReviewIcon name="siren" size={iconOnly ? 20 : 18} />{!iconOnly && <span>제보</span>}</button>
 }
