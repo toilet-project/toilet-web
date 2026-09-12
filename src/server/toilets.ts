@@ -1,5 +1,6 @@
 import 'server-only'
 import { cache } from 'react'
+import { connection } from 'next/server'
 import type { ToiletDetailResponse } from '../api/toilets'
 import { parseToiletId } from '../lib/toiletRoute'
 import { reviewVerificationResponse } from '../../review-verification-proxy.mjs'
@@ -13,6 +14,7 @@ export const getToilet = cache(async (rawId: string): Promise<ToiletDetailRespon
   let response: Response
   if (verification) {
     // Never use the live facility API or shared cache for a synthetic acceptance page, including SSR.
+    await connection()
     const { getCloudflareContext } = await import('@opennextjs/cloudflare')
     const { env } = await getCloudflareContext({ async: true })
     const result = await reviewVerificationResponse(new Request(`https://preview.geupddong.com/__review-verification/api/v1/toilets/${id}`), env)

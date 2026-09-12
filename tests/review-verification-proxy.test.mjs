@@ -34,6 +34,7 @@ test('synthetic SSR uses the same bounded proxy instead of a production facility
   assert.match(source, /NEXT_PUBLIC_API_BASE_URL === 'https:\/\/preview\.geupddong\.com\/__review-verification'/)
   const fixture = source.slice(source.indexOf('if (verification)'), source.indexOf('} else {'))
   assert.match(fixture, /reviewVerificationResponse/)
+  assert.ok(fixture.indexOf('await connection()') < fixture.indexOf('reviewVerificationResponse'))
   assert.doesNotMatch(fixture, /TOILET_API_ORIGIN|api\.geupddong\.com|revalidate:/)
 })
 test('mutations require same origin and a bounded JSON body; redirects never escape sandbox', async () => {
