@@ -45,7 +45,7 @@ test('loading and first HTML retain current card rows and mobile geometry withou
   const css = await source('../src/components/mobile-navigation.css')
   assert.match(app, /isDetailLoading && <LoadingOpenTime \/>/)
   assert.match(app, /<ToiletCommunityRow pendingReport=\{!isDesktop && !toiletDetail\}/)
-  assert.match(app, /<LoadingOpenTime \/><ToiletCommunityRow pendingReport=\{Boolean\(onReport\)\} pendingReview=\{pendingReview\} \/><DetailLoadingFields inline \/>/)
+  assert.match(app, /<LoadingOpenTime \/>\{onReport && <ToiletReportEntry iconOnly disabled \/>\}<\/div><ToiletCommunityRow pendingReview=\{pendingReview\} \/><DetailLoadingFields inline \/>/)
   assert.match(loading, /'card-details detail-loading-fields'/)
   assert.match(loading, /'coordinate-inline-address' : 'detail-address'/)
   assert.match(loading, /className="copy-address-button" type="button" disabled/)

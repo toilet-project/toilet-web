@@ -118,7 +118,7 @@
   .my-reports-embedded .my-reports-header h1 { font-size: 16px; }
   .my-reports-embedded .my-reports-header p { margin-top: 6px; font-size: 12px; color: #88928b; line-height: 1.6; }
   .my-reports-embedded .my-reports-filters { padding: 0 0 14px; gap: 5px; overflow-x: auto; }
-  .my-reports-embedded .my-reports-filters button { min-height: 40px; flex: 0 0 auto; padding: 7px 10px; border-radius: 10px; font-size: 12px; }
+  .my-reports-embedded .my-reports-filters button { min-height: 36px; flex: 0 0 auto; padding: 5px 10px; border-radius: 10px; font-size: 12px; }
   .my-reports-embedded .my-reports-content { overflow: visible; padding: 0; }
   .my-reports-embedded .my-report-item { border: 0; border-bottom: 1px solid #e9eeea; border-radius: 0; box-shadow: none; }
   .my-reports-embedded .my-report-summary { padding: 18px 22px 18px 0; gap: 7px 10px; }

@@ -1456,17 +1456,17 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
               {selectedCoordinateGroup.toilets.map((toilet, index) => {
                 const isExpanded = expandedCoordinateToilet?.id === toilet.id
                 return <div key={toilet.id} ref={(node) => { if (node) coordinateGroupItemRefs.current.set(toilet.id, node); else coordinateGroupItemRefs.current.delete(toilet.id) }} className={`coordinate-group-item${isExpanded ? ' is-expanded' : ''}`}>
-                  <div className={REVIEW_UI_ENABLED ? 'review-group-title-row' : undefined}><button type="button" className="coordinate-group-item-toggle" onClick={() => void toggleCoordinateToiletDetail(toilet)} aria-expanded={isExpanded}>
+                  <button type="button" className="coordinate-group-item-toggle" onClick={() => void toggleCoordinateToiletDetail(toilet)} aria-expanded={isExpanded}>
                     <span className="coordinate-group-index" aria-hidden="true">{index + 1}</span>
                     <span className="coordinate-group-name">{toilet.name || '이름 없는 공중화장실'}</span>
                     <span className="coordinate-group-toggle-label">{isExpanded ? '접기' : '상세 보기'}</span>
-                  </button>{REVIEW_UI_ENABLED && isExpanded && <ToiletReportEntry disabled={!toiletDetail || toiletDetail.id !== toilet.id} onClick={() => { if (toiletDetail?.id === toilet.id) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }} />}</div>
+                  </button>
                   {isExpanded && <CoordinateGroupInlineDetails
                     toilet={toiletDetail}
                     isLoading={isDetailLoading}
                     error={detailError}
                     onRetry={retryDetail}
-                    onReport={isDesktop ? undefined : () => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }}
+                    onReport={isDesktop && !REVIEW_UI_ENABLED ? undefined : () => { if (toiletDetail?.id === toilet.id) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }}
                     pendingReview={REVIEW_UI_ENABLED && !toiletDetail}
                     onReview={REVIEW_UI_ENABLED && toiletDetail?.id === toilet.id ? () => reviewPreview.open(toiletDetail) : undefined}
                     reviewEntry={reviewPreview.entryState(toilet.id)}
@@ -1524,15 +1524,15 @@ function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () 
 }
 
 function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRetry, onReview, pendingReview, previewSummary, reviewEntry }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onReport?: () => void; onRetry: () => void; onReview?: () => void; pendingReview?: boolean; previewSummary?: PreviewReviewSummary; reviewEntry?: ReviewEntryState }) {
-  if (isLoading && !toilet) return <div className="coordinate-inline-details"><LoadingOpenTime /><ToiletCommunityRow pendingReport={Boolean(onReport)} pendingReview={pendingReview} /><DetailLoadingFields inline /></div>
+  if (isLoading && !toilet) return <div className="coordinate-inline-details"><div className="coordinate-opening-row"><LoadingOpenTime />{onReport && <ToiletReportEntry iconOnly disabled />}</div><ToiletCommunityRow pendingReview={pendingReview} /><DetailLoadingFields inline /></div>
   if (error) return <div className="coordinate-inline-details"><p className="detail-error" role="alert">{error}</p><button type="button" className="detail-retry" onClick={onRetry}>다시 불러오기</button></div>
   if (!toilet) return null
 
   const address = getDisplayAddress(toilet.roadAddress, toilet.jibunAddress)
 
   return <div className="coordinate-inline-details">
-    <p className="open-time">{formatOpenTime(toilet)}</p>
-    <ToiletCommunityRow onReport={onReport} onReview={onReview} reviewEntry={reviewEntry} previewSummary={previewSummary} />
+    <div className="coordinate-opening-row"><p className="open-time">{formatOpenTime(toilet)}</p>{onReport && <ToiletReportEntry iconOnly onClick={onReport} />}</div>
+    <ToiletCommunityRow onReview={onReview} reviewEntry={reviewEntry} previewSummary={previewSummary} />
     {address && <DetailRow className="coordinate-inline-address" label="주소" value={address} copyable />}
     <section className="coordinate-inline-section coordinate-inline-capacity-section" aria-label="화장실 수">
       <h2>화장실 수</h2>

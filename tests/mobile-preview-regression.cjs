@@ -121,8 +121,8 @@ async function noOverflow(page) {
       const count=await toggles.count()
       assert.ok(count>1)
       await toggles.last().click()
-      await visible(page.locator('.coordinate-group-item.is-expanded .coordinate-report-entry'))
-      await withinViewport(page,page.locator('.coordinate-group-item.is-expanded .coordinate-report-entry'))
+      await visible(page.locator('.coordinate-group-item.is-expanded .coordinate-opening-row .review-card-report'))
+      await withinViewport(page,page.locator('.coordinate-group-item.is-expanded .coordinate-opening-row .review-card-report'))
       assert.match(page.url(),/\/toilet\/\d+/)
       await noOverflow(page)
       if(viewport.width===390) {
