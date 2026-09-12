@@ -83,10 +83,15 @@ test('fixture IDs never reach real API and detached or mismatched detail is reje
     const { api } = setup([response(value)]); await assert.rejects(api.detail('1'), ReviewApiError)
   }
 })
-test('real integration stays opt-in and production remains disabled; no memory fallback or persisted GPS', () => {
+test('real integration requires exact preview or separately approved production gates; no memory fallback or persisted GPS', () => {
   const config = readFileSync(new URL('../next.config.ts', import.meta.url), 'utf8')
   const hook = readFileSync(new URL('../src/components/reviews/useReviewApi.tsx', import.meta.url), 'utf8')
-  assert.match(config, /NEXT_PUBLIC_REVIEW_API_ENABLED: process.env.SITE_INDEXABLE === 'false' && process.env.REVIEW_API_ENABLED === 'true'/)
+  assert.match(config, /const reviewPreviewApi = process.env.SITE_INDEXABLE === 'false'/)
+  assert.match(config, /const reviewProductionApi = process.env.SITE_INDEXABLE === 'true'/)
+  assert.match(config, /process.env.REVIEW_PRODUCTION_APPROVED === 'true'/)
+  assert.match(config, /process.env.NEXT_PUBLIC_API_BASE_URL === 'https:\/\/api\.geupddong\.com'/)
+  assert.match(config, /const reviewApiEnabled = reviewPreviewApi \|\| reviewProductionApi/)
+  assert.match(config, /NEXT_PUBLIC_REVIEW_API_ENABLED: reviewApiEnabled \? 'true' : 'false'/)
   assert.doesNotMatch(hook, /localStorage|sessionStorage|console\.|setReviews|useIntegratedReviewPreview\(/)
   assert.match(hook, /attempt.current.key/); assert.match(hook, /await reviewApi.detach\(item\)/)
   assert.match(hook, /if \(!current\(token\)\) return/)

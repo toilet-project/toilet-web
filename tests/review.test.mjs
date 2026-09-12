@@ -94,7 +94,7 @@ test('existing map review integration is build-gated and memory-only with accoun
   const hook = readFileSync(new URL('../src/components/reviews/useIntegratedReviewPreview.tsx', import.meta.url), 'utf8')
   const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
   const config = readFileSync(new URL('../next.config.ts', import.meta.url), 'utf8')
-  assert.match(config, /NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW: process.env.SITE_INDEXABLE === 'false' && process.env.REVIEW_API_ENABLED !== 'true' \? 'true' : 'false'/)
+  assert.match(config, /NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW: process.env.SITE_INDEXABLE === 'false' && !reviewApiEnabled \? 'true' : 'false'/)
   assert.match(hook, /ownerRef.current !== owner/)
   assert.match(hook, /setReviews\(\[\]\)/)
   assert.doesNotMatch(hook, /\bfetch\s*\(|navigator\.geolocation|localStorage|sessionStorage/)

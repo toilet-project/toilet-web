@@ -5,10 +5,10 @@
 ## 모드와 안전 경계
 
 - 기본 프리뷰는 기존 메모리 모드. `SITE_INDEXABLE=false` + 빌드 환경의 `REVIEW_API_ENABLED=true`를 함께 지정했을 때만 API 모드를 선택한다.
-- 공개 운영 빌드(`SITE_INDEXABLE=true`)에서는 두 리뷰 모드가 모두 꺼진다. 운영 활성화는 별도 변경/검증/승인 대상이다.
+- 기본 공개 운영 후보에서는 두 리뷰 모드가 모두 꺼진다. 운영 리뷰 후보는 `SITE_INDEXABLE=true`, `REVIEW_API_ENABLED=true`, `REVIEW_PRODUCTION_APPROVED=true`, `NEXT_PUBLIC_API_BASE_URL=https://api.geupddong.com`이 빌드 시 모두 정확히 일치해야 한다. URL·런타임 입력 하나로는 켤 수 없다.
 - URL·로컬 저장소·API 오류로 모드를 바꾸지 않는다. API 실패 시 메모리 저장 성공으로 대체하지 않는다.
 - API 모드에서는 개인 테스트 좌표 fragment의 임시 시설을 만들지 않으며 0 이하 시설 ID를 API 전송 전에 거부한다.
-- 현재 공개된 프리뷰·운영 Worker를 이 작업에서 배포하지 않았다. API는 별도 리뷰 구현 PR의 V12/엔드포인트를 필요로 한다.
+- 기본 Workers 검사는 리뷰 OFF 운영 후보를 계속 만든다. 별도 리뷰 CI는 경로가 비어 있고 배포 승인도 포함하지 않은 리뷰 ON 운영 후보를 빌드·검사할 뿐 업로드하거나 배포하지 않는다. API는 별도 리뷰 구현 PR의 V12/엔드포인트를 필요로 한다.
 
 ## 작성과 기존 리뷰 이동
 
