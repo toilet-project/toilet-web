@@ -1,7 +1,7 @@
 // Local API-mode UI against a synthetic HTTP boundary, not a live member/review service.
 // Only public facility reads may leave the browser. All review writes are intercepted below.
 const assert = require('node:assert/strict')
-const { selectCalendarDate } = require('./history-calendar-browser.cjs')
+const { selectCalendarDate, openHistoryFilters } = require('./history-calendar-browser.cjs')
 const fs = require('node:fs'), path = require('node:path')
 const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE || 'playwright')
 const origin = 'http://127.0.0.1:4187'
@@ -133,11 +133,13 @@ const iso = time => new Date(time).toISOString()
       await list.getByRole('status').filter({hasText:'작성자 정보만 지웠어요'}).waitFor()
       assert.equal(rows.find(r=>r.id==='1000').comment,'수정한 API 합성 리뷰'); assert.equal(rows.find(r=>r.id==='1000').authorRemoved,true)
       assert.equal(await list.getByText('수정한 API 합성 리뷰',{exact:true}).count(),0)
+      await openHistoryFilters(list)
       await list.getByRole('group',{name:'조회 기간'}).getByRole('button',{name:'전체',exact:true}).click()
       await list.locator('.history-card').first().waitFor()
       for(let n=0;n<2;n++){const more=list.getByRole('button',{name:'리뷰 더 보기',exact:true});await more.scrollIntoViewIfNeeded();await page.waitForFunction(min=>document.querySelectorAll('.history-reviews .history-card').length>=min,(n+2)*10>26?26:(n+2)*10)}
       assert.equal(await list.locator('.history-card').count(),26)
       assert.ok(mineReads.some(r=>r.cursor==='10') && mineReads.some(r=>r.cursor==='20'))
+      await openHistoryFilters(list)
       await list.getByRole('button',{name:'날짜 직접 선택'}).click()
       await selectCalendarDate(list,'시작일','2026-08-03');await selectCalendarDate(list,'종료일','2026-08-03');await list.getByRole('button',{name:'적용',exact:true}).click()
       await list.getByText('40일 전 합성 리뷰',{exact:true}).waitFor();assert.equal(await list.locator('.history-card').count(),1)
