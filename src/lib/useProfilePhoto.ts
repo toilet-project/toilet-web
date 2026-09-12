@@ -25,4 +25,3 @@ export function useProfilePhoto(owner: string, onExpired: () => void) {
   }, [owner, revision])
   return { state, error, retry: () => reload(n => n + 1), update: setState }
 }
-
