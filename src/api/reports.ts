@@ -1,4 +1,6 @@
 import { createApiUrl } from '../config/api'
+import { fetchSessionRead } from './session'
+import { AuthExpiredError } from './auth'
 
 export type CreateToiletReportRequest = {
   toiletId: number
@@ -45,8 +47,8 @@ export async function createToiletReport(request: CreateToiletReportRequest) {
 }
 
 export async function fetchMyToiletReports(): Promise<ToiletReport[]> {
-  const response = await fetch(createApiUrl('/api/v1/reports/me'), { credentials: 'include' })
-  if (response.status === 401) throw new Error('로그인이 필요합니다.')
+  const response = await fetchSessionRead(createApiUrl('/api/v1/reports/me'))
+  if (response.status === 401) throw new AuthExpiredError('로그인이 만료되었어요. 다시 로그인해 주세요.')
   if (!response.ok) throw new Error('내 제보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
   return response.json() as Promise<ToiletReport[]>
 }
