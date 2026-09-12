@@ -41,6 +41,18 @@ test('login entry copy is one short purpose sentence and notifications use the s
   assert.match(app, /첫 가입 시 만 14세 이상 확인·필수 약관 동의가 필요해요\./)
 })
 
+test('all login entry surfaces put Google before Kakao with matching provider handlers', async () => {
+  for (const file of ['../src/App.tsx', '../src/components/MobileNavigation.tsx']) {
+    const content = await source(file)
+    const buttons = [...content.matchAll(/<button\b[^>]*className="social-login ([^"]+)"[^\r\n]+/g)].map(match => match[0])
+    assert.equal(buttons.length, 2)
+    assert.match(buttons[0], /google-login.*(?:startSocialLogin|onLogin)\('google'\)/)
+    assert.match(buttons[1], /kakao-login.*(?:startSocialLogin|onLogin)\('kakao'\)/)
+    assert.match(content, /구글·카카오로 간편하게 로그인하세요\./)
+    assert.doesNotMatch(content, /카카오·구글로/)
+  }
+})
+
 test('community uses the shared three-second transient notice without navigating', async () => {
   const nav = await source('../src/components/MobileNavigation.tsx')
   const app = await source('../src/App.tsx')

@@ -6,6 +6,12 @@ const origin = process.env.REVIEW_PREVIEW_ORIGIN || 'http://127.0.0.1:4187'
 assert.ok(['http://127.0.0.1:4187', 'https://preview.geupddong.com'].includes(origin))
 const output = process.env.REVIEW_SCREENSHOT_DIR || path.resolve('.tmp-login-copy-screenshots')
 fs.mkdirSync(output, { recursive: true })
+async function assertProviderOrder(surface) {
+ const buttons = surface.locator('button.social-login')
+ assert.deepEqual(await buttons.allTextContents(), ['Google로 계속하기', 'Kakao로 계속하기'])
+ const google = await buttons.nth(0).boundingBox(), kakao = await buttons.nth(1).boundingBox()
+ assert.ok(google && kakao && google.y + google.height <= kakao.y, 'Google must appear above Kakao')
+}
 ;(async () => {
  const browser = await chromium.launch({ channel: 'chrome', headless: true })
  try {
@@ -31,6 +37,7 @@ fs.mkdirSync(output, { recursive: true })
    await page.locator('.place-card .review-entry').click()
    const dialog = page.getByRole('dialog', { name: '로그인 · 간편가입', exact: true })
    await dialog.waitFor()
+   await assertProviderOrder(dialog)
    assert.equal(await dialog.locator(':scope > p').first().innerText(), '리뷰는 로그인 후 이용할 수 있어요.')
    assert.equal(await dialog.getByRole('button', { name: 'Google로 계속하기' }).isEnabled(), true)
    assert.equal(await dialog.getByRole('button', { name: 'Kakao로 계속하기' }).isEnabled(), true)
@@ -43,16 +50,19 @@ fs.mkdirSync(output, { recursive: true })
     for (const tab of ['알림', '내 페이지']) {
      await page.getByRole('navigation', { name: '하단 내비게이션' }).getByRole('button', { name: tab, exact: true }).click()
      await page.locator('.mobile-login-landing').getByRole('heading', { name: '로그인 · 간편가입', exact: true }).waitFor()
+     await assertProviderOrder(page.locator('.mobile-login-landing'))
+     assert.equal(await page.locator('.mobile-login-landing > p').first().innerText(), '구글·카카오로 간편하게 로그인하세요.')
      assert.equal(await page.getByRole('dialog').count(), 0)
      assert.equal(await page.locator('.mobile-login-landing').evaluate(el => el.scrollWidth > el.clientWidth), false)
      if (tab === '알림') await page.screenshot({ path: path.join(output, `notification-login-${width}.png`) })
     }
    } else {
     await page.getByRole('button', { name: '로그인 / 회원가입', exact: true }).click()
-    assert.equal(await dialog.locator(':scope > p').first().innerText(), '카카오·구글로 간편하게 로그인하세요.')
+    assert.equal(await dialog.locator(':scope > p').first().innerText(), '구글·카카오로 간편하게 로그인하세요.')
+    await assertProviderOrder(dialog)
    }
    assert.equal(writes, 0); assert.deepEqual(errors, [])
-   console.log(`PASS login copy ${width}: short review/general descriptions, shared notification/account title, provider buttons/policy links preserved; no business writes`)
+   console.log(`PASS login copy ${width}: short descriptions, shared title, Google above Kakao on all entry surfaces, policy links preserved; no business writes`)
    await context.close()
   }
  } finally { await browser.close() }
