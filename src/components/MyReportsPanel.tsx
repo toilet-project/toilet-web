@@ -80,7 +80,7 @@ export function MyReportsPanel({ onClose, onSessionExpired, initialExpandedId = 
   return <div className={`history-list ${embedded ? 'my-reports-embedded' : 'my-reports-backdrop'}`} onMouseDown={(event) => { if (!embedded && event.target === event.currentTarget) onClose() }}>
     <section ref={dialog} tabIndex={embedded ? undefined : -1} className="my-reports-panel" role={embedded ? undefined : 'dialog'} aria-modal={embedded ? undefined : true} aria-labelledby={titleId}>
       <HistoryHeading id={titleId} title="내 제보" onClose={embedded ? onBack : onClose} />
-      <HistoryFilters collapsible={embedded} value={range} onChange={value => { reset(); setRange(value) }} count={matchingReports.length}>
+      <HistoryFilters embedded={embedded} value={range} onChange={value => { reset(); setRange(value) }} count={matchingReports.length}>
         <nav className="my-reports-filters" aria-label="제보 상태 필터">
           {filters.map((item) => <button key={item.value} type="button" aria-pressed={filter === item.value} className={filter === item.value ? 'is-active' : ''} onClick={() => { reset(); setFilter(item.value) }}>
             {item.label}<span>{item.value === 'ALL' ? datedReports.length : datedReports.filter((report) => report.status === item.value).length}</span>

@@ -1,8 +1,4 @@
 // Select using only the custom calendar's public controls, never React state injection.
-exports.openHistoryFilters = async scope => {
-  const disclosure = scope.locator('.history-filter-disclosure')
-  if (await disclosure.count() && await disclosure.isVisible() && await disclosure.getAttribute('aria-expanded') === 'false') await disclosure.click()
-}
 exports.selectCalendarDate = async (scope, field, value) => {
   const [year, month, day] = value.split('-').map(Number)
   await scope.getByRole('button', { name: field, exact: true }).click()

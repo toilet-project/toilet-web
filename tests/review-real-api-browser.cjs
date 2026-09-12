@@ -3,7 +3,7 @@
 // production origin denial is separately asserted below. Review/session responses
 // are NOT mocked. The API test-classpath host supplies synthetic accounts and public facility metadata.
 const assert = require('node:assert/strict')
-const { selectCalendarDate, openHistoryFilters } = require('./history-calendar-browser.cjs')
+const { selectCalendarDate } = require('./history-calendar-browser.cjs')
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto')
 const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE || 'playwright')
 const metadata = JSON.parse(fs.readFileSync(process.env.REVIEW_HTTP_METADATA, 'utf8'))
@@ -138,14 +138,12 @@ const body = () => ({ toiletId: 1, satisfaction: 4, cleanliness: 5, paper: true,
       const publicRows=await(await context.request.get(api+`/api/v1/toilets/${target}/reviews`)).json()
       const retained=publicRows.items.find(row=>row.id===createdId)
       assert.equal(retained.comment,`격리 DB 수정 ${width}`);assert.equal(retained.authorDisplayName,'익명');assert.equal(retained.authorRemoved,true)
-      await openHistoryFilters(list)
       await list.getByRole('group',{name:'조회 기간'}).getByRole('button',{name:'전체',exact:true}).click()
       await list.locator('.history-card').first().waitFor()
       for(let n=0;n<2;n++){await list.getByRole('button',{name:'리뷰 더 보기',exact:true}).scrollIntoViewIfNeeded();await page.waitForFunction(min=>document.querySelectorAll('.history-reviews .history-card').length>=min,n===0?20:24)}
       assert.equal(await list.locator('.history-card').count(),24)
       assert.ok(requests.some(r=>r.query.includes('cursor=')))
       const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'}).format(new Date(Date.now()-14*86400000))
-      await openHistoryFilters(list)
       await list.getByRole('button',{name:'날짜 직접 선택'}).click()
       await selectCalendarDate(list,'시작일',day);await selectCalendarDate(list,'종료일',day)
       await list.getByRole('button',{name:'적용',exact:true}).click()
