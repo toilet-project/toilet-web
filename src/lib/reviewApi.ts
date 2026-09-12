@@ -23,6 +23,7 @@ const messages: Record<string, string> = {
   REVIEW_COOLDOWN: '연속 등록은 잠시 기다린 뒤 다시 시도해 주세요.',
   REVIEW_DAILY_LIMIT: '오늘 작성 가능한 리뷰 수를 모두 이용했어요.',
   REVIEW_REQUEST_REUSED: '등록 요청이 변경됐어요. 기존 리뷰가 있는지 확인해 주세요.',
+  REVIEW_UNLINK_UNAVAILABLE: '작성자 정보를 안전하게 지우지 못했어요. 잠시 후 다시 시도해 주세요.',
   REVIEW_INVALID_REQUEST: '리뷰 입력과 위치 정보를 다시 확인해 주세요.',
 }
 const object = (v: unknown): Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {}

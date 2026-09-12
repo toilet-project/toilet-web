@@ -13,8 +13,9 @@ jobs:
     timeout-minutes: 15
     env:
       NEXT_TELEMETRY_DISABLED: '1'
-      NEXT_PUBLIC_API_BASE_URL: https://api.geupddong.com
-      NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY: build-validation-placeholder
+      NEXT_PUBLIC_API_BASE_URL: https://preview.geupddong.com/__review-verification
+      NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY: ${{ secrets.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY || 'build-validation-placeholder' }}
+      NEXT_DEPLOYMENT_ID: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-review-verification
       SITE_INDEXABLE: 'false'
       REVIEW_API_ENABLED: 'true'
     steps:
@@ -29,5 +30,13 @@ jobs:
       - run: pnpm run lint
       - run: pnpm run typecheck
       - run: pnpm test
-      # Compile the opt-in branch too. No API credentials, review writes, uploads or deployment.
-      - run: pnpm run build
+      # Synthetic-only API candidate. No production credentials, review writes or deployment.
+      - run: pnpm exec opennextjs-cloudflare build --config wrangler.jsonc
+      - run: node scripts/write-worker-release-manifest.mjs preview
+      - run: pnpm exec wrangler deploy --dry-run --config wrangler.jsonc
+      - run: tar -czf workers-review-verification.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs review-verification-proxy.mjs package.json pnpm-lock.yaml wrangler.jsonc worker-release-manifest.json open-next.config.ts next.config.ts .next/BUILD_ID
+      - uses: actions/upload-artifact@v4
+        with:
+          name: workers-review-verification-${{ github.sha }}
+          path: workers-review-verification.tar.gz
+          retention-days: 1

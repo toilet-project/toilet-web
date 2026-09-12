@@ -37,6 +37,11 @@ test('write transport errors and 401 never automatically replay a mutation or cl
     assert.equal(calls.length, 1)
   }
 })
+test('unlink protection failure retains the review and shows only the fixed safe message', async () => {
+  const { api, calls } = setup([response({ error: { code: 'REVIEW_UNLINK_UNAVAILABLE', message: 'private-storage-path' } }, 503)])
+  await assert.rejects(api.detach(record()), error => error.code === 'REVIEW_UNLINK_UNAVAILABLE' && error.message === '작성자 정보를 안전하게 지우지 못했어요. 잠시 후 다시 시도해 주세요.')
+  assert.equal(calls.length, 1)
+})
 test('frequency check supports existing/anonymous/available states; malformed results never allow new writes', async () => {
   const nextAllowedAt = '2026-09-13T00:00:00+09:00'
   for (const state of [{ canCreate: true, existingReviewId: null, nextAllowedAt: null }, { canCreate: false, existingReviewId: '1', nextAllowedAt }, { canCreate: false, existingReviewId: null, nextAllowedAt }]) {
