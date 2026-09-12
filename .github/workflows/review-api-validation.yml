@@ -51,6 +51,8 @@ jobs:
       SITE_INDEXABLE: 'true'
       REVIEW_API_ENABLED: 'true'
       REVIEW_PRODUCTION_APPROVED: 'true'
+      # Candidate validation only; this workflow never deploys or activates the feature.
+      NEXT_PUBLIC_PROFILE_PHOTO_ENABLED: 'true'
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.0.0

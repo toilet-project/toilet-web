@@ -17,12 +17,12 @@ export function PhotoImage({ path, privatePhoto = false, fallback, label = 'í”„ë
     let generation = 0
     const load = async () => {
       const current = ++generation
-      request?.abort(); request = new AbortController()
+      request?.abort(); const controller = new AbortController(); request = controller
       if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null }
       setImage(null)
-      const timer = setTimeout(() => request?.abort(), 10_000)
+      const timer = setTimeout(() => controller.abort(), 10_000)
       try {
-        const response = await fetch(createApiUrl(path), { credentials: privatePhoto ? 'include' : 'omit', cache: 'no-store', signal: request.signal })
+        const response = await fetch(createApiUrl(path), { credentials: privatePhoto ? 'include' : 'omit', cache: 'no-store', signal: controller.signal })
         if (!response.ok || !response.headers.get('content-type')?.startsWith('image/webp')) return
         const blob = await response.blob()
         if (!active || current !== generation || blob.size > 100_000) return
