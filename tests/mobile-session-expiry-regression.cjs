@@ -54,13 +54,13 @@ const origin = 'http://127.0.0.1:4187'
   assert.equal(await page.getByText('A 전용 제보').count(),0)
   mode='inbox401'
   await nav.getByRole('button',{name:/^알림/}).click()
-  await page.getByRole('heading',{name:'로그인하고 알림을 확인하세요'}).waitFor()
+  await page.getByRole('heading',{name:'로그인 · 간편가입',exact:true}).waitFor()
   await page.getByRole('button',{name:'Google로 계속하기'}).click()
   const dialog=page.getByRole('region',{name:'받은 알림 목록',exact:true})
   await dialog.getByRole('button',{name:/B 전용 알림/}).waitFor()
   mode='write401'
   await dialog.getByRole('button',{name:/B 전용 알림/}).click()
-  await page.getByRole('heading',{name:'로그인하고 알림을 확인하세요'}).waitFor()
+  await page.getByRole('heading',{name:'로그인 · 간편가입',exact:true}).waitFor()
   assert.equal(writes,1,'401 write must not replay')
   nextUser='C'
   await page.getByRole('button',{name:'Google로 계속하기'}).click()
@@ -69,7 +69,7 @@ const origin = 'http://127.0.0.1:4187'
   assert.equal(writes,1,'login does not replay another account action')
   mode='write401'
   await dialog.getByRole('button',{name:'모두 읽음'}).click()
-  await page.getByRole('heading',{name:'로그인하고 알림을 확인하세요'}).waitFor()
+  await page.getByRole('heading',{name:'로그인 · 간편가입',exact:true}).waitFor()
   assert.equal(writes,2)
   await page.getByRole('button',{name:'Google로 계속하기'}).click()
   await dialog.getByRole('button',{name:/C 전용 알림/}).waitFor()

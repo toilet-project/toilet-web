@@ -29,6 +29,18 @@ test('report login prompt uses brand and concise labels without removing the aut
   assert.match(app, /const title = '로그인 · 간편가입'/)
 })
 
+test('login entry copy is one short purpose sentence and notifications use the shared title', async () => {
+  const app = await source('../src/App.tsx')
+  const mobile = await source('../src/components/MobileNavigation.tsx')
+  assert.match(app, /review: '리뷰는 로그인 후 이용할 수 있어요\.'/)
+  assert.match(app, /'my-reports': '내 제보는 로그인 후 확인할 수 있어요\.'/)
+  assert.match(app, /report: '제보는 로그인 후 이용할 수 있어요\.'/)
+  assert.doesNotMatch(app, /로그인한 뒤 리뷰 버튼을 다시 눌러 주세요\. 새 리뷰는/)
+  assert.match(mobile, /<h1>로그인 · 간편가입<\/h1>/)
+  assert.doesNotMatch(mobile, /로그인하고 알림을 확인하세요/)
+  assert.match(app, /첫 가입 시 만 14세 이상 확인·필수 약관 동의가 필요해요\./)
+})
+
 test('community uses the shared three-second transient notice without navigating', async () => {
   const nav = await source('../src/components/MobileNavigation.tsx')
   const app = await source('../src/App.tsx')

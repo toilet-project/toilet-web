@@ -1522,7 +1522,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
 
 function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () => void }) {
   const title = '로그인 · 간편가입'
-  const description = purpose === 'review' ? '리뷰는 로그인 후 이용할 수 있어요. 로그인한 뒤 리뷰 버튼을 다시 눌러 주세요. 새 리뷰는 화장실 150m 이내에서 현재 위치를 확인해요.' : purpose === 'my-reports' ? '내가 보낸 제보의 대기·승인·반려 상태와 관리자 메모를 확인할 수 있어요.' : '제보 내용은 관리자 확인 후 서비스에 반영됩니다.'
+  const description = { review: '리뷰는 로그인 후 이용할 수 있어요.', 'my-reports': '내 제보는 로그인 후 확인할 수 있어요.', report: '제보는 로그인 후 이용할 수 있어요.', general: '카카오·구글로 간편하게 로그인하세요.' }[purpose]
   return <div className="login-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
       <button type="button" className="login-modal-close" onClick={onClose} aria-label="로그인 창 닫기">×</button>
@@ -1531,7 +1531,7 @@ function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () 
       <p>{description}</p>
       <button type="button" className="social-login google-login" onClick={() => startSocialLogin('google')}>Google로 계속하기</button>
       <button type="button" className="social-login kakao-login" onClick={() => startSocialLogin('kakao')}>Kakao로 계속하기</button>
-      <p className="login-policy-note">처음 가입하는 경우에만 소셜 인증 후 만 14세 이상 확인과 필수 약관 동의가 이어집니다. 기존 회원은 바로 로그인됩니다.</p>
+      <p className="login-policy-note">첫 가입 시 만 14세 이상 확인·필수 약관 동의가 필요해요.</p>
       <nav className="login-policy-links"><a href="/policies/terms" target="_blank" rel="noreferrer">이용약관</a><a href="/policies/privacy" target="_blank" rel="noreferrer">개인정보 처리방침</a></nav>
     </section>
   </div>
