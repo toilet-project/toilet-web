@@ -1,4 +1,6 @@
 'use client'
+import { PublicReviews } from './components/reviews/PublicReviews'
+
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, type ToiletMapSearchResponse } from './api/toilets'
@@ -1547,6 +1549,7 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
   return <div className="coordinate-inline-details">
     <div className="coordinate-opening-row"><p className="open-time">{formatOpenTime(toilet)}</p>{onReport && <ToiletReportEntry iconOnly onClick={onReport} />}</div>
     <ToiletCommunityRow onReview={onReview} reviewEntry={reviewEntry} previewSummary={previewSummary} />
+    <PublicReviews toiletId={toilet.id} />
     {address && <DetailRow className="coordinate-inline-address" label="주소" value={address} copyable />}
     <section className="coordinate-inline-section coordinate-inline-capacity-section" aria-label="화장실 수">
       <h2>화장실 수</h2>
