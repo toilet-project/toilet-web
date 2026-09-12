@@ -134,6 +134,7 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
   }
   function open(next: ReviewTarget) {
     if (entryRef.current?.status === 'checking') return
+    if (!owner) { access.requireLogin(); return }
     if (!isMobileReviewDevice()) {
       updateEntry({ id: next.id, status: 'notice', message: MOBILE_REVIEW_ONLY_MESSAGE })
       return

@@ -91,11 +91,11 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
   }
   const open = (next: Target) => {
     if (!REVIEW_DESIGN_PREVIEW) return
+    if (!owner) { access.requireLogin(); return }
     if (!isMobileReviewDevice()) {
       updateEntry({ id: next.id, status: 'notice', message: MOBILE_REVIEW_ONLY_MESSAGE })
       return
     }
-    if (!owner) { access.requireLogin(); return }
     if (entryRef.current?.id === next.id && entryRef.current.status === 'checking') return
     const fresh = entryRef.current?.id === next.id && entryRef.current.status === 'retry'
     setTarget(null); setEditing(null)
