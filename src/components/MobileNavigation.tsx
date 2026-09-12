@@ -99,7 +99,8 @@ export function MobilePage({ tab, profile, loading, unread, onProfile, onReports
 }) {
   const page = useRef<HTMLElement>(null)
   useLayoutEffect(() => { if (page.current) page.current.scrollTop = 0 }, [tab, accountView])
-  return <section ref={page} className="mobile-page" aria-label={tab === 'account' ? '내 페이지' : '알림 페이지'}>
+  const historyPage = tab === 'account' && (accountView === 'reports' || accountView === 'reviews')
+  return <section ref={page} className={`mobile-page${historyPage ? ' is-history-page' : ''}`} aria-label={tab === 'account' ? '내 페이지' : '알림 페이지'}>
     {loading ? <p className="mobile-page-loading" role="status">불러오는 중…</p> : !profile ? <LoginLanding tab={tab} onLogin={provider => { beforeLogin(tab); startSocialLogin(provider) }} />
       : tab === 'account' && accountView === 'reports' ? <MyReportsPanel key={`account-reports-${profile.userId}-${focusedReportId ?? 'list'}`} embedded onSessionExpired={onSessionExpired} initialExpandedId={focusedReportId} onClose={onBackAccount} onBack={onBackAccount} />
       : tab === 'account' && accountView === 'reviews' && onReviews ? reviewPage

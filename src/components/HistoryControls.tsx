@@ -32,21 +32,23 @@ export function HistoryFilters({ value, onChange, count, countLabel, collapsible
     if (root.current) { const scroll = historyScroller(root.current); if (scroll) scroll.scrollTop = 0 }
   }
   const rangeLabel = value.period === 'all' ? '전체 기간' : `${value.from.replaceAll('-', '.')} – ${value.to.replaceAll('-', '.')}`
-  return <div className={`history-filter-shell${collapsible ? ' is-collapsible' : ''}`} ref={root}>
+  return <div className={`history-filter-shell${collapsible ? ' is-collapsible' : ''}${expanded ? ' is-expanded' : ' is-collapsed'}`} ref={root}>
     {collapsible && <button type="button" className="history-filter-disclosure" aria-expanded={expanded} aria-controls={`${id}-filters`} onClick={() => { const next = !expanded; manuallyExpanded.current = next; setExpanded(next); if (!next) { setOpen(false); setError('') } }}><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4" /></svg>필터</span><small>{rangeLabel}</small><svg className="history-filter-chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" /></svg></button>}
-    <div id={`${id}-filters`} className="history-filter-body" hidden={collapsible && !expanded}>
-      <div className="history-filters">
-        <div className="history-periods" role="group" aria-label="조회 기간">
-          {(['7', '30', 'all'] as const).map(period => <button type="button" key={period} aria-pressed={value.period === period} onClick={() => change(historyRange(period))}>{period === 'all' ? '전체' : `최근 ${period}일`}</button>)}
-          <button type="button" ref={toggle} className="history-date-toggle" aria-label="날짜 직접 선택" title={open ? '날짜 선택 닫기' : '날짜 직접 선택'} aria-expanded={open} aria-controls={`${id}-dates`} aria-pressed={value.period === 'custom'} onClick={() => { setFrom(value.from); setTo(value.to); setError(''); setOpen(!open) }}><svg viewBox="0 0 24 24" aria-hidden="true">{open ? <path d="m6 15 6-6 6 6" /> : <><path d="M3 7h7m4 0h7M3 17h3m4 0h11" /><circle cx="12" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></>}</svg></button>
+    <div id={`${id}-filters`} className="history-filter-body" aria-hidden={collapsible && !expanded} inert={collapsible && !expanded ? true : undefined}>
+      <div className="history-filter-body-inner">
+        <div className="history-filters">
+          <div className="history-periods" role="group" aria-label="조회 기간">
+            {(['7', '30', 'all'] as const).map(period => <button type="button" key={period} aria-pressed={value.period === period} onClick={() => change(historyRange(period))}>{period === 'all' ? '전체' : `최근 ${period}일`}</button>)}
+            <button type="button" ref={toggle} className="history-date-toggle" aria-label="날짜 직접 선택" title={open ? '날짜 선택 닫기' : '날짜 직접 선택'} aria-expanded={open} aria-controls={`${id}-dates`} aria-pressed={value.period === 'custom'} onClick={() => { setFrom(value.from); setTo(value.to); setError(''); setOpen(!open) }}><svg viewBox="0 0 24 24" aria-hidden="true">{open ? <path d="m6 15 6-6 6 6" /> : <><path d="M3 7h7m4 0h7M3 17h3m4 0h11" /><circle cx="12" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></>}</svg></button>
+          </div>
+          {open && <form id={`${id}-dates`} className="history-date-picker" onSubmit={event => { event.preventDefault(); const problem = historyRangeProblem(from, to); if (problem) { setError(problem); return }; change({ period: 'custom', from, to }); toggle.current?.focus() }}>
+            <div className="history-date-inputs"><label><span className="sr-only">시작일</span><input aria-label="시작일" type="date" value={from} max={historyToday()} onChange={event => setFrom(event.target.value)} aria-describedby={error ? `${id}-error` : undefined} /></label><span aria-hidden="true">–</span><label><span className="sr-only">종료일</span><input aria-label="종료일" type="date" value={to} max={historyToday()} onChange={event => setTo(event.target.value)} aria-describedby={error ? `${id}-error` : undefined} /></label><button type="submit">적용</button></div>
+            {error && <p id={`${id}-error`} role="alert">{error}</p>}
+          </form>}
+          <div className="history-range-caption"><span>{rangeLabel}</span><span>{countLabel ?? `${count}개 · 최신순`}</span></div>
         </div>
-        {open && <form id={`${id}-dates`} className="history-date-picker" onSubmit={event => { event.preventDefault(); const problem = historyRangeProblem(from, to); if (problem) { setError(problem); return }; change({ period: 'custom', from, to }); toggle.current?.focus() }}>
-          <div className="history-date-inputs"><label><span className="sr-only">시작일</span><input aria-label="시작일" type="date" value={from} max={historyToday()} onChange={event => setFrom(event.target.value)} aria-describedby={error ? `${id}-error` : undefined} /></label><span aria-hidden="true">–</span><label><span className="sr-only">종료일</span><input aria-label="종료일" type="date" value={to} max={historyToday()} onChange={event => setTo(event.target.value)} aria-describedby={error ? `${id}-error` : undefined} /></label><button type="submit">적용</button></div>
-          {error && <p id={`${id}-error`} role="alert">{error}</p>}
-        </form>}
-        <div className="history-range-caption"><span>{rangeLabel}</span><span>{countLabel ?? `${count}개 · 최신순`}</span></div>
+        {children}
       </div>
-      {children}
     </div>
   </div>
 }
