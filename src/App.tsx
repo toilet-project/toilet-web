@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, type ToiletMapSearchResponse } from './api/toilets'
 import { createDetailCache } from './lib/detailCache'
-import { createCardHandleGesture, createReferenceRequestGate, relayoutPreservingCenter } from './lib/mapInteraction'
+import { createCardHandleGesture, createMarkerTapGesture, createReferenceRequestGate, relayoutPreservingCenter } from './lib/mapInteraction'
 import { cardPlacement } from './lib/cardPlacement'
 import { DesktopHeaderMenu } from './components/DesktopHeaderMenu'
-import { MobileNavigation, MobilePage, type MobileTab } from './components/MobileNavigation'
+import { MobileNavigation, MobilePage, type MobileTab, type MobileAccountView } from './components/MobileNavigation'
 import { AppUpdateNotice } from './components/AppUpdateNotice'
 import { readMapResume, saveMapResume, MAP_RESUME_KEY } from './lib/appUpdate'
 import { MAP_NAVIGATION_EVENT, mapNavigationPath } from './lib/navigationCache'
@@ -33,6 +33,7 @@ import { groupToiletsByCoordinate, representativeToilet, type ToiletMapItem, typ
 import type { MapRouteData } from './components/mapRouteContext'
 import { DESKTOP_LAYOUT_QUERY } from './lib/responsiveLayout'
 import { resolveDistanceReference, type DistanceSource } from './lib/distanceReference'
+import { TRANSIENT_NOTICE_MS } from './lib/uiTiming'
 const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
 const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
@@ -264,7 +265,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
   const [isAccountOpen, setIsAccountOpen] = useState(false)
   const [mobileTab, setMobileTab] = useState<MobileTab>('map')
-  const [mobileAccountView, setMobileAccountView] = useState<'home' | 'reports' | 'reviews'>('home')
+  const [mobileAccountView, setMobileAccountView] = useState<MobileAccountView>('home')
   useLayoutEffect(() => {
     const next = authProfile?.userId ?? null
     // Initial OAuth return may already have selected a pending history destination.
@@ -282,8 +283,18 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
   const showLocationMessage = useCallback((message: string) => {
     window.clearTimeout(locationMessageTimerRef.current)
     setLocationMessage(message)
-    locationMessageTimerRef.current = window.setTimeout(() => setLocationMessage(null), 4_000)
+    locationMessageTimerRef.current = window.setTimeout(() => setLocationMessage(null), TRANSIENT_NOTICE_MS)
   }, [])
+  useEffect(() => {
+    if (!locationMessage) return
+    const dismiss = () => {
+      window.clearTimeout(locationMessageTimerRef.current)
+      setLocationMessage(null)
+    }
+    document.addEventListener('pointerdown', dismiss, { once: true })
+    document.addEventListener('keydown', dismiss, { once: true })
+    return () => { document.removeEventListener('pointerdown', dismiss); document.removeEventListener('keydown', dismiss) }
+  }, [locationMessage])
 
   const reviewPreview = useReviews(authProfile?.status === 'ACTIVE' && !authProfile.consentRequired ? authProfile.userId : null, {
     requireLogin: () => {
@@ -465,11 +476,37 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
     toiletMarkerElementsRef.current.clear()
   }, [])
 
-  const suppressMapClickFromMarker = useCallback((event: Event) => {
+  const markerGesture = useMemo(() => createMarkerTapGesture(), [])
+  useEffect(() => {
+    // Observe gestures without consuming them: the SDK must receive the original
+    // down/move/up sequence when a drag begins on a custom marker.
+    const down = (event: PointerEvent) => {
+      if (!event.isPrimary || event.button !== 0) { markerGesture.cancel(); return }
+      if (event.target instanceof Element && event.target.closest('.toilet-marker,.coordinate-group-marker,.cluster-marker')) {
+        markerGesture.start(event)
+        markerClickUntilRef.current = Date.now() + 750
+      } else markerGesture.cancel()
+    }
+    const move = (event: PointerEvent) => markerGesture.move(event)
+    const up = (event: PointerEvent) => markerGesture.end(event)
+    const cancel = () => markerGesture.cancel()
+    document.addEventListener('pointerdown', down, { capture: true, passive: true })
+    document.addEventListener('pointermove', move, { capture: true, passive: true })
+    document.addEventListener('pointerup', up, { capture: true, passive: true })
+    document.addEventListener('pointercancel', cancel, { capture: true, passive: true })
+    window.addEventListener('blur', cancel)
+    return () => {
+      document.removeEventListener('pointerdown', down, true); document.removeEventListener('pointermove', move, true)
+      document.removeEventListener('pointerup', up, true); document.removeEventListener('pointercancel', cancel, true)
+      window.removeEventListener('blur', cancel); markerGesture.cancel()
+    }
+  }, [markerGesture])
+  const suppressMapClickFromMarker = useCallback((event: MouseEvent) => {
     event.stopPropagation()
     window.kakao.maps.event.preventMap()
     markerClickUntilRef.current = Date.now() + 750
-  }, [])
+    return markerGesture.acceptsClick(event.detail)
+  }, [markerGesture])
 
   const updateReferencePoint = useCallback((coordinates: Coordinates, source: DistanceSource = 'point') => {
     const map = mapRef.current
@@ -702,16 +739,13 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
     name.className = 'toilet-marker-name'
     name.textContent = '리뷰 테스트 · 가상'
     content.append(pin, name)
-    content.addEventListener('pointerdown', suppressMapClickFromMarker)
-    content.addEventListener('touchstart', suppressMapClickFromMarker, { passive: true })
-    content.addEventListener('mousedown', suppressMapClickFromMarker)
     content.addEventListener('click', event => {
-      suppressMapClickFromMarker(event)
+      if (!suppressMapClickFromMarker(event)) return
       selectToilet(testToilet.id, testToilet.name, point.latitude, point.longitude, false, testToilet.toiletType)
     })
     const overlay = new window.kakao.maps.CustomOverlay({
       position: new window.kakao.maps.LatLng(point.latitude, point.longitude), content,
-      yAnchor: 1, zIndex: 4, clickable: true,
+      yAnchor: 1, zIndex: 4, clickable: false,
     })
     overlay.setMap(map)
     return () => overlay.setMap(null)
@@ -778,13 +812,10 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
     logo.alt = ''
     pin.append(logo)
     content.append(pin)
-    content.addEventListener('pointerdown', suppressMapClickFromMarker)
-    content.addEventListener('touchstart', suppressMapClickFromMarker, { passive: true })
-    content.addEventListener('mousedown', suppressMapClickFromMarker)
     content.addEventListener('click', suppressMapClickFromMarker)
     const overlay = new window.kakao.maps.CustomOverlay({
       position: new window.kakao.maps.LatLng(selected.latitude, selected.longitude), content, yAnchor: 1, zIndex: 3,
-      clickable: true,
+      clickable: false,
     })
     overlay.setMap(map)
     return () => overlay.setMap(null)
@@ -810,11 +841,8 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
         content.type = 'button'
         content.textContent = isCoordinateGroup ? `동일 위치 ${point.count}` : String(point.count)
         content.setAttribute('aria-label', isCoordinateGroup ? `동일 위치에 등록된 화장실 ${point.count}곳 목록 보기` : `${point.count}개의 화장실이 있는 구역 확대하기`)
-        content.addEventListener('pointerdown', suppressMapClickFromMarker)
-        content.addEventListener('touchstart', suppressMapClickFromMarker, { passive: true })
-        content.addEventListener('mousedown', suppressMapClickFromMarker)
         content.addEventListener('click', (event) => {
-          suppressMapClickFromMarker(event)
+          if (!suppressMapClickFromMarker(event)) return
           if (isCoordinateGroup) {
             openCoordinateGroup(point)
             return
@@ -828,7 +856,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
           content,
           yAnchor: 0.5,
           zIndex: 2,
-          clickable: true,
+          clickable: false,
         })
       }
 
@@ -852,15 +880,12 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
         content.append(name)
       }
       content.setAttribute('aria-label', toiletName)
-      content.addEventListener('pointerdown', suppressMapClickFromMarker)
-      content.addEventListener('touchstart', suppressMapClickFromMarker, { passive: true })
-      content.addEventListener('mousedown', suppressMapClickFromMarker)
       if (point.id != null) {
         toiletMarkerElementsRef.current.set(point.id, content)
         content.classList.toggle('is-selected', selectedToiletRef.current?.id === point.id)
       }
       content.addEventListener('click', (event) => {
-        suppressMapClickFromMarker(event)
+        if (!suppressMapClickFromMarker(event)) return
         if (point.id != null) void selectToilet(point.id, toiletName, point.latitude, point.longitude, false, point.toiletType)
       })
 
@@ -869,7 +894,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
         content,
         yAnchor: 1,
         zIndex: 1,
-        clickable: true,
+        clickable: false,
       })
     })
 
@@ -1445,17 +1470,17 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
               {selectedCoordinateGroup.toilets.map((toilet, index) => {
                 const isExpanded = expandedCoordinateToilet?.id === toilet.id
                 return <div key={toilet.id} ref={(node) => { if (node) coordinateGroupItemRefs.current.set(toilet.id, node); else coordinateGroupItemRefs.current.delete(toilet.id) }} className={`coordinate-group-item${isExpanded ? ' is-expanded' : ''}`}>
-                  <div className={REVIEW_UI_ENABLED ? 'review-group-title-row' : undefined}><button type="button" className="coordinate-group-item-toggle" onClick={() => void toggleCoordinateToiletDetail(toilet)} aria-expanded={isExpanded}>
+                  <button type="button" className="coordinate-group-item-toggle" onClick={() => void toggleCoordinateToiletDetail(toilet)} aria-expanded={isExpanded}>
                     <span className="coordinate-group-index" aria-hidden="true">{index + 1}</span>
                     <span className="coordinate-group-name">{toilet.name || '이름 없는 공중화장실'}</span>
                     <span className="coordinate-group-toggle-label">{isExpanded ? '접기' : '상세 보기'}</span>
-                  </button>{REVIEW_UI_ENABLED && isExpanded && <ToiletReportEntry disabled={!toiletDetail || toiletDetail.id !== toilet.id} onClick={() => { if (toiletDetail?.id === toilet.id) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }} />}</div>
+                  </button>
                   {isExpanded && <CoordinateGroupInlineDetails
                     toilet={toiletDetail}
                     isLoading={isDetailLoading}
                     error={detailError}
                     onRetry={retryDetail}
-                    onReport={isDesktop ? undefined : () => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }}
+                    onReport={isDesktop && !REVIEW_UI_ENABLED ? undefined : () => { if (toiletDetail?.id === toilet.id) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }}
                     pendingReview={REVIEW_UI_ENABLED && !toiletDetail}
                     onReview={REVIEW_UI_ENABLED && toiletDetail?.id === toilet.id ? () => reviewPreview.open(toiletDetail) : undefined}
                     reviewEntry={reviewPreview.entryState(toilet.id)}
@@ -1472,7 +1497,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
           onBackAccount={() => { reviewPreview.close(); setMobileAccountView('home'); setFocusedReportId(null) }}
           onSessionExpired={handleSessionExpired}
           onReviews={REVIEW_UI_ENABLED ? reviewPreview.openMine : undefined}
-          onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} onCountChange={refreshNotificationCount} onOpenReport={showReportHistory}
+          onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setMobileAccountView('settings')} onWithdrawn={handleWithdrawn} onLogout={handleLogout} onCountChange={refreshNotificationCount} onOpenReport={showReportHistory}
           beforeLogin={tab => { try { window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, tab) } catch { /* 로그인은 계속 제공 */ } }} />}
         {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); showReportHistory() }} />}
         {reviewPreview.modal}
@@ -1497,7 +1522,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
 
 function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () => void }) {
   const title = '로그인 · 간편가입'
-  const description = purpose === 'review' ? '리뷰는 로그인 후 이용할 수 있어요. 로그인한 뒤 리뷰 버튼을 다시 눌러 주세요. 새 리뷰는 화장실 150m 이내에서 현재 위치를 확인해요.' : purpose === 'my-reports' ? '내가 보낸 제보의 대기·승인·반려 상태와 관리자 메모를 확인할 수 있어요.' : '제보 내용은 관리자 확인 후 서비스에 반영됩니다.'
+  const description = { review: '리뷰는 로그인 후 이용할 수 있어요.', 'my-reports': '내 제보는 로그인 후 확인할 수 있어요.', report: '제보는 로그인 후 이용할 수 있어요.', general: '구글·카카오로 간편하게 로그인하세요.' }[purpose]
   return <div className="login-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
       <button type="button" className="login-modal-close" onClick={onClose} aria-label="로그인 창 닫기">×</button>
@@ -1506,22 +1531,22 @@ function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () 
       <p>{description}</p>
       <button type="button" className="social-login google-login" onClick={() => startSocialLogin('google')}>Google로 계속하기</button>
       <button type="button" className="social-login kakao-login" onClick={() => startSocialLogin('kakao')}>Kakao로 계속하기</button>
-      <p className="login-policy-note">처음 가입하는 경우에만 소셜 인증 후 만 14세 이상 확인과 필수 약관 동의가 이어집니다. 기존 회원은 바로 로그인됩니다.</p>
+      <p className="login-policy-note">첫 가입 시 만 14세 이상 확인·필수 약관 동의가 필요해요.</p>
       <nav className="login-policy-links"><a href="/policies/terms" target="_blank" rel="noreferrer">이용약관</a><a href="/policies/privacy" target="_blank" rel="noreferrer">개인정보 처리방침</a></nav>
     </section>
   </div>
 }
 
 function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRetry, onReview, pendingReview, previewSummary, reviewEntry }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onReport?: () => void; onRetry: () => void; onReview?: () => void; pendingReview?: boolean; previewSummary?: PreviewReviewSummary; reviewEntry?: ReviewEntryState }) {
-  if (isLoading && !toilet) return <div className="coordinate-inline-details"><LoadingOpenTime /><ToiletCommunityRow pendingReport={Boolean(onReport)} pendingReview={pendingReview} /><DetailLoadingFields inline /></div>
+  if (isLoading && !toilet) return <div className="coordinate-inline-details"><div className="coordinate-opening-row"><LoadingOpenTime />{onReport && <ToiletReportEntry iconOnly disabled />}</div><ToiletCommunityRow pendingReview={pendingReview} /><DetailLoadingFields inline /></div>
   if (error) return <div className="coordinate-inline-details"><p className="detail-error" role="alert">{error}</p><button type="button" className="detail-retry" onClick={onRetry}>다시 불러오기</button></div>
   if (!toilet) return null
 
   const address = getDisplayAddress(toilet.roadAddress, toilet.jibunAddress)
 
   return <div className="coordinate-inline-details">
-    <p className="open-time">{formatOpenTime(toilet)}</p>
-    <ToiletCommunityRow onReport={onReport} onReview={onReview} reviewEntry={reviewEntry} previewSummary={previewSummary} />
+    <div className="coordinate-opening-row"><p className="open-time">{formatOpenTime(toilet)}</p>{onReport && <ToiletReportEntry iconOnly onClick={onReport} />}</div>
+    <ToiletCommunityRow onReview={onReview} reviewEntry={reviewEntry} previewSummary={previewSummary} />
     {address && <DetailRow className="coordinate-inline-address" label="주소" value={address} copyable />}
     <section className="coordinate-inline-section coordinate-inline-capacity-section" aria-label="화장실 수">
       <h2>화장실 수</h2>

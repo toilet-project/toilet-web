@@ -3,6 +3,7 @@
 // production origin denial is separately asserted below. Review/session responses
 // are NOT mocked. The API test-classpath host supplies synthetic accounts and public facility metadata.
 const assert = require('node:assert/strict')
+const { selectCalendarDate } = require('./history-calendar-browser.cjs')
 const fs = require('node:fs'), path = require('node:path'), crypto = require('node:crypto')
 const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE || 'playwright')
 const metadata = JSON.parse(fs.readFileSync(process.env.REVIEW_HTTP_METADATA, 'utf8'))
@@ -144,8 +145,8 @@ const body = () => ({ toiletId: 1, satisfaction: 4, cleanliness: 5, paper: true,
       assert.ok(requests.some(r=>r.query.includes('cursor=')))
       const day=new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Seoul'}).format(new Date(Date.now()-14*86400000))
       await list.getByRole('button',{name:'날짜 직접 선택'}).click()
-      await list.getByLabel('시작일',{exact:true}).fill(day);await list.getByLabel('종료일',{exact:true}).fill(day)
-      await list.getByRole('button',{name:'적용하기'}).click()
+      await selectCalendarDate(list,'시작일',day);await selectCalendarDate(list,'종료일',day)
+      await list.getByRole('button',{name:'적용',exact:true}).click()
       await list.getByText('격리 시험 화장실 22',{exact:true}).waitFor();assert.equal(await list.locator('.history-card').count(),1)
       await list.locator('.history-review-summary').click();assert.equal(await list.getByRole('button',{name:'수정하기',exact:true}).count(),0)
       const expiredItems=await(await context.request.get(api+`/api/v1/reviews/me?from=${day}&to=${day}`,{headers:{Cookie:`geupddong_access=${metadata.tokens[owner]}`}})).json()

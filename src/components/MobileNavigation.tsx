@@ -2,9 +2,12 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { AuthExpiredError, startSocialLogin, updateNickname, type AuthProfile } from '../api/auth'
 import { MyReportsPanel } from './MyReportsPanel'
 import { NotificationPanel } from './NotificationPanel'
+import { HistoryScrollTop } from './HistoryScrollTop'
+import { AccountDialog } from './AccountDialog'
+import { TRANSIENT_NOTICE_MS } from '../lib/uiTiming'
 
 export type MobileTab = 'map' | 'notifications' | 'account'
-export type MobileAccountView = 'home' | 'reports' | 'reviews'
+export type MobileAccountView = 'home' | 'reports' | 'reviews' | 'settings'
 type IconName = MobileTab | 'community' | 'settings'
 
 function Icon({ name }: { name: IconName }) {
@@ -22,10 +25,17 @@ export function MobileNavigation({ tab, onChange, unread }: { tab: MobileTab; on
   const [communityNotice, setCommunityNotice] = useState(false)
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (noticeTimer.current) clearTimeout(noticeTimer.current) }, [])
+  useEffect(() => {
+    if (!communityNotice) return
+    const dismiss = () => { setCommunityNotice(false); if (noticeTimer.current) clearTimeout(noticeTimer.current); noticeTimer.current = null }
+    document.addEventListener('pointerdown', dismiss, { once: true })
+    document.addEventListener('keydown', dismiss, { once: true })
+    return () => { document.removeEventListener('pointerdown', dismiss); document.removeEventListener('keydown', dismiss) }
+  }, [communityNotice])
   const showCommunityNotice = () => {
     if (noticeTimer.current) clearTimeout(noticeTimer.current)
     setCommunityNotice(true)
-    noticeTimer.current = setTimeout(() => { setCommunityNotice(false); noticeTimer.current = null }, 1000)
+    noticeTimer.current = setTimeout(() => { setCommunityNotice(false); noticeTimer.current = null }, TRANSIENT_NOTICE_MS)
   }
   return <nav className="mobile-navigation" aria-label="하단 내비게이션">
     <button type="button" aria-current={tab === 'map' ? 'page' : undefined} onClick={() => onChange('map')}><span className="mobile-nav-icon"><Icon name="map" /></span><span>지도</span></button>
@@ -40,13 +50,13 @@ function PolicyLinks() {
   return <nav className="mobile-policy-links" aria-label="서비스 안내"><a href="/policies/all">이용약관</a><a href="mailto:privacy@geupddong.com">문의</a></nav>
 }
 
-function LoginLanding({ tab, onLogin }: { tab: MobileTab; onLogin: (provider: 'google' | 'kakao') => void }) {
+function LoginLanding({ onLogin }: { onLogin: (provider: 'google' | 'kakao') => void }) {
   return <div className="mobile-login-landing">
-    <span className="brand">급똥</span><h1>{tab === 'notifications' ? '로그인하고 알림을 확인하세요' : '로그인 · 간편가입'}</h1>
-    <p>카카오·구글 계정으로 간편하게 시작하세요.</p>
-    <button className="social-login kakao-login" type="button" onClick={() => onLogin('kakao')}><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3C6.5 3 2 6.5 2 10.8c0 2.8 1.9 5.2 4.8 6.6L6 21l4.2-2.6 1.8.2c5.5 0 10-3.5 10-7.8S17.5 3 12 3Z" /></svg><span>Kakao로 계속하기</span></button>
+    <span className="brand">급똥</span><h1>로그인 · 간편가입</h1>
+    <p>구글·카카오로 간편하게 로그인하세요.</p>
     <button className="social-login google-login" type="button" onClick={() => onLogin('google')}><svg width="20" height="20" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.91c1.7-1.57 2.69-3.88 2.69-6.62Z" /><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.26c-.8.54-1.84.86-3.05.86-2.34 0-4.33-1.58-5.04-3.71H.95v2.33A9 9 0 0 0 9 18Z" /><path fill="#FBBC05" d="M3.96 10.71a5.4 5.4 0 0 1 0-3.42V4.96H.95a9 9 0 0 0 0 8.08Z" /><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58A8.62 8.62 0 0 0 9 0 9 9 0 0 0 .95 4.96l3.01 2.33A5.4 5.4 0 0 1 9 3.58Z" /></svg><span>Google로 계속하기</span></button>
-    <p className="mobile-signup-note">처음 가입할 때 소셜 인증 후 필수 약관 동의가 이어집니다.</p><PolicyLinks />
+    <button className="social-login kakao-login" type="button" onClick={() => onLogin('kakao')}><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3C6.5 3 2 6.5 2 10.8c0 2.8 1.9 5.2 4.8 6.6L6 21l4.2-2.6 1.8.2c5.5 0 10-3.5 10-7.8S17.5 3 12 3Z" /></svg><span>Kakao로 계속하기</span></button>
+    <p className="mobile-signup-note">첫 가입 시 필수 약관 동의가 필요해요.</p><PolicyLinks />
   </div>
 }
 
@@ -81,25 +91,29 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
   </section>
 }
 
-export function MobilePage({ tab, profile, loading, unread, onProfile, onReports, onAccount, onLogout, onCountChange, onOpenReport, beforeLogin, onSessionExpired, onReviews, accountView = 'home', onBackAccount, reviewPage, focusedReportId }: {
+export function MobilePage({ tab, profile, loading, unread, onProfile, onReports, onAccount, onLogout, onCountChange, onOpenReport, beforeLogin, onSessionExpired, onReviews, accountView = 'home', onBackAccount, reviewPage, focusedReportId, onWithdrawn }: {
   tab: Exclude<MobileTab, 'map'>; profile: AuthProfile | null; loading: boolean; unread: number;
   onProfile: (profile: AuthProfile) => void; onReports: () => void; onAccount: () => void; onLogout: () => void; onCountChange: () => void; onOpenReport: (reportId: number) => void;
   beforeLogin: (tab: MobileTab) => void;
   onSessionExpired: () => void;
+  onWithdrawn: (message: string) => void;
   onReviews?: () => void;
   accountView?: MobileAccountView; onBackAccount: () => void; reviewPage?: ReactNode; focusedReportId?: number | null;
 }) {
   const page = useRef<HTMLElement>(null)
   useLayoutEffect(() => { if (page.current) page.current.scrollTop = 0 }, [tab, accountView])
-  return <section ref={page} className="mobile-page" aria-label={tab === 'account' ? '내 페이지' : '알림 페이지'}>
-    {loading ? <p className="mobile-page-loading" role="status">불러오는 중…</p> : !profile ? <LoginLanding tab={tab} onLogin={provider => { beforeLogin(tab); startSocialLogin(provider) }} />
+  const historyPage = tab === 'account' && accountView !== 'home'
+  return <section ref={page} className={`mobile-page${historyPage ? ' is-history-page' : ''}`} aria-label={tab === 'account' ? '내 페이지' : '알림 페이지'}>
+    {loading ? <p className="mobile-page-loading" role="status">불러오는 중…</p> : !profile ? <LoginLanding onLogin={provider => { beforeLogin(tab); startSocialLogin(provider) }} />
       : tab === 'account' && accountView === 'reports' ? <MyReportsPanel key={`account-reports-${profile.userId}-${focusedReportId ?? 'list'}`} embedded onSessionExpired={onSessionExpired} initialExpandedId={focusedReportId} onClose={onBackAccount} onBack={onBackAccount} />
       : tab === 'account' && accountView === 'reviews' && onReviews ? reviewPage
+      : tab === 'account' && accountView === 'settings' ? <AccountDialog key={profile.userId} embedded profile={profile} onClose={onBackAccount} onWithdrawn={onWithdrawn} />
       : tab === 'account' ? <>
       <header className="mobile-page-heading"><h1>내 페이지</h1></header>
       <ProfileCard key={profile.userId} profile={profile} onProfile={onProfile} onSessionExpired={onSessionExpired} />
       <div className="mobile-account-links">{onReviews && <button type="button" onClick={onReviews}><Icon name="community" /><span>내 리뷰</span><span aria-hidden="true">›</span></button>}<button type="button" onClick={onReports}><Icon name="community" /><span>내 제보</span><span aria-hidden="true">›</span></button><button type="button" onClick={onAccount}><Icon name="settings" /><span>계정 관리 · 동의 내역</span><span aria-hidden="true">›</span></button></div>
       <div className="mobile-account-support"><PolicyLinks /><button type="button" className="mobile-logout" onClick={onLogout}>로그아웃</button></div>
     </> : <NotificationPanel key={profile.userId} embedded unread={unread} onSessionExpired={onSessionExpired} onCountChange={onCountChange} onOpenReport={onOpenReport} onClose={() => {}} />}
+    {historyPage && !loading && profile && <HistoryScrollTop key={`${accountView}-${profile.userId}`} container={page} />}
   </section>
 }

@@ -90,7 +90,7 @@ export function NotificationPanel({ onClose, onCountChange, onOpenReport, onSess
   return <div className={embedded ? 'history-list notification-embedded' : 'history-list notification-backdrop'} role="presentation" onMouseDown={event => { if (!embedded && event.target === event.currentTarget) onClose() }}>
     <section ref={dialog} tabIndex={-1} className="notification-panel" role={embedded ? 'region' : 'dialog'} aria-modal={embedded ? undefined : true} aria-label={embedded ? '받은 알림 목록' : '알림'}>
       <HistoryHeading title="알림" onClose={embedded ? undefined : onClose} />
-      <HistoryFilters value={range} count={feed.items.length} countLabel={isLoading ? '불러오는 중…' : feed.hasMore ? `${feed.items.length}개 이상 · 최신순` : undefined} onChange={next => {
+      <HistoryFilters floatingCalendar value={range} count={feed.items.length} countLabel={isLoading ? '불러오는 중…' : feed.hasMore ? `${feed.items.length}개 이상 · 최신순` : undefined} onChange={next => {
         if (busy.current) return
         feedRef.current = emptyNotificationFeed(); setFeed(feedRef.current); setWanted(10); startLoad(); setRange(next)
       }} />

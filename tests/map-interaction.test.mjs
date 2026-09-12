@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { createCardHandleGesture, createReferenceRequestGate, relayoutPreservingCenter } from '../src/lib/mapInteraction.ts'
+import { createCardHandleGesture, createMarkerTapGesture, createReferenceRequestGate, relayoutPreservingCenter } from '../src/lib/mapInteraction.ts'
 
 test('resize restores the exact geographic center without pan, zoom or reference changes', () => {
   const center = { lat: 36.3668, lng: 127.3179 }
@@ -59,14 +59,41 @@ test('card reuse resets scroll; touch expansion belongs only to the handle', asy
   assert.doesNotMatch(app, /cardTouchStartYRef/)
   assert.match(app, /onTouchCancel=\{\(\) => cardHandleGesture.cancel\(\)\}/)
 })
-test('all marker paths including the preview fixture block SDK touch propagation without disabling map zoom', async () => {
+test('all marker paths let original down/move gestures reach the SDK and only suppress final clicks', async () => {
   const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8')
   const css = await readFile(new URL('../src/components/mobile-navigation.css', import.meta.url), 'utf8')
-  assert.equal((app.match(/addEventListener\('touchstart', suppressMapClickFromMarker/g) || []).length, 4)
-  assert.equal((app.match(/clickable: true/g) || []).length, 4)
+  assert.doesNotMatch(app, /addEventListener\('(touchstart|pointerdown|mousedown)', suppressMapClickFromMarker/)
+  assert.equal((app.match(/clickable: false/g) || []).length, 4)
   assert.match(app, /window.kakao.maps.event.preventMap\(\)/)
   assert.match(css, /\.toilet-marker, \.coordinate-group-marker, \.cluster-marker, \.mobile-card-handle \{ touch-action: manipulation; \}/)
   assert.match(app, /const request = referenceRequestGate.begin\(\)/)
   assert.match(app, /\(\{ coords \}\) => \{\s+if \(!isCurrent\(\)\) return/)
   assert.match(app, /\(positionError\) => \{\s+if \(!isCurrent\(\)\) return/)
+})
+const pointer = (x, y, pointerId = 1) => ({ clientX: x, clientY: y, pointerId })
+test('marker taps and keyboard activation work; a drag returning to its start never selects', () => {
+  const gesture = createMarkerTapGesture()
+  gesture.start(pointer(10, 20), 100)
+  gesture.end(pointer(12, 22), 200)
+  assert.equal(gesture.acceptsClick(1), true)
+  assert.equal(gesture.acceptsClick(1), false)
+  gesture.start(pointer(10, 20), 300)
+  gesture.move(pointer(30, 20)); gesture.move(pointer(10, 20))
+  gesture.end(pointer(10, 20), 400)
+  assert.equal(gesture.acceptsClick(1), false)
+  assert.equal(gesture.acceptsClick(0), true)
+})
+test('marker long-press, wrong pointer, pinch/cancel and released drag never select', () => {
+  for (const mode of ['long', 'wrong', 'cancel', 'drag']) {
+    const gesture = createMarkerTapGesture()
+    gesture.start(pointer(0, 0), 100)
+    if (mode === 'cancel') gesture.cancel()
+    gesture.end(pointer(mode === 'drag' ? 20 : 0, 0, mode === 'wrong' ? 2 : 1), mode === 'long' ? 900 : 200)
+    assert.equal(gesture.acceptsClick(1), false, mode)
+  }
+})
+test('native pointer fields can be inherited non-enumerable properties', () => {
+  const gesture = createMarkerTapGesture(), native = Object.create(pointer(10, 20))
+  gesture.start(native, 100); gesture.end(pointer(10, 20), 150)
+  assert.equal(gesture.acceptsClick(1), true)
 })

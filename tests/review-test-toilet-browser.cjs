@@ -68,6 +68,12 @@ const hash = '#review-test=36.3504,127.3845' // Public city hall; never commit p
       assert.equal(await hint.evaluate(el=>{const r=el.getBoundingClientRect();el.style.pointerEvents='auto';const hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===el;el.style.pointerEvents='';return hit}),true,'portal stays above card clipping')
       await page.screenshot({path:path.join(output,`review-hint-${width}.png`)})
       assert.equal(await form.count(), 0, 'out-of-range shows only an anchored hint')
+      if (width <= 390) {
+        await card.getByRole('button', { name: '정보 닫기' }).click()
+        await hint.waitFor({ state: 'detached' })
+        await page.locator('.review-test-marker').click()
+        await card.getByRole('heading', { name: '리뷰 테스트 화장실' }).waitFor()
+      }
       await page.evaluate(() => { window.fixtureGPS.latitude = 36.3504 })
       await openReview()
       await page.waitForFunction(() => document.querySelector('.rv-dialog-footer .rv-primary')?.disabled === false)

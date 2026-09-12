@@ -1,11 +1,18 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
+import { TRANSIENT_NOTICE_MS } from '../../lib/uiTiming'
 
 /** Portal avoids clipping by both the single-card and grouped-card scroll containers. */
-export function ReviewEntryHint({ anchor, message, id }: { anchor: RefObject<HTMLButtonElement | null>; message: string; id: string }) {
+export function ReviewEntryHint({ anchor, message, id, dismissAfterMs = TRANSIENT_NOTICE_MS }: { anchor: RefObject<HTMLButtonElement | null>; message: string; id: string; dismissAfterMs?: number | null }) {
   const hint = useRef<HTMLDivElement>(null)
   const [visible, setVisible] = useState(true)
-  useEffect(() => { const timer = setTimeout(() => setVisible(false), 6000); return () => clearTimeout(timer) }, [])
+  useEffect(() => {
+    const dismiss = () => setVisible(false)
+    const timer = dismissAfterMs === null ? undefined : setTimeout(dismiss, dismissAfterMs)
+    document.addEventListener('pointerdown', dismiss, { once: true })
+    document.addEventListener('keydown', dismiss, { once: true })
+    return () => { clearTimeout(timer); document.removeEventListener('pointerdown', dismiss); document.removeEventListener('keydown', dismiss) }
+  }, [dismissAfterMs])
   useLayoutEffect(() => {
     if (!visible || !anchor.current || !hint.current) return
     const button = anchor.current, bubble = hint.current

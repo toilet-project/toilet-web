@@ -2,6 +2,11 @@
 * { box-sizing: border-box; }
 html, body, #root { min-width: 320px; min-height: 100%; margin: 0; }
 button { font: inherit; }
+/* Native touch rectangles are replaced with a subtle pressed state. Keyboard focus stays visible. */
+:where(button, a, summary, label, input, select, textarea, [role=button]) { -webkit-tap-highlight-color: transparent; }
+:where(button, a, summary, [role=button]) { touch-action: manipulation; }
+:where(button, a, summary, [role=button]):focus-visible { outline: 2px solid #58a981; outline-offset: 3px; }
+:where(button, a, summary, [role=button]):not(:disabled):active { opacity: .76; }
 .app-error { display: grid; min-height: 100svh; place-content: center; gap: 8px; padding: 24px; background: #f5f8f5; color: #203026; text-align: center; }
 .app-error strong { font-size: 20px; }
 .app-error p { margin: 0; color: #69776d; font-size: 13px; }
