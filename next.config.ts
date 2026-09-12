@@ -32,6 +32,9 @@ const config: NextConfig = {
   },
   async rewrites() {
     return [
+      ...(process.env.SITE_INDEXABLE === 'false' && process.env.REVIEW_API_ENABLED === 'true'
+        && process.env.NEXT_PUBLIC_API_BASE_URL === 'https://preview.geupddong.com/__review-verification'
+        ? [{ source: '/toilet/:id(\\d+)', destination: '/review-verification/:id' }] : []),
       // Root-level sitemap URLs cover /toilet/* without relying on search-console scope overrides.
       { source: '/sitemap-toilets-:shard(\\d+).xml', destination: '/sitemaps/:shard.xml' },
       ...(process.env.NODE_ENV === 'development'

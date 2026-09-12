@@ -37,6 +37,15 @@ test('synthetic SSR uses the same bounded proxy instead of a production facility
   assert.ok(fixture.indexOf('await connection()') < fixture.indexOf('reviewVerificationResponse'))
   assert.doesNotMatch(fixture, /TOILET_API_ORIGIN|api\.geupddong\.com|revalidate:/)
 })
+test('synthetic detail has a separate dynamic renderer; production keeps its existing static route', () => {
+  const fixture = readFileSync(new URL('../src/app/(map)/review-verification/[id]/page.tsx', import.meta.url), 'utf8')
+  assert.match(fixture, /export const dynamic = 'force-dynamic'/)
+  assert.match(fixture, /NEXT_PUBLIC_REVIEW_API_ENABLED !== 'true'/)
+  assert.match(fixture, /NEXT_PUBLIC_API_BASE_URL !== 'https:\/\/preview\.geupddong\.com\/__review-verification'/)
+  assert.match(fixture, /notFound\(\)/)
+  const normal = readFileSync(new URL('../src/app/(map)/toilet/[id]/page.tsx', import.meta.url), 'utf8')
+  assert.match(normal, /export const revalidate = 3600/)
+})
 test('mutations require same origin and a bounded JSON body; redirects never escape sandbox', async () => {
   const original = globalThis.fetch; let calls = 0
   globalThis.fetch = async () => { calls++; return Response.redirect('https://api.geupddong.com', 302) }
