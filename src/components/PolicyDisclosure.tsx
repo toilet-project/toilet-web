@@ -5,7 +5,7 @@ import './policy-disclosure.css'
 // today's terms for an older agreement or inject fetched HTML/scripts into the app.
 function policyUrl(path: string) {
   const url = new URL(path, window.location.origin)
-  if (url.origin !== window.location.origin || url.search || !/^\/(?:policies\/(?:terms|privacy|location|all)|policy-history\/\d{4}-\d{2}-\d{2}\.html)$/.test(url.pathname)) throw new Error('지원하지 않는 약관 주소입니다.')
+  if (url.origin !== window.location.origin || url.search || !/^\/(?:policies\/(?:terms|privacy|location|all)|policy-history\/\d{4}-\d{2}-\d{2}(?:\.html)?)$/.test(url.pathname)) throw new Error('지원하지 않는 약관 주소입니다.')
   return url
 }
 
@@ -45,8 +45,12 @@ export function PolicyDisclosure({ title, meta, contentPath, selection }: { titl
     void (async () => {
       try {
         const url = policyUrl(contentPath)
-        const response = await fetch(url.href, { signal: controller.signal, credentials: 'omit', redirect: 'error' })
+        // Static hosting canonicalizes archive.html to archive. Only same-origin
+        // requests are allowed; never follow the agreement into another document.
+        const response = await fetch(url.href, { signal: controller.signal, credentials: 'omit', mode: 'same-origin' })
         if (!response.ok) throw new Error('약관을 불러오지 못했습니다.')
+        const finalUrl = policyUrl(response.url)
+        if (finalUrl.pathname !== url.pathname && finalUrl.pathname !== url.pathname.replace(/\.html$/, '')) throw new Error('약관 주소가 변경되었습니다.')
         const value = documentContent(await response.text(), url)
         if (active) setContent(value)
       } catch { if (active) setError(true) }

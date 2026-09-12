@@ -6,7 +6,7 @@ assert.ok(['http://127.0.0.1:4187', 'https://preview.geupddong.com'].includes(or
 ;(async () => {
  const browser = await chromium.launch({ channel: 'chrome', headless: true })
  try {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, serviceWorkers: 'block' })
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, serviceWorkers: 'block', userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1' })
   let writes = 0
   await context.route('**/*', async route => {
    const req = route.request(), url = new URL(req.url())
