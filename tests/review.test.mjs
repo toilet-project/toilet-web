@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { blankReview, validateReview, canManageReview, waitLabel, reviewLength, reviewAverageLabel, recentToiletReview, REVIEW_CREATE_INTERVAL_MS } from '../src/lib/review.ts'
 import { reviewLocationProblem, REVIEW_LOCATION_MAX_AGE_MS } from '../src/lib/reviewLocation.ts'
 import { reviewInputScrollDelta } from '../src/lib/reviewViewport.ts'
+import { isMobileReviewDevice, MOBILE_REVIEW_ONLY_MESSAGE } from '../src/lib/reviewDevice.ts'
 
 const valid = () => ({ ...blankReview(), satisfaction: 4, cleanliness: 5, paper: true })
 test('per-toilet cooldown is rolling 24 hours, survives unlink and ignores edits', () => {
@@ -16,6 +17,16 @@ test('per-toilet cooldown is rolling 24 hours, survives unlink and ignores edits
   assert.equal(recentToiletReview([{ ...review, createdAt: 'invalid' }], 1, created), undefined)
   const newer = { ...review, createdAt: new Date(created + 1000).toISOString() }
   assert.equal(recentToiletReview([review, newer], 1, created + 2000), newer)
+})
+test('new reviews are mobile-only without treating a narrow desktop as mobile', () => {
+  const device = (userAgent, platform = 'Win32', maxTouchPoints = 0, mobile) => ({ userAgent, platform, maxTouchPoints, userAgentData: mobile === undefined ? undefined : { mobile } })
+  assert.equal(MOBILE_REVIEW_ONLY_MESSAGE, '리뷰는 모바일에서 작성할 수 있어요.')
+  assert.equal(isMobileReviewDevice(device('Mozilla/5.0 (Windows NT 10.0; Win64; x64)')), false)
+  assert.equal(isMobileReviewDevice(device('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)')), true)
+  assert.equal(isMobileReviewDevice(device('Mozilla/5.0 (Linux; Android 15; Pixel 9)')), true)
+  assert.equal(isMobileReviewDevice(device('Mozilla/5.0 (Macintosh)', 'MacIntel', 5)), true)
+  assert.equal(isMobileReviewDevice(device('Mozilla/5.0 (Windows NT 10.0)', 'Win32', 10, false)), false)
+  assert.equal(isMobileReviewDevice(device('desktop', 'Win32', 0, true)), true)
 })
 test('my-review summary averages both ratings with exactly one decimal and preserves the originals', () => {
   for (let satisfaction = 1; satisfaction <= 5; satisfaction++) {
@@ -112,11 +123,12 @@ test('review location rejects far, inaccurate, stale, invalid and implausibly fu
   const fix = { coords: { ...target, accuracy: 50 }, timestamp: now - REVIEW_LOCATION_MAX_AGE_MS }
   assert.equal(REVIEW_LOCATION_MAX_AGE_MS, 300_000)
   for (const age of [0, 60_001, 299_999, 300_000]) assert.equal(reviewLocationProblem(target, { ...fix, timestamp: now - age }, now), null)
-  for (const accuracy of [-1, 50.001, NaN, Infinity]) assert.match(reviewLocationProblem(target, { ...fix, coords: { ...fix.coords, accuracy } }, now), /정확도/)
+  for (const accuracy of [-1, 50.001, NaN, Infinity]) assert.equal(reviewLocationProblem(target, { ...fix, coords: { ...fix.coords, accuracy } }, now), '리뷰는 화장실 150m 이내에서 가능해요.')
   for (const timestamp of [now - 300_001, now + 5_001, NaN]) assert.match(reviewLocationProblem(target, { ...fix, timestamp }, now), /5분/)
   for (const metres of [149.9, 150.1]) {
     const coords = { ...fix.coords, latitude: target.latitude + metres / 6_371_000 * 180 / Math.PI }
     assert.equal(reviewLocationProblem(target, { ...fix, coords }, now) === null, metres < 150)
+    if (metres > 150) assert.equal(reviewLocationProblem(target, { ...fix, coords }, now), '리뷰는 화장실 150m 이내에서 가능해요.')
   }
   for (const latitude of [null, NaN, 91]) assert.match(reviewLocationProblem({ ...target, latitude }, fix, now), /화장실의 위치/)
 })
@@ -133,10 +145,18 @@ test('review form uses aligned ten-minute tap targets and integer ratings withou
 
 test('review checks stay in the card button; only success opens the editor and retries retain drafts', () => {
   const hook = readFileSync(new URL('../src/components/reviews/useIntegratedReviewPreview.tsx', import.meta.url), 'utf8')
+  const apiHook = readFileSync(new URL('../src/components/reviews/useReviewApi.tsx', import.meta.url), 'utf8')
   const form = readFileSync(new URL('../src/components/reviews/ReviewDialog.tsx', import.meta.url), 'utf8')
   const location = readFileSync(new URL('../src/lib/reviewLocation.ts', import.meta.url), 'utf8')
   const open = hook.slice(hook.indexOf('const open ='), hook.indexOf('const openMine ='))
+  const apiOpen = apiHook.slice(apiHook.indexOf('function open('), apiHook.indexOf('async function edit('))
   assert.match(open, /setTarget\(null\)/)
+  assert.ok(open.indexOf('if (!owner)') < open.indexOf('if (!isMobileReviewDevice())'), 'preview asks desktop guests to sign in before showing mobile-only guidance')
+  assert.match(open, /!isMobileReviewDevice\(\)/)
+  assert.match(open, /MOBILE_REVIEW_ONLY_MESSAGE/)
+  assert.ok(apiOpen.indexOf('if (!owner)') < apiOpen.indexOf('if (!isMobileReviewDevice())'), 'API mode asks desktop guests to sign in before showing mobile-only guidance')
+  assert.match(apiOpen, /!isMobileReviewDevice\(\)/)
+  assert.match(apiHook, /MOBILE_REVIEW_ONLY_MESSAGE/)
   assert.match(open, /fresh, true\)/)
   assert.match(hook, /if \(fromCard\) \{ updateEntry\(null\); setTarget\(next\) \}/)
   assert.match(hook, /error.code === 'distance' \? 'notice' : 'retry'/)

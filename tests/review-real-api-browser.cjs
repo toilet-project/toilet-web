@@ -12,6 +12,7 @@ assert.ok(Number.isInteger(metadata.port) && metadata.port > 1024 && metadata.po
 const api = `http://127.0.0.1:${metadata.port}`, web = 'http://127.0.0.1:4187'
 const virtualWeb = web, trustedOrigin = 'https://preview.geupddong.com', virtualApi = 'https://api.geupddong.com'
 const output = process.env.REVIEW_SCREENSHOT_DIR || path.resolve('.tmp-review-real-api')
+const mobileUserAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1'
 fs.mkdirSync(output, { recursive: true })
 const body = () => ({ toiletId: 1, satisfaction: 4, cleanliness: 5, paper: true, waitMinutes: 20, comment: '합성 HTTP 검증', position: { latitude: 36.3, longitude: 127.3, accuracyMeters: 10, measuredAt: new Date().toISOString() } })
 ;(async () => {
@@ -56,7 +57,7 @@ const body = () => ({ toiletId: 1, satisfaction: 4, cleanliness: 5, paper: true,
       const widths=process.argv.find(arg=>arg.startsWith('--widths='))?.slice(9).split(',').map(Number)
       if(widths && !widths.includes(width))continue
       const owner = index+1, target = index+1
-      const context = await browser.newContext({ viewport: { width, height: width>600?1000:844 }, isMobile: width<600, hasTouch: width<600, serviceWorkers: 'block' })
+      const context = await browser.newContext({ viewport: { width, height: width>600?1000:844 }, isMobile: width<600, hasTouch: width<600, serviceWorkers: 'block', userAgent: mobileUserAgent })
       await context.addCookies([{ name:'geupddong_access',value:metadata.tokens[owner],domain:'api.geupddong.com',path:'/',httpOnly:true,secure:true,sameSite:'None' }])
       await context.routeWebSocket('**/*',socket=>{if(socket.url().startsWith('ws://127.0.0.1:4187/'))socket.connectToServer();else socket.close()})
       let posts=0, dropAcceptedResponse=true, createdId, rejectedExternal=0, closing=false

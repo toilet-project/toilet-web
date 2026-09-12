@@ -5,6 +5,7 @@ const path = require('node:path')
 const fs = require('node:fs')
 const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE || 'playwright')
 const origin = process.env.REVIEW_PREVIEW_ORIGIN || 'http://127.0.0.1:4187'
+const mobileUserAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1'
 assert.ok(['http://127.0.0.1:4187', 'https://preview.geupddong.com'].includes(origin))
 const output = process.env.REVIEW_SCREENSHOT_DIR || path.resolve('.tmp-review-screenshots')
 fs.mkdirSync(output, { recursive: true })
@@ -13,7 +14,7 @@ const local = origin.includes('127.0.0.1')
   const browser = await chromium.launch({ channel: 'chrome', headless: true })
   try {
     for (const width of [390, 320, 1280]) {
-      const context = await browser.newContext({ viewport: { width, height: width > 600 ? 1000 : 844 }, isMobile: width < 600, hasTouch: width < 600, serviceWorkers: 'block' })
+      const context = await browser.newContext({ viewport: { width, height: width > 600 ? 1000 : 844 }, isMobile: width < 600, hasTouch: width < 600, serviceWorkers: 'block', userAgent: mobileUserAgent })
       await context.addInitScript(() => {
         window.reviewTestFix = { latitude: 36.369, longitude: 127.345, accuracy: 10, age: 0, denied: false }
         window.reviewTestGeoCalls = 0
@@ -233,7 +234,7 @@ const local = origin.includes('127.0.0.1')
       await expanded.getByRole('button',{name:'리뷰',exact:true}).click()
       await page.getByRole('dialog',{name:'리뷰 쓰기',exact:true}).getByRole('heading',{name:groupName,exact:true}).waitFor()
       await page.getByRole('dialog').getByRole('button',{name:'닫기',exact:true}).click()
-      for (const [change, expected] of [[{accuracy:51},'50m'],[{accuracy:10,age:300001},'5분'],[{age:0,latitude:0},'150m'],[{latitude:groupDetail.latitude,denied:true},'위치 권한']]) {
+      for (const [change, expected] of [[{accuracy:51},'150m 이내'],[{accuracy:10,age:300001},'5분'],[{age:0,latitude:0},'150m 이내'],[{latitude:groupDetail.latitude,denied:true},'위치 권한']]) {
         await page.evaluate(value=>Object.assign(window.reviewTestFix,value),change)
         await expanded.locator('.review-entry').click()
         const toast = page.locator('.review-entry-hint').filter({hasText:expected})
@@ -241,8 +242,8 @@ const local = origin.includes('127.0.0.1')
         assert.equal(await toast.evaluate(el=>{const r=el.getBoundingClientRect();el.style.pointerEvents='auto';const hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===el;el.style.pointerEvents='';return hit}),true,'toast is not hidden behind the group card')
         assert.equal(await page.getByRole('dialog').count(),0,'failed entry checks never open a modal')
         const retry = expanded.locator('.review-entry')
-        assert.equal(await retry.getAttribute('aria-label'), expected==='150m'?'리뷰':'리뷰 위치 새로고침')
-        if(expected==='150m') {
+        assert.equal(await retry.getAttribute('aria-label'), expected==='150m 이내'?'리뷰':'리뷰 위치 새로고침')
+        if(expected==='150m 이내') {
           const line = await toast.evaluate(el=>{const range=document.createRange();range.selectNodeContents(el);return {width:range.getBoundingClientRect().width,height:range.getBoundingClientRect().height,available:el.clientWidth-28,lineHeight:parseFloat(getComputedStyle(el).lineHeight)}})
           assert.ok(line.width<=line.available+1 && line.height<=line.lineHeight+1,'distance toast fits one line')
           await page.screenshot({path:path.join(output,`map-review-distance-${width}.png`)})
@@ -283,6 +284,18 @@ const local = origin.includes('127.0.0.1')
       await expanded.getByRole('button',{name:'리뷰',exact:true}).click()
       await page.getByRole('dialog',{name:'로그인 · 간편가입',exact:true}).waitFor()
       assert.equal(await page.evaluate(()=>window.reviewTestGeoCalls),geoCalls,'signed-out review never requests GPS')
+      await page.getByRole('button',{name:'로그인 창 닫기',exact:true}).click()
+      signedIn = true
+      await page.evaluate(() => {
+        Object.defineProperty(navigator, 'userAgent', { configurable: true, value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' })
+        Object.defineProperty(navigator, 'platform', { configurable: true, value: 'Win32' })
+        Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, value: 0 })
+      })
+      const desktopGeoCalls = await page.evaluate(()=>window.reviewTestGeoCalls)
+      await expanded.getByRole('button',{name:'리뷰',exact:true}).click()
+      await page.locator('.review-entry-hint').filter({hasText:'리뷰는 모바일에서 작성할 수 있어요.'}).waitFor()
+      assert.equal(await page.getByRole('dialog').count(),0,'desktop review entry only shows the mobile guidance')
+      assert.equal(await page.evaluate(()=>window.reviewTestGeoCalls),desktopGeoCalls,'desktop review entry never requests GPS')
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal overflow')
       assert.equal(businessWrites,0)
       assert.deepEqual(errors,[])

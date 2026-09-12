@@ -6,6 +6,7 @@ import { ReviewApiError, type StoredReview } from '../../lib/reviewApi'
 import { historyRange } from '../../lib/history'
 import { canManageReview, type ReviewInput } from '../../lib/review'
 import { requireReviewFix, reviewLocationProblem, ReviewGateError } from '../../lib/reviewLocation'
+import { isMobileReviewDevice, MOBILE_REVIEW_ONLY_MESSAGE } from '../../lib/reviewDevice'
 import { ReviewDialog, ReviewModal, type ReviewEligibility } from './ReviewDialog'
 import { MyReviewsPanel } from './MyReviewsPanel'
 import type { MineNavigation, PreviewReviewSummary, ReviewAccess, ReviewEntryState, ReviewTarget } from './useIntegratedReviewPreview'
@@ -133,6 +134,11 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
   }
   function open(next: ReviewTarget) {
     if (entryRef.current?.status === 'checking') return
+    if (!owner) { access.requireLogin(); return }
+    if (!isMobileReviewDevice()) {
+      updateEntry({ id: next.id, status: 'notice', message: MOBILE_REVIEW_ONLY_MESSAGE })
+      return
+    }
     const fresh = entryRef.current?.id === next.id && entryRef.current.status === 'retry'
     setMine(false); setSaved(false); setTarget(null); setEditing(null)
     void check(next, fresh)
