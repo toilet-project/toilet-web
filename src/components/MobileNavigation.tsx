@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 're
 import { AuthExpiredError, startSocialLogin, updateNickname, type AuthProfile } from '../api/auth'
 import { MyReportsPanel } from './MyReportsPanel'
 import { NotificationPanel } from './NotificationPanel'
+import { TRANSIENT_NOTICE_MS } from '../lib/uiTiming'
 
 export type MobileTab = 'map' | 'notifications' | 'account'
 export type MobileAccountView = 'home' | 'reports' | 'reviews'
@@ -22,10 +23,17 @@ export function MobileNavigation({ tab, onChange, unread }: { tab: MobileTab; on
   const [communityNotice, setCommunityNotice] = useState(false)
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (noticeTimer.current) clearTimeout(noticeTimer.current) }, [])
+  useEffect(() => {
+    if (!communityNotice) return
+    const dismiss = () => { setCommunityNotice(false); if (noticeTimer.current) clearTimeout(noticeTimer.current); noticeTimer.current = null }
+    document.addEventListener('pointerdown', dismiss, { once: true })
+    document.addEventListener('keydown', dismiss, { once: true })
+    return () => { document.removeEventListener('pointerdown', dismiss); document.removeEventListener('keydown', dismiss) }
+  }, [communityNotice])
   const showCommunityNotice = () => {
     if (noticeTimer.current) clearTimeout(noticeTimer.current)
     setCommunityNotice(true)
-    noticeTimer.current = setTimeout(() => { setCommunityNotice(false); noticeTimer.current = null }, 1000)
+    noticeTimer.current = setTimeout(() => { setCommunityNotice(false); noticeTimer.current = null }, TRANSIENT_NOTICE_MS)
   }
   return <nav className="mobile-navigation" aria-label="하단 내비게이션">
     <button type="button" aria-current={tab === 'map' ? 'page' : undefined} onClick={() => onChange('map')}><span className="mobile-nav-icon"><Icon name="map" /></span><span>지도</span></button>

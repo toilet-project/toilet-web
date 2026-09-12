@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ToiletDetailResponse } from '../api/toilets'
 import { getDisplayAddress } from '../lib/address'
 import { regionLabel } from '../lib/toiletRoute'
 import { visibleCounts, hasValue, formatPhoneNumber, formatInstallationDate, formatFacilityLocation, type CountItem } from '../lib/detailFormatting'
+import { TRANSIENT_NOTICE_MS } from '../lib/uiTiming'
 
 export function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse }) {
   const maleCounts = visibleCounts([
@@ -69,6 +70,15 @@ function FacilityRow({ label, available, location }: { label: string; available:
 
 export function DetailRow({ label, value, copyable = false, className = '' }: { label: string; value: string; copyable?: boolean; className?: string }) {
   const [copied, setCopied] = useState(false)
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (!copied) return
+    const dismiss = () => { setCopied(false); if (copiedTimer.current) clearTimeout(copiedTimer.current); copiedTimer.current = null }
+    document.addEventListener('pointerdown', dismiss, { once: true })
+    document.addEventListener('keydown', dismiss, { once: true })
+    return () => { document.removeEventListener('pointerdown', dismiss); document.removeEventListener('keydown', dismiss) }
+  }, [copied])
+  useEffect(() => () => { if (copiedTimer.current) clearTimeout(copiedTimer.current) }, [])
 
   const copyValue = async () => {
     try {
@@ -85,7 +95,8 @@ export function DetailRow({ label, value, copyable = false, className = '' }: { 
         textarea.remove()
       }
       setCopied(true)
-      window.setTimeout(() => setCopied(false), 2_000)
+      if (copiedTimer.current) clearTimeout(copiedTimer.current)
+      copiedTimer.current = setTimeout(() => { setCopied(false); copiedTimer.current = null }, TRANSIENT_NOTICE_MS)
     } catch {
       setCopied(false)
     }

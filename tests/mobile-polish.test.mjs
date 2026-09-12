@@ -28,15 +28,25 @@ test('report login prompt uses brand and concise labels without removing the aut
   assert.match(app, /const title = '로그인 · 간편가입'/)
 })
 
-test('community shows a one-second notice without navigating or reserving subtitle space', async () => {
+test('community uses the shared three-second transient notice without navigating', async () => {
   const nav = await source('../src/components/MobileNavigation.tsx')
+  const app = await source('../src/App.tsx')
+  const hint = await source('../src/components/reviews/ReviewEntryHint.tsx')
+  const preview = await source('../src/components/reviews/ReviewPreview.tsx')
+  const detail = await source('../src/components/ToiletDetailContents.tsx')
   const css = await source('../src/components/mobile-navigation.css')
+  const timing = await source('../src/lib/uiTiming.ts')
   assert.doesNotMatch(nav, /coming soon/)
   assert.match(nav, /onClick=\{showCommunityNotice\}/)
   assert.match(nav, /준비 중이에요/)
-  assert.match(nav, /setTimeout\([^\n]+, 1000\)/)
+  assert.match(nav, /TRANSIENT_NOTICE_MS/)
+  assert.match(timing, /TRANSIENT_NOTICE_MS = 3_000/)
   assert.match(nav, /clearTimeout\(noticeTimer.current\)/)
   assert.match(nav, /role="status" aria-live="polite"/)
+  for (const transient of [nav, app, hint, preview, detail]) {
+    assert.match(transient, /document\.addEventListener\('pointerdown',\s*dismiss/)
+    assert.match(transient, /document\.addEventListener\('keydown',\s*dismiss/)
+  }
   assert.doesNotMatch(css, /last-of-type\s*\{\s*height: 23px/)
 })
 

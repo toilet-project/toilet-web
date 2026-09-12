@@ -33,6 +33,7 @@ import { groupToiletsByCoordinate, representativeToilet, type ToiletMapItem, typ
 import type { MapRouteData } from './components/mapRouteContext'
 import { DESKTOP_LAYOUT_QUERY } from './lib/responsiveLayout'
 import { resolveDistanceReference, type DistanceSource } from './lib/distanceReference'
+import { TRANSIENT_NOTICE_MS } from './lib/uiTiming'
 const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
 const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
@@ -282,8 +283,18 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
   const showLocationMessage = useCallback((message: string) => {
     window.clearTimeout(locationMessageTimerRef.current)
     setLocationMessage(message)
-    locationMessageTimerRef.current = window.setTimeout(() => setLocationMessage(null), 4_000)
+    locationMessageTimerRef.current = window.setTimeout(() => setLocationMessage(null), TRANSIENT_NOTICE_MS)
   }, [])
+  useEffect(() => {
+    if (!locationMessage) return
+    const dismiss = () => {
+      window.clearTimeout(locationMessageTimerRef.current)
+      setLocationMessage(null)
+    }
+    document.addEventListener('pointerdown', dismiss, { once: true })
+    document.addEventListener('keydown', dismiss, { once: true })
+    return () => { document.removeEventListener('pointerdown', dismiss); document.removeEventListener('keydown', dismiss) }
+  }, [locationMessage])
 
   const reviewPreview = useReviews(authProfile?.status === 'ACTIVE' && !authProfile.consentRequired ? authProfile.userId : null, {
     requireLogin: () => {

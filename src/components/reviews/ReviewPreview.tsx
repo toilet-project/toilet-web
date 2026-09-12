@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ReviewDialog, ReviewIcon, ReviewModal } from './ReviewDialog'
 import { canManageReview, waitLabel, type Review, type ReviewInput } from '../../lib/review'
+import { TRANSIENT_NOTICE_MS } from '../../lib/uiTiming'
 
 const TOILET = '월드컵경기장역'
 type View = 'map' | 'account' | 'mine'
@@ -26,7 +27,13 @@ export function ReviewPreview() {
   const [saved,setSaved]=useState(false)
   const timer=useRef<ReturnType<typeof setTimeout>|null>(null)
   useEffect(()=>()=>{if(timer.current)clearTimeout(timer.current)},[])
-  const tell=(text:string)=>{if(timer.current)clearTimeout(timer.current);setNotice(text);timer.current=setTimeout(()=>setNotice(''),3500)}
+  useEffect(()=>{
+    if(!notice)return
+    const dismiss=()=>{setNotice('');if(timer.current)clearTimeout(timer.current);timer.current=null}
+    document.addEventListener('pointerdown',dismiss,{once:true});document.addEventListener('keydown',dismiss,{once:true})
+    return()=>{document.removeEventListener('pointerdown',dismiss);document.removeEventListener('keydown',dismiss)}
+  },[notice])
+  const tell=(text:string)=>{if(timer.current)clearTimeout(timer.current);setNotice(text);timer.current=setTimeout(()=>setNotice(''),TRANSIENT_NOTICE_MS)}
   const checkLocation=()=>{
     const message={near:'',far:'화장실에서 150m 안에 있어야 리뷰 작성이 가능합니다.',inaccurate:'위치 오차가 커요. 정확한 위치를 켜고 다시 확인해 주세요.',denied:'현재 위치 권한을 허용해야 리뷰를 작성할 수 있어요.'}[location]
     if(message){tell(message);return false} return true
