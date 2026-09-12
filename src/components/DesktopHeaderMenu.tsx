@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 
-export function DesktopHeaderMenu({ authenticated, onReports, onAccount, onLogout, compact = false }: {
-  authenticated: boolean; onReports: () => void; onAccount: () => void; onLogout: () => void; compact?: boolean
+export function DesktopHeaderMenu({ authenticated, onReports, onAccount, onLogout, onReviews, compact = false }: {
+  authenticated: boolean; onReports: () => void; onAccount: () => void; onLogout: () => void; onReviews?: () => void; compact?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
@@ -29,7 +29,7 @@ export function DesktopHeaderMenu({ authenticated, onReports, onAccount, onLogou
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
     </button>
     {open && <nav id="desktop-header-menu" ref={panel} className="header-menu-panel" aria-label="전체 메뉴">
-      {!compact && <><button type="button" onClick={() => action(onReports)}>내 제보</button>
+      {!compact && <>{onReviews && <button type="button" onClick={() => action(onReviews)}>내 리뷰</button>}<button type="button" onClick={() => action(onReports)}>내 제보</button>
       {authenticated && <button type="button" onClick={() => action(onAccount)}>내 계정</button>}
       <div className="header-menu-divider" /></>}
       <a href={compact ? '/policies/all' : '/policies/terms'}>이용약관</a>

@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { AuthExpiredError, startSocialLogin, updateNickname, type AuthProfile } from '../api/auth'
 import { MyReportsPanel } from './MyReportsPanel'
+import { NotificationPanel } from './NotificationPanel'
 
 export type MobileTab = 'map' | 'notifications' | 'account'
+export type MobileAccountView = 'home' | 'reports' | 'reviews'
 type IconName = MobileTab | 'community' | 'settings'
 
 function Icon({ name }: { name: IconName }) {
@@ -79,22 +81,25 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
   </section>
 }
 
-export function MobilePage({ tab, profile, loading, unread, onProfile, onReports, onAccount, onLogout, onNotifications, beforeLogin, onSessionExpired }: {
+export function MobilePage({ tab, profile, loading, unread, onProfile, onReports, onAccount, onLogout, onCountChange, onOpenReport, beforeLogin, onSessionExpired, onReviews, accountView = 'home', onBackAccount, reviewPage, focusedReportId }: {
   tab: Exclude<MobileTab, 'map'>; profile: AuthProfile | null; loading: boolean; unread: number;
-  onProfile: (profile: AuthProfile) => void; onReports: () => void; onAccount: () => void; onLogout: () => void; onNotifications: () => void;
+  onProfile: (profile: AuthProfile) => void; onReports: () => void; onAccount: () => void; onLogout: () => void; onCountChange: () => void; onOpenReport: (reportId: number) => void;
   beforeLogin: (tab: MobileTab) => void;
   onSessionExpired: () => void;
+  onReviews?: () => void;
+  accountView?: MobileAccountView; onBackAccount: () => void; reviewPage?: ReactNode; focusedReportId?: number | null;
 }) {
-  return <section className="mobile-page" aria-label={tab === 'account' ? '내 페이지' : '알림 페이지'}>
-    {loading ? <p className="mobile-page-loading" role="status">불러오는 중…</p> : !profile ? <LoginLanding tab={tab} onLogin={provider => { beforeLogin(tab); startSocialLogin(provider) }} /> : tab === 'account' ? <>
+  const page = useRef<HTMLElement>(null)
+  useLayoutEffect(() => { if (page.current) page.current.scrollTop = 0 }, [tab, accountView])
+  return <section ref={page} className="mobile-page" aria-label={tab === 'account' ? '내 페이지' : '알림 페이지'}>
+    {loading ? <p className="mobile-page-loading" role="status">불러오는 중…</p> : !profile ? <LoginLanding tab={tab} onLogin={provider => { beforeLogin(tab); startSocialLogin(provider) }} />
+      : tab === 'account' && accountView === 'reports' ? <MyReportsPanel key={`account-reports-${profile.userId}-${focusedReportId ?? 'list'}`} embedded onSessionExpired={onSessionExpired} initialExpandedId={focusedReportId} onClose={onBackAccount} onBack={onBackAccount} />
+      : tab === 'account' && accountView === 'reviews' && onReviews ? reviewPage
+      : tab === 'account' ? <>
       <header className="mobile-page-heading"><h1>내 페이지</h1></header>
       <ProfileCard key={profile.userId} profile={profile} onProfile={onProfile} onSessionExpired={onSessionExpired} />
-      <div className="mobile-account-links"><button type="button" onClick={onReports}><Icon name="community" /><span>내 제보</span><span aria-hidden="true">›</span></button><button type="button" onClick={onAccount}><Icon name="settings" /><span>계정 관리 · 동의 내역</span><span aria-hidden="true">›</span></button></div>
+      <div className="mobile-account-links">{onReviews && <button type="button" onClick={onReviews}><Icon name="community" /><span>내 리뷰</span><span aria-hidden="true">›</span></button>}<button type="button" onClick={onReports}><Icon name="community" /><span>내 제보</span><span aria-hidden="true">›</span></button><button type="button" onClick={onAccount}><Icon name="settings" /><span>계정 관리 · 동의 내역</span><span aria-hidden="true">›</span></button></div>
       <div className="mobile-account-support"><PolicyLinks /><button type="button" className="mobile-logout" onClick={onLogout}>로그아웃</button></div>
-    </> : <>
-      <header className="mobile-page-heading"><h1>알림</h1><label className="mobile-notification-category"><span className="sr-only">알림 항목</span><select aria-label="알림 항목" value="my-reports" onChange={() => {}}><option value="my-reports">내 제보</option></select></label></header>
-      <button type="button" className="mobile-inbox-link" onClick={onNotifications}><Icon name="notifications" /><span>받은 알림</span>{unread > 0 && <b>{unread}</b>}<span aria-hidden="true">›</span></button>
-      <MyReportsPanel key={profile.userId} embedded onSessionExpired={onSessionExpired} onClose={() => {}} />
-    </>}
+    </> : <NotificationPanel key={profile.userId} embedded unread={unread} onSessionExpired={onSessionExpired} onCountChange={onCountChange} onOpenReport={onOpenReport} onClose={() => {}} />}
   </section>
 }

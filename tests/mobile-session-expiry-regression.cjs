@@ -22,7 +22,7 @@ const origin = 'http://127.0.0.1:4187'
     if(path==='/api/v1/notifications') {
      if(mode==='inbox401'){user=null;return json({},401)}
      if(mode==='offline') return route.abort('internetdisconnected')
-     return json({items:mode==='empty'?[]:[{id:1,type:'REPORT_APPROVED',referenceType:'TOILET_REPORT',referenceId:1,title:`${user} 전용 알림`,message:'가상 알림',read,createdAt:'2026-09-11T10:00:00+09:00'}]})
+     return json({page:0,size:20,totalElements:mode==='empty'?0:1,totalPages:mode==='empty'?0:1,items:mode==='empty'?[]:[{id:1,type:'REPORT_APPROVED',referenceType:'TOILET_REPORT',referenceId:1,title:`${user} 전용 알림`,message:'가상 알림',read,createdAt:'2026-09-11T10:00:00+09:00'}]})
     }
     if(path.endsWith('/read')||path.endsWith('/read-all')) {
      writes++
@@ -39,23 +39,24 @@ const origin = 'http://127.0.0.1:4187'
   const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message))
   page.on('console', message => { if (/same key|Cannot update|unmounted component/i.test(message.text())) errors.push(message.text()) })
   await page.addInitScript(()=>document.addEventListener('DOMContentLoaded',()=>{const s=document.createElement('style');s.textContent='nextjs-portal {pointer-events:none!important}';document.head.append(s)}))
-  await page.goto(origin+'/toilet/13144')
+  await page.goto(origin+'/')
   const nav=page.getByRole('navigation',{name:'하단 내비게이션'})
-  await nav.getByRole('button',{name:/^알림/}).click()
+  const reports=async()=>{await nav.getByRole('button',{name:'내 페이지',exact:true}).click();await page.locator('.mobile-account-links').getByRole('button',{name:'내 제보',exact:true}).click()}
+  await reports()
   await page.getByRole('button',{name:/A 전용 제보/}).waitFor()
   mode='reports401'
   await nav.getByRole('button',{name:'지도',exact:true}).click()
-  await nav.getByRole('button',{name:/^알림/}).click()
-  await page.getByRole('heading',{name:'로그인하고 알림을 확인하세요'}).waitFor()
+  await reports()
+  await page.getByRole('heading',{name:'로그인 · 간편가입',exact:true}).waitFor()
   assert.equal(await page.getByText('A 전용 제보').count(),0)
   await page.getByRole('button',{name:'Google로 계속하기'}).click()
   await page.getByRole('button',{name:/B 전용 제보/}).waitFor()
   assert.equal(await page.getByText('A 전용 제보').count(),0)
   mode='inbox401'
-  await page.getByRole('button',{name:/^받은 알림/}).click()
+  await nav.getByRole('button',{name:/^알림/}).click()
   await page.getByRole('heading',{name:'로그인하고 알림을 확인하세요'}).waitFor()
   await page.getByRole('button',{name:'Google로 계속하기'}).click()
-  const dialog=page.getByRole('dialog',{name:'알림',exact:true})
+  const dialog=page.getByRole('region',{name:'받은 알림 목록',exact:true})
   await dialog.getByRole('button',{name:/B 전용 알림/}).waitFor()
   mode='write401'
   await dialog.getByRole('button',{name:/B 전용 알림/}).click()
@@ -79,21 +80,16 @@ const origin = 'http://127.0.0.1:4187'
   mode=''
   await dialog.getByRole('button',{name:'모두 읽음'}).click()
   await page.waitForFunction(()=>!document.querySelector('.notification-item.is-unread'))
-  await dialog.getByRole('button',{name:'알림 닫기'}).click()
+  await nav.getByRole('button',{name:'지도',exact:true}).click()
   mode='offline'
-  await page.getByRole('button',{name:/^받은 알림/}).click()
+  await nav.getByRole('button',{name:/^알림/}).click()
   await dialog.getByRole('alert').waitFor()
   mode='empty'
   await dialog.getByRole('button',{name:'다시 불러오기'}).click()
-  await dialog.getByText('새로운 알림이 없어요').waitFor()
-  await dialog.getByRole('button',{name:'알림 닫기'}).focus()
-  await page.keyboard.press('Tab')
-  assert.ok(await dialog.evaluate(el=>el.contains(document.activeElement)), 'Tab remains inside dialog')
-  await page.keyboard.press('Shift+Tab')
-  assert.ok(await dialog.evaluate(el=>el.contains(document.activeElement)), 'Reverse Tab remains inside dialog')
-  await page.keyboard.press('Escape')
+  await dialog.getByText('이 기간에 받은 알림이 없어요').waitFor()
+  assert.equal(await page.getByRole('dialog').count(),0,'mobile inbox never traps navigation in a modal')
+  await nav.getByRole('button',{name:'지도',exact:true}).click()
   await dialog.waitFor({state:'hidden'})
-  assert.match(await page.evaluate(()=>document.activeElement?.textContent), /받은 알림/)
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1))
   assert.deepEqual(errors,[])
   console.log(JSON.stringify({pass:true,engine:process.env.TEST_WEBKIT?'webkit':'chromium',reports401:true,inbox401:true,individualAndAllRead401:true,noMutationReplay:true,accountIsolation:true,readFailure:true,empty:true,offlineRetry:true,reads,writes,realBusinessWrites:0}))
