@@ -19,6 +19,10 @@ export const getToilet = cache(async (rawId: string): Promise<ToiletDetailRespon
     const { env } = await getCloudflareContext({ async: true })
     const result = await reviewVerificationResponse(new Request(`https://preview.geupddong.com/__review-verification/api/v1/toilets/${id}`), env)
     if (!result) throw new Error('Synthetic fixture unavailable')
+    if (!result.ok && result.status !== 404) {
+      const code = (await result.clone().json().catch(() => null))?.error?.code
+      if (['REVIEW_VERIFICATION_CONFIG_INVALID', 'REVIEW_VERIFICATION_FORWARD_FAILED'].includes(code)) console.error(code)
+    }
     response = result
   } else {
     const origin = process.env.TOILET_API_ORIGIN || 'https://api.geupddong.com'

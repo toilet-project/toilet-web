@@ -4,12 +4,12 @@ export async function reviewVerificationResponse(request, env) {
   const url = new URL(request.url)
   if (url.pathname !== prefix && !url.pathname.startsWith(prefix + '/')) return null
   const headers = { 'Cache-Control': 'private, no-store', 'X-Robots-Tag': 'noindex, nofollow', 'Content-Type': 'application/json' }
-  const reject = (status) => new Response(JSON.stringify({ error: { code: 'REVIEW_VERIFICATION_UNAVAILABLE' } }), { status, headers })
+  const reject = (status, code = 'REVIEW_VERIFICATION_UNAVAILABLE') => new Response(JSON.stringify({ error: { code } }), { status, headers })
   if (env.SITE_INDEXABLE !== 'false' || url.hostname !== 'preview.geupddong.com') return reject(404)
   const expires = Date.parse(env.REVIEW_VERIFICATION_EXPIRES_AT ?? '')
   const now = Date.now()
   if (!Number.isFinite(expires) || expires <= now || expires - now > 2 * 60 * 60 * 1000) return reject(410)
-  if (!/^https:\/\/[a-z0-9]+(?:-[a-z0-9]+)+\.trycloudflare\.com$/.test(env.REVIEW_VERIFICATION_ORIGIN ?? '')) return reject(503)
+  if (!/^https:\/\/[a-z0-9]+(?:-[a-z0-9]+)+\.trycloudflare\.com$/.test(env.REVIEW_VERIFICATION_ORIGIN ?? '')) return reject(503, 'REVIEW_VERIFICATION_CONFIG_INVALID')
   const path = url.pathname.slice(prefix.length)
   const read = request.method === 'GET' && (/^\/api\/v1\/reviews(?:\/me|\/creation-status|\/[1-9]\d*)?$/.test(path)
     || /^\/api\/v1\/toilets(?:\/[1-9]\d*(?:\/reviews(?:\/summary)?)?)?$/.test(path)
@@ -40,5 +40,9 @@ export async function reviewVerificationResponse(request, env) {
     const result = await fetch(env.REVIEW_VERIFICATION_ORIGIN + path + url.search, { method: request.method, headers: forwarded, body, cache: 'no-store', redirect: 'manual', signal: AbortSignal.timeout(14000) })
     if (result.status >= 300 && result.status < 400) { await result.body?.cancel(); return reject(502) }
     return new Response(result.body, { status: result.status, headers })
-  } catch { return reject(503) }
+  } catch (error) {
+    // The forwarding request contains only allowlisted synthetic headers. Never log bodies or URLs.
+    console.error('REVIEW_VERIFICATION_FORWARD_FAILED', String(error?.message ?? 'unknown').replace(/https?:\/\/\S+/g, '[url]').slice(0, 160))
+    return reject(503, 'REVIEW_VERIFICATION_FORWARD_FAILED')
+  }
 }
