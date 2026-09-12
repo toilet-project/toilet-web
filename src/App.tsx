@@ -10,7 +10,7 @@ import { MobileNavigation, MobilePage, type MobileTab } from './components/Mobil
 import { AppUpdateNotice } from './components/AppUpdateNotice'
 import { readMapResume, saveMapResume, MAP_RESUME_KEY } from './lib/appUpdate'
 import { MAP_NAVIGATION_EVENT, mapNavigationPath } from './lib/navigationCache'
-import { getCurrentUser, logout, startSocialLogin, type AuthProfile } from './api/auth'
+import { AuthExpiredError, getCurrentUser, logout, startSocialLogin, type AuthProfile } from './api/auth'
 import { createKakaoMap, searchKakaoPlaces, type KakaoMapInstance, type KakaoOverlay, type KakaoPlace } from './lib/kakaoMap'
 import { ToiletReportModal } from './components/ToiletReportModal'
 import { MyReportsPanel } from './components/MyReportsPanel'
@@ -18,10 +18,14 @@ import { NotificationPanel } from './components/NotificationPanel'
 import { PolicyConsentModal } from './components/PolicyConsentModal'
 import { PolicyFooter } from './components/PolicyPage'
 import { AccountDialog } from './components/AccountDialog'
+import { AccountRecoveryDialog } from './components/AccountRecoveryDialog'
 import { fetchUnreadNotificationCount } from './api/notifications'
 import { getDisplayAddress } from './lib/address'
 import { ToiletDetailContents, DetailRow } from './components/ToiletDetailContents'
-import { ToiletCommunityRow } from './components/ToiletCommunityRow'
+import { ToiletCommunityRow, ToiletReportEntry } from './components/ToiletCommunityRow'
+import { REVIEW_DESIGN_PREVIEW, type PreviewReviewSummary, type ReviewEntryState } from './components/reviews/useIntegratedReviewPreview'
+import { REVIEW_API_ENABLED, REVIEW_UI_ENABLED, useReviews } from './components/reviews/useReviews'
+import { readReviewTestToilet } from './lib/reviewTestToilet'
 import { DetailLoadingFields, LoadingOpenTime } from './components/ToiletCardLoading'
 import { hasValue, formatOpenTime, formatFacilityLocation } from './lib/detailFormatting'
 import { toiletCoordinates } from './lib/toiletRoute'
@@ -40,13 +44,14 @@ type SelectedCoordinateGroup = { latitude: number; longitude: number; toilets: T
 type CardPosition = { left: number; top: number }
 type Coordinates = { latitude: number; longitude: number }
 type ReportTarget = { toilet: ToiletDetailResponse; latitude: number; longitude: number }
-type LoginPurpose = 'general' | 'report' | 'my-reports'
+type LoginPurpose = 'general' | 'report' | 'my-reports' | 'review'
 
 const PLACE_CARD_WIDTH = 360
 const MAP_EDGE_GAP = 18
 const PENDING_REPORT_TARGET_KEY = 'geupddong.pending-report-target'
 const PENDING_MY_REPORTS_KEY = 'geupddong.pending-my-reports'
 const PENDING_MOBILE_TAB_KEY = 'geupddong.pending-mobile-tab'
+const PENDING_INBOX_KEY = 'geupddong.pending-inbox'
 
 
 function calculateDistanceInMeters(from: Coordinates, to: Coordinates) {
@@ -140,10 +145,14 @@ function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
   })
 }
 
-function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavigate: (id: number | null) => void; onMounted: () => void }) {
+function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: MapRouteData; onNavigate: (id: number | null) => void; onMounted: () => void; testToiletHash?: string }) {
   const [initialRoute] = useState(route)
+  // MapShell remounts only when this explicit test link changes, clearing its memory reviews.
+  const [testToilet] = useState(() => readReviewTestToilet(testToiletHash, REVIEW_DESIGN_PREVIEW))
+  const initialDetail = initialRoute.detail ?? testToilet
   const pendingNavigationPath = useRef<string | null | undefined>(undefined)
   const [resume] = useState(() => {
+    if (testToilet) return null
     try { return readMapResume(window.sessionStorage, window.location.pathname) } catch { return null }
   })
   const initialRouteRef = useRef(initialRoute)
@@ -152,9 +161,9 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     if (route.detail) cache.set(route.detail)
     return cache
   })
-  const initialCoordinates = toiletCoordinates(initialRoute.detail)
-  const initialSelected = initialCoordinates && initialRoute.detail
-    ? { id: initialRoute.detail.id, name: initialRoute.detail.name, ...initialCoordinates } : null
+  const initialCoordinates = toiletCoordinates(initialDetail)
+  const initialSelected = initialCoordinates && initialDetail
+    ? { id: initialDetail.id, name: initialDetail.name, ...initialCoordinates } : null
   const groupRef = useRef<SelectedCoordinateGroup | null>(null)
   const preserveGroupOnHomeRef = useRef(false)
   const mapContainerRef = useRef<HTMLDivElement>(null)
@@ -188,7 +197,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const [selectedCoordinateGroup, setSelectedCoordinateGroup] = useState<SelectedCoordinateGroup | null>(null)
   const [expandedCoordinateToilet, setExpandedCoordinateToilet] = useState<SelectedToilet | null>(null)
   const [placeCardPosition, setPlaceCardPosition] = useState<CardPosition | null>(null)
-  const [toiletDetail, setToiletDetail] = useState<ToiletDetailResponse | null>(initialRoute.detail)
+  const [toiletDetail, setToiletDetail] = useState<ToiletDetailResponse | null>(initialDetail)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState<string | null>(null)
   const [detailRetry, setDetailRetry] = useState(0)
@@ -206,7 +215,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     cardHandleGesture.cancel()
   }, [activeDetailId, cardHandleGesture])
   useEffect(() => {
-    if (activeDetailId === null || detailCache.get(activeDetailId)) return
+    if (activeDetailId === null || activeDetailId === testToilet?.id || detailCache.get(activeDetailId)) return
     const controller = new AbortController()
     let disposed = false
     const timeout = window.setTimeout(() => controller.abort(), 10_000)
@@ -223,8 +232,9 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       setIsDetailLoading(false)
     }).finally(() => window.clearTimeout(timeout))
     return () => { disposed = true; controller.abort(); window.clearTimeout(timeout) }
-  }, [activeDetailId, detailCache, detailRetry])
+  }, [activeDetailId, detailCache, detailRetry, testToilet])
   const [locationMessage, setLocationMessage] = useState<string | null>(null)
+  const [withdrawalNotice, setWithdrawalNotice] = useState<string | null>(null)
   const [isLocating, setIsLocating] = useState(false)
   const [isMobileCardExpanded, setIsMobileCardExpanded] = useState(false)
   const [currentLocation, setCurrentLocation] = useState<Coordinates | null>(null)
@@ -244,6 +254,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const [mapZoomLevel, setMapZoomLevel] = useState(3)
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null)
   const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null)
+  const currentUserRef = useRef<string | null>(null)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false)
   const [loginPurpose, setLoginPurpose] = useState<LoginPurpose>('general')
@@ -253,6 +264,18 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
   const [isAccountOpen, setIsAccountOpen] = useState(false)
   const [mobileTab, setMobileTab] = useState<MobileTab>('map')
+  const [mobileAccountView, setMobileAccountView] = useState<'home' | 'reports' | 'reviews'>('home')
+  useLayoutEffect(() => {
+    const next = authProfile?.userId ?? null
+    // Initial OAuth return may already have selected a pending history destination.
+    if (currentUserRef.current && currentUserRef.current !== next) setMobileAccountView('home')
+    currentUserRef.current = next
+  }, [authProfile?.userId])
+  const showReportHistory = useCallback((reportId: number | null = null) => {
+    setFocusedReportId(reportId)
+    if (window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) setIsMyReportsOpen(true)
+    else { setIsMyReportsOpen(false); setMobileTab('account'); setMobileAccountView('reports') }
+  }, [])
   useLayoutEffect(() => { groupRef.current = selectedCoordinateGroup }, [selectedCoordinateGroup])
   useEffect(() => { onMounted() }, [onMounted])
 
@@ -261,6 +284,22 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     setLocationMessage(message)
     locationMessageTimerRef.current = window.setTimeout(() => setLocationMessage(null), 4_000)
   }, [])
+
+  const reviewPreview = useReviews(authProfile?.status === 'ACTIVE' && !authProfile.consentRequired ? authProfile.userId : null, {
+    requireLogin: () => {
+      if (isAuthLoading) { showLocationMessage('로그인 상태를 확인하고 있어요. 잠시 후 다시 눌러 주세요.'); return }
+      if (authProfile?.consentRequired) { showLocationMessage('필수 약관 동의를 먼저 완료해 주세요.'); return }
+      setLoginPurpose('review'); setIsLoginDialogOpen(true)
+    },
+    verifySession: async (isCurrent) => {
+      const profile = await getCurrentUser()
+      if (!isCurrent() || currentUserRef.current !== authProfile?.userId) return false
+      setAuthProfile(profile)
+      if (!profile) { setLoginPurpose('review'); setIsLoginDialogOpen(true) }
+      else if (profile.userId !== authProfile?.userId) showLocationMessage('로그인 계정이 변경됐어요. 리뷰를 다시 눌러 주세요.')
+      return Boolean(profile && profile.userId === authProfile?.userId && profile.status === 'ACTIVE' && !profile.consentRequired)
+    },
+  }, { embedded: !isDesktop, toiletId: expandedCoordinateToilet?.id ?? selectedToilet?.id, contextKey: `${selectedToilet?.id}:${expandedCoordinateToilet?.id}:${mobileTab}:${testToiletHash}`, onOpen: () => { if (!isDesktop) { setMobileTab('account'); setMobileAccountView('reviews') } }, onClose: () => setMobileAccountView('home') })
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(DESKTOP_LAYOUT_QUERY)
@@ -282,10 +321,13 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       const pendingTab = window.sessionStorage.getItem(PENDING_MOBILE_TAB_KEY)
       window.sessionStorage.removeItem(PENDING_MOBILE_TAB_KEY)
       if (pendingTab === 'account' || pendingTab === 'notifications') setMobileTab(pendingTab)
+      const openInbox = window.sessionStorage.getItem(PENDING_INBOX_KEY) === 'true'
+      window.sessionStorage.removeItem(PENDING_INBOX_KEY)
+      if (openInbox) { if (isDesktop) setIsNotificationsOpen(true); else setMobileTab('notifications'); return }
       const openMyReports = window.sessionStorage.getItem(PENDING_MY_REPORTS_KEY) === 'true'
       window.sessionStorage.removeItem(PENDING_MY_REPORTS_KEY)
       if (openMyReports) {
-        setIsMyReportsOpen(true)
+        showReportHistory()
         return
       }
       const savedTarget = window.sessionStorage.getItem(PENDING_REPORT_TARGET_KEY)
@@ -299,7 +341,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     } catch {
       try { window.sessionStorage.removeItem(PENDING_REPORT_TARGET_KEY) } catch { /* 저장소 사용 불가 환경 */ }
     }
-  }, [])
+  }, [isDesktop, showReportHistory])
 
   useEffect(() => {
     let active = true
@@ -324,6 +366,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   }, [resumePendingLoginAction, showLocationMessage])
 
   const openReport = useCallback((target: ReportTarget) => {
+    if (target.toilet.id < 0) return // Browser fixtures cannot enter the real report/auth-resume flow.
     if (!authProfile) {
       try { window.sessionStorage.setItem(PENDING_REPORT_TARGET_KEY, JSON.stringify(target)) } catch { /* 저장소 사용 불가 환경에서도 로그인은 계속 제공한다. */ }
       setLoginPurpose('report')
@@ -348,18 +391,38 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       showLocationMessage('내 제보를 확인하려면 필수 약관에 먼저 동의해 주세요.')
       return
     }
-    setFocusedReportId(null)
-    setIsMyReportsOpen(true)
-  }, [authProfile, showLocationMessage])
+    showReportHistory()
+  }, [authProfile, showLocationMessage, showReportHistory])
+
+  const handleSessionExpired = useCallback(() => {
+    if (!currentUserRef.current) return
+    currentUserRef.current = null
+    try {
+      window.sessionStorage.removeItem(PENDING_REPORT_TARGET_KEY)
+      window.sessionStorage.removeItem(PENDING_MY_REPORTS_KEY)
+      window.sessionStorage.removeItem(PENDING_INBOX_KEY)
+      if (!isDesktop) window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, mobileTab === 'map' ? 'notifications' : mobileTab)
+      if (isNotificationsOpen) window.sessionStorage.setItem(PENDING_INBOX_KEY, 'true')
+      else if (isMyReportsOpen || mobileAccountView === 'reports') window.sessionStorage.setItem(PENDING_MY_REPORTS_KEY, 'true')
+    } catch { /* Login remains available when storage is disabled. */ }
+    setAuthProfile(null); setUnreadNotificationCount(0); setFocusedReportId(null); setMobileAccountView('home')
+    setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setReportTarget(null)
+    showLocationMessage('로그인이 만료되었어요. 다시 로그인해 주세요.')
+    if (isDesktop) { setLoginPurpose('general'); setIsLoginDialogOpen(true) }
+    else if (mobileTab === 'map') setMobileTab('notifications')
+  }, [isDesktop, mobileTab, mobileAccountView, isNotificationsOpen, isMyReportsOpen, showLocationMessage])
 
   const refreshNotificationCount = useCallback(() => {
     if (!authProfile) return
-    void fetchUnreadNotificationCount().then(setUnreadNotificationCount).catch(() => undefined)
-  }, [authProfile])
+    const owner = authProfile.userId
+    void fetchUnreadNotificationCount()
+      .then(count => { if (currentUserRef.current === owner) setUnreadNotificationCount(count) })
+      .catch(reason => { if (currentUserRef.current === owner && reason instanceof AuthExpiredError) handleSessionExpired() })
+  }, [authProfile, handleSessionExpired])
 
   useEffect(() => {
     if (!authProfile) return
-    void fetchUnreadNotificationCount().then(setUnreadNotificationCount).catch(() => undefined)
+    refreshNotificationCount()
     const interval = window.setInterval(refreshNotificationCount, 60_000)
     return () => window.clearInterval(interval)
   }, [authProfile, refreshNotificationCount])
@@ -367,6 +430,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   const closeLoginDialog = useCallback(() => {
     try { window.sessionStorage.removeItem(PENDING_REPORT_TARGET_KEY) } catch { /* 저장소 사용 불가 환경 */ }
     try { window.sessionStorage.removeItem(PENDING_MY_REPORTS_KEY) } catch { /* 저장소 사용 불가 환경 */ }
+    try { window.sessionStorage.removeItem(PENDING_INBOX_KEY) } catch { /* 저장소 사용 불가 환경 */ }
     setIsLoginDialogOpen(false)
   }, [])
 
@@ -386,14 +450,14 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     resumePendingLoginAction()
   }, [resumePendingLoginAction, showLocationMessage])
 
-  const handleWithdrawn = useCallback(() => {
+  const handleWithdrawn = useCallback((message: string) => {
     setIsAccountOpen(false)
     setAuthProfile(null)
     setUnreadNotificationCount(0)
     setIsMyReportsOpen(false)
     setIsNotificationsOpen(false)
-    showLocationMessage('회원 탈퇴가 완료되었습니다.')
-  }, [showLocationMessage])
+    setWithdrawalNotice(message)
+  }, [])
 
   const clearOverlays = useCallback(() => {
     overlaysRef.current.forEach((overlay) => overlay.setMap(null))
@@ -519,6 +583,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   useEffect(() => {
     const detail = route.detail ? detailCache.get(route.detail.id) ?? route.detail : null
     if (!detail) {
+      if (testToilet && selectedToiletRef.current?.id === testToilet.id) return
       if (preserveGroupOnHomeRef.current) {
         preserveGroupOnHomeRef.current = false
         setToiletDetail(null)
@@ -549,7 +614,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       })
       return () => window.cancelAnimationFrame(frame)
     }
-  }, [route, resetDetailCard, detailCache])
+  }, [route, resetDetailCard, detailCache, testToilet])
 
   useEffect(() => {
     const keyword = placeSearchKeyword.trim()
@@ -609,12 +674,48 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     setSelectedToilet(selected)
     setPlaceCardPosition(null)
     setIsMobileCardExpanded(false)
-    const cached = detailCache.get(toiletId)
+    const cached = toiletId === testToilet?.id ? testToilet : detailCache.get(toiletId)
     setToiletDetail(cached)
     setDetailError(null)
     setIsDetailLoading(!cached)
-    onNavigate(toiletId)
-  }, [onNavigate, detailCache])
+    if (toiletId === testToilet?.id) onNavigate(null)
+    else onNavigate(toiletId)
+  }, [onNavigate, detailCache, testToilet])
+
+  useEffect(() => {
+    const map = mapRef.current
+    const point = toiletCoordinates(testToilet)
+    if (!isMapReady || !map || !testToilet || !point) return
+    // Separate overlay: never mix this item into API lists, totals, caches or clusters.
+    const content = document.createElement('button')
+    content.type = 'button'
+    content.className = `toilet-marker review-test-marker${selectedToilet?.id === testToilet.id ? ' is-selected' : ''}`
+    content.setAttribute('aria-label', `${testToilet.name} · 실제 시설 아님`)
+    const pin = document.createElement('span')
+    pin.className = 'toilet-marker-pin'
+    const logo = document.createElement('img')
+    logo.src = toiletMarkerLogo
+    logo.className = 'toilet-marker-logo'
+    logo.alt = ''
+    pin.append(logo)
+    const name = document.createElement('span')
+    name.className = 'toilet-marker-name'
+    name.textContent = '리뷰 테스트 · 가상'
+    content.append(pin, name)
+    content.addEventListener('pointerdown', suppressMapClickFromMarker)
+    content.addEventListener('touchstart', suppressMapClickFromMarker, { passive: true })
+    content.addEventListener('mousedown', suppressMapClickFromMarker)
+    content.addEventListener('click', event => {
+      suppressMapClickFromMarker(event)
+      selectToilet(testToilet.id, testToilet.name, point.latitude, point.longitude, false, testToilet.toiletType)
+    })
+    const overlay = new window.kakao.maps.CustomOverlay({
+      position: new window.kakao.maps.LatLng(point.latitude, point.longitude), content,
+      yAnchor: 1, zIndex: 4, clickable: true,
+    })
+    overlay.setMap(map)
+    return () => overlay.setMap(null)
+  }, [isMapReady, testToilet, selectToilet, selectedToilet?.id, suppressMapClickFromMarker])
 
   const openCoordinateGroup = useCallback((point: MapPoint) => {
     if (!point.toilets) return
@@ -662,7 +763,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   useEffect(() => {
     const selected = selectedToilet ?? expandedCoordinateToilet
     const map = mapRef.current
-    if (!isMapReady || !selected || !map || toiletMarkerElementsRef.current.has(selected.id)) return
+    if (!isMapReady || !selected || selected.id === testToilet?.id || !map || toiletMarkerElementsRef.current.has(selected.id)) return
     // A directly linked toilet can be absent from the current clustered/bounds response.
     // Show its real coordinate without moving the map or requesting the list again.
     const content = document.createElement('button')
@@ -687,7 +788,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
     })
     overlay.setMap(map)
     return () => overlay.setMap(null)
-  }, [selectedToilet, expandedCoordinateToilet, result, isMapReady, suppressMapClickFromMarker])
+  }, [selectedToilet, expandedCoordinateToilet, result, isMapReady, suppressMapClickFromMarker, testToilet])
 
   const renderResult = useCallback((map: KakaoMapInstance, response: ToiletMapSearchResponse) => {
     clearOverlays()
@@ -1002,8 +1103,8 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       if (!container) return
 
       try {
-        const center = resume?.center ?? toiletCoordinates(initialRouteRef.current.detail) ?? DAEJEON_CITY_HALL
-        const map = await createKakaoMap(container, center, resume?.level ?? (initialRouteRef.current.detail ? 4 : 6), controller.signal)
+        const center = resume?.center ?? toiletCoordinates(initialRouteRef.current.detail) ?? toiletCoordinates(testToilet) ?? DAEJEON_CITY_HALL
+        const map = await createKakaoMap(container, center, resume?.level ?? (initialRouteRef.current.detail || testToilet ? 4 : 6), controller.signal)
         if (disposed) return
         mapRef.current = map
         setIsMapReady(true)
@@ -1047,7 +1148,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
         resizeObserver = new ResizeObserver(() => { if (!disposed) relayoutPreservingCenter(map, settledViewportCenter) })
         resizeObserver.observe(container)
         await loadMapArea()
-        if (!disposed && !initialRouteRef.current.detail && !resume) void moveToCurrentLocation(true)
+        if (!disposed && !initialRouteRef.current.detail && !resume && !testToilet) void moveToCurrentLocation(true)
         if (!disposed && resume?.source === 'current-location') startCurrentLocationWatch()
       } catch (caughtError) {
         if (disposed) return
@@ -1078,7 +1179,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
       window.clearTimeout(mapLoadTimerRef.current)
       window.clearTimeout(locationMessageTimerRef.current)
     }
-  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, startCurrentLocationWatch, referenceRequestGate])
+  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, startCurrentLocationWatch, referenceRequestGate, testToilet])
 
   const distanceReference = resolveDistanceReference(distanceSource, mapCenter, currentLocation)
   const distanceReferenceLabel = distanceSource === 'current-location' ? '내 위치에서 약' : '기준점에서 약'
@@ -1150,8 +1251,8 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
   }, [areaToilets, openCoordinateGroup, selectToilet])
 
   return (
-    <main className={`app-shell${!isDesktop ? ' has-mobile-navigation' : ''}${!isDesktop && mobileTab !== 'map' ? ' is-mobile-page' : ''}`}>
-      <AppUpdateNotice blocked={Boolean(reportTarget || isLoginDialogOpen || isAccountOpen || isMyReportsOpen || isNotificationsOpen || mobileTab !== 'map' || placeSearchKeyword || selectedCoordinateGroup || isMobileAreaListVisible || authProfile?.consentRequired)}
+    <main data-review-design-preview={REVIEW_DESIGN_PREVIEW || undefined} data-review-api={REVIEW_API_ENABLED || undefined} className={`app-shell${!isDesktop ? ' has-mobile-navigation' : ''}${!isDesktop && mobileTab !== 'map' ? ' is-mobile-page' : ''}`}>
+      <AppUpdateNotice blocked={Boolean(reviewPreview.active || reportTarget || isLoginDialogOpen || isAccountOpen || isMyReportsOpen || isNotificationsOpen || mobileTab !== 'map' || placeSearchKeyword || selectedCoordinateGroup || isMobileAreaListVisible || authProfile?.consentRequired)}
         beforeReload={() => {
           const map = mapRef.current
           if (!map) return false
@@ -1206,14 +1307,14 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
         </div>
         {!isDesktop && <div className="mobile-header-actions">
           {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => setMobileTab('account')}>로그인</button>}
-          <DesktopHeaderMenu compact authenticated={Boolean(authProfile)} onReports={openMyReports} onAccount={() => setMobileTab('account')} onLogout={handleLogout} />
+          <DesktopHeaderMenu compact authenticated={Boolean(authProfile)} onReports={openMyReports} onAccount={() => { reviewPreview.close(); setMobileTab('account'); setMobileAccountView('home') }} onLogout={handleLogout} />
         </div>}
         {isDesktop && <div className="desktop-header-actions">
           {isAuthLoading ? <span className="auth-status">확인 중…</span> : authProfile ? <>
             <button type="button" className="notification-button" onClick={() => setIsNotificationsOpen(true)} aria-label={unreadNotificationCount ? `읽지 않은 알림 ${unreadNotificationCount}개` : '알림'}><span aria-hidden="true" />{unreadNotificationCount > 0 && <strong>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</strong>}</button>
             <button type="button" className="header-account-button" onClick={() => setIsAccountOpen(true)}>내 계정</button>
           </> : <button type="button" className="header-account-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}>로그인 / 회원가입</button>}
-          <DesktopHeaderMenu authenticated={Boolean(authProfile)} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} />
+          <DesktopHeaderMenu authenticated={Boolean(authProfile)} onReviews={REVIEW_UI_ENABLED ? reviewPreview.openMine : undefined} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} />
         </div>}
         </div>
       </header>
@@ -1293,6 +1394,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             <h1>{toiletDetail.name}</h1>
             <p>등록된 좌표가 없어 지도에 위치를 표시할 수 없습니다.</p>
             <p className="open-time">{formatOpenTime(toiletDetail)}</p>
+            {REVIEW_UI_ENABLED && <ToiletCommunityRow onReview={() => reviewPreview.open(toiletDetail)} reviewEntry={reviewPreview.entryState(toiletDetail.id)} previewSummary={reviewPreview.summary(toiletDetail.id)} />}
             <ToiletDetailContents toilet={toiletDetail} />
           </aside>
         )}
@@ -1318,15 +1420,18 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
             </button>
             <div className="place-card-summary">
               <span className="card-label">{toiletDetail?.toiletType || selectedToilet.toiletType || '화장실'}</span>
-              <h1>{toiletDetail?.name || selectedToilet.name}</h1>
+              {REVIEW_UI_ENABLED ? <div className="review-card-title-row"><h1>{toiletDetail?.name || selectedToilet.name}</h1><ToiletReportEntry disabled={!toiletDetail || selectedToilet.id === testToilet?.id} onClick={() => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) }} /></div> : <h1>{toiletDetail?.name || selectedToilet.name}</h1>}
             </div>
             <div ref={cardScrollRef} className="card-scroll-content">
-              {toiletDetail ? <p className="open-time">{formatOpenTime(toiletDetail)}</p> : isDetailLoading && <LoadingOpenTime />}
+              {toiletDetail ? <p className="open-time">{toiletDetail.id === testToilet?.id ? '프리뷰 전용 · 운영 데이터에 저장되지 않아요' : formatOpenTime(toiletDetail)}</p> : isDetailLoading && <LoadingOpenTime />}
               {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">{distanceReferenceLabel}</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">(직선거리)</span></div>}
-              <ToiletCommunityRow pendingReport={!isDesktop && !toiletDetail} onReport={isDesktop ? undefined : toiletDetail ? () => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) : undefined} />
+              <ToiletCommunityRow pendingReport={!isDesktop && !toiletDetail} onReport={isDesktop ? undefined : toiletDetail ? () => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) : undefined}
+                pendingReview={REVIEW_UI_ENABLED && !toiletDetail} onReview={REVIEW_UI_ENABLED && toiletDetail ? () => reviewPreview.open(toiletDetail) : undefined} reviewEntry={reviewPreview.entryState(selectedToilet.id)} previewSummary={REVIEW_UI_ENABLED ? reviewPreview.summary(selectedToilet.id) : undefined} />
               {detailError && <div><p className="detail-error" role="alert">{detailError}</p><button type="button" className="detail-retry" onClick={retryDetail}>다시 불러오기</button></div>}
               {!toiletDetail && isDetailLoading && <DetailLoadingFields />}
-              {toiletDetail && <ToiletDetailContents toilet={toiletDetail} />}
+              {toiletDetail && (toiletDetail.id === testToilet?.id
+                ? <div className="card-details"><p>실제 시설이 아닌 리뷰 테스트 지점이에요. 로그인과 실제 현재 위치 확인은 그대로 적용돼요.</p></div>
+                : <ToiletDetailContents toilet={toiletDetail} />)}
             </div>
           </aside>
         )}
@@ -1340,17 +1445,21 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
               {selectedCoordinateGroup.toilets.map((toilet, index) => {
                 const isExpanded = expandedCoordinateToilet?.id === toilet.id
                 return <div key={toilet.id} ref={(node) => { if (node) coordinateGroupItemRefs.current.set(toilet.id, node); else coordinateGroupItemRefs.current.delete(toilet.id) }} className={`coordinate-group-item${isExpanded ? ' is-expanded' : ''}`}>
-                  <button type="button" className="coordinate-group-item-toggle" onClick={() => void toggleCoordinateToiletDetail(toilet)} aria-expanded={isExpanded}>
+                  <div className={REVIEW_UI_ENABLED ? 'review-group-title-row' : undefined}><button type="button" className="coordinate-group-item-toggle" onClick={() => void toggleCoordinateToiletDetail(toilet)} aria-expanded={isExpanded}>
                     <span className="coordinate-group-index" aria-hidden="true">{index + 1}</span>
                     <span className="coordinate-group-name">{toilet.name || '이름 없는 공중화장실'}</span>
                     <span className="coordinate-group-toggle-label">{isExpanded ? '접기' : '상세 보기'}</span>
-                  </button>
+                  </button>{REVIEW_UI_ENABLED && isExpanded && <ToiletReportEntry disabled={!toiletDetail || toiletDetail.id !== toilet.id} onClick={() => { if (toiletDetail?.id === toilet.id) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }} />}</div>
                   {isExpanded && <CoordinateGroupInlineDetails
                     toilet={toiletDetail}
                     isLoading={isDetailLoading}
                     error={detailError}
                     onRetry={retryDetail}
                     onReport={isDesktop ? undefined : () => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }}
+                    pendingReview={REVIEW_UI_ENABLED && !toiletDetail}
+                    onReview={REVIEW_UI_ENABLED && toiletDetail?.id === toilet.id ? () => reviewPreview.open(toiletDetail) : undefined}
+                    reviewEntry={reviewPreview.entryState(toilet.id)}
+                    previewSummary={REVIEW_UI_ENABLED ? reviewPreview.summary(toilet.id) : undefined}
                   />}
                 </div>
               })}
@@ -1358,18 +1467,29 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
           </aside>
         )}
         </div>
-        {!isDesktop && mobileTab !== 'map' && <MobilePage tab={mobileTab} profile={authProfile} loading={isAuthLoading} unread={unreadNotificationCount}
-          onSessionExpired={() => { setAuthProfile(null); setUnreadNotificationCount(0); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false) }}
-          onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} onNotifications={() => setIsNotificationsOpen(true)}
+        {!isDesktop && mobileTab !== 'map' && <MobilePage key={`mobile-${authProfile?.userId ?? 'anonymous'}`} tab={mobileTab} profile={authProfile} loading={isAuthLoading} unread={unreadNotificationCount}
+          accountView={mobileAccountView} focusedReportId={focusedReportId} reviewPage={reviewPreview.page}
+          onBackAccount={() => { reviewPreview.close(); setMobileAccountView('home'); setFocusedReportId(null) }}
+          onSessionExpired={handleSessionExpired}
+          onReviews={REVIEW_UI_ENABLED ? reviewPreview.openMine : undefined}
+          onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} onCountChange={refreshNotificationCount} onOpenReport={showReportHistory}
           beforeLogin={tab => { try { window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, tab) } catch { /* 로그인은 계속 제공 */ } }} />}
-        {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); setIsMyReportsOpen(true) }} />}
-        {authProfile && isMyReportsOpen && <MyReportsPanel initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
-        {authProfile && isNotificationsOpen && <NotificationPanel onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); setFocusedReportId(reportId); setIsMyReportsOpen(true) }} />}
+        {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); showReportHistory() }} />}
+        {reviewPreview.modal}
+        {authProfile && isDesktop && isMyReportsOpen && <MyReportsPanel key={`reports-${authProfile.userId}`} onSessionExpired={handleSessionExpired} initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
+        {authProfile && isDesktop && isNotificationsOpen && <NotificationPanel key={`inbox-${authProfile.userId}`} unread={unreadNotificationCount} onSessionExpired={handleSessionExpired} onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); showReportHistory(reportId) }} />}
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
         {authProfile?.consentRequired && <PolicyConsentModal isNewRegistration={authProfile.status === 'PENDING_CONSENT'} onComplete={handleConsentComplete} onLogout={handleLogout} />}
         {authProfile && isAccountOpen && <AccountDialog profile={authProfile} onClose={() => setIsAccountOpen(false)} onWithdrawn={handleWithdrawn} />}
+        {withdrawalNotice && <div className="account-backdrop"><section className="account-dialog account-recovery account-result" role="dialog" aria-modal="true" aria-labelledby="withdrawal-result-title">
+          <h1 id="withdrawal-result-title">탈퇴 처리 안내</h1>
+          <p role="status">{withdrawalNotice}</p>
+          <p><a href="mailto:privacy@geupddong.com">개인정보 문의</a></p>
+          <div className="recovery-actions"><button type="button" className="recovery-primary" onClick={() => setWithdrawalNotice(null)}>확인</button></div>
+        </section></div>}
+        {!isAuthLoading && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('recovery') === 'required' && <AccountRecoveryDialog />}
       </section>
-      {isDesktop ? <footer className="site-footer"><p>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</p><PolicyFooter /></footer> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
+      {isDesktop ? <footer className="site-footer"><p>지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.</p><PolicyFooter /></footer> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { reviewPreview.close(); setMobileAccountView('home'); setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
     </main>
   )
 }
@@ -1377,7 +1497,7 @@ function MapApp({ route, onNavigate, onMounted }: { route: MapRouteData; onNavig
 
 function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () => void }) {
   const title = '로그인 · 간편가입'
-  const description = purpose === 'my-reports' ? '내가 보낸 제보의 대기·승인·반려 상태와 관리자 메모를 확인할 수 있어요.' : '제보 내용은 관리자 확인 후 서비스에 반영됩니다.'
+  const description = purpose === 'review' ? '리뷰는 로그인 후 이용할 수 있어요. 로그인한 뒤 리뷰 버튼을 다시 눌러 주세요. 새 리뷰는 화장실 150m 이내에서 현재 위치를 확인해요.' : purpose === 'my-reports' ? '내가 보낸 제보의 대기·승인·반려 상태와 관리자 메모를 확인할 수 있어요.' : '제보 내용은 관리자 확인 후 서비스에 반영됩니다.'
   return <div className="login-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
       <button type="button" className="login-modal-close" onClick={onClose} aria-label="로그인 창 닫기">×</button>
@@ -1392,8 +1512,8 @@ function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () 
   </div>
 }
 
-function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRetry }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onReport?: () => void; onRetry: () => void }) {
-  if (isLoading && !toilet) return <div className="coordinate-inline-details"><LoadingOpenTime /><ToiletCommunityRow pendingReport={Boolean(onReport)} /><DetailLoadingFields inline /></div>
+function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRetry, onReview, pendingReview, previewSummary, reviewEntry }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onReport?: () => void; onRetry: () => void; onReview?: () => void; pendingReview?: boolean; previewSummary?: PreviewReviewSummary; reviewEntry?: ReviewEntryState }) {
+  if (isLoading && !toilet) return <div className="coordinate-inline-details"><LoadingOpenTime /><ToiletCommunityRow pendingReport={Boolean(onReport)} pendingReview={pendingReview} /><DetailLoadingFields inline /></div>
   if (error) return <div className="coordinate-inline-details"><p className="detail-error" role="alert">{error}</p><button type="button" className="detail-retry" onClick={onRetry}>다시 불러오기</button></div>
   if (!toilet) return null
 
@@ -1401,7 +1521,7 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
 
   return <div className="coordinate-inline-details">
     <p className="open-time">{formatOpenTime(toilet)}</p>
-    <ToiletCommunityRow onReport={onReport} />
+    <ToiletCommunityRow onReport={onReport} onReview={onReview} reviewEntry={reviewEntry} previewSummary={previewSummary} />
     {address && <DetailRow className="coordinate-inline-address" label="주소" value={address} copyable />}
     <section className="coordinate-inline-section coordinate-inline-capacity-section" aria-label="화장실 수">
       <h2>화장실 수</h2>

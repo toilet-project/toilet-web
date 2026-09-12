@@ -8,9 +8,24 @@ const securityHeaders = [
   { key: 'Permissions-Policy', value: 'geolocation=(self), camera=(), microphone=(), payment=(), usb=()' },
 ]
 
+const reviewPreviewApi = process.env.SITE_INDEXABLE === 'false'
+  && process.env.REVIEW_API_ENABLED === 'true'
+  && process.env.NEXT_PUBLIC_API_BASE_URL === 'https://preview.geupddong.com/__review-verification'
+const reviewProductionApi = process.env.SITE_INDEXABLE === 'true'
+  && process.env.REVIEW_API_ENABLED === 'true'
+  && process.env.REVIEW_PRODUCTION_APPROVED === 'true'
+  && process.env.NEXT_PUBLIC_API_BASE_URL === 'https://api.geupddong.com'
+const reviewApiEnabled = reviewPreviewApi || reviewProductionApi
+
 const config: NextConfig = {
   deploymentId: process.env.NEXT_DEPLOYMENT_ID,
-  env: { NEXT_PUBLIC_APP_VERSION: process.env.NEXT_DEPLOYMENT_ID || 'development' },
+  env: {
+    NEXT_PUBLIC_APP_VERSION: process.env.NEXT_DEPLOYMENT_ID || 'development',
+    // Build-time preview gate, never controlled by query strings or local storage.
+    NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW: process.env.SITE_INDEXABLE === 'false' && !reviewApiEnabled ? 'true' : 'false',
+    // Production requires all four exact build-time gates above; runtime URLs cannot enable it.
+    NEXT_PUBLIC_REVIEW_API_ENABLED: reviewApiEnabled ? 'true' : 'false',
+  },
   distDir: process.env.NEXT_BUILD_DIR || '.next',
   poweredByHeader: false,
   reactStrictMode: true,
@@ -26,6 +41,8 @@ const config: NextConfig = {
   },
   async rewrites() {
     return [
+      ...(reviewPreviewApi
+        ? [{ source: '/toilet/:id(\\d+)', destination: '/review-verification/:id' }] : []),
       // Root-level sitemap URLs cover /toilet/* without relying on search-console scope overrides.
       { source: '/sitemap-toilets-:shard(\\d+).xml', destination: '/sitemaps/:shard.xml' },
       ...(process.env.NODE_ENV === 'development'

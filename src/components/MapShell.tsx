@@ -1,10 +1,13 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { Component, useCallback, useLayoutEffect, useRef, useState, type ErrorInfo, type ReactNode } from 'react'
+import { Component, useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore, type ErrorInfo, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { MapRouteContext, type MapRouteData } from './mapRouteContext'
 import { toiletPath } from '../lib/toiletRoute'
+import { getReviewTestHash, subscribeReviewTestHash } from '../lib/reviewTestToilet'
+
+const noServerTestHash = () => ''
 
 // The SDK and browser-only effects stay in the existing map. Policy/SEO routes stay server rendered.
 const MapApp = dynamic(() => import('../App'), { ssr: false })
@@ -20,6 +23,7 @@ class MapErrorBoundary extends Component<{ children: ReactNode }, { failed: bool
 }
 
 export function MapShell({ children }: { children: ReactNode }) {
+  const testToiletHash = useSyncExternalStore(subscribeReviewTestHash, getReviewTestHash, noServerTestHash)
   const router = useRouter()
   const routerRef = useRef(router)
   useLayoutEffect(() => { routerRef.current = router }, [router])
@@ -33,10 +37,10 @@ export function MapShell({ children }: { children: ReactNode }) {
   const navigate = useCallback((id: number | null) => {
     const path = id === null ? '/' : toiletPath(id)
     // Also cancels an in-flight detail navigation when the user closes before it resolves.
-    routerRef.current.push(path, { scroll: false })
+    routerRef.current.push(path + getReviewTestHash(), { scroll: false })
   }, [])
   return <MapRouteContext.Provider value={{ mounted, register }}>
-    <MapErrorBoundary>{route && <MapApp route={route} onNavigate={navigate} onMounted={onMounted} />}</MapErrorBoundary>
+    <MapErrorBoundary>{route && <MapApp key={testToiletHash} testToiletHash={testToiletHash} route={route} onNavigate={navigate} onMounted={onMounted} />}</MapErrorBoundary>
     {children}
   </MapRouteContext.Provider>
 }

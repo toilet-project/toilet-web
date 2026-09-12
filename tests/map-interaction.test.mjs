@@ -59,11 +59,11 @@ test('card reuse resets scroll; touch expansion belongs only to the handle', asy
   assert.doesNotMatch(app, /cardTouchStartYRef/)
   assert.match(app, /onTouchCancel=\{\(\) => cardHandleGesture.cancel\(\)\}/)
 })
-test('all three marker paths block SDK touch propagation without disabling map zoom', async () => {
+test('all marker paths including the preview fixture block SDK touch propagation without disabling map zoom', async () => {
   const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8')
   const css = await readFile(new URL('../src/components/mobile-navigation.css', import.meta.url), 'utf8')
-  assert.equal((app.match(/addEventListener\('touchstart', suppressMapClickFromMarker/g) || []).length, 3)
-  assert.equal((app.match(/clickable: true/g) || []).length, 3)
+  assert.equal((app.match(/addEventListener\('touchstart', suppressMapClickFromMarker/g) || []).length, 4)
+  assert.equal((app.match(/clickable: true/g) || []).length, 4)
   assert.match(app, /window.kakao.maps.event.preventMap\(\)/)
   assert.match(css, /\.toilet-marker, \.coordinate-group-marker, \.cluster-marker, \.mobile-card-handle \{ touch-action: manipulation; \}/)
   assert.match(app, /const request = referenceRequestGate.begin\(\)/)
