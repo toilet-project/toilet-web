@@ -6,6 +6,7 @@ const fs = require('node:fs')
 const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE || 'playwright')
 const origin = process.env.REVIEW_PREVIEW_ORIGIN || 'http://127.0.0.1:4187'
 const mobileUserAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148 Safari/604.1'
+const desktopUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140.0.0.0 Safari/537.36'
 assert.ok(['http://127.0.0.1:4187', 'https://preview.geupddong.com'].includes(origin))
 const output = process.env.REVIEW_SCREENSHOT_DIR || path.resolve('.tmp-review-screenshots')
 fs.mkdirSync(output, { recursive: true })
@@ -167,16 +168,25 @@ const local = origin.includes('127.0.0.1')
       assert.equal(page.url(),url,'review does not navigate the map')
       assert.equal(await card.locator('.distance-value').innerText(),before,'reference distance is retained')
       assert.match(await card.locator('.toilet-community-row').innerText(),/4\s*\/\s*5/)
-      // A review already written here routes straight to its owned detail, even when GPS is unavailable.
+      // A review already written here asks before opening its owned detail, even when GPS is unavailable.
       const duplicateGeoCalls = await page.evaluate(()=>window.reviewTestGeoCalls)
       await page.evaluate(()=>{window.reviewTestFix.denied=true})
       await card.getByRole('button',{name:'리뷰',exact:true}).click()
+      const duplicatePrompt = page.getByRole('dialog',{name:'작성한 리뷰가 있어요',exact:true})
+      await duplicatePrompt.getByText('이 화장실에 오늘 작성한 리뷰가 있어요. 기존 리뷰를 확인할까요?',{exact:true}).waitFor()
+      assert.equal(await page.evaluate(()=>window.reviewTestGeoCalls),duplicateGeoCalls,'existing review never asks for location again')
+      assert.equal(await page.getByRole('dialog',{name:'리뷰 쓰기',exact:true}).count(),0)
+      await page.screenshot({path:path.join(output,`review-existing-confirm-${width}.png`)})
+      await duplicatePrompt.getByRole('button',{name:'뒤로 가기',exact:true}).click()
+      assert.equal(await page.getByRole('dialog',{name:'작성한 리뷰가 있어요',exact:true}).count(),0)
+      assert.equal(page.url(),url,'back from duplicate confirmation keeps the map')
+      await card.getByRole('button',{name:'리뷰',exact:true}).click()
+      await page.getByRole('dialog',{name:'작성한 리뷰가 있어요',exact:true}).getByRole('button',{name:'내 리뷰 보기',exact:true}).click()
       const existing = page.getByRole('region',{name:'내 리뷰 목록',exact:true})
       await existing.getByRole('status').filter({hasText:'작성한 리뷰 내역이 있습니다'}).waitFor()
       await existing.locator('.rv-full-comment').waitFor()
       assert.equal(await existing.locator('.history-review-summary').getAttribute('aria-expanded'),'true')
       assert.equal(await page.evaluate(()=>window.reviewTestGeoCalls),duplicateGeoCalls,'existing review never asks for location again')
-      assert.equal(await page.getByRole('dialog',{name:'리뷰 쓰기',exact:true}).count(),0)
       await page.screenshot({path:path.join(output,`review-existing-${width}.png`)})
       if(width<600) { await existing.getByRole('button',{name:'내 리뷰 닫기'}).click(); await page.getByRole('navigation',{name:'하단 내비게이션'}).getByRole('button',{name:'지도',exact:true}).click() }
       else await page.getByRole('dialog',{name:'내 리뷰',exact:true}).getByRole('button',{name:'닫기',exact:true}).click()
@@ -286,21 +296,42 @@ const local = origin.includes('127.0.0.1')
       assert.equal(await page.evaluate(()=>window.reviewTestGeoCalls),geoCalls,'signed-out review never requests GPS')
       await page.getByRole('button',{name:'로그인 창 닫기',exact:true}).click()
       signedIn = true
-      await page.evaluate(() => {
-        Object.defineProperty(navigator, 'userAgent', { configurable: true, value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' })
-        Object.defineProperty(navigator, 'platform', { configurable: true, value: 'Win32' })
-        Object.defineProperty(navigator, 'maxTouchPoints', { configurable: true, value: 0 })
-      })
-      const desktopGeoCalls = await page.evaluate(()=>window.reviewTestGeoCalls)
-      await expanded.getByRole('button',{name:'리뷰',exact:true}).click()
-      await page.locator('.review-entry-hint').filter({hasText:'리뷰는 모바일에서 작성할 수 있어요.'}).waitFor()
-      assert.equal(await page.getByRole('dialog').count(),0,'desktop review entry only shows the mobile guidance')
-      assert.equal(await page.evaluate(()=>window.reviewTestGeoCalls),desktopGeoCalls,'desktop review entry never requests GPS')
       assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'no horizontal overflow')
       assert.equal(businessWrites,0)
       assert.deepEqual(errors,[])
       await context.close()
       console.log(`PASS actual map ${width}; button check visible ${openMs}ms; 4-minute fix accepted and older than 5 minutes rejected; inputs only after auth+GPS; blue/red paper; later retry retains draft; create/edit/detach; no business writes`)
     }
+    const desktop = await browser.newContext({ viewport:{width:1280,height:900}, serviceWorkers:'block', userAgent:desktopUserAgent })
+    let desktopWrites = 0
+    await desktop.route('**/*', async route => {
+      const req=route.request(), u=new URL(req.url())
+      if(u.pathname==='/api/v1/auth/me') return route.fulfill({json:{userId:'review-desktop-fixture',displayName:'리뷰 검증 사용자',status:'ACTIVE',roles:['USER'],consentRequired:false}})
+      if(u.pathname==='/api/v1/notifications/unread-count') return route.fulfill({json:{count:0}})
+      if(u.pathname==='/cdn-cgi/rum' && req.method()==='POST') return route.fulfill({status:204})
+      if(!['GET','HEAD','OPTIONS'].includes(req.method())) {desktopWrites++;return route.abort()}
+      if(u.pathname.startsWith('/api/v1/') && !u.pathname.startsWith('/api/v1/toilets')) return route.fulfill({json:[]})
+      if(local && u.hostname==='dapi.kakao.com') return route.abort()
+      return route.continue()
+    })
+    await desktop.addInitScript(()=>{
+      window.reviewTestGeoCalls=0
+      Object.defineProperty(navigator,'geolocation',{value:{getCurrentPosition(){window.reviewTestGeoCalls++},watchPosition(){return 1},clearWatch(){}}})
+      class LatLng {constructor(lat,lng){this.lat=lat;this.lng=lng}getLat(){return this.lat}getLng(){return this.lng}}
+      class MapMock {constructor(el,o){this.el=el;this.center=o.center;this.level=o.level;this.listeners={}}getCenter(){return this.center}getLevel(){return this.level}getBounds(){return {getSouthWest:()=>new LatLng(36.35,127.33),getNorthEast:()=>new LatLng(36.38,127.36)}}getProjection(){return {pointFromCoords:()=>({x:700,y:300})}}relayout(){}panTo(p){this.center=p}setCenter(p){this.center=p}setDraggable(){}setZoomable(){}setLevel(v){this.level=v}}
+      class Overlay {constructor(o){this.options=o}setMap(map){this.options.content.remove();if(map){Object.assign(this.options.content.style,{position:'absolute',left:'100px',top:'120px'});map.el.append(this.options.content)}}}
+      window.kakao={maps:{Map:MapMock,LatLng,CustomOverlay:Overlay,event:{preventMap(){},addListener(map,name,fn){(map.listeners[name]??=[]).push(fn)}},services:{Status:{OK:'OK',ZERO_RESULT:'ZERO'}}}}
+    })
+    const desktopPage=await desktop.newPage()
+    await desktopPage.goto(origin+'/toilet/13144',{waitUntil:'networkidle'})
+    if(local) await desktopPage.addStyleTag({content:'nextjs-portal{pointer-events:none!important}'})
+    const desktopCard=desktopPage.locator('.map-stage .place-card').first()
+    await desktopCard.getByRole('button',{name:'리뷰',exact:true}).click()
+    await desktopPage.locator('.review-entry-hint').filter({hasText:'리뷰는 모바일에서 작성할 수 있어요.'}).waitFor()
+    assert.equal(await desktopPage.getByRole('dialog').count(),0)
+    assert.equal(await desktopPage.evaluate(()=>window.reviewTestGeoCalls),0)
+    assert.equal(desktopWrites,0)
+    await desktop.close()
+    console.log('PASS desktop review entry shows mobile guidance without GPS or writes')
   } finally { await browser.close() }
 })().catch(e=>{console.error(e);process.exitCode=1})
