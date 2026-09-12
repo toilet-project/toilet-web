@@ -26,6 +26,7 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
   const [editing, setEditing] = useState<LocatedReview | null>(null)
   const [mine, setMine] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [existingPrompt, setExistingPrompt] = useState<LocatedReview | null>(null)
   const [message, setMessage] = useState('')
   const [checking, setChecking] = useState(false)
   const [mineError, setMineError] = useState('')
@@ -42,7 +43,7 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
     if (ownerRef.current === owner) return
     ownerRef.current = owner
     request.current++; setChecking(false); updateEntry(null)
-    setReviews([]); setTarget(null); setEditing(null); setMine(false)
+    setReviews([]); setTarget(null); setEditing(null); setMine(false); setExistingPrompt(null)
     setSaved(false); setMessage('')
   }, [owner])
   useLayoutEffect(() => {
@@ -98,12 +99,12 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
     }
     if (entryRef.current?.id === next.id && entryRef.current.status === 'checking') return
     const fresh = entryRef.current?.id === next.id && entryRef.current.status === 'retry'
-    setTarget(null); setEditing(null)
+    setTarget(null); setEditing(null); setExistingPrompt(null)
     setMine(false); setSaved(false); setMessage('')
     const recent = recentToiletReview(reviews, next.id)
     if (recent) {
       if (recent.authorRemoved) updateEntry({ id: next.id, status: 'notice', message: '작성 후 24시간이 지나야 다시 리뷰를 남길 수 있어요.' })
-      else void loadMine(recent.id)
+      else { updateEntry(null); setExistingPrompt(recent) }
       return
     }
     // Keep the map/card still. Only a successful check opens the complete editor.
@@ -119,7 +120,7 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
     updateEntry(null)
     setMineFocus(value => ({ id: focusedReviewId, visit: value.visit + 1 }))
     setMessage(focusedReviewId ? '작성한 리뷰 내역이 있습니다. 기존 리뷰를 확인하거나 수정해 주세요.' : '')
-    setMine(true); setMineError(''); setTarget(null); setEditing(null); setSaved(false)
+    setMine(true); setMineError(''); setTarget(null); setEditing(null); setSaved(false); setExistingPrompt(null)
     mineNavigation?.onOpen()
     setChecking(true)
     try {
@@ -129,7 +130,13 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
     } catch (error) { if (token === request.current) setMineError(error instanceof ReviewGateError ? error.message : '로그인을 확인해 주세요.') }
     finally { if (token === request.current) setChecking(false) }
   }
-  const close = () => { request.current++; updateEntry(null); setChecking(false); setTarget(null); setEditing(null); setMine(false); setSaved(false); setMessage('') }
+  const close = () => { request.current++; updateEntry(null); setChecking(false); setTarget(null); setEditing(null); setMine(false); setSaved(false); setExistingPrompt(null); setMessage('') }
+  const dismissExisting = () => { request.current++; setExistingPrompt(null) }
+  const viewExisting = () => {
+    const review = existingPrompt
+    if (!review) return
+    setExistingPrompt(null); void loadMine(review.id)
+  }
   const save = async (value: ReviewInput) => {
     if (saving.current) throw new ReviewGateError('리뷰를 저장하고 있어요. 잠시 기다려 주세요.')
     saving.current = true
@@ -142,7 +149,7 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
     if (!editing) {
       const recent = recentToiletReview(reviews, target.id)
       if (recent) {
-        if (!recent.authorRemoved) { await loadMine(recent.id); return }
+        if (!recent.authorRemoved) { setTarget(null); setEditing(null); setExistingPrompt(recent); return }
         throw new ReviewGateError('작성 후 24시간이 지나야 다시 리뷰를 남길 수 있어요.')
       }
     }
@@ -181,6 +188,7 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
     }} />
   const modal = !REVIEW_DESIGN_PREVIEW ? null : target ? <ReviewDialog key={`${owner}:${editing?.id ?? target.id}`} toiletName={target.name} initial={editing ?? undefined} onClose={closeOverlay} onSave={save} eligibility={editing ? undefined : eligibility} onRetryEligibility={editing ? undefined : () => { void checkEligibility(target, true) }} />
     : saved ? <ReviewModal title="리뷰를 저장했어요" onClose={closeOverlay} footer={<div className="rv-two-actions"><button className="rv-secondary" onClick={closeOverlay}>{mine ? '목록으로 돌아가기' : '지도로 돌아가기'}</button><button className="rv-primary" onClick={openMine}>내 리뷰 보기</button></div>}><div className="rv-complete"><span><ReviewIcon name="check" size={32} /></span><h1>이용 경험을 남겼어요</h1><p>선택한 화장실 카드에 체험 평가가 반영됐어요.</p><small>프리뷰 메모리 저장 · 실제 DB에 저장되지 않아요.</small></div></ReviewModal>
+    : existingPrompt ? <ReviewModal title="작성한 리뷰가 있어요" onClose={dismissExisting} footer={<div className="rv-two-actions"><button className="rv-secondary" onClick={dismissExisting}>뒤로 가기</button><button className="rv-primary" onClick={viewExisting}>내 리뷰 보기</button></div>}><div className="rv-complete"><h1>{existingPrompt.toiletName}</h1><p>이 화장실에 오늘 작성한 리뷰가 있어요. 기존 리뷰를 확인할까요?</p></div></ReviewModal>
     : mine && !mineNavigation?.embedded ? <ReviewModal title="내 리뷰" onClose={close}>{mineContent}</ReviewModal> : null
-  return { open, openMine, close, summary, entryState: (id: number) => entry?.id === id ? entry : undefined, modal, page: REVIEW_DESIGN_PREVIEW && mine && mineNavigation?.embedded ? mineContent : null, active: Boolean(target || mine || saved || checking || entry?.status === 'checking') }
+  return { open, openMine, close, summary, entryState: (id: number) => entry?.id === id ? entry : undefined, modal, page: REVIEW_DESIGN_PREVIEW && mine && mineNavigation?.embedded ? mineContent : null, active: Boolean(target || mine || saved || existingPrompt || checking || entry?.status === 'checking') }
 }
