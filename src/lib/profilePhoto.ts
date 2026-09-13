@@ -16,3 +16,7 @@ export function reviewPhotoPath(toilet: number, review: string) {
   if (!Number.isSafeInteger(toilet) || toilet <= 0 || !/^[1-9]\d{0,18}$/.test(review)) return null
   return `/api/v1/toilets/${toilet}/reviews/${review}/photo`
 }
+export function publicPhotoPath(version: string) {
+  if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(version)) return null
+  return `/api/v1/profile-photos/${version}.webp`
+}

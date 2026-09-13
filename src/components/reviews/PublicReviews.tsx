@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { createApiUrl } from '../../config/api'
 import { decodeReview, type StoredReview } from '../../lib/reviewApi'
-import { PROFILE_PHOTO_ENABLED, reviewPhotoPath } from '../../lib/profilePhoto'
+import { PROFILE_PHOTO_ENABLED, publicPhotoPath } from '../../lib/profilePhoto'
 import { PhotoImage } from '../ProfilePhoto'
 
 export function PublicReviews({ toiletId }: { toiletId: number }) {
@@ -46,7 +46,7 @@ function PublicReviewList({ toiletId }: { toiletId: number }) {
     {open && <div>
       {items.map(item => <article key={item.id}>
         <div className="public-review-author"><span className="public-review-avatar"><PhotoImage
-          path={item.authorRemoved ? null : reviewPhotoPath(toiletId, item.id)} fallback={<span role="img" aria-label="기본 프로필 이미지">👤</span>} /></span><strong>{item.authorDisplayName}</strong></div>
+          path={item.authorRemoved || !item.authorPhotoVersion ? null : publicPhotoPath(item.authorPhotoVersion)} fallback={<span role="img" aria-label="기본 프로필 이미지">👤</span>} /></span><strong>{item.authorDisplayName}</strong></div>
         <p className="public-review-score">만족도 {item.satisfaction}/5 · 청결도 {item.cleanliness}/5</p>
         {item.comment && <p>{item.comment}</p>}
         <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}</time>

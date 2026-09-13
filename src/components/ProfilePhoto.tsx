@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { createApiUrl } from '../config/api'
 import { AuthExpiredError } from '../api/auth'
-import { decodePhoto, ownPhotoPath, PROFILE_PHOTO_ENABLED, type PhotoState } from '../lib/profilePhoto'
+import { decodePhoto, ownPhotoPath, publicPhotoPath, PROFILE_PHOTO_ENABLED, type PhotoState } from '../lib/profilePhoto'
 import { useDialogFocus } from '../lib/useDialogFocus'
 import { ProfilePhotoCropDialog } from './ProfilePhotoCropDialog'
 
@@ -26,7 +26,7 @@ export function PhotoImage({ path, privatePhoto = false, fallback, label = '프�
       setImage(null)
       const timer = setTimeout(() => controller.abort(), 10_000)
       try {
-        const response = await fetch(createApiUrl(path), { credentials: privatePhoto ? 'include' : 'omit', cache: 'no-store', signal: controller.signal })
+        const response = await fetch(createApiUrl(path), { credentials: privatePhoto ? 'include' : 'omit', cache: 'default', signal: controller.signal })
         if (!response.ok || !response.headers.get('content-type')?.startsWith('image/webp')) return
         const blob = await response.blob()
         if (!active || current !== generation || blob.size > 100_000) return
@@ -63,6 +63,10 @@ async function mutatePhoto(method: 'PUT' | 'PATCH' | 'DELETE', body?: BodyInit, 
 
 function announcePhotoChange() { window.dispatchEvent(new Event(CHANGED)) }
 function announcePhotoVisibilityChange() { window.dispatchEvent(new Event(VISIBILITY_CHANGED)) }
+function warmPublicPhoto(state: PhotoState) {
+  const path=state.publicPhoto && state.imageVersion ? publicPhotoPath(state.imageVersion) : null
+  if (path) void fetch(createApiUrl(path), { credentials: 'omit', cache: 'default' }).catch(() => undefined)
+}
 
 export function PhotoActions({ state, loadError, onRetry, onSaved, onExpired, onOpen, onNotice }: {
   state: PhotoState | null
@@ -93,7 +97,7 @@ export function PhotoActions({ state, loadError, onRetry, onSaved, onExpired, on
     try {
       const next = await mutatePhoto(method, body, contentType)
       if (!alive.current) return false
-      onSaved(next); announcePhotoChange()
+      onSaved(next); announcePhotoChange(); if (method === 'PUT') warmPublicPhoto(next)
       if (fileInput.current) fileInput.current.value = ''
       onNotice(method === 'PUT' ? '프로필 사진을 저장했어요.' : '프로필 사진을 삭제했어요.')
       if (method === 'DELETE') setMenuOpen(false)
@@ -148,7 +152,7 @@ export function PhotoVisibilityPreference({ state, onSaved, onExpired }: { state
     try {
       const next = await mutatePhoto('PATCH', JSON.stringify({ publicPhoto: !state.publicPhoto }), 'application/json')
       if (!alive.current) return
-      onSaved(next); announcePhotoVisibilityChange()
+      onSaved(next); announcePhotoVisibilityChange(); if (next.publicPhoto) warmPublicPhoto(next)
     } catch (reason) {
       if (!alive.current) return
       if (reason instanceof AuthExpiredError) onExpired()
