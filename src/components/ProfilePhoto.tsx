@@ -1,8 +1,10 @@
 'use client'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { createApiUrl } from '../config/api'
 import { AuthExpiredError } from '../api/auth'
 import { decodePhoto, ownPhotoPath, PROFILE_PHOTO_ENABLED, type PhotoState } from '../lib/profilePhoto'
+import { useDialogFocus } from '../lib/useDialogFocus'
 import { ProfilePhotoCropDialog } from './ProfilePhotoCropDialog'
 
 const CHANGED = 'geupddong-profile-photo-changed'
@@ -42,62 +44,115 @@ export function OwnPhoto({ state, fallback }: { state: PhotoState | null; fallba
   return <PhotoImage path={state?.imageVersion ? ownPhotoPath(state.imageVersion) : null} privatePhoto fallback={fallback} />
 }
 
-export function PhotoPreferences({ state, onSaved, onExpired }: { state: PhotoState; onSaved: (state: PhotoState) => void; onExpired: () => void }) {
-  const [publicPhoto, setPublicPhoto] = useState(state.publicPhoto)
+async function mutatePhoto(method: 'PUT' | 'PATCH' | 'DELETE', body?: BodyInit, contentType?: string) {
+  const abort = new AbortController(), timer = setTimeout(() => abort.abort(), 15_000)
+  try {
+    const response = await fetch(createApiUrl('/api/v1/auth/me/photo'), { method, credentials: 'include', cache: 'no-store',
+      headers: contentType ? { 'Content-Type': contentType } : undefined, body, signal: abort.signal })
+    if (response.status === 401) throw new AuthExpiredError()
+    if (!response.ok) throw new Error('PHOTO_WRITE_FAILED')
+    return decodePhoto(await response.json())
+  } finally { clearTimeout(timer) }
+}
+
+function announcePhotoChange() { window.dispatchEvent(new Event(CHANGED)) }
+
+export function PhotoActions({ state, loadError, onRetry, onSaved, onExpired, onOpen, onNotice }: {
+  state: PhotoState | null
+  loadError: string
+  onRetry: () => void
+  onSaved: (state: PhotoState) => void
+  onExpired: () => void
+  onOpen: () => void
+  onNotice: (message: string) => void
+}) {
+  const [menuOpen, setMenuOpen] = useState(false)
   const [editorFile, setEditorFile] = useState<File | null>(null)
   const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
   const alive = useRef(false), busy = useRef(false), fileInput = useRef<HTMLInputElement>(null)
+  const closeMenu = () => { if (!busy.current) { setMenuOpen(false); setError(''); if (fileInput.current) fileInput.current.value = '' } }
+  const dialog = useDialogFocus(menuOpen, closeMenu)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
-  async function request(method: 'PUT' | 'PATCH' | 'DELETE', body?: BodyInit, contentType?: string) {
+  useEffect(() => {
+    if (!menuOpen) return
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = previous }
+  }, [menuOpen])
+  async function request(method: 'PUT' | 'DELETE', body?: BodyInit, contentType?: string) {
     if (busy.current) return false
-    busy.current = true; setSaving(true); setMessage('')
-    const abort = new AbortController(), timer = setTimeout(() => abort.abort(), 15_000)
+    busy.current = true; setSaving(true); setError('')
     try {
-      const response = await fetch(createApiUrl('/api/v1/auth/me/photo'), { method, credentials: 'include', cache: 'no-store',
-        headers: contentType ? { 'Content-Type': contentType } : undefined, body, signal: abort.signal })
-      if (response.status === 401) throw new AuthExpiredError()
-      if (!response.ok) throw new Error()
-      const next = decodePhoto(await response.json())
+      const next = await mutatePhoto(method, body, contentType)
       if (!alive.current) return false
-      setPublicPhoto(next.publicPhoto)
-      onSaved(next); window.dispatchEvent(new Event(CHANGED))
+      onSaved(next); announcePhotoChange()
       if (fileInput.current) fileInput.current.value = ''
-      setMessage(method === 'PUT' ? '프로필 사진을 저장했어요.' : method === 'DELETE' ? '프로필 사진을 삭제했어요.' : '사진 공개 범위를 저장했어요.')
+      onNotice(method === 'PUT' ? '프로필 사진을 저장했어요.' : '프로필 사진을 삭제했어요.')
+      if (method === 'DELETE') setMenuOpen(false)
       return true
-    } catch (error) {
+    } catch (reason) {
       if (!alive.current) return false
-      if (error instanceof AuthExpiredError) onExpired()
-      else setMessage('저장 여부를 확인하지 못했어요. 설정을 다시 열어 확인한 뒤 시도해 주세요.')
+      if (reason instanceof AuthExpiredError) { setMenuOpen(false); onExpired() }
+      else if (method === 'DELETE') setError('사진을 삭제하지 못했어요. 잠시 후 다시 시도해 주세요.')
       return false
-    } finally { clearTimeout(timer); busy.current = false; if (alive.current) setSaving(false) }
+    } finally { busy.current = false; if (alive.current) setSaving(false) }
   }
   function selectFile(file: File | null) {
     if (!file) return
     if (!file.type.startsWith('image/') || file.size <= 0) {
-      setMessage('사진 파일을 선택해 주세요.'); if (fileInput.current) fileInput.current.value = ''; return
+      setError('사진 파일을 선택해 주세요.'); if (fileInput.current) fileInput.current.value = ''; return
     }
-    setMessage(''); setEditorFile(file)
+    setError(''); setMenuOpen(false); setEditorFile(file)
   }
   function closeEditor() {
     setEditorFile(null)
     if (fileInput.current) fileInput.current.value = ''
   }
-  if (!state.available) return <p>프로필 사진 기능을 준비하고 있어요.</p>
-  return <fieldset className="profile-photo-preferences" disabled={saving && !editorFile}>
-    <legend>프로필 사진</legend>
-    <p>신규 가입 때 동의한 카카오 사진은 한 번만 가져와요. 이후에는 여기에서 직접 바꾸거나 삭제할 수 있어요.</p>
-    <button type="button" className="profile-photo-picker" onClick={() => fileInput.current?.click()}>{state.imageVersion ? '보관함에서 새 사진 선택' : '보관함에서 사진 선택'}</button>
+  return <>
+    <button type="button" className="mobile-profile-edit" aria-label="프로필 사진 변경" onClick={() => { onOpen(); setError(''); setMenuOpen(true) }}><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m10 3-.6 2.2-2 .9-2-.7-2 3.4 1.6 1.5v2.4l-1.6 1.5 2 3.4 2-.7 2 .9L10 20h4l.6-2.2 2-.9 2 .7 2-3.4-1.6-1.5v-2.4l1.6-1.5-2-3.4-2 .7-2-.9L14 3Z" /><circle cx="12" cy="11.5" r="3" /></svg></button>
     <input ref={fileInput} className="profile-photo-file" id="profile-photo-file" type="file" tabIndex={-1} aria-hidden="true" accept="image/*" onChange={event => selectFile(event.target.files?.[0] ?? null)} />
-    <small>고른 사진은 기기에서 원하는 영역을 자르고 자동으로 줄여 전송해요. 원본 파일은 저장하지 않아요.</small>
-    <label htmlFor="profile-photo-visibility">사진 공개 범위</label>
-    <select id="profile-photo-visibility" disabled={!state.imageVersion} value={publicPhoto ? 'public' : 'private'} onChange={e => setPublicPhoto(e.target.value === 'public')}>
-      <option value="private">비공개 · 나만 보기</option><option value="public">공개 · 리뷰 작성자 사진에 표시</option>
-    </select>
-    <p>비공개일 때 다른 사람에게는 기본 아바타가 보여요. 공개했던 사진을 다른 사람이 이미 저장한 경우 그 사본은 회수할 수 없어요.</p>
-    <button type="button" onClick={() => void request('PATCH', JSON.stringify({ publicPhoto }), 'application/json')} disabled={saving || !state.imageVersion}>{saving ? '저장 중…' : '공개 범위 저장'}</button>
-    {state.imageVersion && <button type="button" onClick={() => void request('DELETE')} disabled={saving}>프로필 사진 삭제</button>}
-    {message && <p role="status">{message}</p>}
+    {menuOpen && createPortal(<div className="profile-photo-action-backdrop" onPointerDown={event => { if (event.target === event.currentTarget) closeMenu() }}>
+      <section ref={dialog} className="profile-photo-action-sheet" role="dialog" aria-modal="true" aria-label="프로필 사진 메뉴" tabIndex={-1}>
+        <h2>프로필 사진</h2>
+        {loadError ? <div className="profile-photo-action-status" role="status"><p>{loadError}</p><button type="button" onClick={() => { onRetry(); setError('') }}>다시 불러오기</button></div>
+          : !state ? <p role="status">사진 설정을 불러오는 중…</p>
+          : !state.available ? <p role="status">프로필 사진 기능을 준비하고 있어요.</p>
+          : <div className="profile-photo-action-list">
+            <button type="button" onClick={() => fileInput.current?.click()} disabled={saving}>보관함에서 사진 선택</button>
+            {state.imageVersion && <button type="button" className="profile-photo-delete" onClick={() => void request('DELETE')} disabled={saving}>{saving ? '삭제 중…' : '프로필 사진 삭제'}</button>}
+          </div>}
+        {error && <p className="profile-photo-action-error" role="alert">{error}</p>}
+        <button type="button" className="profile-photo-action-cancel" onClick={closeMenu} disabled={saving}>취소</button>
+      </section>
+    </div>, document.body)}
     {editorFile && <ProfilePhotoCropDialog file={editorFile} onClose={closeEditor} onApply={cropped => request('PUT', cropped, 'image/webp')} />}
-  </fieldset>
+  </>
+}
+
+export function PhotoVisibilityPreference({ state, onSaved, onExpired }: { state: PhotoState; onSaved: (state: PhotoState) => void; onExpired: () => void }) {
+  const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState('')
+  const alive = useRef(false), busy = useRef(false)
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+  const toggle = async () => {
+    if (busy.current || !state.imageVersion || !state.available) return
+    busy.current = true; setSaving(true); setMessage('')
+    try {
+      const next = await mutatePhoto('PATCH', JSON.stringify({ publicPhoto: !state.publicPhoto }), 'application/json')
+      if (!alive.current) return
+      onSaved(next); announcePhotoChange()
+      setMessage(next.publicPhoto ? '리뷰 작성자 사진을 공개했어요.' : '리뷰 작성자 사진을 비공개로 바꿨어요.')
+    } catch (reason) {
+      if (!alive.current) return
+      if (reason instanceof AuthExpiredError) onExpired()
+      else setMessage('사진 공개 설정을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.')
+    } finally { busy.current = false; if (alive.current) setSaving(false) }
+  }
+  if (!state.available) return null
+  return <section className="profile-photo-visibility" aria-label="사진 공개 설정">
+    <div><strong>리뷰에 사진 공개</strong><small>{state.imageVersion ? '공개하면 작성한 리뷰에 프로필 사진이 표시돼요.' : '프로필 사진을 등록하면 공개할 수 있어요.'}</small></div>
+    <button type="button" className="profile-photo-switch" role="switch" aria-checked={state.publicPhoto} aria-label="리뷰에 프로필 사진 공개" disabled={!state.imageVersion || saving} onClick={() => void toggle()}><i aria-hidden="true" /><span>{state.publicPhoto ? 'ON' : 'OFF'}</span></button>
+    {message && <p role="status">{message}</p>}
+  </section>
 }
