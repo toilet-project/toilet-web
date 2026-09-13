@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { accountPolicyPublication, policyPublicationAttributes } from '../lib/accountPolicyPublication'
+import { profilePhotoPolicyPublication, profilePhotoPolicyPublicationAttributes } from '../lib/profilePhotoPolicyPublication'
 import { reviewPolicyPublication, reviewPolicyPublicationAttributes } from '../lib/reviewPolicyPublication'
 
 type PolicyPageKind = 'terms' | 'privacy' | 'location' | 'all'
@@ -10,6 +11,9 @@ const publicationNotice = accountPolicyPublication.status === 'draft' ? '검토�
 const reviewPublicationNotice = reviewPolicyPublication.status === 'published'
   ? `리뷰 정책 · 공지·시행: ${new Date(reviewPolicyPublication.effectiveAt!).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} (한국시간)`
   : '리뷰 정책 검토안 · 시행일 미정'
+const profilePhotoPublicationNotice = profilePhotoPolicyPublication.status === 'published'
+  ? `프로필 사진 정책 · 공지·시행: ${new Date(profilePhotoPolicyPublication.effectiveAt!).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })} (한국시간)`
+  : '프로필 사진 정책 검토안 · 시행일 미정'
 
 function PolicyLayout({ title, children, embedded = false }: { title: string; children: ReactNode; embedded?: boolean }) {
   if (embedded) return <section className="policy-combined-section"><h2>{title}</h2>{children}</section>
@@ -18,7 +22,7 @@ function PolicyLayout({ title, children, embedded = false }: { title: string; ch
       <a href="/" className="policy-brand">급똥</a>
       <a href="/" className="policy-home-link">지도로 돌아가기</a>
     </header>
-    <article className="policy-document" {...policyPublicationAttributes(accountPolicyPublication)} {...reviewPolicyPublicationAttributes(reviewPolicyPublication)}>
+    <article className="policy-document" {...policyPublicationAttributes(accountPolicyPublication)} {...reviewPolicyPublicationAttributes(reviewPolicyPublication)} {...profilePhotoPolicyPublicationAttributes(profilePhotoPolicyPublication)}>
       <p className="policy-eyebrow">급똥 정책 안내</p>
       <h1>{title}</h1>
       <p className="policy-effective">{publicationNotice}</p>
@@ -35,6 +39,15 @@ function PolicyLayout({ title, children, embedded = false }: { title: string; ch
           <li>로그인 사용자가 가까운 현장에서만 리뷰를 작성할 수 있도록 위치·정확도·측정 시각을 일시적으로 확인합니다.</li>
           <li>작성자 정보 지우기 후 작성자 연결은 제거되고 이름은 ‘익명’으로 바뀌지만, 평가와 자유글은 서비스 정보로 남습니다.</li>
           <li>리뷰 기능의 실제 이용 가능 여부는 서버의 별도 안전 설정으로 관리하며 정책 공개만으로 자동 활성화되지 않습니다.</li>
+        </ul>
+      </section>}
+      {profilePhotoPolicyPublication.status === 'published' && <section className="policy-change-notice" aria-label="프로필 사진 정책 변경 안내">
+        <h2>프로필 사진 보관 정책 안내</h2>
+        <p>{profilePhotoPublicationNotice}</p>
+        <ul>
+          <li>가입 시 선택 제공받은 카카오 사진이나 이용자가 직접 등록한 사진은 작은 WebP로 변환해 미국의 비공개 Cloudflare R2에 보관합니다.</li>
+          <li>사진은 기본 비공개이며, 이용자가 공개를 선택한 경우에만 공개 리뷰 작성자 사진으로 표시합니다.</li>
+          <li>프로필 사진을 제공하지 않아도 기본 아바타로 회원 기능을 이용할 수 있습니다. 정책 공개만으로 사진 기능이 자동 활성화되지는 않습니다.</li>
         </ul>
       </section>}
       {accountPolicyPublication.status === 'draft' && <p className="policy-draft-notice">아직 시행되지 않은 검토안입니다. 회원정보의 실제 보관 구조, 개인정보 사본·재생 방지 기록의 종료 절차와 공지 일정을 확인한 뒤 확정합니다. 현재 시행 중인 정책을 대체하지 않습니다.</p>}
@@ -73,7 +86,7 @@ export function PolicyPage({ kind, embedded = false }: { kind: PolicyPageKind; e
     <section><h2>2. 이용 목적</h2><p>회원 식별, 소셜 로그인, 제보 접수·처리 결과 제공, 가까운 현장에서의 리뷰 작성 자격 확인, 리뷰 제공과 부정·중복 이용 방지, 장애 대응, 서비스 품질 개선에 사용합니다.</p></section>
     <section><h2>3. 보유 기간</h2><ul><li>이메일·인증 여부·일반 로그인 정보: 회원 탈퇴 시 삭제·초기화</li><li>계정 복구용 정보: 탈퇴 시 별도 선택 동의한 경우에 한하여 탈퇴 시각부터 달력상 3개월. 소셜 제공자·보호된 고유 식별자, 닉네임, 회원·제보 연결 정보와 동의·탈퇴·삭제 예정 시각을 복구 목적으로 보관합니다. 이메일·소셜 토큰은 복구용으로 보관하지 않습니다.</li><li>복구용 보관 미동의 또는 보관 중 삭제 요청: 회원·소셜 식별정보, 회원별 동의·알림 및 제보의 회원 연결·자유 입력 사유를 파기합니다. 같은 소셜 로그인으로 재가입해도 이전 계정과 연결되지 않습니다.</li><li>리프레시 토큰: 발급 후 최대 14일 또는 로그아웃·탈퇴 시까지</li><li>리뷰: 서비스에서 해당 화장실의 이용 경험을 제공하는 동안 별점·청결도·화장지 유무·대기시간과 선택 작성글을 보존합니다. 이용자가 ‘작성자 정보 지우기’를 선택하면 작성자 계정 연결과 등록 요청 연결을 제거하고 작성자를 ‘익명’으로 표시하지만 리뷰 내용은 남습니다. 개인정보 노출·권리 침해 신고, 법령상 의무 또는 서비스 종료 등 별도 사유가 있으면 해당 내용의 수정·삭제 여부를 검토합니다.</li><li>리뷰 작성 자격 확인 위치: 작성 가능 여부를 판단한 요청 처리 중에만 사용하며 리뷰 행에 저장하지 않습니다.</li><li>제보 및 처리 이력: 개인정보를 제거한 업무 이력은 기간 만료로 삭제하지 않고 계속 보존합니다. 회원정보 파기 시 작성자 연결과 개인정보가 포함될 수 있는 자유 입력 사유·검토 메모를 제거합니다. 승인되어 공공 화장실 정보에 반영된 내용은 유지합니다.</li><li>운영 감사 이력: 개인정보를 제거한 행위·처리 결과 이력은 기간 만료로 삭제하지 않고 계속 보존합니다. 개인정보를 포함한 원본의 영구 보관을 뜻하지 않습니다. 회원정보 파기 시 해당 회원 식별 연결과 상세 내용을 제거합니다.</li><li>일반 접속·시스템 로그: 이번 탈퇴 개정에서 서비스 전체 로그의 기간별 삭제 정책이나 저장 방식을 새로 도입하지 않습니다. 기존 운영 로그 회전·용량 제한은 유지되며, 원본 로그의 영구 저장을 보장하지 않습니다.</li></ul><p>복구용 보관 동의는 선택 사항이며 거부해도 탈퇴할 수 있습니다. 보관 중에는 동일 소셜 로그인 후 복구하지 않고 즉시 삭제를 요청하거나 개인정보 문의 이메일을 이용할 수 있습니다. 보유 목적이 끝난 정보는 복구하기 어려운 방법으로 파기하며, 관계 법령에서 별도 보존을 요구하는 경우에는 근거와 기간에 따라 분리 보관합니다. 장애로 파기가 지연되면 서비스 이용·복구를 차단한 상태로 재시도합니다.</p></section>
     <section><h2>4. 외부 서비스 이용</h2><p>로그인을 위해 Google·Kakao OAuth, 지도와 주소 확인을 위해 Kakao Maps, 웹 제공·보안·이메일 전달과 프로필 사진 보관을 위해 Cloudflare를 이용합니다. 각 제공자가 인증과 전송 과정에서 처리하는 정보에는 해당 제공자의 정책이 적용됩니다.</p></section>
-    <section id="profile-photo-overseas"><h2>4-1. 프로필 사진 국외 보관 안내</h2><p>이 항목은 프로필 사진 기능을 운영하기 전에 고지·시행 시각을 확정할 검토안입니다.</p><dl className="policy-storage-facts"><div><dt>이전되는 항목</dt><dd>최대 256×256 WebP로 변환된 프로필 사진</dd></div><div><dt>국가·시기·방법</dt><dd>미국 · 신규 가입 시 카카오 사진 제공에 동의하거나 이용자가 직접 사진을 등록할 때 암호화된 통신으로 온라인 전송</dd></div><div><dt>이전받는 자</dt><dd>Cloudflare, Inc. · legal@cloudflare.com</dd></div><div><dt>목적·기간</dt><dd>비공개 R2에 프로필 사진을 보관해 본인에게 표시하고, 공개를 선택한 경우 공개 리뷰 작성자 사진에 표시 · 이용자가 사진을 삭제하거나 회원 탈퇴할 때까지</dd></div><div><dt>거부 방법과 영향</dt><dd>카카오 가입 화면에서 사진 제공을 선택하지 않거나 프로필 사진을 등록하지 않을 수 있습니다. 기본 아바타로 회원 기능을 이용할 수 있습니다.</dd></div></dl></section>
+    <section id="profile-photo-overseas"><h2>4-1. 프로필 사진 국외 보관 안내</h2><p>{profilePhotoPublicationNotice}</p><dl className="policy-storage-facts"><div><dt>이전되는 항목</dt><dd>최대 256×256 WebP로 변환된 프로필 사진</dd></div><div><dt>국가·시기·방법</dt><dd>미국 · 신규 가입 시 카카오 사진 제공에 동의하거나 이용자가 직접 사진을 등록할 때 암호화된 통신으로 온라인 전송</dd></div><div><dt>이전받는 자</dt><dd>Cloudflare, Inc. · legal@cloudflare.com</dd></div><div><dt>목적·기간</dt><dd>비공개 R2에 프로필 사진을 보관해 본인에게 표시하고, 공개를 선택한 경우 공개 리뷰 작성자 사진에 표시 · 이용자가 사진을 삭제하거나 회원 탈퇴할 때까지</dd></div><div><dt>거부 방법과 영향</dt><dd>카카오 가입 화면에서 사진 제공을 선택하지 않거나 프로필 사진을 등록하지 않을 수 있습니다. 기본 아바타로 회원 기능을 이용할 수 있습니다.</dd></div></dl></section>
     <section id="erasure-records"><h2>4-2. 백업과 계정 재생 방지 기록</h2>
       <p>서비스 DB의 회원정보 파기, 선택한 복구 정보의 3개월 보관, 암호화 백업과 계정 재생 방지 기록은 서로 다른 처리입니다. 회원정보 파기 완료 안내가 기존 모든 사본의 동시 삭제를 뜻하지 않습니다.</p>
       <p>탈퇴 시점부터 달력상 3개월의 복구 가능 기한이 지나면 복구를 허용하지 않습니다. 기한이 지난 정보는 일별 공공데이터 수집 종료 후 정기 파기 작업의 대상이 됩니다. 장애가 있으면 완료로 표시하지 않고 처리 대기·실패 상태로 관리합니다.</p>
