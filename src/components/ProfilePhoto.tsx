@@ -8,6 +8,7 @@ import { useDialogFocus } from '../lib/useDialogFocus'
 import { ProfilePhotoCropDialog } from './ProfilePhotoCropDialog'
 
 const CHANGED = 'geupddong-profile-photo-changed'
+const VISIBILITY_CHANGED = 'geupddong-profile-photo-visibility-changed'
 /** Blob URLs are scoped to the mounted account/view and are revoked on unmount. No Next image proxy cache. */
 export function PhotoImage({ path, privatePhoto = false, fallback, label = '프로필 사진' }: {
   path: string | null; privatePhoto?: boolean; fallback: ReactNode; label?: string;
@@ -35,7 +36,12 @@ export function PhotoImage({ path, privatePhoto = false, fallback, label = '프�
     }
     const changed = () => { void load() }
     void load(); window.addEventListener(CHANGED, changed)
-    return () => { active = false; generation++; request?.abort(); window.removeEventListener(CHANGED, changed); if (objectUrl) URL.revokeObjectURL(objectUrl) }
+    if (!privatePhoto) window.addEventListener(VISIBILITY_CHANGED, changed)
+    return () => {
+      active = false; generation++; request?.abort(); window.removeEventListener(CHANGED, changed)
+      if (!privatePhoto) window.removeEventListener(VISIBILITY_CHANGED, changed)
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
   }, [path, privatePhoto])
   return image?.path === path ? <img src={image.url} alt={label} width={256} height={256} onError={() => setImage(null)} /> : fallback
 }
@@ -56,6 +62,7 @@ async function mutatePhoto(method: 'PUT' | 'PATCH' | 'DELETE', body?: BodyInit, 
 }
 
 function announcePhotoChange() { window.dispatchEvent(new Event(CHANGED)) }
+function announcePhotoVisibilityChange() { window.dispatchEvent(new Event(VISIBILITY_CHANGED)) }
 
 export function PhotoActions({ state, loadError, onRetry, onSaved, onExpired, onOpen, onNotice }: {
   state: PhotoState | null
@@ -132,27 +139,26 @@ export function PhotoActions({ state, loadError, onRetry, onSaved, onExpired, on
 
 export function PhotoVisibilityPreference({ state, onSaved, onExpired }: { state: PhotoState; onSaved: (state: PhotoState) => void; onExpired: () => void }) {
   const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
+  const [error, setError] = useState('')
   const alive = useRef(false), busy = useRef(false)
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
   const toggle = async () => {
     if (busy.current || !state.imageVersion || !state.available) return
-    busy.current = true; setSaving(true); setMessage('')
+    busy.current = true; setSaving(true); setError('')
     try {
       const next = await mutatePhoto('PATCH', JSON.stringify({ publicPhoto: !state.publicPhoto }), 'application/json')
       if (!alive.current) return
-      onSaved(next); announcePhotoChange()
-      setMessage(next.publicPhoto ? '리뷰 작성자 사진을 공개했어요.' : '리뷰 작성자 사진을 비공개로 바꿨어요.')
+      onSaved(next); announcePhotoVisibilityChange()
     } catch (reason) {
       if (!alive.current) return
       if (reason instanceof AuthExpiredError) onExpired()
-      else setMessage('사진 공개 설정을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.')
+      else setError('사진 공개 설정을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.')
     } finally { busy.current = false; if (alive.current) setSaving(false) }
   }
   if (!state.available) return null
   return <section className="profile-photo-visibility" aria-label="사진 공개 설정">
     <div><strong>리뷰에 사진 공개</strong><small>{state.imageVersion ? '공개하면 작성한 리뷰에 프로필 사진이 표시돼요.' : '프로필 사진을 등록하면 공개할 수 있어요.'}</small></div>
     <button type="button" className="profile-photo-switch" role="switch" aria-checked={state.publicPhoto} aria-label="리뷰에 프로필 사진 공개" disabled={!state.imageVersion || saving} onClick={() => void toggle()}><i aria-hidden="true" /><span>{state.publicPhoto ? 'ON' : 'OFF'}</span></button>
-    {message && <p role="status">{message}</p>}
+    {error && <p role="alert">{error}</p>}
   </section>
 }

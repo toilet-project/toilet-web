@@ -60,22 +60,41 @@ export default function Fixture(){
   await visibility.waitFor()
   await page.locator('.mobile-avatar img').waitFor()
   assert.equal(await visibility.getAttribute('aria-checked'),'false')
+  assert.deepEqual(await visibility.evaluate(button=>{
+   const knob=button.querySelector('i').getBoundingClientRect(),label=button.querySelector('span').getBoundingClientRect()
+   return {background:getComputedStyle(button).backgroundColor,knobBeforeLabel:knob.right<=label.left}
+  }),{background:'rgb(174, 179, 176)',knobBeforeLabel:true})
   await page.screenshot({path:path.join(evidence,'private-mobile.png'),fullPage:true})
   await visibility.click()
-  await page.getByText(/리뷰 작성자 사진을 공개했어요/).waitFor();assert.equal(writes,1);assert.equal(setting.publicPhoto,true)
+  await page.waitForFunction(()=>document.querySelector('[role="switch"]')?.getAttribute('aria-checked')==='true')
+  assert.equal(writes,1);assert.equal(setting.publicPhoto,true)
   assert.equal(await visibility.getAttribute('aria-checked'),'true')
+  assert.deepEqual(await visibility.evaluate(button=>{
+   const knob=button.querySelector('i').getBoundingClientRect(),label=button.querySelector('span').getBoundingClientRect()
+   return {background:getComputedStyle(button).backgroundColor,labelBeforeKnob:label.right<=knob.left}
+  }),{background:'rgb(23, 104, 58)',labelBeforeKnob:true})
+  assert.equal(await page.getByText(/리뷰 작성자 사진을 (공개했어요|비공개로 바꿨어요)/).count(),0)
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
   await page.getByRole('button',{name:'이용자 리뷰 보기'}).click()
   await page.locator('.public-review-avatar img').waitFor()
   await page.screenshot({path:path.join(evidence,'public-review.png'),fullPage:true})
-  setting.publicPhoto=false
-  await page.evaluate(()=>window.dispatchEvent(new Event('geupddong-profile-photo-changed')))
+  await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
+  await page.getByRole('button',{name:'프로필 수정',exact:true}).click()
+  const ownPhotoBeforeOff=await page.locator('.mobile-avatar img').getAttribute('src'),readsBeforeOff=imageReads
+  await page.getByRole('switch',{name:'리뷰에 프로필 사진 공개'}).click()
+  await page.waitForFunction(()=>document.querySelector('[role="switch"]')?.getAttribute('aria-checked')==='false')
+  assert.equal(writes,2);assert.equal(setting.publicPhoto,false)
+  assert.equal(await page.locator('.mobile-avatar img').getAttribute('src'),ownPhotoBeforeOff)
+  assert.equal(imageReads,readsBeforeOff)
+  assert.equal(await page.getByText(/리뷰 작성자 사진을 (공개했어요|비공개로 바꿨어요)/).count(),0)
+  await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
+  await page.getByRole('button',{name:'이용자 리뷰 보기'}).click()
   await page.waitForFunction(()=>!document.querySelector('.public-review-avatar img'))
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
   await page.getByRole('button',{name:'프로필 수정',exact:true}).click()
   failSave=true
   await page.getByRole('switch',{name:'리뷰에 프로필 사진 공개'}).click()
-  await page.getByText(/사진 공개 설정을 저장하지 못했어요/).waitFor();assert.equal(writes,2);assert.equal(setting.publicPhoto,false)
+  await page.getByText(/사진 공개 설정을 저장하지 못했어요/).waitFor();assert.equal(writes,3);assert.equal(setting.publicPhoto,false)
   failSave=false
   await page.getByRole('button',{name:'프로필 사진 변경',exact:true}).click()
   await page.getByRole('button',{name:'프로필 사진 삭제',exact:true}).click()
@@ -122,7 +141,7 @@ export default function Fixture(){
   assert.equal(await page.locator('.mobile-avatar img').count(),0)
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false)
   assert.deepEqual(errors,[])
-  console.log(JSON.stringify({passed:true,writes,imageReads,checks:['photo-action-sheet','visibility-switch','private-owner','public-review','revocation','save-failure','delete','large-source-auto-resize','crop-grid','reset-icon','apply-layout','webp-export','png-export-fallback','client-crop-upload','account-switch','mobile-width']}))
+  console.log(JSON.stringify({passed:true,writes,imageReads,checks:['photo-action-sheet','pill-visibility-switch','toggle-no-success-message','private-owner','off-keeps-own-photo','off-hides-public-review','public-review','revocation','save-failure','delete','large-source-auto-resize','crop-grid','reset-icon','apply-layout','webp-export','png-export-fallback','client-crop-upload','account-switch','mobile-width']}))
   await context.close()
  } finally {
   if(browser)await browser.close()
