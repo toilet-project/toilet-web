@@ -5,7 +5,7 @@ import { createReviewApi, decodeReview, ReviewApiError } from '../src/lib/review
 import { canManageReview } from '../src/lib/review.ts'
 
 const record = () => ({ id: '1', toiletId: 12, toiletName: '가상 화장실', satisfaction: 4, cleanliness: 5, paper: true, waitMinutes: 0, comment: '합성 리뷰', version: 0,
-  createdAt: '2026-09-12T00:00:00+09:00', updatedAt: '2026-09-12T00:00:00+09:00', editableUntil: '2026-09-19T00:00:00+09:00', canManage: true, authorRemoved: false, authorDisplayName: '시험 사용자' })
+  createdAt: '2026-09-12T00:00:00+09:00', updatedAt: '2026-09-12T00:00:00+09:00', editableUntil: '2026-09-19T00:00:00+09:00', canManage: true, authorRemoved: false, authorDisplayName: '시험 사용자', authorPhotoVersion: null })
 const key = '00000000-0000-4000-8000-000000000001'
 const position = { latitude: 36.3, longitude: 127.3, accuracyMeters: 10, measuredAt: '2026-09-12T00:00:00Z' }
 const range = { period: '7', from: '2026-09-06', to: '2026-09-12' }
@@ -17,7 +17,9 @@ function setup(responses) {
 const response = (value, status = 200) => Response.json(value, { status })
 test('review response is strict and strips unneeded identity fields', () => {
   assert.deepEqual(decodeReview({ ...record(), email: 'never-store', position }), record())
+  assert.equal(decodeReview({ ...record(), authorPhotoVersion: '12345678-1234-1234-1234-123456789abc' }).authorPhotoVersion,'12345678-1234-1234-1234-123456789abc')
   for (const change of [{ paper: 'true' }, { satisfaction: 4.5 }, { id: '../me' }, { createdAt: '2026-09-12T00:00:00' }, { canManage: undefined }, { comment: '🙂'.repeat(201) }]) assert.throws(() => decodeReview({ ...record(), ...change }), ReviewApiError)
+  for (const change of [{ authorPhotoVersion: '../member' }, { authorRemoved: true, authorPhotoVersion: '12345678-1234-1234-1234-123456789abc' }]) assert.throws(() => decodeReview({ ...record(), ...change }), ReviewApiError)
   assert.equal(canManageReview({ ...record(), canManage: false }, Date.parse(record().createdAt)), false)
 })
 test('real create sends only allowlisted content and transient location, with one stable request key', async () => {

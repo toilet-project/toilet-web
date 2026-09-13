@@ -1,7 +1,7 @@
 import type { Review, ReviewInput } from './review'
 import type { HistoryRange } from './history'
 
-export type StoredReview = Review & { version: number; canManage: boolean; editableUntil: string; authorDisplayName: string }
+export type StoredReview = Review & { version: number; canManage: boolean; editableUntil: string; authorDisplayName: string; authorPhotoVersion: string | null }
 export type ReviewPosition = { latitude: number; longitude: number; accuracyMeters: number; measuredAt: string }
 export type ReviewCreationStatus = { canCreate: boolean; existingReviewId: string | null; nextAllowedAt: string | null }
 export type ReviewPage = { items: StoredReview[]; nextCursor: string | null; hasMore: boolean }
@@ -31,18 +31,22 @@ const id = (v: unknown): v is string => typeof v === 'string' && /^[1-9]\d{0,18}
 const integer = (v: unknown, min: number, max = Number.MAX_SAFE_INTEGER): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= min && v <= max
 const finite = (v: unknown, min: number, max: number): v is number => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max
 const stamp = (v: unknown): v is string => typeof v === 'string' && /(Z|[+-]\d{2}:\d{2})$/.test(v) && Number.isFinite(Date.parse(v))
+const photoVersion = (v: unknown): v is string | null => v === null || typeof v === 'string' && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(v)
 const malformed = () => new ReviewApiError('INVALID_RESPONSE', '리뷰 응답을 확인하지 못했어요. 다시 불러와 주세요.')
 export function decodeReview(value: unknown): StoredReview {
   const r = object(value)
+  const authorPhotoVersion = r.authorPhotoVersion === undefined ? null : r.authorPhotoVersion
   if (!id(r.id) || !integer(r.toiletId, 1) || typeof r.toiletName !== 'string' || !integer(r.satisfaction, 1, 5)
     || !integer(r.cleanliness, 1, 5) || typeof r.paper !== 'boolean' || !integer(r.waitMinutes, 0, 60) || r.waitMinutes % 10 !== 0
     || typeof r.comment !== 'string' || Array.from(r.comment).length > 200 || !integer(r.version, 0)
     || !stamp(r.createdAt) || !stamp(r.updatedAt) || !stamp(r.editableUntil) || typeof r.canManage !== 'boolean'
-    || typeof r.authorRemoved !== 'boolean' || typeof r.authorDisplayName !== 'string') throw malformed()
+    || typeof r.authorRemoved !== 'boolean' || typeof r.authorDisplayName !== 'string' || !photoVersion(authorPhotoVersion)
+    || r.authorRemoved && authorPhotoVersion !== null) throw malformed()
   // Allowlist the response; never keep unexpected identity/location fields in browser state.
   return { id: r.id, toiletId: r.toiletId, toiletName: r.toiletName, satisfaction: r.satisfaction, cleanliness: r.cleanliness,
     paper: r.paper, waitMinutes: r.waitMinutes, comment: r.comment, version: r.version, createdAt: r.createdAt,
-    updatedAt: r.updatedAt, editableUntil: r.editableUntil, canManage: r.canManage, authorRemoved: r.authorRemoved, authorDisplayName: r.authorDisplayName }
+    updatedAt: r.updatedAt, editableUntil: r.editableUntil, canManage: r.canManage, authorRemoved: r.authorRemoved,
+    authorDisplayName: r.authorDisplayName, authorPhotoVersion }
 }
 function decodeStatus(value: unknown): ReviewCreationStatus {
   const r = object(value)

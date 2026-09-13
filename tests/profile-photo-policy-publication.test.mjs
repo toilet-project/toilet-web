@@ -5,12 +5,12 @@ import { profilePhotoPolicyPublication, profilePhotoPolicyPublicationAttributes 
 
 test('profile-photo policy has an independent published audit marker', async () => {
   assert.equal(profilePhotoPolicyPublication.status, 'published')
-  assert.equal(profilePhotoPolicyPublication.version, 'profile-photo-us-r2-v1')
-  assert.equal(profilePhotoPolicyPublication.announcedAt, '2026-09-13T08:20:00Z')
-  assert.equal(profilePhotoPolicyPublication.effectiveAt, '2026-09-13T08:20:00Z')
+  assert.equal(profilePhotoPolicyPublication.version, 'profile-photo-us-r2-public-v2')
+  assert.equal(profilePhotoPolicyPublication.announcedAt, '2026-09-13T15:15:00Z')
+  assert.equal(profilePhotoPolicyPublication.effectiveAt, '2026-09-13T15:15:00Z')
   const attributes = profilePhotoPolicyPublicationAttributes(profilePhotoPolicyPublication)
   assert.equal(attributes['data-profile-photo-policy-status'], 'published')
-  assert.equal(attributes['data-profile-photo-policy-effective-at'], '2026-09-13T08:20:00Z')
+  assert.equal(attributes['data-profile-photo-policy-effective-at'], '2026-09-13T15:15:00Z')
   const page = await readFile(new URL('../src/components/PolicyPage.tsx', import.meta.url), 'utf8')
   assert.match(page, /프로필 사진 보관 정책 안내/)
   assert.doesNotMatch(page, /프로필 사진 기능을 운영하기 전에 고지·시행 시각을 확정할 검토안/)

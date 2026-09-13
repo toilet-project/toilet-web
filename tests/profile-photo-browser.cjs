@@ -35,15 +35,15 @@ export default function Fixture(){
    if(p==='/api/v1/auth/me/photo') {
     if(route.request().method()==='PATCH'){writes++;if(failSave)return json({},500);setting={...setting,...route.request().postDataJSON()}}
     if(route.request().method()==='DELETE'){writes++;setting={available:true,publicPhoto:false,imageVersion:null}}
-    if(route.request().method()==='PUT'){writes++;uploadedPhoto=route.request().postDataBuffer();uploadedType=route.request().headers()['content-type'];uploadedTypes.push(uploadedType);if(failSave)return json({},500);setting={available:true,publicPhoto:false,imageVersion:version}}
+    if(route.request().method()==='PUT'){writes++;uploadedPhoto=route.request().postDataBuffer();uploadedType=route.request().headers()['content-type'];uploadedTypes.push(uploadedType);if(failSave)return json({},500);setting={available:true,publicPhoto:true,imageVersion:version}}
     return json(user==='1'?setting:{available:true,publicPhoto:false,imageVersion:null})
    }
-   if(p==='/api/v1/auth/me/photo/image'||p==='/api/v1/toilets/20/reviews/10/photo'){
+   if(p==='/api/v1/auth/me/photo/image'||p===`/api/v1/profile-photos/${version}.webp`){
     imageReads++
-    if(user!=='1'||!setting.imageVersion||(p.includes('/reviews/')&&!setting.publicPhoto))return json({},404)
+    if(user!=='1'||!setting.imageVersion||(p.includes('/profile-photos/')&&!setting.publicPhoto))return json({},404)
     return route.fulfill({contentType:'image/webp',body:syntheticWebp,headers:{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true','Cache-Control':'no-store'}})
    }
-   if(p==='/api/v1/toilets/20/reviews')return json({items:[{id:'10',toiletId:20,toiletName:'합성 화장실',satisfaction:4,cleanliness:5,paper:true,waitMinutes:0,comment:'합성 리뷰',version:0,createdAt:stamp,updatedAt:stamp,editableUntil:stamp,canManage:false,authorRemoved:false,authorDisplayName:'합성 사용자 1'}],hasMore:false,nextCursor:null})
+   if(p==='/api/v1/toilets/20/reviews')return json({items:[{id:'10',toiletId:20,toiletName:'합성 화장실',satisfaction:4,cleanliness:5,paper:true,waitMinutes:0,comment:'합성 리뷰',version:0,createdAt:stamp,updatedAt:stamp,editableUntil:stamp,canManage:false,authorRemoved:false,authorDisplayName:'합성 사용자 1',authorPhotoVersion:setting.publicPhoto?version:null}],hasMore:false,nextCursor:null})
    return json({},404)
   })
   const page=await context.newPage(),errors=[]
