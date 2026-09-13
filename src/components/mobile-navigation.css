@@ -149,9 +149,47 @@
 .profile-photo-preferences label { display: flex; align-items: center; gap: 8px; }
 .profile-photo-preferences p { margin: 0; font-size: 12px; line-height: 1.6; color: #586b60; }
 .profile-photo-preferences small { color: #586b60; line-height: 1.5; }
-.profile-photo-preferences input[type=file] { max-width: 100%; min-width: 0; box-sizing: border-box; padding: 9px; border: 1px solid #ccd8ce; border-radius: 8px; background: white; }
+.profile-photo-preferences .profile-photo-picker { border-color: #17683a; background: #17683a; color: #fff; font-weight: 700; }
+.profile-photo-file { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .profile-photo-preferences select { max-width: 100%; font-size: 16px; padding: 10px; border: 1px solid #ccd8ce; border-radius: 8px; background: white; }
 .profile-photo-preferences button { min-height: 44px; border: 1px solid #ccd8ce; border-radius: 8px; background: #f0f6f1; }
+
+.photo-crop-backdrop { position: fixed; z-index: 1000; inset: 0; display: grid; place-items: center; box-sizing: border-box; background: rgb(14 22 17 / 74%); }
+.photo-crop-dialog { display: grid; grid-template-rows: auto auto auto auto auto; gap: 18px; box-sizing: border-box; width: min(100%, 480px); max-height: 100dvh; overflow-y: auto; padding: max(12px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom)); background: #fff; color: #25392d; overscroll-behavior: contain; }
+.photo-crop-dialog > header { display: grid; grid-template-columns: minmax(64px, 1fr) auto minmax(94px, 1fr); align-items: center; gap: 8px; }
+.photo-crop-dialog > header h2 { margin: 0; font-size: 18px; text-align: center; }
+.profile-photo-preferences .photo-crop-dialog > header button { border: 0; background: transparent; color: #5e6c63; font-weight: 650; }
+.profile-photo-preferences .photo-crop-dialog > header button:first-child { justify-self: start; }
+.profile-photo-preferences .photo-crop-dialog > header .photo-crop-apply { justify-self: end; color: #17683a; font-weight: 800; }
+.photo-crop-stage { position: relative; width: min(100%, 420px); aspect-ratio: 1; justify-self: center; overflow: hidden; border-radius: 8px; background: #17201a; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 14%); touch-action: none; user-select: none; }
+.photo-crop-stage canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
+.photo-crop-stage > p { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; color: #fff; text-align: center; }
+.photo-crop-grid, .photo-crop-avatar-guide { position: absolute; inset: 0; pointer-events: none; }
+.photo-crop-grid { opacity: .66; }
+.photo-crop-grid i { position: absolute; display: block; background: rgb(255 255 255 / 72%); box-shadow: 0 0 1px rgb(0 0 0 / 35%); }
+.photo-crop-grid i:nth-child(1), .photo-crop-grid i:nth-child(2) { top: 0; bottom: 0; width: 1px; }
+.photo-crop-grid i:nth-child(1) { left: 33.333%; }
+.photo-crop-grid i:nth-child(2) { left: 66.666%; }
+.photo-crop-grid i:nth-child(3), .photo-crop-grid i:nth-child(4) { left: 0; right: 0; height: 1px; }
+.photo-crop-grid i:nth-child(3) { top: 33.333%; }
+.photo-crop-grid i:nth-child(4) { top: 66.666%; }
+.photo-crop-avatar-guide { inset: 5%; border: 2px solid rgb(255 255 255 / 78%); border-radius: 50%; box-shadow: 0 0 0 1px rgb(0 0 0 / 22%); }
+.photo-crop-dialog > p { margin: 0; color: #5d6d63; font-size: 12px; line-height: 1.6; text-align: center; }
+.photo-crop-zoom { display: grid; grid-template-columns: 44px auto minmax(0, 1fr) 44px; align-items: center; gap: 10px; }
+.photo-crop-zoom label { color: #536259; font-size: 12px; font-weight: 700; }
+.photo-crop-zoom input { width: 100%; accent-color: #17683a; }
+.profile-photo-preferences .photo-crop-zoom button { border-radius: 50%; background: #f2f6f3; color: #17683a; font-size: 20px; }
+.profile-photo-preferences .photo-crop-reset { justify-self: center; min-height: 38px; padding: 0 16px; border: 0; background: transparent; color: #53675a; text-decoration: underline; text-underline-offset: 3px; }
+.photo-crop-error { padding: 10px 12px; border-radius: 8px; background: #fff2ef; color: #9b3528 !important; }
+
+@media (min-width: 481px) {
+  .photo-crop-dialog { border-radius: 20px; }
+}
+
+@media (max-width: 480px) {
+  .photo-crop-backdrop { place-items: stretch center; }
+  .photo-crop-dialog { min-height: 100dvh; align-content: start; }
+}
 
 .public-reviews { width: 100%; margin-top: 14px; }
 .public-reviews button { min-height: 40px; border: 1px solid #dce5df; border-radius: 8px; background: #f6faf7; padding: 8px 12px; color: #345340; }
