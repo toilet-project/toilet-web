@@ -94,6 +94,7 @@
   .mobile-profile-edit svg { box-sizing: content-box; width: 15px; height: 15px; padding: 6px; border: 2px solid #fff; border-radius: 50%; background: #eef1ef; }
   .mobile-profile-copy > span { display: block; margin-bottom: 6px; color: #88928b; font-size: 11px; }
   .mobile-profile-card h2 { margin: 0; font-size: 21px; font-weight: 750; letter-spacing: -.5px; overflow-wrap: anywhere; }
+  .mobile-profile-settings { min-height: 36px; margin: 2px 0 0 -8px; padding: 6px 8px; border: 0; background: transparent; color: #748178; font: inherit; font-size: 11px; font-weight: 650; text-decoration: underline; text-decoration-color: #bdc7c0; text-underline-offset: 3px; }
   .mobile-profile-card p { font-size: 12px; color: #6c7c71; line-height: 1.6; }
   .mobile-profile-form { display: grid; grid-column: 1 / -1; gap: 9px; padding: 16px; border-radius: 14px; background: #f7f9f7; text-align: left; }
   .mobile-profile-card > p[role=status] { grid-column: 1 / -1; }
@@ -144,22 +145,38 @@
 }
 
 .mobile-avatar>img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-.profile-photo-preferences { grid-column: 1 / -1; width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid #dce5df; border-radius: 12px; padding: 16px; display: grid; gap: 10px; }
-.profile-photo-preferences legend { font-weight: 700; }
-.profile-photo-preferences label { display: flex; align-items: center; gap: 8px; }
-.profile-photo-preferences p { margin: 0; font-size: 12px; line-height: 1.6; color: #586b60; }
-.profile-photo-preferences small { color: #586b60; line-height: 1.5; }
-.profile-photo-preferences .profile-photo-picker { border-color: #17683a; background: #17683a; color: #fff; font-weight: 700; }
 .profile-photo-file { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.profile-photo-preferences select { max-width: 100%; font-size: 16px; padding: 10px; border: 1px solid #ccd8ce; border-radius: 8px; background: white; }
-.profile-photo-preferences button { min-height: 44px; border: 1px solid #ccd8ce; border-radius: 8px; background: #f0f6f1; }
+.profile-photo-action-backdrop { position: fixed; z-index: 900; inset: 0; display: grid; align-items: end; box-sizing: border-box; background: rgb(13 20 16 / 56%); }
+.profile-photo-action-sheet { display: grid; gap: 12px; box-sizing: border-box; width: min(100%, 480px); justify-self: center; padding: 22px 18px max(18px, env(safe-area-inset-bottom)); border-radius: 22px 22px 0 0; background: #fff; color: #25392d; box-shadow: 0 -12px 36px rgb(17 36 24 / 18%); }
+.profile-photo-action-sheet h2 { margin: 0 0 4px; font-size: 18px; text-align: center; }
+.profile-photo-action-list { display: grid; overflow: hidden; border: 1px solid #e2e9e4; border-radius: 14px; }
+.profile-photo-action-list button, .profile-photo-action-cancel, .profile-photo-action-status button { min-height: 52px; border: 0; background: #fff; color: #263a2e; font: inherit; font-size: 14px; font-weight: 700; }
+.profile-photo-action-list button + button { border-top: 1px solid #e8ede9; }
+.profile-photo-action-list .profile-photo-delete { color: #b43e34; }
+.profile-photo-action-cancel { border-radius: 14px; background: #f0f4f1; color: #5c6a61; }
+.profile-photo-action-status { display: grid; gap: 8px; text-align: center; }
+.profile-photo-action-status p, .profile-photo-action-sheet > p { margin: 4px 0; color: #65736a; font-size: 13px; text-align: center; }
+.profile-photo-action-status button { border-radius: 12px; background: #eef5f0; color: #17683a; }
+.profile-photo-action-error { margin: 0; padding: 10px 12px; border-radius: 10px; background: #fff1ef; color: #a13b30 !important; font-size: 12px; text-align: center; }
+.profile-photo-action-sheet button:disabled { opacity: .5; }
+.profile-photo-visibility { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 12px; margin-top: 7px; padding: 14px 0 4px; border-top: 1px solid #e2e9e4; }
+.profile-photo-visibility > div { display: grid; gap: 4px; }
+.profile-photo-visibility strong { color: #304339; font-size: 13px; }
+.profile-photo-visibility small { line-height: 1.45; }
+.mobile-profile-form .profile-photo-switch { display: grid; grid-template-columns: 30px auto; min-width: 76px; min-height: 36px; align-items: center; gap: 7px; padding: 4px 9px 4px 5px; border-radius: 999px; background: #dce4de; color: #66746b; font-size: 11px; font-weight: 800; }
+.mobile-profile-form .profile-photo-switch i { position: relative; display: block; width: 30px; height: 20px; border-radius: 999px; background: #aab5ad; transition: background 150ms ease; }
+.mobile-profile-form .profile-photo-switch i::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 22%); transition: transform 150ms ease; }
+.mobile-profile-form .profile-photo-switch[aria-checked=true] { background: #e0f2e5; color: #17683a; }
+.mobile-profile-form .profile-photo-switch[aria-checked=true] i { background: #2dac60; }
+.mobile-profile-form .profile-photo-switch[aria-checked=true] i::after { transform: translateX(10px); }
+.profile-photo-visibility > p { grid-column: 1 / -1; margin: 3px 0 0; }
 
 .photo-crop-backdrop { position: fixed; z-index: 1000; inset: 0; display: grid; place-items: center; box-sizing: border-box; background: #0c0f0d; }
 .photo-crop-dialog { display: grid; grid-template-rows: auto auto auto auto auto; gap: 20px; box-sizing: border-box; width: min(100%, 480px); max-height: 100dvh; overflow-y: auto; padding: max(12px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom)); background: #101411; color: #f5f7f5; overscroll-behavior: contain; }
 .photo-crop-dialog > header { display: flex; min-height: 44px; align-items: center; justify-content: space-between; }
-.profile-photo-preferences .photo-crop-dialog > header button { border: 0; background: transparent; color: #f2f5f3; font-weight: 700; }
-.profile-photo-preferences .photo-crop-dialog > header button:first-child { justify-self: start; }
-.profile-photo-preferences .photo-crop-dialog > header .photo-crop-reset-icon { display: grid; width: 44px; height: 44px; min-height: 44px; place-items: center; padding: 0; border-radius: 50%; background: rgb(255 255 255 / 8%); }
+.photo-crop-dialog > header button { border: 0; background: transparent; color: #f2f5f3; font-weight: 700; }
+.photo-crop-dialog > header button:first-child { justify-self: start; }
+.photo-crop-dialog > header .photo-crop-reset-icon { display: grid; width: 44px; height: 44px; min-height: 44px; place-items: center; padding: 0; border-radius: 50%; background: rgb(255 255 255 / 8%); }
 .photo-crop-reset-icon svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .photo-crop-stage { position: relative; width: min(100%, 420px); aspect-ratio: 1; justify-self: center; overflow: hidden; border-radius: 2px; background: #070907; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 10%); touch-action: none; user-select: none; }
 .photo-crop-stage canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
@@ -177,9 +194,9 @@
 .photo-crop-dialog > p { margin: 0; color: #bec8c1; font-size: 13px; line-height: 1.6; text-align: center; }
 .photo-crop-zoom { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 14px; }
 .photo-crop-zoom input { width: 100%; accent-color: #35b767; }
-.profile-photo-preferences .photo-crop-zoom button { border: 0; border-radius: 50%; background: rgb(255 255 255 / 9%); color: #f4f7f5; font-size: 21px; }
-.profile-photo-preferences .photo-crop-dialog .photo-crop-apply { width: 100%; min-height: 52px; border: 0; border-radius: 13px; background: #2eac60; color: #fff; font-weight: 800; }
-.profile-photo-preferences .photo-crop-dialog button:disabled { opacity: .42; }
+.photo-crop-zoom button { min-height: 44px; border: 0; border-radius: 50%; background: rgb(255 255 255 / 9%); color: #f4f7f5; font-size: 21px; }
+.photo-crop-dialog .photo-crop-apply { width: 100%; min-height: 52px; border: 0; border-radius: 13px; background: #2eac60; color: #fff; font-weight: 800; }
+.photo-crop-dialog button:disabled { opacity: .42; }
 .photo-crop-error { padding: 10px 12px; border-radius: 10px; background: #3c1e1a; color: #ffbdb4 !important; }
 
 @media (min-width: 481px) {

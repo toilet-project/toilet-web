@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { clampCropOffset, clampPhotoZoom, createCropGeometry, MAX_PHOTO_ZOOM, MIN_PHOTO_ZOOM, PROFILE_PHOTO_CROP_SIZE, type CropOffset } from '../lib/profilePhotoCrop'
 import { useDialogFocus } from '../lib/useDialogFocus'
 
@@ -134,7 +135,7 @@ export function ProfilePhotoCropDialog({ file, onClose, onApply }: {
     finally { setExporting(false) }
   }
 
-  return <div className="photo-crop-backdrop" onPointerDown={event => { if (!exporting && event.target === event.currentTarget) onClose() }}>
+  return createPortal(<div className="photo-crop-backdrop" onPointerDown={event => { if (!exporting && event.target === event.currentTarget) onClose() }}>
     <section ref={dialog} className="photo-crop-dialog" role="dialog" aria-modal="true" aria-label="프로필 사진 편집" aria-describedby="photo-crop-help" tabIndex={-1}>
       <header>
         <button type="button" onClick={onClose} disabled={exporting}>취소</button>
@@ -157,5 +158,5 @@ export function ProfilePhotoCropDialog({ file, onClose, onApply }: {
       {error && <p className="photo-crop-error" role="alert">{error}</p>}
       <button type="button" className="photo-crop-apply" onClick={() => void save()} disabled={!image || exporting}>{exporting ? '저장 중…' : '적용하기'}</button>
     </section>
-  </div>
+  </div>, document.body)
 }

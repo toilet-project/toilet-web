@@ -1,5 +1,5 @@
 import { useProfilePhoto } from '../lib/useProfilePhoto'
-import { OwnPhoto, PhotoPreferences } from './ProfilePhoto'
+import { OwnPhoto, PhotoActions, PhotoVisibilityPreference } from './ProfilePhoto'
 import { PROFILE_PHOTO_ENABLED } from '../lib/profilePhoto'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { AuthExpiredError, startSocialLogin, updateNickname, type AuthProfile } from '../api/auth'
@@ -82,16 +82,15 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
   }
   return <section className="mobile-profile-card" aria-label="내 프로필">
     <div className="mobile-avatar-wrap"><div className="mobile-avatar"><OwnPhoto state={photo.state} fallback={<span role="img" aria-label="기본 프로필 이미지"><Icon name="account" /></span>} /></div>
-      <button type="button" className="mobile-profile-edit" aria-label="프로필 수정" onClick={() => { setNickname(profile.displayName || ''); setMessage(''); setEditing(value => !value) }}><Icon name="settings" /></button>
+      {PROFILE_PHOTO_ENABLED && <PhotoActions state={photo.state} loadError={photo.error} onRetry={photo.retry} onSaved={photo.update} onExpired={onSessionExpired} onOpen={() => { setEditing(false); setMessage('') }} onNotice={setMessage} />}
     </div>
-    <div className="mobile-profile-copy"><span>내 프로필</span><h2>{profile.displayName || '급똥 사용자'}</h2></div>
+    <div className="mobile-profile-copy"><span>내 프로필</span><h2>{profile.displayName || '급똥 사용자'}</h2><button type="button" className="mobile-profile-settings" onClick={() => { setNickname(profile.displayName || ''); setMessage(''); setEditing(value => !value) }}>프로필 수정</button></div>
     {editing && <form className="mobile-profile-form" onSubmit={event => void submit(event)}>
-      {!PROFILE_PHOTO_ENABLED && <p>프로필 이미지 수정은 구현 예정이에요.</p>}
       <label htmlFor="mobile-nickname">닉네임</label><input id="mobile-nickname" value={nickname} onChange={event => setNickname(event.target.value)} minLength={2} maxLength={30} required autoComplete="nickname" />
       <small>2~30자 · 다른 사용자와 같은 닉네임도 사용할 수 있어요.</small>
+      {PROFILE_PHOTO_ENABLED && (photo.error ? <div role="status">{photo.error}<button type="button" onClick={photo.retry}>다시 불러오기</button></div> : photo.state ? <PhotoVisibilityPreference state={photo.state} onSaved={photo.update} onExpired={onSessionExpired} /> : <p role="status">사진 설정을 불러오는 중…</p>)}
       <div><button type="button" disabled={saving} onClick={() => setEditing(false)}>취소</button><button type="submit" disabled={saving || nickname.trim().length < 2}>{saving ? '저장 중…' : '저장하기'}</button></div>
     </form>}
-    {editing && PROFILE_PHOTO_ENABLED && (photo.error ? <div role="status">{photo.error}<button type="button" onClick={photo.retry}>다시 불러오기</button></div> : photo.state ? <PhotoPreferences state={photo.state} onSaved={photo.update} onExpired={onSessionExpired} /> : <p role="status">사진 설정을 불러오는 중…</p>)}
     {message && <p role="status">{message}</p>}
   </section>
 }
