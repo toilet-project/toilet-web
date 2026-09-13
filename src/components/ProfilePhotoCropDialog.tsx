@@ -135,23 +135,27 @@ export function ProfilePhotoCropDialog({ file, onClose, onApply }: {
   }
 
   return <div className="photo-crop-backdrop" onPointerDown={event => { if (!exporting && event.target === event.currentTarget) onClose() }}>
-    <section ref={dialog} className="photo-crop-dialog" role="dialog" aria-modal="true" aria-labelledby="photo-crop-title" aria-describedby="photo-crop-help" tabIndex={-1}>
-      <header><button type="button" onClick={onClose} disabled={exporting}>취소</button><h2 id="photo-crop-title">사진 맞추기</h2><button type="button" className="photo-crop-apply" onClick={() => void save()} disabled={!image || exporting}>{exporting ? '저장 중…' : '이대로 사용'}</button></header>
+    <section ref={dialog} className="photo-crop-dialog" role="dialog" aria-modal="true" aria-label="프로필 사진 편집" aria-describedby="photo-crop-help" tabIndex={-1}>
+      <header>
+        <button type="button" onClick={onClose} disabled={exporting}>취소</button>
+        <button type="button" className="photo-crop-reset-icon" aria-label="사진 위치 초기화" title="사진 위치 초기화" disabled={!image || exporting} onClick={() => applyTransform(MIN_PHOTO_ZOOM, { x: 0, y: 0 })}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7" /></svg>
+        </button>
+      </header>
       <div ref={stage} className="photo-crop-stage" onPointerDown={startGesture} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={endGesture}>
         <canvas ref={canvas} role="img" aria-label="선택한 프로필 사진의 잘라낼 영역 미리보기" />
         <div className="photo-crop-grid" aria-hidden="true"><i /><i /><i /><i /></div>
         <div className="photo-crop-avatar-guide" aria-hidden="true" />
         {!image && !error && <p role="status">사진을 불러오는 중…</p>}
       </div>
-      <p id="photo-crop-help">사진을 움직이고 확대해 원 안에 표시할 부분을 맞춰 주세요. 격자 안의 정사각형 영역만 전송됩니다.</p>
+      <p id="photo-crop-help">사진을 움직이거나 확대해 표시할 영역을 맞춰 주세요.</p>
       <div className="photo-crop-zoom">
         <button type="button" aria-label="사진 축소" disabled={!image || exporting || zoom <= MIN_PHOTO_ZOOM} onClick={() => applyTransform(zoom - .1, offset)}>−</button>
-        <label htmlFor="profile-photo-zoom">확대</label>
         <input id="profile-photo-zoom" type="range" aria-label="사진 확대" min={MIN_PHOTO_ZOOM} max={MAX_PHOTO_ZOOM} step="0.01" value={zoom} disabled={!image || exporting} onChange={event => applyTransform(Number(event.target.value), offsetRef.current)} />
         <button type="button" aria-label="사진 확대" disabled={!image || exporting || zoom >= MAX_PHOTO_ZOOM} onClick={() => applyTransform(zoom + .1, offset)}>＋</button>
       </div>
-      <button type="button" className="photo-crop-reset" disabled={!image || exporting} onClick={() => applyTransform(MIN_PHOTO_ZOOM, { x: 0, y: 0 })}>가운데로 다시 맞추기</button>
       {error && <p className="photo-crop-error" role="alert">{error}</p>}
+      <button type="button" className="photo-crop-apply" onClick={() => void save()} disabled={!image || exporting}>{exporting ? '저장 중…' : '적용하기'}</button>
     </section>
   </div>
 }
