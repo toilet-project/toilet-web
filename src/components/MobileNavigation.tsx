@@ -1,3 +1,6 @@
+import { useProfilePhoto } from '../lib/useProfilePhoto'
+import { OwnPhoto, PhotoPreferences } from './ProfilePhoto'
+import { PROFILE_PHOTO_ENABLED } from '../lib/profilePhoto'
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { AuthExpiredError, startSocialLogin, updateNickname, type AuthProfile } from '../api/auth'
 import { MyReportsPanel } from './MyReportsPanel'
@@ -62,6 +65,7 @@ function LoginLanding({ onLogin }: { onLogin: (provider: 'google' | 'kakao') => 
 
 function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthProfile; onProfile: (profile: AuthProfile) => void; onSessionExpired: () => void }) {
   const [editing, setEditing] = useState(false)
+  const photo = useProfilePhoto(profile.userId, onSessionExpired)
   const [nickname, setNickname] = useState(profile.displayName || '')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -77,16 +81,17 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
     finally { if (active.current) setSaving(false) }
   }
   return <section className="mobile-profile-card" aria-label="내 프로필">
-    <div className="mobile-avatar-wrap"><div className="mobile-avatar" role="img" aria-label="기본 프로필 이미지"><Icon name="account" /></div>
+    <div className="mobile-avatar-wrap"><div className="mobile-avatar"><OwnPhoto state={photo.state} fallback={<span role="img" aria-label="기본 프로필 이미지"><Icon name="account" /></span>} /></div>
       <button type="button" className="mobile-profile-edit" aria-label="프로필 수정" onClick={() => { setNickname(profile.displayName || ''); setMessage(''); setEditing(value => !value) }}><Icon name="settings" /></button>
     </div>
     <div className="mobile-profile-copy"><span>내 프로필</span><h2>{profile.displayName || '급똥 사용자'}</h2></div>
     {editing && <form className="mobile-profile-form" onSubmit={event => void submit(event)}>
-      <p>프로필 이미지 수정은 구현 예정이에요.</p>
+      {!PROFILE_PHOTO_ENABLED && <p>프로필 이미지 수정은 구현 예정이에요.</p>}
       <label htmlFor="mobile-nickname">닉네임</label><input id="mobile-nickname" value={nickname} onChange={event => setNickname(event.target.value)} minLength={2} maxLength={30} required autoComplete="nickname" />
       <small>2~30자 · 다른 사용자와 같은 닉네임도 사용할 수 있어요.</small>
       <div><button type="button" disabled={saving} onClick={() => setEditing(false)}>취소</button><button type="submit" disabled={saving || nickname.trim().length < 2}>{saving ? '저장 중…' : '저장하기'}</button></div>
     </form>}
+    {editing && PROFILE_PHOTO_ENABLED && (photo.error ? <div role="status">{photo.error}<button type="button" onClick={photo.retry}>다시 불러오기</button></div> : photo.state ? <PhotoPreferences state={photo.state} onSaved={photo.update} onExpired={onSessionExpired} /> : <p role="status">사진 설정을 불러오는 중…</p>)}
     {message && <p role="status">{message}</p>}
   </section>
 }

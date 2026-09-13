@@ -6,6 +6,7 @@ import { getDisplayAddress } from '../lib/address'
 import { regionLabel } from '../lib/toiletRoute'
 import { visibleCounts, hasValue, formatPhoneNumber, formatInstallationDate, formatFacilityLocation, type CountItem } from '../lib/detailFormatting'
 import { TRANSIENT_NOTICE_MS } from '../lib/uiTiming'
+import { PublicReviews } from './reviews/PublicReviews'
 
 export function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse }) {
   const maleCounts = visibleCounts([
@@ -45,6 +46,7 @@ export function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse 
       {hasValue(toilet.agencyName) && <DetailRow label="관리기관" value={toilet.agencyName} />}
       {hasValue(toilet.phoneNumber) && <DetailRow label="전화" value={formatPhoneNumber(toilet.phoneNumber)} />}
       {hasValue(toilet.dataBaseDate) && <DetailRow label="데이터 기준일" value={toilet.dataBaseDate} />}
+      <PublicReviews toiletId={toilet.id} />
     </div>
   )
 }
