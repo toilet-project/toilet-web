@@ -163,12 +163,12 @@
 .profile-photo-visibility > div { display: grid; gap: 4px; }
 .profile-photo-visibility strong { color: #304339; font-size: 13px; }
 .profile-photo-visibility small { line-height: 1.45; }
-.mobile-profile-form .profile-photo-switch { display: grid; grid-template-columns: 30px auto; min-width: 76px; min-height: 36px; align-items: center; gap: 7px; padding: 4px 9px 4px 5px; border-radius: 999px; background: #dce4de; color: #66746b; font-size: 11px; font-weight: 800; }
-.mobile-profile-form .profile-photo-switch i { position: relative; display: block; width: 30px; height: 20px; border-radius: 999px; background: #aab5ad; transition: background 150ms ease; }
-.mobile-profile-form .profile-photo-switch i::after { content: ''; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 22%); transition: transform 150ms ease; }
-.mobile-profile-form .profile-photo-switch[aria-checked=true] { background: #e0f2e5; color: #17683a; }
-.mobile-profile-form .profile-photo-switch[aria-checked=true] i { background: #2dac60; }
-.mobile-profile-form .profile-photo-switch[aria-checked=true] i::after { transform: translateX(10px); }
+.mobile-profile-form .profile-photo-switch { display: flex; width: 72px; min-width: 72px; min-height: 36px; align-items: center; justify-content: space-between; gap: 5px; padding: 4px 10px 4px 4px; border: 0; border-radius: 999px; background: #aeb3b0; color: #fff; font-size: 11px; font-weight: 800; }
+.mobile-profile-form .profile-photo-switch i { order: 1; display: block; width: 28px; height: 28px; flex: 0 0 28px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgb(0 0 0 / 22%); }
+.mobile-profile-form .profile-photo-switch span { order: 2; line-height: 1; }
+.mobile-profile-form .profile-photo-switch[aria-checked=true] { padding: 4px 4px 4px 10px; background: #17683a; color: #fff; }
+.mobile-profile-form .profile-photo-switch[aria-checked=true] i { order: 2; }
+.mobile-profile-form .profile-photo-switch[aria-checked=true] span { order: 1; }
 .profile-photo-visibility > p { grid-column: 1 / -1; margin: 3px 0 0; }
 
 .photo-crop-backdrop { position: fixed; z-index: 1000; inset: 0; display: grid; place-items: center; box-sizing: border-box; background: #0c0f0d; }
