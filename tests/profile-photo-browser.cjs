@@ -23,7 +23,7 @@ export default function Fixture(){
  try {
   browser=await chromium.launch({channel:'chrome',headless:true})
   const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block'})
-  let user='1', setting={available:true,publicPhoto:false,imageVersion:version}, failSave=false, writes=0, imageReads=0
+  let user='1', setting={available:true,publicPhoto:false,imageVersion:version}, failSave=false, writes=0, imageReads=0, uploadedPhoto=null, uploadedType=null
   const syntheticWebp = Buffer.from(process.env.PHOTO_TEST_WEBP_BASE64,'base64')
   const stamp='2026-09-12T10:00:00+09:00'
   await context.route('**/*',async route=>{
@@ -35,7 +35,7 @@ export default function Fixture(){
    if(p==='/api/v1/auth/me/photo') {
     if(route.request().method()==='PATCH'){writes++;if(failSave)return json({},500);setting={...setting,...route.request().postDataJSON()}}
     if(route.request().method()==='DELETE'){writes++;setting={available:true,publicPhoto:false,imageVersion:null}}
-    if(route.request().method()==='PUT'){writes++;setting={available:true,publicPhoto:false,imageVersion:version}}
+    if(route.request().method()==='PUT'){writes++;uploadedPhoto=route.request().postDataBuffer();uploadedType=route.request().headers()['content-type'];if(failSave)return json({},500);setting={available:true,publicPhoto:false,imageVersion:version}}
     return json(user==='1'?setting:{available:true,publicPhoto:false,imageVersion:null})
    }
    if(p==='/api/v1/auth/me/photo/image'||p==='/api/v1/toilets/20/reviews/10/photo'){
@@ -74,15 +74,28 @@ export default function Fixture(){
   await page.getByText('프로필 사진을 삭제했어요.').waitFor()
   await page.waitForFunction(()=>!document.querySelector('.mobile-avatar img'))
   await page.locator('#profile-photo-file').setInputFiles({name:'profile.png',mimeType:'image/png',buffer:syntheticWebp})
-  await page.getByRole('button',{name:'선택한 사진 저장',exact:true}).click()
+  await page.getByRole('dialog',{name:'사진 맞추기'}).waitFor()
+  await page.locator('.photo-crop-grid').waitFor()
+  await page.getByRole('slider',{name:'사진 확대'}).fill('1.5')
+  await page.screenshot({path:path.join(evidence,'crop-mobile.png'),fullPage:true})
+  failSave=true
+  await page.getByRole('button',{name:'이대로 사용',exact:true}).click()
+  await page.getByText('사진을 저장하지 못했어요. 연결을 확인한 뒤 다시 시도해 주세요.').waitFor()
+  assert.equal(await page.getByRole('dialog',{name:'사진 맞추기'}).count(),1)
+  failSave=false
+  await page.getByRole('button',{name:'이대로 사용',exact:true}).click()
   await page.getByText('프로필 사진을 저장했어요.').waitFor()
   await page.locator('.mobile-avatar img').waitFor()
+  assert.equal(uploadedType,'image/webp')
+  assert.equal(uploadedPhoto.subarray(0,4).toString(),'RIFF')
+  assert.equal(uploadedPhoto.subarray(8,12).toString(),'WEBP')
+  assert.notDeepEqual(uploadedPhoto,syntheticWebp)
   user='2';await page.getByRole('button',{name:'계정 전환 시험'}).click()
   await page.getByRole('heading',{name:'합성 사용자 2'}).waitFor()
   assert.equal(await page.locator('.mobile-avatar img').count(),0)
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false)
   assert.deepEqual(errors,[])
-  console.log(JSON.stringify({passed:true,writes,imageReads,checks:['private-owner','public-review','revocation','save-failure','delete','direct-upload','account-switch','mobile-width']}))
+  console.log(JSON.stringify({passed:true,writes,imageReads,checks:['private-owner','public-review','revocation','save-failure','delete','crop-grid','client-crop-upload','account-switch','mobile-width']}))
   await context.close()
  } finally {
   if(browser)await browser.close()
