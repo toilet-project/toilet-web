@@ -74,8 +74,8 @@ export function PhotoPreferences({ state, onSaved, onExpired }: { state: PhotoSt
   }
   function selectFile(file: File | null) {
     if (!file) return
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size <= 0 || file.size > 2 * 1024 * 1024) {
-      setMessage('JPEG, PNG, WebP 파일을 2MB 이하로 선택해 주세요.'); if (fileInput.current) fileInput.current.value = ''; return
+    if (!file.type.startsWith('image/') || file.size <= 0) {
+      setMessage('사진 파일을 선택해 주세요.'); if (fileInput.current) fileInput.current.value = ''; return
     }
     setMessage(''); setEditorFile(file)
   }
@@ -88,8 +88,8 @@ export function PhotoPreferences({ state, onSaved, onExpired }: { state: PhotoSt
     <legend>프로필 사진</legend>
     <p>신규 가입 때 동의한 카카오 사진은 한 번만 가져와요. 이후에는 여기에서 직접 바꾸거나 삭제할 수 있어요.</p>
     <button type="button" className="profile-photo-picker" onClick={() => fileInput.current?.click()}>{state.imageVersion ? '보관함에서 새 사진 선택' : '보관함에서 사진 선택'}</button>
-    <input ref={fileInput} className="profile-photo-file" id="profile-photo-file" type="file" tabIndex={-1} aria-hidden="true" accept="image/jpeg,image/png,image/webp" onChange={event => selectFile(event.target.files?.[0] ?? null)} />
-    <small>JPEG, PNG, WebP · 최대 2MB · 고른 사진은 기기에서 먼저 자르고, 선택한 정사각형 영역만 전송해 최대 256×256 WebP로 보관해요.</small>
+    <input ref={fileInput} className="profile-photo-file" id="profile-photo-file" type="file" tabIndex={-1} aria-hidden="true" accept="image/*" onChange={event => selectFile(event.target.files?.[0] ?? null)} />
+    <small>고른 사진은 기기에서 원하는 영역을 자르고 자동으로 줄여 전송해요. 원본 파일은 저장하지 않아요.</small>
     <label htmlFor="profile-photo-visibility">사진 공개 범위</label>
     <select id="profile-photo-visibility" disabled={!state.imageVersion} value={publicPhoto ? 'public' : 'private'} onChange={e => setPublicPhoto(e.target.value === 'public')}>
       <option value="private">비공개 · 나만 보기</option><option value="public">공개 · 리뷰 작성자 사진에 표시</option>
