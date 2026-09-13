@@ -23,7 +23,7 @@ export default function Fixture(){
  try {
   browser=await chromium.launch({channel:'chrome',headless:true})
   const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block'})
-  let user='1', setting={available:true,useSocial:true,publicPhoto:false,imageVersion:version}, failSave=false, writes=0, imageReads=0
+  let user='1', setting={available:true,publicPhoto:false,imageVersion:version}, failSave=false, writes=0, imageReads=0
   const syntheticWebp = Buffer.from(process.env.PHOTO_TEST_WEBP_BASE64,'base64')
   const stamp='2026-09-12T10:00:00+09:00'
   await context.route('**/*',async route=>{
@@ -33,12 +33,14 @@ export default function Fixture(){
    if(u.hostname!=='api.geupddong.com')return route.abort()
    if(route.request().method()==='OPTIONS')return json({})
    if(p==='/api/v1/auth/me/photo') {
-    if(route.request().method()==='PATCH'){writes++;if(failSave)return json({},500);const next=route.request().postDataJSON();setting={...setting,...next,imageVersion:next.useSocial?setting.imageVersion:null}}
-    return json(user==='1'?setting:{available:true,useSocial:false,publicPhoto:false,imageVersion:null})
+    if(route.request().method()==='PATCH'){writes++;if(failSave)return json({},500);setting={...setting,...route.request().postDataJSON()}}
+    if(route.request().method()==='DELETE'){writes++;setting={available:true,publicPhoto:false,imageVersion:null}}
+    if(route.request().method()==='PUT'){writes++;setting={available:true,publicPhoto:false,imageVersion:version}}
+    return json(user==='1'?setting:{available:true,publicPhoto:false,imageVersion:null})
    }
    if(p==='/api/v1/auth/me/photo/image'||p==='/api/v1/toilets/20/reviews/10/photo'){
     imageReads++
-    if(user!=='1'||!setting.useSocial||(p.includes('/reviews/')&&!setting.publicPhoto))return json({},404)
+    if(user!=='1'||!setting.imageVersion||(p.includes('/reviews/')&&!setting.publicPhoto))return json({},404)
     return route.fulfill({contentType:'image/webp',body:syntheticWebp,headers:{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true','Cache-Control':'no-store'}})
    }
    if(p==='/api/v1/toilets/20/reviews')return json({items:[{id:'10',toiletId:20,toiletName:'합성 화장실',satisfaction:4,cleanliness:5,paper:true,waitMinutes:0,comment:'합성 리뷰',version:0,createdAt:stamp,updatedAt:stamp,editableUntil:stamp,canManage:false,authorRemoved:false,authorDisplayName:'합성 사용자 1'}],hasMore:false,nextCursor:null})
@@ -53,8 +55,8 @@ export default function Fixture(){
   assert.equal(await page.getByRole('combobox').inputValue(),'private')
   await page.screenshot({path:path.join(evidence,'private-mobile.png'),fullPage:true})
   await page.getByRole('combobox').selectOption('public')
-  await page.getByRole('button',{name:'사진 설정 저장',exact:true}).click()
-  await page.getByText(/사진 설정을 저장했어요/).waitFor();assert.equal(writes,1);assert.equal(setting.publicPhoto,true)
+  await page.getByRole('button',{name:'공개 범위 저장',exact:true}).click()
+  await page.getByText(/사진 공개 범위를 저장했어요/).waitFor();assert.equal(writes,1);assert.equal(setting.publicPhoto,true)
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
   await page.getByRole('button',{name:'이용자 리뷰 보기'}).click()
   await page.locator('.public-review-avatar img').waitFor()
@@ -66,18 +68,21 @@ export default function Fixture(){
   await page.getByRole('button',{name:'프로필 수정',exact:true}).click()
   failSave=true
   await page.getByRole('combobox').selectOption('public')
-  await page.getByRole('button',{name:'사진 설정 저장',exact:true}).click()
+  await page.getByRole('button',{name:'공개 범위 저장',exact:true}).click()
   await page.getByText(/저장 여부를 확인하지 못했어요/).waitFor();assert.equal(writes,2);assert.equal(setting.publicPhoto,false)
-  failSave=false;await page.getByRole('checkbox',{name:'소셜 사진 사용',exact:true}).uncheck()
-  await page.getByRole('button',{name:'사진 설정 저장',exact:true}).click()
-  await page.getByText('소셜 사진 사용을 중단했어요.').waitFor()
+  failSave=false;await page.getByRole('button',{name:'프로필 사진 삭제',exact:true}).click()
+  await page.getByText('프로필 사진을 삭제했어요.').waitFor()
   await page.waitForFunction(()=>!document.querySelector('.mobile-avatar img'))
+  await page.locator('#profile-photo-file').setInputFiles({name:'profile.png',mimeType:'image/png',buffer:syntheticWebp})
+  await page.getByRole('button',{name:'선택한 사진 저장',exact:true}).click()
+  await page.getByText('프로필 사진을 저장했어요.').waitFor()
+  await page.locator('.mobile-avatar img').waitFor()
   user='2';await page.getByRole('button',{name:'계정 전환 시험'}).click()
   await page.getByRole('heading',{name:'합성 사용자 2'}).waitFor()
   assert.equal(await page.locator('.mobile-avatar img').count(),0)
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false)
   assert.deepEqual(errors,[])
-  console.log(JSON.stringify({passed:true,writes,imageReads,checks:['private-owner','public-review','revocation','save-failure','stop-use','account-switch','mobile-width']}))
+  console.log(JSON.stringify({passed:true,writes,imageReads,checks:['private-owner','public-review','revocation','save-failure','delete','direct-upload','account-switch','mobile-width']}))
   await context.close()
  } finally {
   if(browser)await browser.close()

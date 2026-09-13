@@ -148,7 +148,8 @@
 .profile-photo-preferences legend { font-weight: 700; }
 .profile-photo-preferences label { display: flex; align-items: center; gap: 8px; }
 .profile-photo-preferences p { margin: 0; font-size: 12px; line-height: 1.6; color: #586b60; }
-.profile-photo-preferences input[type=checkbox] { width: 18px; height: 18px; }
+.profile-photo-preferences small { color: #586b60; line-height: 1.5; }
+.profile-photo-preferences input[type=file] { max-width: 100%; min-width: 0; box-sizing: border-box; padding: 9px; border: 1px solid #ccd8ce; border-radius: 8px; background: white; }
 .profile-photo-preferences select { max-width: 100%; font-size: 16px; padding: 10px; border: 1px solid #ccd8ce; border-radius: 8px; background: white; }
 .profile-photo-preferences button { min-height: 44px; border: 1px solid #ccd8ce; border-radius: 8px; background: #f0f6f1; }
 
