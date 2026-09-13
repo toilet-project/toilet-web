@@ -23,7 +23,7 @@ export default function Fixture(){
  try {
   browser=await chromium.launch({channel:'chrome',headless:true})
   const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block'})
-  let user='1', setting={available:true,publicPhoto:false,imageVersion:version}, failSave=false, writes=0, imageReads=0, uploadedPhoto=null, uploadedType=null
+  let user='1', setting={available:true,publicPhoto:false,imageVersion:version}, failSave=false, writes=0, imageReads=0, uploadedPhoto=null, uploadedType=null, uploadedTypes=[]
   const syntheticWebp = Buffer.from(process.env.PHOTO_TEST_WEBP_BASE64,'base64')
   const stamp='2026-09-12T10:00:00+09:00'
   await context.route('**/*',async route=>{
@@ -35,7 +35,7 @@ export default function Fixture(){
    if(p==='/api/v1/auth/me/photo') {
     if(route.request().method()==='PATCH'){writes++;if(failSave)return json({},500);setting={...setting,...route.request().postDataJSON()}}
     if(route.request().method()==='DELETE'){writes++;setting={available:true,publicPhoto:false,imageVersion:null}}
-    if(route.request().method()==='PUT'){writes++;uploadedPhoto=route.request().postDataBuffer();uploadedType=route.request().headers()['content-type'];if(failSave)return json({},500);setting={available:true,publicPhoto:false,imageVersion:version}}
+    if(route.request().method()==='PUT'){writes++;uploadedPhoto=route.request().postDataBuffer();uploadedType=route.request().headers()['content-type'];uploadedTypes.push(uploadedType);if(failSave)return json({},500);setting={available:true,publicPhoto:false,imageVersion:version}}
     return json(user==='1'?setting:{available:true,publicPhoto:false,imageVersion:null})
    }
    if(p==='/api/v1/auth/me/photo/image'||p==='/api/v1/toilets/20/reviews/10/photo'){
@@ -103,13 +103,18 @@ export default function Fixture(){
   await page.getByRole('button',{name:'적용하기',exact:true}).click()
   await page.getByText('사진을 저장하지 못했어요. 연결을 확인한 뒤 다시 시도해 주세요.').waitFor()
   assert.equal(await page.getByRole('dialog',{name:'프로필 사진 편집'}).count(),1)
+  assert.equal(uploadedType,'image/webp')
   failSave=false
+  await page.evaluate(()=>{
+   const original=HTMLCanvasElement.prototype.toBlob
+   HTMLCanvasElement.prototype.toBlob=function(callback,type,quality){return original.call(this,callback,type==='image/webp'?'image/png':type,quality)}
+  })
   await page.getByRole('button',{name:'적용하기',exact:true}).click()
   await page.getByText('프로필 사진을 저장했어요.').waitFor()
   await page.locator('.mobile-avatar img').waitFor()
-  assert.equal(uploadedType,'image/webp')
-  assert.equal(uploadedPhoto.subarray(0,4).toString(),'RIFF')
-  assert.equal(uploadedPhoto.subarray(8,12).toString(),'WEBP')
+  assert.deepEqual(uploadedTypes.slice(-2),['image/webp','image/png'])
+  assert.equal(uploadedType,'image/png')
+  assert.deepEqual([...uploadedPhoto.subarray(0,8)],[137,80,78,71,13,10,26,10])
   assert.notDeepEqual(uploadedPhoto,syntheticWebp)
   assert.ok(uploadedPhoto.length<2*1024*1024)
   user='2';await page.getByRole('button',{name:'계정 전환 시험'}).click()
@@ -117,7 +122,7 @@ export default function Fixture(){
   assert.equal(await page.locator('.mobile-avatar img').count(),0)
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false)
   assert.deepEqual(errors,[])
-  console.log(JSON.stringify({passed:true,writes,imageReads,checks:['photo-action-sheet','visibility-switch','private-owner','public-review','revocation','save-failure','delete','large-source-auto-resize','crop-grid','reset-icon','apply-layout','client-crop-upload','account-switch','mobile-width']}))
+  console.log(JSON.stringify({passed:true,writes,imageReads,checks:['photo-action-sheet','visibility-switch','private-owner','public-review','revocation','save-failure','delete','large-source-auto-resize','crop-grid','reset-icon','apply-layout','webp-export','png-export-fallback','client-crop-upload','account-switch','mobile-width']}))
   await context.close()
  } finally {
   if(browser)await browser.close()

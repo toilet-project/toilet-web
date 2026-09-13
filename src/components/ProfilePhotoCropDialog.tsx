@@ -5,12 +5,21 @@ import { clampCropOffset, clampPhotoZoom, createCropGeometry, MAX_PHOTO_ZOOM, MI
 import { useDialogFocus } from '../lib/useDialogFocus'
 
 type Point = { x: number; y: number }
+const UPLOAD_TYPES = new Set(['image/webp', 'image/jpeg', 'image/png'])
 type Gesture =
   | { kind: 'drag'; pointer: number; start: Point; offset: CropOffset }
   | { kind: 'pinch'; distance: number; center: Point; zoom: number; offset: CropOffset }
 
 function distance(a: Point, b: Point) { return Math.hypot(a.x - b.x, a.y - b.y) }
 function midpoint(a: Point, b: Point) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } }
+async function encodeCrop(canvas: HTMLCanvasElement) {
+  for (const [type, quality] of [['image/webp', .9], ['image/jpeg', .9], ['image/png', undefined]] as const) {
+    let blob: Blob | null = null
+    try { blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, type, quality)) } catch { /* Try the next browser encoder. */ }
+    if (blob && UPLOAD_TYPES.has(blob.type) && blob.size > 0 && blob.size <= 2 * 1024 * 1024) return blob
+  }
+  throw new Error('encode')
+}
 
 export function ProfilePhotoCropDialog({ file, onClose, onApply }: {
   file: File
@@ -126,9 +135,9 @@ export function ProfilePhotoCropDialog({ file, onClose, onApply }: {
       const context = output.getContext('2d')
       if (!context) throw new Error('canvas')
       context.imageSmoothingEnabled = true; context.imageSmoothingQuality = 'high'
+      context.fillStyle = '#fff'; context.fillRect(0, 0, output.width, output.height)
       context.drawImage(image, geometry.sourceX, geometry.sourceY, geometry.sourceSize, geometry.sourceSize, 0, 0, output.width, output.height)
-      const blob = await new Promise<Blob | null>(resolve => output.toBlob(resolve, 'image/webp', .9))
-      if (!blob || blob.type !== 'image/webp' || blob.size <= 0 || blob.size > 2 * 1024 * 1024) throw new Error('blob')
+      const blob = await encodeCrop(output)
       if (await onApply(blob)) onClose()
       else setError('사진을 저장하지 못했어요. 연결을 확인한 뒤 다시 시도해 주세요.')
     } catch { setError('사진을 자르지 못했어요. 다른 사진으로 다시 시도해 주세요.') }

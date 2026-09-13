@@ -126,7 +126,7 @@ export function PhotoActions({ state, loadError, onRetry, onSaved, onExpired, on
         <button type="button" className="profile-photo-action-cancel" onClick={closeMenu} disabled={saving}>취소</button>
       </section>
     </div>, document.body)}
-    {editorFile && <ProfilePhotoCropDialog file={editorFile} onClose={closeEditor} onApply={cropped => request('PUT', cropped, 'image/webp')} />}
+    {editorFile && <ProfilePhotoCropDialog file={editorFile} onClose={closeEditor} onApply={cropped => request('PUT', cropped, cropped.type)} />}
   </>
 }
 
