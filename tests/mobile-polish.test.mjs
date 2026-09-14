@@ -158,6 +158,7 @@ test('review summaries follow the review action and divider, before addresses, w
   assert.ok(reviews.indexOf('className="public-review-full-list"') < reviews.indexOf('<h3 id="public-review-full-list-title">'))
   assert.match(css, /\.place-card:not\(\.mobile-card-expanded\) \.card-scroll-content > \.public-reviews,[\s\S]*display: none/)
   assert.match(reviews, /onClick=\{hasReviews \? handleSummaryClick : undefined\}/)
+  assert.match(reviews, /<h2>리뷰 <span>\{fullReviewCount\}건<\/span><\/h2>/)
   assert.match(reviews, /const comment = item\.comment\?\.trim\(\)/)
   assert.match(reviews, /\{comment && <p className="public-review-comment">\{comment\}<\/p>\}/)
   assert.doesNotMatch(reviews, /작성한 내용이 없어요/)

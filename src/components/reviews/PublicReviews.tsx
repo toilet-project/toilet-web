@@ -134,7 +134,7 @@ function PublicReviewList({ toiletId, toiletName, toiletType, summary }: { toile
   </section>
 
   return <section ref={section} className={`public-reviews${hasReviews ? ' is-clickable' : ''}`} aria-label="이용자 리뷰" onClick={hasReviews ? handleSummaryClick : undefined}>
-    <div className="public-review-section-heading"><h2>리뷰</h2>{hasReviews && <button type="button" onClick={openFullView}>전체보기 <span aria-hidden="true">›</span></button>}</div>
+    <div className="public-review-section-heading"><h2>리뷰 <span>{fullReviewCount}건</span></h2>{hasReviews && <button type="button" onClick={openFullView}>전체보기 <span aria-hidden="true">›</span></button>}</div>
     <div className="public-review-summary-list">
       {reviewRows(summaryItems, false)}
       {!loading && !error && items.length === 0 && <p className="public-review-empty">아직 작성된 리뷰가 없어요.</p>}

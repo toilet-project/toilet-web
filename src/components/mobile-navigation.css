@@ -210,6 +210,7 @@
 .public-reviews + .card-details { margin-top: 12px; padding-top: 0; border-top: 0; }
 .public-review-section-heading { display: flex; min-height: 32px; align-items: center; justify-content: space-between; gap: 12px; }
 .public-review-section-heading h2 { margin: 0; color: #26382d; font-size: 13px; font-weight: 800; letter-spacing: -.02em; }
+.public-review-section-heading h2 span { margin-left: 3px; color: #7d8b82; font-size: 10px; font-weight: 700; letter-spacing: 0; }
 .public-review-section-heading button { display: inline-flex; min-height: 32px; align-items: center; gap: 3px; padding: 3px 1px 3px 9px; border: 0; border-radius: 8px; background: transparent; color: #35704b; font: inherit; font-size: 11px; font-weight: 750; cursor: pointer; }
 .public-review-section-heading button span { font-size: 19px; font-weight: 400; line-height: 1; }
 .public-review-summary-list { display: grid; min-width: 0; gap: 14px; padding-top: 8px; }
