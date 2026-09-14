@@ -37,11 +37,6 @@
   .toilet-community-metric + .toilet-community-metric { padding-left: 4px; }
   .toilet-community-row .report-entry-button.report-icon-button { margin-left: 4px; }
 }
-.policy-section-links { display: flex; flex-wrap: wrap; gap: 12px; padding: 16px 0; }
-.policy-combined-section { padding: 20px 0; border-top: 1px solid #e1e8e3; }
-.policy-combined-section > h2 { font-size: 24px; }
-.policy-combined-section section h2 { font-size: 18px; }
-
 @media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (pointer: coarse) {
   .has-mobile-navigation { height: 100svh; min-height: 0; grid-template-rows: auto minmax(0, 1fr) auto; }
   .has-mobile-navigation .map { min-height: 0; }

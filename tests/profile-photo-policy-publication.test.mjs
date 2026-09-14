@@ -5,16 +5,19 @@ import { profilePhotoPolicyPublication, profilePhotoPolicyPublicationAttributes 
 
 test('profile-photo policy has an independent published audit marker', async () => {
   assert.equal(profilePhotoPolicyPublication.status, 'published')
-  assert.equal(profilePhotoPolicyPublication.version, 'profile-photo-us-r2-public-v2')
-  assert.equal(profilePhotoPolicyPublication.announcedAt, '2026-09-13T15:15:00Z')
-  assert.equal(profilePhotoPolicyPublication.effectiveAt, '2026-09-13T15:15:00Z')
+  assert.equal(profilePhotoPolicyPublication.version, 'profile-photo-us-r2-public-cdn-v3')
+  assert.equal(profilePhotoPolicyPublication.announcedAt, '2026-09-14T19:30:00Z')
+  assert.equal(profilePhotoPolicyPublication.effectiveAt, '2026-09-14T19:30:00Z')
   const attributes = profilePhotoPolicyPublicationAttributes(profilePhotoPolicyPublication)
   assert.equal(attributes['data-profile-photo-policy-status'], 'published')
-  assert.equal(attributes['data-profile-photo-policy-effective-at'], '2026-09-13T15:15:00Z')
+  assert.equal(attributes['data-profile-photo-policy-effective-at'], '2026-09-14T19:30:00Z')
   const page = await readFile(new URL('../src/components/PolicyPage.tsx', import.meta.url), 'utf8')
   assert.match(page, /프로필 사진 보관 정책 안내/)
   assert.doesNotMatch(page, /프로필 사진 기능을 운영하기 전에 고지·시행 시각을 확정할 검토안/)
   assert.match(page, /정책 공개만으로 사진 기능이 자동 활성화되지는 않습니다/)
+  assert.match(page, /Cloudflare CDN에 최대 5분간 임시 캐시/)
+  assert.match(page, /브라우저는 ETag를 이용해 사진 변경 여부를 재확인/)
+  assert.match(page, /삭제가 완료되거나 최대 5분의 캐시 시간이 끝날 때까지/)
 })
 
 test('profile-photo publication rejects malformed or inconsistent markers', () => {
