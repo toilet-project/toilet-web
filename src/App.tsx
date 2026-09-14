@@ -43,7 +43,7 @@ const CLUSTER_GRID_SIZE = 84
 const MAX_LIST_ZOOM_LEVEL = 6
 
 type SelectedToilet = ToiletMapItem
-type SelectedCoordinateGroup = { latitude: number; longitude: number; toilets: ToiletMapItem[] }
+type SelectedCoordinateGroup = { latitude: number; longitude: number; toilets: ToiletMapItem[]; displayGroupName?: string }
 type CardPosition = { left: number; top: number }
 type Coordinates = { latitude: number; longitude: number }
 type ReportTarget = { toilet: ToiletDetailResponse; latitude: number; longitude: number }
@@ -759,7 +759,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
     resetDetailCard()
     preserveGroupOnHomeRef.current = true
     onNavigate(null)
-    setSelectedCoordinateGroup({ latitude: point.latitude, longitude: point.longitude, toilets: sortCoordinateGroupToilets(point.toilets) })
+    setSelectedCoordinateGroup({ latitude: point.latitude, longitude: point.longitude, toilets: sortCoordinateGroupToilets(point.toilets), displayGroupName: point.displayGroupName })
   }, [onNavigate, resetDetailCard])
 
   const toggleCoordinateToiletDetail = useCallback((toilet: ToiletMapItem) => {
@@ -841,8 +841,8 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
         const isCoordinateGroup = point.toilets != null
         content.className = isCoordinateGroup ? 'coordinate-group-marker' : 'cluster-marker'
         content.type = 'button'
-        content.textContent = isCoordinateGroup ? `동일 위치 ${point.count}` : String(point.count)
-        content.setAttribute('aria-label', isCoordinateGroup ? `동일 위치에 등록된 화장실 ${point.count}곳 목록 보기` : `${point.count}개의 화장실이 있는 구역 확대하기`)
+        content.textContent = isCoordinateGroup ? point.displayGroupName || `동일 위치 ${point.count}` : String(point.count)
+        content.setAttribute('aria-label', isCoordinateGroup ? `${point.displayGroupName || '동일 위치'}에 등록된 화장실 ${point.count}곳 목록 보기` : `${point.count}개의 화장실이 있는 구역 확대하기`)
         content.addEventListener('click', (event) => {
           if (!suppressMapClickFromMarker(event)) return
           if (isCoordinateGroup) {
@@ -1222,7 +1222,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
     () => isListZoomLimited ? [] : mobileAreaToilets ?? result?.toilets ?? [],
     [isListZoomLimited, mobileAreaToilets, result?.toilets],
   )
-  const groupedAreaToilets = groupToiletsByCoordinate(areaToilets)
+  const groupedAreaToilets = useMemo(() => groupToiletsByCoordinate(areaToilets), [areaToilets])
   const sortedAreaToiletGroups = distanceReference
     ? [...groupedAreaToilets].sort((left, right) => calculateDistanceInMeters(distanceReference, left) - calculateDistanceInMeters(distanceReference, right))
     : groupedAreaToilets
@@ -1266,16 +1266,16 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
     const map = mapRef.current
     if (!map) return
 
-    const sameCoordinateToilets = areaToilets.filter((item) => item.latitude === toilet.latitude && item.longitude === toilet.longitude)
+    const selectedGroup = groupedAreaToilets.find((group) => group.id === toilet.id || group.toilets?.some((item) => item.id === toilet.id))
     const position = new window.kakao.maps.LatLng(toilet.latitude, toilet.longitude)
     setIsMobileAreaListOpen(false)
-    if (sameCoordinateToilets.length > 1) {
-      openCoordinateGroup({ latitude: toilet.latitude, longitude: toilet.longitude, count: sameCoordinateToilets.length, toilets: sameCoordinateToilets })
+    if (selectedGroup?.toilets) {
+      openCoordinateGroup(selectedGroup)
     } else {
       void selectToilet(toilet.id, toilet.name, toilet.latitude, toilet.longitude, false, toilet.toiletType)
     }
     if (!window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) map.panTo(position)
-  }, [areaToilets, openCoordinateGroup, selectToilet])
+  }, [groupedAreaToilets, openCoordinateGroup, selectToilet])
 
   return (
     <main data-review-design-preview={REVIEW_DESIGN_PREVIEW || undefined} data-review-api={REVIEW_API_ENABLED || undefined} className={`app-shell${!isDesktop ? ' has-mobile-navigation' : ''}${!isDesktop && mobileTab !== 'map' ? ' is-mobile-page' : ''}`}>
@@ -1382,10 +1382,11 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
             {!isListZoomLimited && areaToilets.length === 0 && !isLoading && <p className="desktop-area-list-status">이 영역의 화장실 목록이 없습니다.</p>}
             {!isListZoomLimited && sortedAreaToiletGroups.map((group) => {
               const representative = representativeToilet(group)
+              const displayName = group.displayGroupName || representative.name
               const additionalCount = group.count - 1
               const distance = distanceReference ? formatDistance(calculateDistanceInMeters(distanceReference, representative)) : '—'
               return <button key={`${group.latitude}:${group.longitude}`} type="button" className="desktop-area-list-item" onClick={() => selectMobileAreaToilet(representative)}>
-                <strong><span className="desktop-area-list-name">{representative.name || '이름 없는 공중화장실'}</span>{additionalCount > 0 && <span className="desktop-area-list-additional">외 {additionalCount}개</span>}</strong>
+                <strong><span className="desktop-area-list-name">{displayName || '이름 없는 공중화장실'}</span>{additionalCount > 0 && <span className="desktop-area-list-additional">{group.displayGroupName ? `${additionalCount + 1}개 시설` : `외 ${additionalCount}개`}</span>}</strong>
                 <span className={`desktop-area-list-type ${toiletTypeTone(representative.toiletType)}`}>{representative.toiletType || '공중화장실'}</span>
                 <span className="desktop-area-list-distance">{distance}</span>
               </button>
@@ -1401,12 +1402,13 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
             {!isListZoomLimited && !isMobileAreaListLoading && areaToilets.length === 0 && <p className="mobile-area-list-status">이 영역의 화장실 목록이 없습니다.</p>}
             {!isListZoomLimited && !isMobileAreaListLoading && sortedAreaToiletGroups.map((group) => {
               const representative = representativeToilet(group)
+              const displayName = group.displayGroupName || representative.name
               const additionalCount = group.count - 1
               const distance = distanceReference ? formatDistance(calculateDistanceInMeters(distanceReference, representative)) : '—'
               return <button key={`${group.latitude}:${group.longitude}`} type="button" className="mobile-area-list-item" onClick={() => selectMobileAreaToilet(representative)}>
                 <strong>
-                  <span className="mobile-area-list-name">{representative.name || '이름 없는 공중화장실'}</span>
-                  {additionalCount > 0 && <span className="mobile-area-list-additional">외 {additionalCount}개</span>}
+                  <span className="mobile-area-list-name">{displayName || '이름 없는 공중화장실'}</span>
+                  {additionalCount > 0 && <span className="mobile-area-list-additional">{group.displayGroupName ? `${additionalCount + 1}개 시설` : `외 ${additionalCount}개`}</span>}
                 </strong>
                 <span className={`mobile-area-list-type ${toiletTypeTone(representative.toiletType)}`}>{representative.toiletType || '공중화장실'}</span>
                 <span className="mobile-area-list-distance">{distance}</span>
@@ -1463,9 +1465,10 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
           </aside>
         )}
         {selectedCoordinateGroup && (
-          <aside className="coordinate-group-card" aria-live="polite" aria-label="같은 위치 화장실 목록">
+          <aside className="coordinate-group-card" aria-live="polite" aria-label={selectedCoordinateGroup.displayGroupName ? `${selectedCoordinateGroup.displayGroupName} 화장실 목록` : '같은 위치 화장실 목록'}>
             <button type="button" className="close-button" onClick={closeDetailCard} aria-label="목록 닫기">×</button>
-            <span className="card-label">동일 좌표로 등록됨</span>
+            <span className="card-label">{selectedCoordinateGroup.displayGroupName ? '관리자 지정 장소' : '동일 좌표로 등록됨'}</span>
+            {selectedCoordinateGroup.displayGroupName && <h2 className="coordinate-group-display-name">{selectedCoordinateGroup.displayGroupName}</h2>}
             {distanceToCoordinateGroup && <p className="coordinate-group-distance">{distanceReferenceLabel} <strong>{distanceToCoordinateGroup}</strong></p>}
             <p>화장실을 선택하면 해당 행 아래에서 상세 정보가 펼쳐집니다.</p>
             <div ref={coordinateGroupListRef} className="coordinate-group-list">
