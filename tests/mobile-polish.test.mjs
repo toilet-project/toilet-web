@@ -120,7 +120,7 @@ test('group report action sits beside hours, apart from collapse; metrics and si
   assert.doesNotMatch(css, /\.toilet-community-row \+ \.open-time/)
 })
 
-test('review summaries lead expanded single and grouped toilet details while staying out of the collapsed mobile card', async () => {
+test('review summaries follow the review action and divider, before addresses, while staying out of the collapsed mobile card', async () => {
   const app = await source('../src/App.tsx')
   const route = await source('../src/components/ToiletRouteBridge.tsx')
   const detail = await source('../src/components/ToiletDetailContents.tsx')
@@ -129,12 +129,16 @@ test('review summaries lead expanded single and grouped toilet details while sta
   const inline = app.slice(app.indexOf('function CoordinateGroupInlineDetails'), app.indexOf('function CompactFacilityStatus'))
   const routeScroll = route.slice(route.indexOf('<div className="card-scroll-content">'))
   for (const content of [single, inline, routeScroll]) {
-    assert.ok(content.indexOf('<PublicReviews') >= 0)
-    assert.ok(content.indexOf('<PublicReviews') < content.indexOf('className="open-time"'))
+    assert.ok(content.indexOf('<ToiletCommunityRow') >= 0)
+    assert.ok(content.indexOf('<ToiletCommunityRow') < content.indexOf('<PublicReviews'))
   }
+  assert.ok(single.indexOf('<PublicReviews') < single.indexOf('<ToiletDetailContents'))
+  assert.ok(inline.indexOf('<PublicReviews') < inline.indexOf('className="coordinate-inline-address"'))
+  assert.ok(routeScroll.indexOf('<PublicReviews') < routeScroll.indexOf('<ToiletDetailContents'))
   assert.doesNotMatch(detail, /PublicReviews/)
-  assert.match(css, /\.card-scroll-content > \.public-reviews:first-child[\s\S]*border-top: 0;[\s\S]*border-bottom: 1px solid #e5ebe7/)
-  assert.match(css, /\.place-card:not\(\.mobile-card-expanded\) \.card-scroll-content > \.public-reviews:first-child,[\s\S]*display: none/)
+  assert.match(css, /\.public-reviews\s*\{[^}]*border-top: 1px solid #e5ebe7/)
+  assert.match(css, /\.public-review-rating\s*\{[^}]*background: transparent/)
+  assert.match(css, /\.place-card:not\(\.mobile-card-expanded\) \.card-scroll-content > \.public-reviews,[\s\S]*display: none/)
 })
 
 test('single and group address rows keep label left and align value toward the right copy action without wrapping', async () => {

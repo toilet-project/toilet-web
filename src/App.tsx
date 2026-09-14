@@ -1457,10 +1457,10 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
           <aside className="place-card initial-route-card" aria-label="화장실 상세 정보">
             <button type="button" className="close-button" onClick={closeDetailCard} aria-label="정보 닫기">×</button>
             <h1>{toiletDetail.name}</h1>
-            <PublicReviews toiletId={toiletDetail.id} toiletName={toiletDetail.name} />
             <p>등록된 좌표가 없어 지도에 위치를 표시할 수 없습니다.</p>
             <p className="open-time">{formatOpenTime(toiletDetail)}</p>
             {REVIEW_UI_ENABLED && <ToiletCommunityRow onReview={() => reviewPreview.open(toiletDetail)} reviewEntry={reviewPreview.entryState(toiletDetail.id)} previewSummary={reviewPreview.summary(toiletDetail.id)} />}
+            <PublicReviews toiletId={toiletDetail.id} toiletName={toiletDetail.name} />
             <ToiletDetailContents toilet={toiletDetail} />
           </aside>
         )}
@@ -1489,11 +1489,11 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
               {REVIEW_UI_ENABLED ? <div className="review-card-title-row"><h1>{toiletDetail?.name || selectedToilet.name}</h1><ToiletReportEntry disabled={!toiletDetail || selectedToilet.id === testToilet?.id} onClick={() => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) }} /></div> : <h1>{toiletDetail?.name || selectedToilet.name}</h1>}
             </div>
             <div ref={cardScrollRef} className="card-scroll-content">
-              {toiletDetail && <PublicReviews toiletId={toiletDetail.id} toiletName={toiletDetail.name} />}
               {toiletDetail ? <p className="open-time">{toiletDetail.id === testToilet?.id ? '프리뷰 전용 · 운영 데이터에 저장되지 않아요' : formatOpenTime(toiletDetail)}</p> : isDetailLoading && <LoadingOpenTime />}
               {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">{distanceReferenceLabel}</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">(직선거리)</span></div>}
               <ToiletCommunityRow pendingReport={!isDesktop && !toiletDetail} onReport={isDesktop ? undefined : toiletDetail ? () => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) : undefined}
                 pendingReview={REVIEW_UI_ENABLED && !toiletDetail} onReview={REVIEW_UI_ENABLED && toiletDetail ? () => reviewPreview.open(toiletDetail) : undefined} reviewEntry={reviewPreview.entryState(selectedToilet.id)} previewSummary={REVIEW_UI_ENABLED ? reviewPreview.summary(selectedToilet.id) : undefined} />
+              {toiletDetail && <PublicReviews toiletId={toiletDetail.id} toiletName={toiletDetail.name} />}
               {detailError && <div><p className="detail-error" role="alert">{detailError}</p><button type="button" className="detail-retry" onClick={retryDetail}>다시 불러오기</button></div>}
               {!toiletDetail && isDetailLoading && <DetailLoadingFields />}
               {toiletDetail && (toiletDetail.id === testToilet?.id
@@ -1588,9 +1588,9 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
   const address = getDisplayAddress(toilet.roadAddress, toilet.jibunAddress)
 
   return <div className="coordinate-inline-details">
-    <PublicReviews toiletId={toilet.id} toiletName={toilet.name} />
     <div className="coordinate-opening-row"><p className="open-time">{formatOpenTime(toilet)}</p>{onReport && <ToiletReportEntry iconOnly onClick={onReport} />}</div>
     <ToiletCommunityRow onReview={onReview} reviewEntry={reviewEntry} previewSummary={previewSummary} />
+    <PublicReviews toiletId={toilet.id} toiletName={toilet.name} />
     {address && <DetailRow className="coordinate-inline-address" label="주소" value={address} copyable />}
     <section className="coordinate-inline-section coordinate-inline-capacity-section" aria-label="화장실 수">
       <h2>화장실 수</h2>
