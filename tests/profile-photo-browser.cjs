@@ -24,7 +24,7 @@ export default function Fixture(){
  try {
   browser=await chromium.launch({channel:'chrome',headless:true})
   const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block'})
-  let user='1', setting={available:true,publicPhoto:false,imageVersion:version}, failSave=false, writes=0, imageReads=0, reviewReads=0, photoStateReads=0, uploadedPhoto=null, uploadedType=null, uploadedTypes=[]
+  let user='1', setting={available:true,publicPhoto:false,imageVersion:version}, failSave=false, writes=0, imageReads=0, privateOwnReads=0, publicOwnReads=0, reviewPhotoReads=0, reviewReads=0, photoStateReads=0, uploadedPhoto=null, uploadedType=null, uploadedTypes=[]
   const syntheticWebp = Buffer.from(process.env.PHOTO_TEST_WEBP_BASE64,'base64')
   const stamp='2026-09-12T10:00:00+09:00'
   await context.route('**/*',async route=>{
@@ -42,6 +42,9 @@ export default function Fixture(){
    }
    if(p==='/api/v1/auth/me/photo/image'||p===`/api/v1/profile-photos/${version}.webp`||p===`/api/v1/profile-photos/${reviewVersion}.webp`){
     imageReads++
+    if(p==='/api/v1/auth/me/photo/image')privateOwnReads++
+    else if(p===`/api/v1/profile-photos/${version}.webp`)publicOwnReads++
+    else reviewPhotoReads++
     if(user!=='1'||!setting.imageVersion||(p.includes('/profile-photos/')&&!setting.publicPhoto))return json({},404)
     return route.fulfill({contentType:'image/webp',body:syntheticWebp,headers:{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true','Cache-Control':p.includes('/profile-photos/')?'public, max-age=14400':'private, max-age=86400'}})
    }
@@ -74,29 +77,33 @@ export default function Fixture(){
   await page.waitForFunction(()=>document.querySelector('[role="switch"]')?.getAttribute('aria-checked')==='true')
   assert.equal(writes,1);assert.equal(setting.publicPhoto,true)
   assert.equal(await visibility.getAttribute('aria-checked'),'true')
+  await page.waitForFunction(version=>document.querySelector('.mobile-avatar img')?.getAttribute('src')===`https://api.geupddong.com/api/v1/profile-photos/${version}.webp`,version)
+  for(let attempt=0;attempt<100&&publicOwnReads===0;attempt++)await page.waitForTimeout(25)
+  assert.ok(publicOwnReads>=1)
   assert.deepEqual(await visibility.evaluate(button=>{
    const knob=button.querySelector('i').getBoundingClientRect(),label=button.querySelector('span').getBoundingClientRect()
    return {background:getComputedStyle(button).backgroundColor,labelBeforeKnob:label.right<=knob.left}
   }),{background:'rgb(23, 104, 58)',labelBeforeKnob:true})
   assert.equal(await page.getByText(/리뷰 작성자 사진을 (공개했어요|비공개로 바꿨어요)/).count(),0)
-  const readsBeforePrefetch=imageReads
+  const reviewPhotoReadsBeforePrefetch=reviewPhotoReads
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
-  for(let attempt=0;attempt<100&&imageReads===readsBeforePrefetch;attempt++)await page.waitForTimeout(25)
-  assert.equal(reviewReads,1);assert.equal(imageReads,readsBeforePrefetch+1)
-  const readsAfterPrefetch=imageReads
+  for(let attempt=0;attempt<100&&(reviewReads===0||reviewPhotoReads===reviewPhotoReadsBeforePrefetch);attempt++)await page.waitForTimeout(25)
+  assert.equal(reviewReads,1);assert.equal(reviewPhotoReads,reviewPhotoReadsBeforePrefetch+1)
+  const reviewPhotoReadsAfterPrefetch=reviewPhotoReads
   await page.getByRole('button',{name:'이용자 리뷰 보기'}).click()
   await page.getByText('합성 리뷰',{exact:true}).waitFor()
   await page.locator('.public-review-avatar img').waitFor()
-  assert.equal(reviewReads,1);assert.equal(imageReads,readsAfterPrefetch)
+  assert.equal(reviewReads,1);assert.equal(reviewPhotoReads,reviewPhotoReadsAfterPrefetch)
   await page.screenshot({path:path.join(evidence,'public-review.png'),fullPage:true})
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
   await page.getByRole('button',{name:'프로필 수정',exact:true}).click()
-  const ownPhotoBeforeOff=await page.locator('.mobile-avatar img').getAttribute('src'),readsBeforeOff=imageReads
+  const ownPhotoBeforeOff=await page.locator('.mobile-avatar img').getAttribute('src'),privateOwnReadsBeforeOff=privateOwnReads
   await page.getByRole('switch',{name:'리뷰에 프로필 사진 공개'}).click()
   await page.waitForFunction(()=>document.querySelector('[role="switch"]')?.getAttribute('aria-checked')==='false')
   assert.equal(writes,2);assert.equal(setting.publicPhoto,false)
-  assert.equal(await page.locator('.mobile-avatar img').getAttribute('src'),ownPhotoBeforeOff)
-  assert.equal(imageReads,readsBeforeOff)
+  await page.waitForFunction(version=>document.querySelector('.mobile-avatar img')?.getAttribute('src')===`https://api.geupddong.com/api/v1/auth/me/photo/image?version=${version}`,version)
+  assert.equal(privateOwnReads,privateOwnReadsBeforeOff)
+  assert.notEqual(await page.locator('.mobile-avatar img').getAttribute('src'),ownPhotoBeforeOff)
   assert.equal(await page.getByText(/리뷰 작성자 사진을 (공개했어요|비공개로 바꿨어요)/).count(),0)
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
   await page.getByRole('button',{name:'이용자 리뷰 보기'}).click()
@@ -153,7 +160,7 @@ export default function Fixture(){
   assert.equal(photoStateReads,0)
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false)
   assert.deepEqual(errors,[])
-  console.log(JSON.stringify({passed:true,writes,imageReads,reviewReads,photoStateReads,checks:['auth-profile-photo-first-paint','native-browser-image-cache','photo-action-sheet','pill-visibility-switch','toggle-no-success-message','private-owner','off-keeps-own-photo','off-hides-public-review','public-review-prefetch','public-review-photo-decode','public-review-browser-cache-reuse','revocation','save-failure','delete','large-source-auto-resize','crop-grid','reset-icon','apply-layout','webp-export','png-export-fallback','client-crop-upload','account-switch','mobile-width']}))
+  console.log(JSON.stringify({passed:true,writes,imageReads,privateOwnReads,publicOwnReads,reviewPhotoReads,reviewReads,photoStateReads,checks:['auth-profile-photo-first-paint','native-browser-image-cache','photo-action-sheet','pill-visibility-switch','toggle-no-success-message','private-owner','public-owner-cdn','off-keeps-own-photo','off-private-browser-cache-reuse','off-hides-public-review','public-review-prefetch','public-review-photo-decode','public-review-browser-cache-reuse','revocation','save-failure','delete','large-source-auto-resize','crop-grid','reset-icon','apply-layout','webp-export','png-export-fallback','client-crop-upload','account-switch','mobile-width']}))
   await context.close()
  } finally {
   if(browser)await browser.close()

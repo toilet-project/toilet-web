@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { createApiUrl } from '../config/api'
 import { AuthExpiredError } from '../api/auth'
-import { decodePhoto, ownPhotoPath, publicPhotoPath, PROFILE_PHOTO_ENABLED, type PhotoState } from '../lib/profilePhoto'
+import { decodePhoto, ownPhotoDisplay, publicPhotoPath, PROFILE_PHOTO_ENABLED, type PhotoState } from '../lib/profilePhoto'
 import { useDialogFocus } from '../lib/useDialogFocus'
 import { invalidatePublicReviewPrefetch } from '../lib/publicReviewPrefetch'
 import { ProfilePhotoCropDialog } from './ProfilePhotoCropDialog'
@@ -11,8 +11,8 @@ import { ProfilePhotoCropDialog } from './ProfilePhotoCropDialog'
 const CHANGED = 'geupddong-profile-photo-changed'
 const VISIBILITY_CHANGED = 'geupddong-profile-photo-visibility-changed'
 /** Native image loading lets the browser reuse its HTTP cache and ETag without a fetch/blob delay. */
-export function PhotoImage({ path, privatePhoto = false, fallback, label = '프로필 사진' }: {
-  path: string | null; privatePhoto?: boolean; fallback: ReactNode; label?: string;
+export function PhotoImage({ path, privatePhoto = false, priority = false, fallback, label = '프로필 사진' }: {
+  path: string | null; privatePhoto?: boolean; priority?: boolean; fallback: ReactNode; label?: string;
 }) {
   const [status, setStatus] = useState<{ path: string | null; loaded: boolean; failed: boolean }>({ path: null, loaded: false, failed: false })
   const [attempt, setAttempt] = useState(0)
@@ -28,14 +28,15 @@ export function PhotoImage({ path, privatePhoto = false, fallback, label = '프�
   return <span className="profile-photo-image">
     {!loaded && <span className="profile-photo-image-fallback">{fallback}</span>}
     <img key={`${path}:${attempt}`} src={createApiUrl(path)} alt={label} width={256} height={256}
-      loading="eager" decoding={privatePhoto ? 'sync' : 'async'} fetchPriority={privatePhoto ? 'high' : 'auto'}
+      loading="eager" decoding={privatePhoto ? 'sync' : 'async'} fetchPriority={privatePhoto || priority ? 'high' : 'auto'}
       aria-hidden={loaded ? undefined : true} onLoad={() => setStatus({ path, loaded: true, failed: false })}
       onError={() => setStatus({ path, loaded: false, failed: true })} />
   </span>
 }
 
 export function OwnPhoto({ state, fallback }: { state: PhotoState | null; fallback: ReactNode }) {
-  return <PhotoImage path={state?.imageVersion ? ownPhotoPath(state.imageVersion) : null} privatePhoto fallback={fallback} />
+  const source = ownPhotoDisplay(state)
+  return <PhotoImage path={source.path} privatePhoto={source.privatePhoto} priority fallback={fallback} />
 }
 
 async function mutatePhoto(method: 'PUT' | 'PATCH' | 'DELETE', body?: BodyInit, contentType?: string) {
