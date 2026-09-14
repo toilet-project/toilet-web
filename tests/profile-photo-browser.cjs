@@ -5,6 +5,7 @@ const root = path.resolve(__dirname, '..'), routeDir = path.join(root, 'src/app/
 const evidence = process.env.PHOTO_SCREENSHOTS || path.join(root, '.tmp-photo-check')
 const origin = 'http://127.0.0.1:4193'
 const version = '12345678-1234-1234-1234-123456789abc'
+const reviewVersion = 'abcdef12-1234-1234-1234-123456789abc'
 const fixture = `'use client'
 import { useState } from 'react'
 import { MobilePage } from '../../components/MobileNavigation'
@@ -23,7 +24,7 @@ export default function Fixture(){
  try {
   browser=await chromium.launch({channel:'chrome',headless:true})
   const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block'})
-  let user='1', setting={available:true,publicPhoto:false,imageVersion:version}, failSave=false, writes=0, imageReads=0, photoStateReads=0, uploadedPhoto=null, uploadedType=null, uploadedTypes=[]
+  let user='1', setting={available:true,publicPhoto:false,imageVersion:version}, failSave=false, writes=0, imageReads=0, reviewReads=0, photoStateReads=0, uploadedPhoto=null, uploadedType=null, uploadedTypes=[]
   const syntheticWebp = Buffer.from(process.env.PHOTO_TEST_WEBP_BASE64,'base64')
   const stamp='2026-09-12T10:00:00+09:00'
   await context.route('**/*',async route=>{
@@ -39,12 +40,12 @@ export default function Fixture(){
     if(route.request().method()==='PUT'){writes++;uploadedPhoto=route.request().postDataBuffer();uploadedType=route.request().headers()['content-type'];uploadedTypes.push(uploadedType);if(failSave)return json({},500);setting={available:true,publicPhoto:true,imageVersion:version}}
     return json(user==='1'?setting:{available:true,publicPhoto:false,imageVersion:null})
    }
-   if(p==='/api/v1/auth/me/photo/image'||p===`/api/v1/profile-photos/${version}.webp`){
+   if(p==='/api/v1/auth/me/photo/image'||p===`/api/v1/profile-photos/${version}.webp`||p===`/api/v1/profile-photos/${reviewVersion}.webp`){
     imageReads++
     if(user!=='1'||!setting.imageVersion||(p.includes('/profile-photos/')&&!setting.publicPhoto))return json({},404)
-    return route.fulfill({contentType:'image/webp',body:syntheticWebp,headers:{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true','Cache-Control':'no-store'}})
+    return route.fulfill({contentType:'image/webp',body:syntheticWebp,headers:{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true','Cache-Control':p.includes('/profile-photos/')?'public, max-age=14400':'private, max-age=86400'}})
    }
-   if(p==='/api/v1/toilets/20/reviews')return json({items:[{id:'10',toiletId:20,toiletName:'합성 화장실',satisfaction:4,cleanliness:5,paper:true,waitMinutes:0,comment:'합성 리뷰',version:0,createdAt:stamp,updatedAt:stamp,editableUntil:stamp,canManage:false,authorRemoved:false,authorDisplayName:'합성 사용자 1',authorPhotoVersion:setting.publicPhoto?version:null}],hasMore:false,nextCursor:null})
+   if(p==='/api/v1/toilets/20/reviews'){reviewReads++;return json({items:[{id:'10',toiletId:20,toiletName:'합성 화장실',satisfaction:4,cleanliness:5,paper:true,waitMinutes:0,comment:'합성 리뷰',version:0,createdAt:stamp,updatedAt:stamp,editableUntil:stamp,canManage:false,authorRemoved:false,authorDisplayName:'합성 사용자 1',authorPhotoVersion:setting.publicPhoto?reviewVersion:null}],hasMore:false,nextCursor:null})}
    return json({},404)
   })
   const page=await context.newPage(),errors=[]
@@ -78,9 +79,15 @@ export default function Fixture(){
    return {background:getComputedStyle(button).backgroundColor,labelBeforeKnob:label.right<=knob.left}
   }),{background:'rgb(23, 104, 58)',labelBeforeKnob:true})
   assert.equal(await page.getByText(/리뷰 작성자 사진을 (공개했어요|비공개로 바꿨어요)/).count(),0)
+  const readsBeforePrefetch=imageReads
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
+  for(let attempt=0;attempt<100&&imageReads===readsBeforePrefetch;attempt++)await page.waitForTimeout(25)
+  assert.equal(reviewReads,1);assert.equal(imageReads,readsBeforePrefetch+1)
+  const readsAfterPrefetch=imageReads
   await page.getByRole('button',{name:'이용자 리뷰 보기'}).click()
+  await page.getByText('합성 리뷰',{exact:true}).waitFor()
   await page.locator('.public-review-avatar img').waitFor()
+  assert.equal(reviewReads,1);assert.equal(imageReads,readsAfterPrefetch)
   await page.screenshot({path:path.join(evidence,'public-review.png'),fullPage:true})
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
   await page.getByRole('button',{name:'프로필 수정',exact:true}).click()
@@ -146,7 +153,7 @@ export default function Fixture(){
   assert.equal(photoStateReads,0)
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false)
   assert.deepEqual(errors,[])
-  console.log(JSON.stringify({passed:true,writes,imageReads,photoStateReads,checks:['auth-profile-photo-first-paint','native-browser-image-cache','photo-action-sheet','pill-visibility-switch','toggle-no-success-message','private-owner','off-keeps-own-photo','off-hides-public-review','public-review','revocation','save-failure','delete','large-source-auto-resize','crop-grid','reset-icon','apply-layout','webp-export','png-export-fallback','client-crop-upload','account-switch','mobile-width']}))
+  console.log(JSON.stringify({passed:true,writes,imageReads,reviewReads,photoStateReads,checks:['auth-profile-photo-first-paint','native-browser-image-cache','photo-action-sheet','pill-visibility-switch','toggle-no-success-message','private-owner','off-keeps-own-photo','off-hides-public-review','public-review-prefetch','public-review-photo-decode','public-review-browser-cache-reuse','revocation','save-failure','delete','large-source-auto-resize','crop-grid','reset-icon','apply-layout','webp-export','png-export-fallback','client-crop-upload','account-switch','mobile-width']}))
   await context.close()
  } finally {
   if(browser)await browser.close()

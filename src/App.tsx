@@ -38,6 +38,7 @@ import { resolveDistanceReference, type DistanceSource } from './lib/distanceRef
 import { TRANSIENT_NOTICE_MS } from './lib/uiTiming'
 import { warmOwnPhoto } from './lib/warmOwnPhoto'
 import { refreshSignupPhoto } from './lib/signupPhotoWarm'
+import { prefetchPublicReviews } from './lib/publicReviewPrefetch'
 const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
 const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
@@ -238,6 +239,12 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
     }).finally(() => window.clearTimeout(timeout))
     return () => { disposed = true; controller.abort(); window.clearTimeout(timeout) }
   }, [activeDetailId, detailCache, detailRetry, testToilet])
+  useEffect(() => {
+    if (!REVIEW_API_ENABLED || activeDetailId === null || activeDetailId <= 0 || activeDetailId === testToilet?.id) return
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => { void prefetchPublicReviews(activeDetailId, controller.signal).catch(() => undefined) }, 0)
+    return () => { window.clearTimeout(timer); controller.abort() }
+  }, [activeDetailId, testToilet?.id])
   const [locationMessage, setLocationMessage] = useState<string | null>(null)
   const [withdrawalNotice, setWithdrawalNotice] = useState<string | null>(null)
   const [isLocating, setIsLocating] = useState(false)

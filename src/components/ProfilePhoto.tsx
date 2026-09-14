@@ -5,6 +5,7 @@ import { createApiUrl } from '../config/api'
 import { AuthExpiredError } from '../api/auth'
 import { decodePhoto, ownPhotoPath, publicPhotoPath, PROFILE_PHOTO_ENABLED, type PhotoState } from '../lib/profilePhoto'
 import { useDialogFocus } from '../lib/useDialogFocus'
+import { invalidatePublicReviewPrefetch } from '../lib/publicReviewPrefetch'
 import { ProfilePhotoCropDialog } from './ProfilePhotoCropDialog'
 
 const CHANGED = 'geupddong-profile-photo-changed'
@@ -48,8 +49,8 @@ async function mutatePhoto(method: 'PUT' | 'PATCH' | 'DELETE', body?: BodyInit, 
   } finally { clearTimeout(timer) }
 }
 
-function announcePhotoChange() { window.dispatchEvent(new Event(CHANGED)) }
-function announcePhotoVisibilityChange() { window.dispatchEvent(new Event(VISIBILITY_CHANGED)) }
+function announcePhotoChange() { invalidatePublicReviewPrefetch(); window.dispatchEvent(new Event(CHANGED)) }
+function announcePhotoVisibilityChange() { invalidatePublicReviewPrefetch(); window.dispatchEvent(new Event(VISIBILITY_CHANGED)) }
 function warmPublicPhoto(state: PhotoState) {
   const path=state.publicPhoto && state.imageVersion ? publicPhotoPath(state.imageVersion) : null
   if (path) void fetch(createApiUrl(path), { credentials: 'omit', cache: 'default' }).catch(() => undefined)
