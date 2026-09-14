@@ -23,9 +23,15 @@ jobs:
           - target: preview
             config: wrangler.jsonc
             indexable: 'false'
+            review_api_enabled: 'false'
+            review_production_approved: 'false'
+            profile_photo_enabled: 'false'
           - target: production-candidate
             config: wrangler.production.jsonc
             indexable: 'true'
+            review_api_enabled: 'true'
+            review_production_approved: 'true'
+            profile_photo_enabled: 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -34,6 +40,9 @@ jobs:
       NEXT_PUBLIC_API_BASE_URL: https://api.geupddong.com
       NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY: ${{ secrets.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY || 'build-validation-placeholder' }}
       SITE_INDEXABLE: ${{ matrix.indexable }}
+      REVIEW_API_ENABLED: ${{ matrix.review_api_enabled }}
+      REVIEW_PRODUCTION_APPROVED: ${{ matrix.review_production_approved }}
+      NEXT_PUBLIC_PROFILE_PHOTO_ENABLED: ${{ matrix.profile_photo_enabled }}
       NEXT_DEPLOYMENT_ID: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.target }}
     steps:
       - uses: actions/checkout@v7.0.1
