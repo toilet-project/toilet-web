@@ -19,6 +19,17 @@ test('new signup photo is accepted and stops polling as soon as its version is r
   assert.equal(accepted.at(-1).profilePhoto.imageVersion, ready.imageVersion)
 })
 
+test('a slow signup import remains observable for about one minute', async () => {
+  const delays = []
+  await refreshSignupPhoto(
+    async () => ({ profilePhoto: pending }),
+    () => true,
+    async (milliseconds) => { delays.push(milliseconds) },
+  )
+  assert.deepEqual(delays, SIGNUP_PHOTO_WARM_DELAYS_MS)
+  assert.ok(delays.reduce((total, delay) => total + delay, 0) >= 60_000)
+})
+
 test('signup photo polling stops when the session changes or a read fails', async () => {
   let loads = 0
   await refreshSignupPhoto(async () => { loads += 1; return { profilePhoto: pending } }, () => false, async () => {})
