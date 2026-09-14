@@ -8,6 +8,10 @@ import {signatureFor, REVALIDATION_PATH} from '../src/server/cacheRevalidation.t
 
 const counts = new Map()
 const indexable = process.argv.includes('--indexable')
+const productionReview = indexable
+  && process.env.REVIEW_API_ENABLED === 'true'
+  && process.env.REVIEW_PRODUCTION_APPROVED === 'true'
+  && process.env.NEXT_PUBLIC_API_BASE_URL === 'https://api.geupddong.com'
 const secret = 'test-only-signing-secret-at-least-32-bytes'
 let deleted = false
 const fixture = { id: 900001, name: '검증용 화장실', toiletType: '공중화장실', latitude: 36.85, longitude: 127.15,
@@ -69,7 +73,8 @@ try {
   assert.equal((await version.json()).version, 'isolated-release-smoke')
   assert.match(version.headers.get('cache-control'), /no-store/)
   assert.match(html, /data-dpl-id="isolated-release-smoke"/)
-  assert.equal(html.includes('review-card-title-row'), !indexable, 'preview report layout must be excluded from production first HTML')
+  assert.equal(html.includes('review-card-title-row'), !indexable || productionReview,
+    'review layout in first HTML must match the preview or approved production build gate')
   assert.match(html, /\.css\?dpl=isolated-release-smoke/)
   assert.equal(first.status,200)
   assert.match(html,/<h1[^>]*>검증용 화장실<\/h1>/)

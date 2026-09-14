@@ -110,3 +110,14 @@ test('guard installs before hydration, snapshot runs before navigation and pageh
   const workflow = await source('../.github/workflows/workers-validation.yml')
   assert.match(workflow, /tar .*custom-worker.mjs worker-cache-policy.mjs/)
 })
+
+test('production Worker candidate keeps review and profile-photo features enabled at build time', async () => {
+  const workflow = await readFile(new URL('../.github/workflows/workers-validation.yml', import.meta.url), 'utf8')
+  const production = workflow.slice(workflow.indexOf('- target: production-candidate'), workflow.indexOf('runs-on: ubuntu-latest'))
+  assert.match(production, /review_api_enabled: 'true'/)
+  assert.match(production, /review_production_approved: 'true'/)
+  assert.match(production, /profile_photo_enabled: 'true'/)
+  assert.match(workflow, /REVIEW_API_ENABLED: \$\{\{ matrix\.review_api_enabled \}\}/)
+  assert.match(workflow, /REVIEW_PRODUCTION_APPROVED: \$\{\{ matrix\.review_production_approved \}\}/)
+  assert.match(workflow, /NEXT_PUBLIC_PROFILE_PHOTO_ENABLED: \$\{\{ matrix\.profile_photo_enabled \}\}/)
+})
