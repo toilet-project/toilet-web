@@ -37,6 +37,7 @@ import { DESKTOP_LAYOUT_QUERY } from './lib/responsiveLayout'
 import { resolveDistanceReference, type DistanceSource } from './lib/distanceReference'
 import { TRANSIENT_NOTICE_MS } from './lib/uiTiming'
 import { warmOwnPhoto } from './lib/warmOwnPhoto'
+import { refreshSignupPhoto } from './lib/signupPhotoWarm'
 const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
 const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
@@ -456,14 +457,23 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
   }, [showLocationMessage])
 
   const handleConsentComplete = useCallback(() => {
+    const signupUserId = authProfile?.status === 'PENDING_CONSENT' ? authProfile.userId : null
     setAuthProfile((profile) => profile ? { ...profile, status: 'ACTIVE', consentRequired: false } : profile)
     if (new URLSearchParams(window.location.search).get('returnTo') === 'admin') {
       window.location.assign('https://admin.geupddong.com')
       return
     }
+    if (signupUserId) {
+      void refreshSignupPhoto(getCurrentUser, (profile) => {
+        if (currentUserRef.current !== signupUserId || profile.userId !== signupUserId) return false
+        warmOwnPhoto(profile.profilePhoto)
+        setAuthProfile(profile)
+        return true
+      })
+    }
     showLocationMessage('약관 동의가 완료되었습니다.')
     resumePendingLoginAction()
-  }, [resumePendingLoginAction, showLocationMessage])
+  }, [authProfile, resumePendingLoginAction, showLocationMessage])
 
   const handleWithdrawn = useCallback((message: string) => {
     setIsAccountOpen(false)
