@@ -232,7 +232,7 @@
 .public-review-error button, .public-review-more { min-height: 36px; flex: 0 0 auto; padding: 7px 10px; border: 1px solid #dbe6de; border-radius: 9px; background: #f7faf8; color: #356b49; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
 .public-review-full-panel { position: absolute; z-index: 7; inset: 0; display: flex; min-height: 0; flex-direction: column; overflow: hidden; border-radius: inherit; background: #fff; }
 .public-review-full-panel.is-inline { position: relative; min-height: 360px; margin-top: 10px; border: 1px solid #e2e9e4; border-radius: 15px; }
-.public-review-full-header { position: relative; min-height: 111px; flex: 0 0 auto; padding: 69px 96px 12px 18px; border-bottom: 1px solid #e7ece8; }
+.public-review-full-header { position: relative; min-height: 109px; flex: 0 0 auto; padding: 67px 96px 12px 18px; border-bottom: 1px solid #e7ece8; }
 .public-review-back { position: absolute; top: 3px; right: 40px; display: grid; width: 44px; height: 44px; place-items: center; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #3f5748; cursor: pointer; }
 .public-review-back:active { background: #eff5f1; }
 .public-review-full-header div { min-width: 0; }
