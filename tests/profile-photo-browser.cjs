@@ -24,7 +24,7 @@ export default function Fixture(){
  try {
   browser=await chromium.launch({channel:'chrome',headless:true})
   const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block'})
-  let user='1', setting={available:true,publicPhoto:false,imageVersion:version}, failSave=false, writes=0, imageReads=0, privateOwnReads=0, publicOwnReads=0, reviewPhotoReads=0, reviewReads=0, photoStateReads=0, uploadedPhoto=null, uploadedType=null, uploadedTypes=[]
+  let user='1', setting={available:true,publicPhoto:false,imageVersion:version}, failSave=false, writes=0, imageReads=0, privateOwnReads=0, publicOwnReads=0, reviewPhotoReads=0, reviewReads=0, photoStateReads=0, uploadedPhoto=null, uploadedType=null, uploadedTypes=[], holdReview=false, releaseReview
   const syntheticWebp = Buffer.from(process.env.PHOTO_TEST_WEBP_BASE64,'base64')
   const stamp='2026-09-12T10:00:00+09:00'
   await context.route('**/*',async route=>{
@@ -48,7 +48,7 @@ export default function Fixture(){
     if(user!=='1'||!setting.imageVersion||(p.includes('/profile-photos/')&&!setting.publicPhoto))return json({},404)
     return route.fulfill({contentType:'image/webp',body:syntheticWebp,headers:{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true','Cache-Control':p.includes('/profile-photos/')?'public, max-age=14400':'private, max-age=86400'}})
    }
-   if(p==='/api/v1/toilets/20/reviews'){reviewReads++;const items=Array.from({length:4},(_,index)=>({id:String(10+index),toiletId:20,toiletName:'합성 화장실',satisfaction:index===0?4:5,cleanliness:5,paper:true,waitMinutes:0,comment:index===0?'합성 리뷰':`합성 리뷰 ${index+1}`,version:0,createdAt:stamp,updatedAt:stamp,editableUntil:stamp,canManage:false,authorRemoved:false,authorDisplayName:'합성 사용자 1',authorPhotoVersion:setting.publicPhoto?reviewVersion:null}));return json({items,hasMore:false,nextCursor:null})}
+   if(p==='/api/v1/toilets/20/reviews'){reviewReads++;if(holdReview)await new Promise(resolve=>{releaseReview=resolve});const items=Array.from({length:4},(_,index)=>({id:String(10+index),toiletId:20,toiletName:'합성 화장실',satisfaction:index===0?4:5,cleanliness:5,paper:true,waitMinutes:0,comment:index===0?'합성 리뷰':`합성 리뷰 ${index+1}`,version:0,createdAt:stamp,updatedAt:stamp,editableUntil:stamp,canManage:false,authorRemoved:false,authorDisplayName:'합성 사용자 1',authorPhotoVersion:setting.publicPhoto?reviewVersion:null}));return json({items,hasMore:false,nextCursor:null})}
    return json({},404)
   })
   const page=await context.newPage(),errors=[]
@@ -86,8 +86,13 @@ export default function Fixture(){
   }),{background:'rgb(23, 104, 58)',labelBeforeKnob:true})
   assert.equal(await page.getByText(/리뷰 작성자 사진을 (공개했어요|비공개로 바꿨어요)/).count(),0)
   const reviewPhotoReadsBeforePrefetch=reviewPhotoReads
+  holdReview=true
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
   await page.locator('.public-reviews').waitFor()
+  for(let attempt=0;attempt<100&&reviewReads===0;attempt++)await page.waitForTimeout(25)
+  await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
+  await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
+  releaseReview();holdReview=false
   for(let attempt=0;attempt<100&&(reviewReads===0||reviewPhotoReads===reviewPhotoReadsBeforePrefetch);attempt++)await page.waitForTimeout(25)
   assert.equal(reviewReads,1);assert.equal(reviewPhotoReads,reviewPhotoReadsBeforePrefetch+1)
   const reviewPhotoReadsAfterPrefetch=reviewPhotoReads
