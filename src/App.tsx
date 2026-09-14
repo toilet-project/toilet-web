@@ -36,6 +36,7 @@ import type { MapRouteData } from './components/mapRouteContext'
 import { DESKTOP_LAYOUT_QUERY } from './lib/responsiveLayout'
 import { resolveDistanceReference, type DistanceSource } from './lib/distanceReference'
 import { TRANSIENT_NOTICE_MS } from './lib/uiTiming'
+import { warmOwnPhoto } from './lib/warmOwnPhoto'
 const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
 const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
@@ -361,6 +362,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
     void getCurrentUser()
       .then((profile) => {
         if (!active) return
+        warmOwnPhoto(profile?.profilePhoto)
         setAuthProfile(profile)
         if (profile && !profile.consentRequired) resumePendingLoginAction()
       })
