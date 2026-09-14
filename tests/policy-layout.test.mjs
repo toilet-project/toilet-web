@@ -5,10 +5,11 @@ import test from 'node:test'
 const read = path => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('current policy pages use one responsive document hierarchy', async () => {
-  const [page, styles, mobileStyles] = await Promise.all([
+  const [page, styles, mobileStyles, icons] = await Promise.all([
     read('../src/components/PolicyPage.tsx'),
     read('../src/App.css'),
     read('../src/components/mobile-navigation.css'),
+    read('../public/icons.svg'),
   ])
   assert.match(page, /policy-document-header/)
   assert.match(page, /policy-combined-header/)
@@ -19,6 +20,8 @@ test('current policy pages use one responsive document hierarchy', async () => {
   assert.match(styles, /\.policy-combined-header > h2/)
   assert.match(styles, /\.policy-combined-body > section:first-child/)
   assert.doesNotMatch(mobileStyles, /\.policy-combined-section/)
+  assert.doesNotMatch(page, /github/i)
+  assert.doesNotMatch(icons, /github/i)
 })
 
 test('archived policy keeps the exact public URL contract in a readable responsive shell', async () => {
@@ -32,4 +35,5 @@ test('archived policy keeps the exact public URL contract in a readable responsi
   assert.match(archive, /소셜 연결 정보와 로그인 세션이 폐기됩니다/)
   assert.match(archive, /\.policy-document>h1[^}]*line-height:1\.28/)
   assert.match(archive, /@media\(max-width:640px\)/)
+  assert.doesNotMatch(archive, /github|toilet-web|github\.com/i)
 })
