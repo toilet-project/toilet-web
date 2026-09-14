@@ -144,7 +144,8 @@ test('review summaries follow the review action and divider, before addresses, w
   assert.match(css, /\.public-review-rating\s*\{[^}]*background: transparent/)
   assert.match(css, /\.public-review-summary-list\s*\{[^}]*gap: 14px[^}]*padding-top: 8px/)
   assert.doesNotMatch(css, /\.public-review-row\s*\{[^}]*border/)
-  assert.match(css, /\.public-review-full-header\s*\{[^}]*padding: 48px 18px 8px/)
+  assert.match(css, /\.public-review-full-header\s*\{[^}]*padding: 50px 18px 8px/)
+  assert.match(css, /\.public-review-full-title-row\s*\{[^}]*min-height: 44px/)
   assert.match(css, /\.public-review-full-header h2\s*\{[^}]*font-size: 19px[^}]*font-weight: 700/)
   assert.match(css, /\.public-review-back\s*\{[^}]*position: absolute[^}]*left: 6px[^}]*width: 32px[^}]*height: 32px/)
   assert.match(css, /\.public-review-back::before,[^}]*\.close-button::before\s*\{[^}]*inset: -6px/)
@@ -152,7 +153,8 @@ test('review summaries follow the review action and divider, before addresses, w
   assert.match(css, /\.public-review-full-reviews\s*\{[^}]*overflow-y: auto[^}]*overscroll-behavior: contain/)
   assert.match(css, /\.public-review-full-list\s*\{[^}]*padding: 12px 12px 16px[^}]*border: 1px solid #e2e9e4[^}]*border-radius: 14px/)
   assert.match(css, /\.place-card\.is-review-list-open > \.close-button\s*\{[^}]*top: 6px[^}]*right: 6px[^}]*width: 32px[^}]*height: 32px/)
-  assert.match(reviews, /className="public-review-full-type">\{toiletType\}/)
+  assert.match(reviews, /className="card-label public-review-full-type">\{toiletType\}/)
+  assert.match(reviews, /className="review-card-title-row public-review-full-title-row"/)
   assert.match(reviews, /className="public-review-total-rating"/)
   assert.match(reviews, /총 평점 \$\{fullRating\}점, 리뷰 \$\{fullReviewCount\}개/)
   assert.match(reviews, /<h3 id="public-review-full-list-title">이용자 리뷰/)
@@ -167,6 +169,7 @@ test('review summaries follow the review action and divider, before addresses, w
   assert.ok(reviews.indexOf('className="public-review-name"') < reviews.indexOf('className="public-review-rating"'))
   assert.match(css, /\.public-review-name\s*\{[^}]*flex: 0 1 auto/)
   assert.match(css, /\.public-review-meta time\s*\{[^}]*margin-left: auto/)
+  assert.match(css, /\.public-review-comment\s*\{[^}]*margin: 6px 0 0 33px/)
 })
 
 test('single and group address rows keep label left and align value toward the right copy action without wrapping', async () => {

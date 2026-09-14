@@ -112,8 +112,8 @@ function PublicReviewList({ toiletId, toiletName, toiletType, summary }: { toile
     <header className="public-review-full-header">
       <button ref={backButton} type="button" className="public-review-back" onClick={() => setFullView(false)} aria-label="화장실 상세로 돌아가기"><ReviewIcon name="back" size={22} /></button>
       <div className="public-review-full-heading">
-        <span className="public-review-full-type">{toiletType}</span>
-        <h2>{toiletName}</h2>
+        <span className="card-label public-review-full-type">{toiletType}</span>
+        <div className="review-card-title-row public-review-full-title-row"><h2>{toiletName}</h2></div>
         <div className="public-review-total-rating" aria-label={`총 평점 ${fullRating}점, 리뷰 ${fullReviewCount}개`}>
           <span>총 평점</span><ReviewIcon name="star" size={17} /><strong>{fullRating}</strong><small>/ 5</small><em>리뷰 {fullReviewCount}개</em>
         </div>
