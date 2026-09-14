@@ -11,9 +11,9 @@ import { MobilePage } from '../../components/MobileNavigation'
 import { PublicReviews } from '../../components/reviews/PublicReviews'
 const noop=()=>{}
 export default function Fixture(){
- const [user,setUser]=useState('1'), [reviews,setReviews]=useState(false)
+ const [user,setUser]=useState('1'), [reviews,setReviews]=useState(false), [profilePhoto,setProfilePhoto]=useState({available:true,publicPhoto:false,imageVersion:'${version}'})
  return <><div style={{position:'fixed',top:0,zIndex:9999,background:'white'}}><button onClick={()=>setUser(user==='1'?'2':'1')}>계정 전환 시험</button><button onClick={()=>setReviews(!reviews)}>리뷰 화면 시험</button></div>
- {reviews?<div style={{padding:40}}><PublicReviews toiletId={20}/></div>:<MobilePage tab="account" profile={{userId:user,displayName:'합성 사용자 '+user,email:null,status:'ACTIVE',roles:['USER'],consentRequired:false}} loading={false} unread={0} onProfile={noop} onReports={noop} onAccount={noop} onLogout={noop} onCountChange={noop} onOpenReport={noop} beforeLogin={noop} onSessionExpired={()=>setUser('2')} onWithdrawn={noop} onBackAccount={noop}/>}</>
+ {reviews?<div style={{padding:40}}><PublicReviews toiletId={20}/></div>:<MobilePage tab="account" profile={{userId:user,displayName:'합성 사용자 '+user,email:null,status:'ACTIVE',roles:['USER'],consentRequired:false,profilePhoto:user==='1'?profilePhoto:{available:true,publicPhoto:false,imageVersion:null}}} loading={false} unread={0} onProfile={next=>{if(user==='1'&&next.profilePhoto)setProfilePhoto(next.profilePhoto)}} onReports={noop} onAccount={noop} onLogout={noop} onCountChange={noop} onOpenReport={noop} beforeLogin={noop} onSessionExpired={()=>setUser('2')} onWithdrawn={noop} onBackAccount={noop}/>}</>
 }`
 ;(async () => {
  assert.ok(!fs.existsSync(routeDir), 'Refuse to replace an existing route')
@@ -23,7 +23,7 @@ export default function Fixture(){
  try {
   browser=await chromium.launch({channel:'chrome',headless:true})
   const context=await browser.newContext({viewport:{width:390,height:844},serviceWorkers:'block'})
-  let user='1', setting={available:true,publicPhoto:false,imageVersion:version}, failSave=false, writes=0, imageReads=0, uploadedPhoto=null, uploadedType=null, uploadedTypes=[]
+  let user='1', setting={available:true,publicPhoto:false,imageVersion:version}, failSave=false, writes=0, imageReads=0, photoStateReads=0, uploadedPhoto=null, uploadedType=null, uploadedTypes=[]
   const syntheticWebp = Buffer.from(process.env.PHOTO_TEST_WEBP_BASE64,'base64')
   const stamp='2026-09-12T10:00:00+09:00'
   await context.route('**/*',async route=>{
@@ -33,6 +33,7 @@ export default function Fixture(){
    if(u.hostname!=='api.geupddong.com')return route.abort()
    if(route.request().method()==='OPTIONS')return json({})
    if(p==='/api/v1/auth/me/photo') {
+    if(route.request().method()==='GET')photoStateReads++
     if(route.request().method()==='PATCH'){writes++;if(failSave)return json({},500);setting={...setting,...route.request().postDataJSON()}}
     if(route.request().method()==='DELETE'){writes++;setting={available:true,publicPhoto:false,imageVersion:null}}
     if(route.request().method()==='PUT'){writes++;uploadedPhoto=route.request().postDataBuffer();uploadedType=route.request().headers()['content-type'];uploadedTypes.push(uploadedType);if(failSave)return json({},500);setting={available:true,publicPhoto:true,imageVersion:version}}
@@ -49,6 +50,9 @@ export default function Fixture(){
   const page=await context.newPage(),errors=[]
   page.on('pageerror',e=>errors.push(e.message))
   await page.goto(origin+'/photo-check')
+  await page.locator('.mobile-avatar img').waitFor()
+  assert.equal(photoStateReads,0)
+  assert.equal(await page.locator('.mobile-avatar img').getAttribute('src'),`https://api.geupddong.com/api/v1/auth/me/photo/image?version=${version}`)
   await page.getByRole('button',{name:'프로필 사진 변경',exact:true}).click()
   await page.getByRole('dialog',{name:'프로필 사진 메뉴'}).waitFor()
   await page.getByRole('button',{name:'보관함에서 사진 선택',exact:true}).waitFor()
@@ -139,9 +143,10 @@ export default function Fixture(){
   user='2';await page.getByRole('button',{name:'계정 전환 시험'}).click()
   await page.getByRole('heading',{name:'합성 사용자 2'}).waitFor()
   assert.equal(await page.locator('.mobile-avatar img').count(),0)
+  assert.equal(photoStateReads,0)
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false)
   assert.deepEqual(errors,[])
-  console.log(JSON.stringify({passed:true,writes,imageReads,checks:['photo-action-sheet','pill-visibility-switch','toggle-no-success-message','private-owner','off-keeps-own-photo','off-hides-public-review','public-review','revocation','save-failure','delete','large-source-auto-resize','crop-grid','reset-icon','apply-layout','webp-export','png-export-fallback','client-crop-upload','account-switch','mobile-width']}))
+  console.log(JSON.stringify({passed:true,writes,imageReads,photoStateReads,checks:['auth-profile-photo-first-paint','native-browser-image-cache','photo-action-sheet','pill-visibility-switch','toggle-no-success-message','private-owner','off-keeps-own-photo','off-hides-public-review','public-review','revocation','save-failure','delete','large-source-auto-resize','crop-grid','reset-icon','apply-layout','webp-export','png-export-fallback','client-crop-upload','account-switch','mobile-width']}))
   await context.close()
  } finally {
   if(browser)await browser.close()

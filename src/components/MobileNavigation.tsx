@@ -65,11 +65,14 @@ function LoginLanding({ onLogin }: { onLogin: (provider: 'google' | 'kakao') => 
 
 function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthProfile; onProfile: (profile: AuthProfile) => void; onSessionExpired: () => void }) {
   const [editing, setEditing] = useState(false)
-  const photo = useProfilePhoto(profile.userId, onSessionExpired)
+  const photo = useProfilePhoto(profile.userId, onSessionExpired, profile.profilePhoto ?? undefined)
   const [nickname, setNickname] = useState(profile.displayName || '')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const active = useRef(false)
+  const savePhoto = (next: NonNullable<AuthProfile['profilePhoto']>) => {
+    photo.update(next); onProfile({ ...profile, profilePhoto: next })
+  }
   useEffect(() => { active.current = true; return () => { active.current = false } }, [])
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); setSaving(true); setMessage('')
@@ -82,13 +85,13 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
   }
   return <section className="mobile-profile-card" aria-label="내 프로필">
     <div className="mobile-avatar-wrap"><div className="mobile-avatar"><OwnPhoto state={photo.state} fallback={<span role="img" aria-label="기본 프로필 이미지"><Icon name="account" /></span>} /></div>
-      {PROFILE_PHOTO_ENABLED && <PhotoActions state={photo.state} loadError={photo.error} onRetry={photo.retry} onSaved={photo.update} onExpired={onSessionExpired} onOpen={() => { setEditing(false); setMessage('') }} onNotice={setMessage} />}
+      {PROFILE_PHOTO_ENABLED && <PhotoActions state={photo.state} loadError={photo.error} onRetry={photo.retry} onSaved={savePhoto} onExpired={onSessionExpired} onOpen={() => { setEditing(false); setMessage('') }} onNotice={setMessage} />}
     </div>
     <div className="mobile-profile-copy"><span>내 프로필</span><h2>{profile.displayName || '급똥 사용자'}</h2><button type="button" className="mobile-profile-settings" onClick={() => { setNickname(profile.displayName || ''); setMessage(''); setEditing(value => !value) }}>프로필 수정</button></div>
     {editing && <form className="mobile-profile-form" onSubmit={event => void submit(event)}>
       <label htmlFor="mobile-nickname">닉네임</label><input id="mobile-nickname" value={nickname} onChange={event => setNickname(event.target.value)} minLength={2} maxLength={30} required autoComplete="nickname" />
       <small>2~30자 · 다른 사용자와 같은 닉네임도 사용할 수 있어요.</small>
-      {PROFILE_PHOTO_ENABLED && (photo.error ? <div role="status">{photo.error}<button type="button" onClick={photo.retry}>다시 불러오기</button></div> : photo.state ? <PhotoVisibilityPreference state={photo.state} onSaved={photo.update} onExpired={onSessionExpired} /> : <p role="status">사진 설정을 불러오는 중…</p>)}
+      {PROFILE_PHOTO_ENABLED && (photo.error ? <div role="status">{photo.error}<button type="button" onClick={photo.retry}>다시 불러오기</button></div> : photo.state ? <PhotoVisibilityPreference state={photo.state} onSaved={savePhoto} onExpired={onSessionExpired} /> : <p role="status">사진 설정을 불러오는 중…</p>)}
       <div><button type="button" disabled={saving} onClick={() => setEditing(false)}>취소</button><button type="submit" disabled={saving || nickname.trim().length < 2}>{saving ? '저장 중…' : '저장하기'}</button></div>
     </form>}
     {message && <p role="status">{message}</p>}

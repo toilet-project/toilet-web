@@ -2,6 +2,7 @@ import { createApiUrl } from '../config/api'
 import { socialLoginPath } from '../lib/oauthReturn'
 import { lifecycleErrorMessage, recoveryReceipt, withdrawalReceipt } from '../lib/accountLifecycle'
 import { fetchSessionRead } from './session'
+import { decodePhoto, type PhotoState } from '../lib/profilePhoto'
 
 export type AuthProfile = {
   userId: string
@@ -10,6 +11,7 @@ export type AuthProfile = {
   status: 'PENDING_CONSENT' | 'ACTIVE' | 'SUSPENDED' | 'WITHDRAWN'
   roles: string[]
   consentRequired: boolean
+  profilePhoto?: PhotoState | null
 }
 
 export type PolicyKey = 'SERVICE_TERMS' | 'PRIVACY_COLLECTION' | 'AGE_14_PLUS' | 'PRIVACY_POLICY' | 'LOCATION_NOTICE'
@@ -43,7 +45,8 @@ export async function getCurrentUser(): Promise<AuthProfile | null> {
 
   if (response.status === 401) return null
   if (!response.ok) throw new Error('로그인 상태를 확인하지 못했습니다.')
-  return response.json() as Promise<AuthProfile>
+  const profile = await response.json() as AuthProfile & { profilePhoto?: unknown }
+  return { ...profile, profilePhoto: profile.profilePhoto == null ? profile.profilePhoto : decodePhoto(profile.profilePhoto) }
 }
 
 export function startSocialLogin(provider: 'google' | 'kakao') {

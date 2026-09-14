@@ -2,14 +2,14 @@ import { useEffect, useRef, useState } from 'react'
 import { createApiUrl } from '../config/api'
 import { fetchSessionRead } from '../api/session'
 import { decodePhoto, PROFILE_PHOTO_ENABLED, type PhotoState } from './profilePhoto'
-export function useProfilePhoto(owner: string, onExpired: () => void) {
-  const [state, setState] = useState<PhotoState | null>(null)
+export function useProfilePhoto(owner: string, onExpired: () => void, initialState?: PhotoState) {
+  const [state, setState] = useState<PhotoState | null>(initialState ?? null)
   const [error, setError] = useState('')
   const [revision, reload] = useState(0)
   const onExpiredRef = useRef(onExpired)
   useEffect(() => { onExpiredRef.current = onExpired }, [onExpired])
   useEffect(() => {
-    if (!PROFILE_PHOTO_ENABLED) return
+    if (!PROFILE_PHOTO_ENABLED || initialState !== undefined) return
     let active = true
     void (async () => {
       try {
@@ -22,6 +22,6 @@ export function useProfilePhoto(owner: string, onExpired: () => void) {
       } catch { if (active) setError('사진 설정을 불러오지 못했어요.') }
     })()
     return () => { active = false }
-  }, [owner, revision])
+  }, [owner, revision, initialState])
   return { state, error, retry: () => reload(n => n + 1), update: setState }
 }

@@ -9,41 +9,28 @@ import { ProfilePhotoCropDialog } from './ProfilePhotoCropDialog'
 
 const CHANGED = 'geupddong-profile-photo-changed'
 const VISIBILITY_CHANGED = 'geupddong-profile-photo-visibility-changed'
-/** Blob URLs are scoped to the mounted account/view and are revoked on unmount. No Next image proxy cache. */
+/** Native image loading lets the browser reuse its HTTP cache and ETag without a fetch/blob delay. */
 export function PhotoImage({ path, privatePhoto = false, fallback, label = '프로필 사진' }: {
   path: string | null; privatePhoto?: boolean; fallback: ReactNode; label?: string;
 }) {
-  const [image, setImage] = useState<{ path: string; url: string } | null>(null)
+  const [status, setStatus] = useState<{ path: string | null; loaded: boolean; failed: boolean }>({ path: null, loaded: false, failed: false })
+  const [attempt, setAttempt] = useState(0)
   useEffect(() => {
-    if (!PROFILE_PHOTO_ENABLED || !path) return
-    let active = true, objectUrl: string | null = null
-    let request: AbortController | null = null
-    let generation = 0
-    const load = async () => {
-      const current = ++generation
-      request?.abort(); const controller = new AbortController(); request = controller
-      if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null }
-      setImage(null)
-      const timer = setTimeout(() => controller.abort(), 10_000)
-      try {
-        const response = await fetch(createApiUrl(path), { credentials: privatePhoto ? 'include' : 'omit', cache: 'default', signal: controller.signal })
-        if (!response.ok || !response.headers.get('content-type')?.startsWith('image/webp')) return
-        const blob = await response.blob()
-        if (!active || current !== generation || blob.size > 100_000) return
-        objectUrl = URL.createObjectURL(blob); setImage({ path, url: objectUrl })
-      } catch { /* Keep the default avatar. */ }
-      finally { clearTimeout(timer) }
-    }
-    const changed = () => { void load() }
-    void load(); window.addEventListener(CHANGED, changed)
-    if (!privatePhoto) window.addEventListener(VISIBILITY_CHANGED, changed)
-    return () => {
-      active = false; generation++; request?.abort(); window.removeEventListener(CHANGED, changed)
-      if (!privatePhoto) window.removeEventListener(VISIBILITY_CHANGED, changed)
-      if (objectUrl) URL.revokeObjectURL(objectUrl)
-    }
-  }, [path, privatePhoto])
-  return image?.path === path ? <img src={image.url} alt={label} width={256} height={256} onError={() => setImage(null)} /> : fallback
+    if (privatePhoto) return
+    const changed = () => { setStatus({ path: null, loaded: false, failed: false }); setAttempt(value => value + 1) }
+    window.addEventListener(CHANGED, changed); window.addEventListener(VISIBILITY_CHANGED, changed)
+    return () => { window.removeEventListener(CHANGED, changed); window.removeEventListener(VISIBILITY_CHANGED, changed) }
+  }, [privatePhoto])
+  const loaded = status.path === path && status.loaded
+  const failed = status.path === path && status.failed
+  if (!PROFILE_PHOTO_ENABLED || !path || failed) return fallback
+  return <span className="profile-photo-image">
+    {!loaded && <span className="profile-photo-image-fallback">{fallback}</span>}
+    <img key={`${path}:${attempt}`} src={createApiUrl(path)} alt={label} width={256} height={256}
+      loading="eager" decoding={privatePhoto ? 'sync' : 'async'} fetchPriority={privatePhoto ? 'high' : 'auto'}
+      aria-hidden={loaded ? undefined : true} onLoad={() => setStatus({ path, loaded: true, failed: false })}
+      onError={() => setStatus({ path, loaded: false, failed: true })} />
+  </span>
 }
 
 export function OwnPhoto({ state, fallback }: { state: PhotoState | null; fallback: ReactNode }) {
