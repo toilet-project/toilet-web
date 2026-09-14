@@ -135,9 +135,9 @@ function PublicReviewRow({ item, expanded }: { item: StoredReview; expanded: boo
   const comment = item.comment?.trim()
   return <article className={`public-review-row${expanded ? ' is-expanded' : ''}`}>
     <div className="public-review-meta">
-      <span className="public-review-rating" aria-label={`평균 평점 ${average}점`}><ReviewIcon name="star" size={14} /><strong>{average}</strong></span>
       <span className="public-review-avatar"><PhotoImage enabled path={item.authorRemoved || !item.authorPhotoVersion ? null : publicPhotoPath(item.authorPhotoVersion)} fallback={<span role="img" aria-label="기본 프로필 이미지">👤</span>} /></span>
       <strong className="public-review-name">{item.authorDisplayName}</strong>
+      <span className="public-review-rating" aria-label={`평균 평점 ${average}점`}><ReviewIcon name="star" size={14} /><strong>{average}</strong></span>
       <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}</time>
     </div>
     {comment && <p className="public-review-comment">{comment}</p>}

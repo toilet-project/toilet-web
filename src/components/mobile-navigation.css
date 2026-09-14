@@ -205,15 +205,16 @@
   .photo-crop-dialog { min-height: 100dvh; align-content: start; }
 }
 
-.public-reviews { width: 100%; margin-top: 18px; padding-top: 13px; border-top: 1px solid #e5ebe7; }
+.public-reviews { width: 100%; margin-top: 18px; padding: 11px 12px 4px; border: 1px solid #e2e9e4; border-radius: 14px; background: #fff; }
 .public-review-section-heading { display: flex; min-height: 32px; align-items: center; justify-content: space-between; gap: 12px; }
 .public-review-section-heading h2 { margin: 0; color: #26382d; font-size: 13px; font-weight: 800; letter-spacing: -.02em; }
 .public-review-section-heading button { display: inline-flex; min-height: 32px; align-items: center; gap: 3px; padding: 3px 1px 3px 9px; border: 0; border-radius: 8px; background: transparent; color: #35704b; font: inherit; font-size: 11px; font-weight: 750; cursor: pointer; }
 .public-review-section-heading button span { font-size: 19px; font-weight: 400; line-height: 1; }
-.public-review-summary-list { display: grid; min-width: 0; gap: 8px; padding-top: 6px; }
-.public-review-row { min-width: 0; padding: 10px 11px; border: 1px solid #e2e9e4; border-radius: 12px; background: #fff; }
+.public-review-summary-list { min-width: 0; padding-top: 4px; }
+.public-review-row { min-width: 0; padding: 10px 0; border-bottom: 1px solid #eef2ef; }
+.public-review-row:last-child { border-bottom: 0; }
 .public-reviews.is-clickable { cursor: pointer; }
-.public-reviews.is-clickable:hover .public-review-summary-list .public-review-row { border-color: #cbdacf; background: #fbfdfb; }
+.public-reviews.is-clickable:hover { border-color: #cbdacf; background: #fbfdfb; }
 .public-review-meta { display: flex; min-width: 0; align-items: center; gap: 7px; }
 .public-review-rating { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 3px; padding: 3px 6px; border-radius: 999px; background: transparent; color: #a66d13; font-variant-numeric: tabular-nums; }
 .public-review-rating svg { fill: #ffd667; stroke: #c68c25; }
@@ -239,7 +240,7 @@
 .public-review-full-header span { display: block; margin-bottom: 2px; color: #829087; font-size: 9px; font-weight: 750; }
 .public-review-full-header h2 { margin: 0; overflow: hidden; color: #26372c; font-size: 15px; font-weight: 800; letter-spacing: -.025em; text-overflow: ellipsis; white-space: nowrap; }
 .public-review-full-list { min-height: 0; flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; padding: 3px 18px 16px; scrollbar-gutter: stable; }
-.public-review-full-list .public-review-row { margin-top: 8px; padding: 12px; }
+.public-review-full-list .public-review-row { padding: 14px 0; }
 .public-review-full-list .public-review-comment { margin-top: 7px; }
 .public-review-more { display: block; width: 100%; margin: 10px 0 2px; }
 .place-card > .close-button, .coordinate-group-card > .close-button { z-index: 9; }
