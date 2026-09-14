@@ -144,7 +144,9 @@
   .map-reference-marker-label { position: absolute; top: 24px; left: 50%; padding: 3px 6px; border: 1px solid rgb(255 255 255 / 88%); border-radius: 999px; background: rgb(157 39 36 / 92%); color: #fff; font-size: 10px; font-weight: 800; line-height: 1; transform: translateX(-50%); white-space: nowrap; }
 }
 
-.mobile-avatar>img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+.profile-photo-image { position: relative; display: grid; width: 100%; height: 100%; place-items: center; overflow: hidden; border-radius: inherit; }
+.profile-photo-image-fallback { display: grid; width: 100%; height: 100%; place-items: center; }
+.profile-photo-image>img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 .profile-photo-file { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .profile-photo-action-backdrop { position: fixed; z-index: 900; inset: 0; display: grid; align-items: end; box-sizing: border-box; background: rgb(13 20 16 / 56%); }
 .profile-photo-action-sheet { display: grid; gap: 12px; box-sizing: border-box; width: min(100%, 480px); justify-self: center; padding: 22px 18px max(18px, env(safe-area-inset-bottom)); border-radius: 22px 22px 0 0; background: #fff; color: #25392d; box-shadow: 0 -12px 36px rgb(17 36 24 / 18%); }
