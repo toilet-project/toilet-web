@@ -4,6 +4,7 @@ import { decodeReview, type StoredReview } from './reviewApi'
 
 export type PublicReviewPage = { items: StoredReview[]; hasMore: boolean; nextCursor: string | null }
 
+export const PUBLIC_REVIEW_API_ENABLED = process.env.NEXT_PUBLIC_PUBLIC_REVIEW_API_ENABLED === 'true'
 export const PUBLIC_REVIEW_PREFETCH_TTL_MS = 30_000
 export const PUBLIC_REVIEW_PREFETCH_PHOTO_LIMIT = 3
 const MAX_CACHED_TOILETS = 24

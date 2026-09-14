@@ -44,7 +44,7 @@ const items = [
       if (local) await context.addInitScript(() => {
         document.addEventListener('DOMContentLoaded', () => { const style = document.createElement('style'); style.textContent = 'nextjs-portal {display:none!important}'; document.head.append(style) })
         class LatLng { constructor(lat,lng){this.lat=lat;this.lng=lng}getLat(){return this.lat}getLng(){return this.lng} }
-        class MapMock { constructor(el,options){this.el=el;this.center=options.center;this.level=options.level;this.listeners={}}getCenter(){return this.center}getLevel(){return this.level}getBounds(){return {getSouthWest:()=>new LatLng(36.35,127.33),getNorthEast:()=>new LatLng(36.38,127.36)}}getProjection(){return {pointFromCoords:()=>({x:700,y:300})}}relayout(){}panTo(p){this.center=p}setCenter(p){this.center=p}setDraggable(){}setZoomable(){}setLevel(v){this.level=v} }
+        class MapMock { constructor(el,options){this.el=el;this.center=options.center;this.level=options.level;this.listeners={};window.__mapMock=this}getCenter(){return this.center}getLevel(){return this.level}getBounds(){return {getSouthWest:()=>new LatLng(36.35,127.33),getNorthEast:()=>new LatLng(36.38,127.36)}}getProjection(){return {pointFromCoords:()=>({x:700,y:300})}}relayout(){}panTo(p){this.center=p}setCenter(p){this.center=p}setDraggable(){}setZoomable(){}setLevel(v){this.level=v} }
         class Overlay { constructor(options){this.options=options}setMap(map){this.options.content.remove();if(map){Object.assign(this.options.content.style,{position:'absolute',left:'100px',top:'120px'});map.el.append(this.options.content)}} }
         window.kakao={maps:{Map:MapMock,LatLng,CustomOverlay:Overlay,event:{preventMap(){},addListener(map,name,fn){(map.listeners[name]??=[]).push(fn)}},services:{Status:{OK:'OK',ZERO_RESULT:'ZERO'}}}}
       })
@@ -58,6 +58,16 @@ const items = [
         await page.locator('.coordinate-group-item-toggle').first().click()
       }
       await page.goto(origin + '/', { waitUntil: 'networkidle' })
+      if (width < 600 && local) {
+        await page.evaluate(() => { window.__mapMock.setLevel(8); for (const listener of window.__mapMock.listeners.zoom_changed ?? []) listener() })
+        await page.locator('.mobile-area-list-button').click()
+        await page.locator('.mobile-map-zoom-guide').waitFor()
+        assert.equal(await page.locator('.mobile-area-list').count(), 0, 'zoom-limited mobile map never opens the list sheet')
+        assert.match(await page.locator('.mobile-map-zoom-guide').innerText(), /두 손가락으로 지도를 확대/)
+        await page.screenshot({ path: path.join(output, `map-zoom-guide-${width}.png`) })
+        await page.evaluate(() => { window.__mapMock.setLevel(3); for (const listener of window.__mapMock.listeners.zoom_changed ?? []) listener() })
+        await page.locator('.mobile-map-zoom-guide').waitFor({ state: 'hidden' })
+      }
       await openGroup()
       const expanded = page.locator('.coordinate-group-item.is-expanded'), action = expanded.locator('.coordinate-opening-row .review-card-report')
       await action.waitFor()

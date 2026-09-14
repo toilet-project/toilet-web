@@ -76,7 +76,7 @@ export function PolicyPage({ kind, embedded = false }: { kind: PolicyPageKind; e
   </PolicyLayout>
   if (kind === 'terms') return <PolicyLayout title="서비스 이용약관" embedded={embedded}>
     <section><SectionHeading>1. 목적</SectionHeading><p>이 약관은 개인 운영 서비스인 급똥이 제공하는 공중화장실 조회, 소셜 로그인, 정보 제보와 관련한 이용 조건을 정합니다.</p></section>
-    <section><SectionHeading>2. 이용 대상</SectionHeading><p>지도와 화장실 조회는 로그인 없이 이용할 수 있습니다. 회원가입, 로그인 및 정보 제보 기능은 만 14세 이상만 이용할 수 있습니다.</p></section>
+    <section id="age"><SectionHeading>2. 만 14세 이상 확인</SectionHeading><p>급똥의 회원 기능은 만 14세 이상만 이용할 수 있습니다. 가입을 계속하면 본인이 만 14세 이상임을 확인합니다. 만 14세 미만인 경우에도 지도와 화장실 조회는 로그인 없이 이용할 수 있지만 회원가입, 로그인, 정보 제보와 리뷰 작성 기능은 이용할 수 없습니다.</p></section>
     <section><SectionHeading>3. 계정과 소셜 로그인</SectionHeading><p>Google 또는 Kakao 계정으로 본인 인증 후 필수 약관에 동의하면 계정이 활성화됩니다. 이용자는 자신의 계정을 안전하게 관리해야 하며 타인의 계정을 이용해서는 안 됩니다. 카카오에서 프로필 사진 제공에 동의하거나 직접 사진을 등록하면 공개 리뷰의 작성자 사진으로 표시되며, 내 페이지에서 언제든 공개를 끌 수 있습니다.</p></section>
     <section><SectionHeading>4. 제보·리뷰와 콘텐츠</SectionHeading>
       <p>이용자는 화장실 위치와 개방시간 등 사실에 근거한 정보를 제보하고, 실제 이용 경험에 근거한 리뷰를 작성해야 합니다. 제보는 관리자 검토 후 승인·반려되며, 서비스 품질과 안전을 위해 수정되거나 반영되지 않을 수 있습니다.</p>

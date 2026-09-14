@@ -16,6 +16,10 @@ const reviewProductionApi = process.env.SITE_INDEXABLE === 'true'
   && process.env.REVIEW_PRODUCTION_APPROVED === 'true'
   && process.env.NEXT_PUBLIC_API_BASE_URL === 'https://api.geupddong.com'
 const reviewApiEnabled = reviewPreviewApi || reviewProductionApi
+// Public review reads do not mutate production data. The fixed preview domain may
+// use the production public API while authenticated review writes remain gated.
+const publicReviewApiEnabled = reviewApiEnabled || process.env.SITE_INDEXABLE === 'false'
+  && process.env.NEXT_PUBLIC_API_BASE_URL === 'https://api.geupddong.com'
 
 const config: NextConfig = {
   deploymentId: process.env.NEXT_DEPLOYMENT_ID,
@@ -25,6 +29,7 @@ const config: NextConfig = {
     NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW: process.env.SITE_INDEXABLE === 'false' && !reviewApiEnabled ? 'true' : 'false',
     // Production requires all four exact build-time gates above; runtime URLs cannot enable it.
     NEXT_PUBLIC_REVIEW_API_ENABLED: reviewApiEnabled ? 'true' : 'false',
+    NEXT_PUBLIC_PUBLIC_REVIEW_API_ENABLED: publicReviewApiEnabled ? 'true' : 'false',
   },
   distDir: process.env.NEXT_BUILD_DIR || '.next',
   poweredByHeader: false,

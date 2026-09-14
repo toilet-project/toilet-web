@@ -205,11 +205,47 @@
   .photo-crop-dialog { min-height: 100dvh; align-content: start; }
 }
 
-.public-reviews { width: 100%; margin-top: 14px; }
-.public-reviews button { min-height: 40px; border: 1px solid #dce5df; border-radius: 8px; background: #f6faf7; padding: 8px 12px; color: #345340; }
-.public-reviews article { padding: 16px 0; border-bottom: 1px solid #e3ebe5; }
-.public-reviews article p { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; font-size: 13px; }
-.public-review-author { display: flex; gap: 8px; align-items: center; font-size: 13px; }
-.public-review-avatar { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 32px; width: 32px; height: 32px; border-radius: 50%; background: #eef3ef; overflow: hidden; }
-.public-review-avatar img { width: 32px; height: 32px; object-fit: cover; }
-.public-review-score,.public-reviews time { color: #607366; font-size: 12px; }
+.public-reviews { width: 100%; margin-top: 18px; padding-top: 13px; border-top: 1px solid #e5ebe7; }
+.public-review-section-heading { display: flex; min-height: 32px; align-items: center; justify-content: space-between; gap: 12px; }
+.public-review-section-heading h2 { margin: 0; color: #26382d; font-size: 13px; font-weight: 800; letter-spacing: -.02em; }
+.public-review-section-heading button { display: inline-flex; min-height: 32px; align-items: center; gap: 3px; padding: 3px 1px 3px 9px; border: 0; border-radius: 8px; background: transparent; color: #35704b; font: inherit; font-size: 11px; font-weight: 750; cursor: pointer; }
+.public-review-section-heading button span { font-size: 19px; font-weight: 400; line-height: 1; }
+.public-review-summary-list { min-width: 0; }
+.public-review-row { min-width: 0; padding: 10px 0; border-bottom: 1px solid #eef2ef; }
+.public-review-row:last-child { border-bottom: 0; }
+.public-review-meta { display: flex; min-width: 0; align-items: center; gap: 7px; }
+.public-review-rating { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 3px; padding: 3px 6px; border-radius: 999px; background: #fff8e7; color: #a66d13; font-variant-numeric: tabular-nums; }
+.public-review-rating svg { fill: #ffd667; stroke: #c68c25; }
+.public-review-rating strong { color: inherit; font-size: 11px; line-height: 1; }
+.public-review-avatar { display: inline-flex; width: 26px; height: 26px; flex: 0 0 26px; align-items: center; justify-content: center; overflow: hidden; border-radius: 50%; background: #edf3ee; color: #839388; font-size: 13px; }
+.public-review-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.public-review-name { min-width: 0; flex: 1; overflow: hidden; color: #35473b !important; font-size: 12px !important; font-weight: 750 !important; text-overflow: ellipsis; white-space: nowrap; }
+.public-review-meta time { flex: 0 0 auto; color: #95a198; font-size: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.public-review-comment { margin: 6px 0 0; overflow: hidden; color: #66756b; font-size: 12px; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }
+.public-review-comment.is-empty { color: #a1aaa4; }
+.public-review-empty { margin: 5px 0 0; padding: 14px 0 8px; color: #89968d; font-size: 12px; text-align: center; }
+.public-review-loading { display: flex; min-height: 46px; align-items: center; justify-content: center; gap: 8px; color: #839188; font-size: 11px; }
+.public-review-loading::before { width: 13px; height: 13px; border: 2px solid #cad8ce; border-top-color: #43805a; border-radius: 50%; content: ''; animation: public-review-spin .8s linear infinite; }
+.public-review-loading > span { display: none; }
+.public-review-error { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 7px 0 0; color: #8d594c; font-size: 11px; line-height: 1.45; }
+.public-review-error span { min-width: 0; }
+.public-review-error button, .public-review-more { min-height: 36px; flex: 0 0 auto; padding: 7px 10px; border: 1px solid #dbe6de; border-radius: 9px; background: #f7faf8; color: #356b49; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.public-review-full-panel { position: absolute; z-index: 7; inset: 0; display: flex; min-height: 0; flex-direction: column; overflow: hidden; border-radius: inherit; background: #fff; }
+.public-review-full-panel.is-inline { position: relative; min-height: 360px; margin-top: 10px; border: 1px solid #e2e9e4; border-radius: 15px; }
+.public-review-full-header { display: flex; min-height: 64px; flex: 0 0 auto; align-items: center; gap: 7px; padding: 7px 47px 7px 7px; border-bottom: 1px solid #e7ece8; }
+.public-review-back { display: grid; width: 44px; height: 44px; flex: 0 0 44px; place-items: center; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #3f5748; cursor: pointer; }
+.public-review-back:active { background: #eff5f1; }
+.public-review-full-header div { min-width: 0; }
+.public-review-full-header span { display: block; margin-bottom: 2px; color: #829087; font-size: 9px; font-weight: 750; }
+.public-review-full-header h2 { margin: 0; overflow: hidden; color: #26372c; font-size: 15px; font-weight: 800; letter-spacing: -.025em; text-overflow: ellipsis; white-space: nowrap; }
+.public-review-full-list { min-height: 0; flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; padding: 3px 18px 16px; scrollbar-gutter: stable; }
+.public-review-full-list .public-review-row { padding: 14px 0; }
+.public-review-full-list .public-review-comment { margin-top: 7px; }
+.public-review-more { display: block; width: 100%; margin: 10px 0 2px; }
+.place-card > .close-button, .coordinate-group-card > .close-button { z-index: 9; }
+.place-card.is-review-list-open > .close-button, .coordinate-group-card.is-review-list-open > .close-button {
+  top: 14px; display: grid; width: 36px; height: 36px; place-items: center; padding: 0;
+  border-radius: 50%; background: #f2f6f3; color: #435249; line-height: 1;
+}
+@keyframes public-review-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .public-review-loading::before { animation: none; } }

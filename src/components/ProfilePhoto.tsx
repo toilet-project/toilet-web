@@ -11,8 +11,8 @@ import { ProfilePhotoCropDialog } from './ProfilePhotoCropDialog'
 const CHANGED = 'geupddong-profile-photo-changed'
 const VISIBILITY_CHANGED = 'geupddong-profile-photo-visibility-changed'
 /** Native image loading lets the browser reuse its HTTP cache and ETag without a fetch/blob delay. */
-export function PhotoImage({ path, privatePhoto = false, priority = false, fallback, label = '프로필 사진' }: {
-  path: string | null; privatePhoto?: boolean; priority?: boolean; fallback: ReactNode; label?: string;
+export function PhotoImage({ path, privatePhoto = false, priority = false, enabled = PROFILE_PHOTO_ENABLED, fallback, label = '프로필 사진' }: {
+  path: string | null; privatePhoto?: boolean; priority?: boolean; enabled?: boolean; fallback: ReactNode; label?: string;
 }) {
   const [status, setStatus] = useState<{ path: string | null; loaded: boolean; failed: boolean }>({ path: null, loaded: false, failed: false })
   const [attempt, setAttempt] = useState(0)
@@ -24,7 +24,7 @@ export function PhotoImage({ path, privatePhoto = false, priority = false, fallb
   }, [privatePhoto])
   const loaded = status.path === path && status.loaded
   const failed = status.path === path && status.failed
-  if (!PROFILE_PHOTO_ENABLED || !path || failed) return fallback
+  if (!enabled || !path || failed) return fallback
   return <span className="profile-photo-image">
     {!loaded && <span className="profile-photo-image-fallback">{fallback}</span>}
     <img key={`${path}:${attempt}`} src={createApiUrl(path)} alt={label} width={256} height={256}

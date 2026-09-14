@@ -14,7 +14,7 @@ const noop=()=>{}
 export default function Fixture(){
  const [user,setUser]=useState('1'), [reviews,setReviews]=useState(false), [profilePhoto,setProfilePhoto]=useState({available:true,publicPhoto:false,imageVersion:'${version}'})
  return <><div style={{position:'fixed',top:0,zIndex:9999,background:'white'}}><button onClick={()=>setUser(user==='1'?'2':'1')}>계정 전환 시험</button><button onClick={()=>setReviews(!reviews)}>리뷰 화면 시험</button></div>
- {reviews?<div style={{padding:40}}><PublicReviews toiletId={20}/></div>:<MobilePage tab="account" profile={{userId:user,displayName:'합성 사용자 '+user,email:null,status:'ACTIVE',roles:['USER'],consentRequired:false,profilePhoto:user==='1'?profilePhoto:{available:true,publicPhoto:false,imageVersion:null}}} loading={false} unread={0} onProfile={next=>{if(user==='1'&&next.profilePhoto)setProfilePhoto(next.profilePhoto)}} onReports={noop} onAccount={noop} onLogout={noop} onCountChange={noop} onOpenReport={noop} beforeLogin={noop} onSessionExpired={()=>setUser('2')} onWithdrawn={noop} onBackAccount={noop}/>}</>
+ {reviews?<div className="place-card mobile-card-expanded" style={{position:'relative',inset:'auto',height:460,margin:'60px auto 0'}}><button className="close-button" aria-label="정보 닫기">×</button><PublicReviews toiletId={20} toiletName="합성 화장실"/></div>:<MobilePage tab="account" profile={{userId:user,displayName:'합성 사용자 '+user,email:null,status:'ACTIVE',roles:['USER'],consentRequired:false,profilePhoto:user==='1'?profilePhoto:{available:true,publicPhoto:false,imageVersion:null}}} loading={false} unread={0} onProfile={next=>{if(user==='1'&&next.profilePhoto)setProfilePhoto(next.profilePhoto)}} onReports={noop} onAccount={noop} onLogout={noop} onCountChange={noop} onOpenReport={noop} beforeLogin={noop} onSessionExpired={()=>setUser('2')} onWithdrawn={noop} onBackAccount={noop}/>}</>
 }`
 ;(async () => {
  assert.ok(!fs.existsSync(routeDir), 'Refuse to replace an existing route')
@@ -48,7 +48,7 @@ export default function Fixture(){
     if(user!=='1'||!setting.imageVersion||(p.includes('/profile-photos/')&&!setting.publicPhoto))return json({},404)
     return route.fulfill({contentType:'image/webp',body:syntheticWebp,headers:{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true','Cache-Control':p.includes('/profile-photos/')?'public, max-age=14400':'private, max-age=86400'}})
    }
-   if(p==='/api/v1/toilets/20/reviews'){reviewReads++;return json({items:[{id:'10',toiletId:20,toiletName:'합성 화장실',satisfaction:4,cleanliness:5,paper:true,waitMinutes:0,comment:'합성 리뷰',version:0,createdAt:stamp,updatedAt:stamp,editableUntil:stamp,canManage:false,authorRemoved:false,authorDisplayName:'합성 사용자 1',authorPhotoVersion:setting.publicPhoto?reviewVersion:null}],hasMore:false,nextCursor:null})}
+   if(p==='/api/v1/toilets/20/reviews'){reviewReads++;const items=Array.from({length:4},(_,index)=>({id:String(10+index),toiletId:20,toiletName:'합성 화장실',satisfaction:index===0?4:5,cleanliness:5,paper:true,waitMinutes:0,comment:index===0?'합성 리뷰':`합성 리뷰 ${index+1}`,version:0,createdAt:stamp,updatedAt:stamp,editableUntil:stamp,canManage:false,authorRemoved:false,authorDisplayName:'합성 사용자 1',authorPhotoVersion:setting.publicPhoto?reviewVersion:null}));return json({items,hasMore:false,nextCursor:null})}
    return json({},404)
   })
   const page=await context.newPage(),errors=[]
@@ -87,14 +87,28 @@ export default function Fixture(){
   assert.equal(await page.getByText(/리뷰 작성자 사진을 (공개했어요|비공개로 바꿨어요)/).count(),0)
   const reviewPhotoReadsBeforePrefetch=reviewPhotoReads
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
+  await page.locator('.public-reviews').waitFor()
   for(let attempt=0;attempt<100&&(reviewReads===0||reviewPhotoReads===reviewPhotoReadsBeforePrefetch);attempt++)await page.waitForTimeout(25)
   assert.equal(reviewReads,1);assert.equal(reviewPhotoReads,reviewPhotoReadsBeforePrefetch+1)
   const reviewPhotoReadsAfterPrefetch=reviewPhotoReads
-  await page.getByRole('button',{name:'이용자 리뷰 보기'}).click()
   await page.getByText('합성 리뷰',{exact:true}).waitFor()
-  await page.locator('.public-review-avatar img').waitFor()
+  await page.locator('.public-review-avatar img').first().waitFor()
+  assert.equal(await page.locator('.public-review-summary-list .public-review-row').count(),3)
+  assert.equal(await page.locator('.public-review-summary-list .public-review-rating').first().innerText(),'4.5')
   assert.equal(reviewReads,1);assert.equal(reviewPhotoReads,reviewPhotoReadsAfterPrefetch)
   await page.screenshot({path:path.join(evidence,'public-review.png'),fullPage:true})
+  await page.getByRole('button',{name:/전체보기/}).click()
+  await page.getByRole('region',{name:'합성 화장실 전체 리뷰'}).waitFor()
+  assert.equal(await page.locator('.public-review-full-list .public-review-row').count(),4)
+  const backBox=await page.getByRole('button',{name:'화장실 상세로 돌아가기'}).boundingBox(),closeBox=await page.getByRole('button',{name:'정보 닫기'}).boundingBox()
+  assert.ok(backBox&&closeBox&&Math.abs((backBox.y+backBox.height/2)-(closeBox.y+closeBox.height/2))<8)
+  assert.equal(await page.getByRole('button',{name:'정보 닫기'}).evaluate(close=>{
+    const box=close.getBoundingClientRect(),top=document.elementFromPoint(box.x+box.width/2,box.y+box.height/2)
+    return top===close||close.contains(top)
+  }),true,'detail close button must remain visible and clickable above the full review panel')
+  await page.screenshot({path:path.join(evidence,'public-review-full.png'),fullPage:true})
+  await page.getByRole('button',{name:'화장실 상세로 돌아가기'}).click()
+  assert.equal(await page.locator('.public-review-full-panel').count(),0)
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
   await page.getByRole('button',{name:'프로필 수정',exact:true}).click()
   const ownPhotoBeforeOff=await page.locator('.mobile-avatar img').getAttribute('src'),privateOwnReadsBeforeOff=privateOwnReads
@@ -106,7 +120,6 @@ export default function Fixture(){
   assert.notEqual(await page.locator('.mobile-avatar img').getAttribute('src'),ownPhotoBeforeOff)
   assert.equal(await page.getByText(/리뷰 작성자 사진을 (공개했어요|비공개로 바꿨어요)/).count(),0)
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
-  await page.getByRole('button',{name:'이용자 리뷰 보기'}).click()
   await page.waitForFunction(()=>!document.querySelector('.public-review-avatar img'))
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
   await page.getByRole('button',{name:'프로필 수정',exact:true}).click()
