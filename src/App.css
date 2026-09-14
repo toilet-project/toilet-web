@@ -231,6 +231,7 @@
 .coordinate-group-marker { min-height: 34px; padding: 0 11px; border: 2px solid #fff; border-radius: 999px; background: #17683a; box-shadow: 0 2px 9px rgb(15 74 39 / 45%); color: #fff; font-size: 12px; font-weight: 800; white-space: nowrap; }
 .coordinate-group-card { position: absolute; z-index: 7; top: 0; bottom: 0; left: 0; display: flex; width: clamp(340px, 25vw, 440px); min-height: 0; max-height: none; padding: 20px; flex-direction: column; overflow: hidden; border-right: 1px solid #e3e8e1; border-radius: 0; background: #fff; box-shadow: 5px 0 18px rgb(31 46 34 / 12%); }
 .coordinate-group-card > strong { display: block; padding-right: 26px; color: #1d2b21; font-size: 19px; }
+.coordinate-group-display-name { margin: 7px 0 0; padding-right: 28px; overflow: hidden; color: #1d2b21; font-size: 20px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
 .coordinate-group-card > p { margin: 8px 0 14px; color: #647168; font-size: 13px; line-height: 1.45; }
 .coordinate-group-distance { position: absolute; top: 19px; right: 47px; margin: 0 !important; color: #17683a !important; font-size: 11px !important; font-weight: 700; white-space: nowrap; }
 .coordinate-group-distance strong { margin-left: 3px; font-size: 16px; }

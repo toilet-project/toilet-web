@@ -2,7 +2,7 @@ import { createApiUrl } from '../config/api'
 
 export type ToiletMapSearchResponse = {
   meta: { map_level: number; display_type: 'MARKER' | 'CLUSTER'; total_count: number; result_count: number }
-  toilets: Array<{ id: number; name: string; toiletType?: string; latitude: number; longitude: number }>
+  toilets: Array<{ id: number; name: string; toiletType?: string; latitude: number; longitude: number; displayGroupId?: number | null; displayGroupName?: string | null }>
   clusters: Array<{ latitude: number; longitude: number; count: number }>
 }
 

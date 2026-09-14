@@ -1,5 +1,5 @@
-export type ToiletMapItem = { id: number; name: string; toiletType?: string; latitude: number; longitude: number }
-export type MapPoint = { id?: number; latitude: number; longitude: number; count: number; name?: string; toiletType?: string; toilets?: ToiletMapItem[] }
+export type ToiletMapItem = { id: number; name: string; toiletType?: string; latitude: number; longitude: number; displayGroupId?: number | null; displayGroupName?: string | null }
+export type MapPoint = { id?: number; latitude: number; longitude: number; count: number; name?: string; toiletType?: string; toilets?: ToiletMapItem[]; displayGroupName?: string }
 
 export function groupToiletsByCoordinate(toilets: ToiletMapItem[]): MapPoint[] {
   const groups = new Map<string, ToiletMapItem[]>()
@@ -11,9 +11,21 @@ export function groupToiletsByCoordinate(toilets: ToiletMapItem[]): MapPoint[] {
   }
   return [...groups.values()].map((items) => {
     const [toilet] = items
+    const namedGroups = new Map<number, string>()
+    let ungroupedCount = 0
+    items.forEach((item) => {
+      const displayName = item.displayGroupName?.trim()
+      if (item.displayGroupId && displayName) namedGroups.set(item.displayGroupId, displayName)
+      else ungroupedCount += 1
+    })
+    const displayGroupNames = [...namedGroups.values()]
+    const additionalPlaceCount = Math.max(0, displayGroupNames.length - 1) + ungroupedCount
+    const displayGroupName = displayGroupNames.length
+      ? `${displayGroupNames[0]}${additionalPlaceCount ? ` 외 ${additionalPlaceCount}개 장소` : ''}`
+      : undefined
     return items.length === 1
-      ? { ...toilet, count: 1 }
-      : { latitude: toilet.latitude, longitude: toilet.longitude, count: items.length, toilets: items }
+      ? { ...toilet, displayGroupName: toilet.displayGroupName || undefined, count: 1 }
+      : { latitude: toilet.latitude, longitude: toilet.longitude, count: items.length, toilets: items, displayGroupName }
   })
 }
 

@@ -26,3 +26,23 @@ test('absent category stays absent instead of inventing a source category', () =
   assert.equal(representativeToilet(group).toiletType, undefined)
   assert.deepEqual(groupToiletsByCoordinate([]), [])
 })
+
+test('administrator display group replaces the generic same-coordinate label', () => {
+  const [group] = groupToiletsByCoordinate([
+    { id: 11, name: 'XXX문화원 1층', latitude: 36.4, longitude: 127.3, displayGroupId: 8, displayGroupName: 'XXX문화원' },
+    { id: 12, name: 'XXX문화원 2층', latitude: 36.4, longitude: 127.3, displayGroupId: 8, displayGroupName: 'XXX문화원' },
+    { id: 13, name: 'XXX문화원 3층', latitude: 36.4, longitude: 127.3, displayGroupId: 8, displayGroupName: 'XXX문화원' },
+  ])
+  assert.equal(group.displayGroupName, 'XXX문화원')
+  assert.equal(group.count, 3)
+  assert.equal(group.toilets.length, 3)
+})
+
+test('administrator display group label accounts for ungrouped toilets at the same coordinate', () => {
+  const [group] = groupToiletsByCoordinate([
+    { id: 21, name: 'XXX문화원 1층', latitude: 36.4, longitude: 127.3, displayGroupId: 9, displayGroupName: 'XXX문화원' },
+    { id: 22, name: 'XXX문화원 2층', latitude: 36.4, longitude: 127.3, displayGroupId: 9, displayGroupName: 'XXX문화원' },
+    { id: 23, name: '인근 공원 화장실', latitude: 36.4, longitude: 127.3 },
+  ])
+  assert.equal(group.displayGroupName, 'XXX문화원 외 1개 장소')
+})
