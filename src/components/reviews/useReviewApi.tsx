@@ -7,6 +7,7 @@ import { historyRange } from '../../lib/history'
 import { canManageReview, type ReviewInput } from '../../lib/review'
 import { requireReviewFix, reviewLocationProblem, ReviewGateError } from '../../lib/reviewLocation'
 import { isMobileReviewDevice, MOBILE_REVIEW_ONLY_MESSAGE } from '../../lib/reviewDevice'
+import { invalidatePublicReviewPrefetch } from '../../lib/publicReviewPrefetch'
 import { ReviewDialog, ReviewModal, type ReviewEligibility } from './ReviewDialog'
 import { MyReviewsPanel } from './MyReviewsPanel'
 import type { MineNavigation, PreviewReviewSummary, ReviewAccess, ReviewEntryState, ReviewTarget } from './useIntegratedReviewPreview'
@@ -197,6 +198,7 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
       }
       if (!current(token)) return
       attempt.current = null; setItems(values => values.map(item => item.id === stored.id ? stored : item))
+      invalidatePublicReviewPrefetch(facility.id)
       setTarget(null); setEditing(null); setSaved(true); void refreshSummary(facility.id)
     } catch (error) {
       if (!current(token)) return
@@ -212,6 +214,7 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
       await session(token); if (!current(token)) return
       await reviewApi.detach(item)
       if (!current(token)) return
+      invalidatePublicReviewPrefetch(item.toiletId)
       setItems(values => values.filter(v => v.id !== item.id))
       setMessage('작성자 정보만 지웠어요. 글과 평가는 남고, 내 리뷰에서는 제외됐어요.'); void refreshSummary(item.toiletId)
     } catch (error) { if (current(token)) { authFailure(error); throw error } }
