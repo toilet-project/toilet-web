@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { reviewAverageLabel } from '../../lib/review'
 import type { StoredReview } from '../../lib/reviewApi'
@@ -96,8 +96,13 @@ function PublicReviewList({ toiletId, toiletName }: { toiletId: number; toiletNa
     setFullView(true)
   }
 
+  function handleSummaryClick(event: MouseEvent<HTMLElement>) {
+    if ((event.target as HTMLElement).closest('button')) return
+    openFullView()
+  }
+
   const summaryItems = items.slice(0, SUMMARY_LIMIT)
-  const hasMoreReviews = items.length > SUMMARY_LIMIT || Boolean(cursor)
+  const hasReviews = items.length > 0
   const reviewRows = (rows: StoredReview[], expanded: boolean) => rows.map(item => <PublicReviewRow key={item.id} item={item} expanded={expanded} />)
   const fullPanel = fullView && <section className={`public-review-full-panel${portalTarget ? '' : ' is-inline'}`} aria-label={`${toiletName} 전체 리뷰`}>
     <header className="public-review-full-header">
@@ -113,8 +118,8 @@ function PublicReviewList({ toiletId, toiletName }: { toiletId: number; toiletNa
     </div>
   </section>
 
-  return <section ref={section} className="public-reviews" aria-label="이용자 리뷰">
-    <div className="public-review-section-heading"><h2>리뷰</h2>{hasMoreReviews && <button type="button" onClick={openFullView}>전체보기 <span aria-hidden="true">›</span></button>}</div>
+  return <section ref={section} className={`public-reviews${hasReviews ? ' is-clickable' : ''}`} aria-label="이용자 리뷰" onClick={hasReviews ? handleSummaryClick : undefined}>
+    <div className="public-review-section-heading"><h2>리뷰</h2>{hasReviews && <button type="button" onClick={openFullView}>전체보기 <span aria-hidden="true">›</span></button>}</div>
     <div className="public-review-summary-list">
       {reviewRows(summaryItems, false)}
       {!loading && !error && items.length === 0 && <p className="public-review-empty">아직 작성된 리뷰가 없어요.</p>}
@@ -127,6 +132,7 @@ function PublicReviewList({ toiletId, toiletName }: { toiletId: number; toiletNa
 
 function PublicReviewRow({ item, expanded }: { item: StoredReview; expanded: boolean }) {
   const average = reviewAverageLabel(item)
+  const comment = item.comment?.trim()
   return <article className={`public-review-row${expanded ? ' is-expanded' : ''}`}>
     <div className="public-review-meta">
       <span className="public-review-rating" aria-label={`평균 평점 ${average}점`}><ReviewIcon name="star" size={14} /><strong>{average}</strong></span>
@@ -134,7 +140,7 @@ function PublicReviewRow({ item, expanded }: { item: StoredReview; expanded: boo
       <strong className="public-review-name">{item.authorDisplayName}</strong>
       <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}</time>
     </div>
-    <p className={`public-review-comment${item.comment ? '' : ' is-empty'}`}>{item.comment || '작성한 내용이 없어요.'}</p>
+    {comment && <p className="public-review-comment">{comment}</p>}
   </article>
 }
 

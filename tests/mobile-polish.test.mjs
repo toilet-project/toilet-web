@@ -124,6 +124,7 @@ test('review summaries follow the review action and divider, before addresses, w
   const app = await source('../src/App.tsx')
   const route = await source('../src/components/ToiletRouteBridge.tsx')
   const detail = await source('../src/components/ToiletDetailContents.tsx')
+  const reviews = await source('../src/components/reviews/PublicReviews.tsx')
   const css = await source('../src/components/mobile-navigation.css')
   const single = app.slice(app.indexOf('<div ref={cardScrollRef} className="card-scroll-content">'), app.indexOf('{selectedCoordinateGroup && ('))
   const inline = app.slice(app.indexOf('function CoordinateGroupInlineDetails'), app.indexOf('function CompactFacilityStatus'))
@@ -138,7 +139,12 @@ test('review summaries follow the review action and divider, before addresses, w
   assert.doesNotMatch(detail, /PublicReviews/)
   assert.match(css, /\.public-reviews\s*\{[^}]*border-top: 1px solid #e5ebe7/)
   assert.match(css, /\.public-review-rating\s*\{[^}]*background: transparent/)
+  assert.match(css, /\.public-review-row\s*\{[^}]*border: 1px solid[^}]*border-radius: 12px/)
   assert.match(css, /\.place-card:not\(\.mobile-card-expanded\) \.card-scroll-content > \.public-reviews,[\s\S]*display: none/)
+  assert.match(reviews, /onClick=\{hasReviews \? handleSummaryClick : undefined\}/)
+  assert.match(reviews, /const comment = item\.comment\?\.trim\(\)/)
+  assert.match(reviews, /\{comment && <p className="public-review-comment">\{comment\}<\/p>\}/)
+  assert.doesNotMatch(reviews, /작성한 내용이 없어요/)
 })
 
 test('single and group address rows keep label left and align value toward the right copy action without wrapping', async () => {
