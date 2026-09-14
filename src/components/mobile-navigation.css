@@ -232,16 +232,26 @@
 .public-review-error button, .public-review-more { min-height: 36px; flex: 0 0 auto; padding: 7px 10px; border: 1px solid #dbe6de; border-radius: 9px; background: #f7faf8; color: #356b49; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
 .public-review-full-panel { position: absolute; z-index: 7; inset: 0; display: flex; min-height: 0; flex-direction: column; overflow: hidden; border-radius: inherit; background: #fff; }
 .public-review-full-panel.is-inline { position: relative; min-height: 360px; margin-top: 10px; border: 1px solid #e2e9e4; border-radius: 15px; }
-.public-review-full-header { position: relative; min-height: 109px; flex: 0 0 auto; padding: 67px 96px 12px 18px; border-bottom: 1px solid #e7ece8; }
-.public-review-back { position: absolute; top: 3px; right: 40px; display: grid; width: 44px; height: 44px; place-items: center; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #3f5748; cursor: pointer; }
+.public-review-full-header { position: relative; min-height: 161px; flex: 0 0 auto; padding: 56px 18px 16px; }
+.public-review-back { position: absolute; top: 2px; left: 2px; display: grid; width: 44px; height: 44px; place-items: center; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #3f5748; cursor: pointer; }
 .public-review-back:active { background: #eff5f1; }
-.public-review-full-header div { min-width: 0; }
-.public-review-full-header span { display: block; margin-bottom: 2px; color: #829087; font-size: 9px; font-weight: 750; }
+.public-review-full-heading { min-width: 0; }
+.public-review-full-type { display: block; margin-bottom: 4px; color: #27804a; font-size: 11px; font-weight: 750; }
 .public-review-full-header h2 { margin: 0; overflow: hidden; color: #1d2b21; font: inherit; font-size: 19px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
-.public-review-full-list { display: flex; min-height: 0; flex: 1 1 auto; flex-direction: column; gap: 14px; overflow-y: auto; overscroll-behavior: contain; padding: 14px 18px 18px; scrollbar-gutter: stable; }
+.public-review-total-rating { display: flex; min-width: 0; align-items: center; gap: 4px; margin-top: 10px; color: #a66d13; }
+.public-review-total-rating > span { margin-right: 3px; color: #6e7d73; font-size: 11px; font-weight: 700; }
+.public-review-total-rating svg { flex: 0 0 auto; fill: #ffd667; stroke: #c68c25; }
+.public-review-total-rating strong { color: #3a493f; font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1; }
+.public-review-total-rating small { color: #87938b; font-size: 10px; font-weight: 600; }
+.public-review-total-rating em { overflow: hidden; margin-left: 5px; color: #8a968e; font-size: 10px; font-style: normal; text-overflow: ellipsis; white-space: nowrap; }
+.public-review-full-reviews { display: flex; min-height: 0; flex: 1 1 auto; margin: 0 18px 18px; padding: 12px 12px 4px; flex-direction: column; border: 1px solid #e2e9e4; border-radius: 14px; background: #fff; }
+.public-review-full-reviews h3 { display: flex; min-height: 32px; align-items: center; gap: 5px; margin: 0; color: #26382d; font-size: 13px; font-weight: 800; letter-spacing: -.02em; }
+.public-review-full-reviews h3 span { color: #7d8b82; font-size: 10px; font-weight: 700; }
+.public-review-full-list { display: flex; min-height: 0; flex: 1 1 auto; flex-direction: column; gap: 14px; overflow-y: auto; overscroll-behavior: contain; padding-top: 8px; scrollbar-gutter: stable; }
 .public-review-full-list .public-review-comment { margin-top: 7px; }
 .public-review-more { display: block; width: 100%; margin: 10px 0 2px; }
 .place-card > .close-button, .coordinate-group-card > .close-button { z-index: 9; }
+.place-card.is-review-list-open > .close-button { top: 2px; right: 2px; display: grid; width: 44px; height: 44px; place-items: center; padding: 0; font-size: 24px; line-height: 1; }
 @keyframes public-review-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .public-review-loading::before { animation: none; } }
 @media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (pointer: coarse) {

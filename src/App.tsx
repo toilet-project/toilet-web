@@ -1460,7 +1460,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
             <p>등록된 좌표가 없어 지도에 위치를 표시할 수 없습니다.</p>
             <p className="open-time">{formatOpenTime(toiletDetail)}</p>
             {REVIEW_UI_ENABLED && <ToiletCommunityRow onReview={() => reviewPreview.open(toiletDetail)} reviewEntry={reviewPreview.entryState(toiletDetail.id)} previewSummary={reviewPreview.summary(toiletDetail.id)} />}
-            <PublicReviews toiletId={toiletDetail.id} toiletName={toiletDetail.name} />
+            <PublicReviews toiletId={toiletDetail.id} toiletName={toiletDetail.name} toiletType={toiletDetail.toiletType} summary={reviewPreview.summary(toiletDetail.id)} />
             <ToiletDetailContents toilet={toiletDetail} />
           </aside>
         )}
@@ -1493,7 +1493,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
               {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">{distanceReferenceLabel}</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">(직선거리)</span></div>}
               <ToiletCommunityRow pendingReport={!isDesktop && !toiletDetail} onReport={isDesktop ? undefined : toiletDetail ? () => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) : undefined}
                 pendingReview={REVIEW_UI_ENABLED && !toiletDetail} onReview={REVIEW_UI_ENABLED && toiletDetail ? () => reviewPreview.open(toiletDetail) : undefined} reviewEntry={reviewPreview.entryState(selectedToilet.id)} previewSummary={REVIEW_UI_ENABLED ? reviewPreview.summary(selectedToilet.id) : undefined} />
-              {toiletDetail && <PublicReviews toiletId={toiletDetail.id} toiletName={toiletDetail.name} />}
+              {toiletDetail && <PublicReviews toiletId={toiletDetail.id} toiletName={toiletDetail.name} toiletType={toiletDetail.toiletType} summary={reviewPreview.summary(toiletDetail.id)} />}
               {detailError && <div><p className="detail-error" role="alert">{detailError}</p><button type="button" className="detail-retry" onClick={retryDetail}>다시 불러오기</button></div>}
               {!toiletDetail && isDetailLoading && <DetailLoadingFields />}
               {toiletDetail && (toiletDetail.id === testToilet?.id
@@ -1590,7 +1590,7 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
   return <div className="coordinate-inline-details">
     <div className="coordinate-opening-row"><p className="open-time">{formatOpenTime(toilet)}</p>{onReport && <ToiletReportEntry iconOnly onClick={onReport} />}</div>
     <ToiletCommunityRow onReview={onReview} reviewEntry={reviewEntry} previewSummary={previewSummary} />
-    <PublicReviews toiletId={toilet.id} toiletName={toilet.name} />
+    <PublicReviews toiletId={toilet.id} toiletName={toilet.name} toiletType={toilet.toiletType} summary={previewSummary} />
     {address && <DetailRow className="coordinate-inline-address" label="주소" value={address} copyable />}
     <section className="coordinate-inline-section coordinate-inline-capacity-section" aria-label="화장실 수">
       <h2>화장실 수</h2>

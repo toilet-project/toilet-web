@@ -9,13 +9,14 @@ import { PhotoImage } from '../ProfilePhoto'
 import { ReviewIcon } from './ReviewDialog'
 
 const SUMMARY_LIMIT = 3
+type PublicReviewSummary = { count: number; rating: string }
 
-export function PublicReviews({ toiletId, toiletName = '화장실' }: { toiletId: number; toiletName?: string }) {
+export function PublicReviews({ toiletId, toiletName = '화장실', toiletType = '화장실', summary }: { toiletId: number; toiletName?: string; toiletType?: string; summary?: PublicReviewSummary }) {
   if (!PUBLIC_REVIEW_API_ENABLED || toiletId <= 0) return null
-  return <PublicReviewList key={toiletId} toiletId={toiletId} toiletName={toiletName} />
+  return <PublicReviewList key={toiletId} toiletId={toiletId} toiletName={toiletName} toiletType={toiletType} summary={summary} />
 }
 
-function PublicReviewList({ toiletId, toiletName }: { toiletId: number; toiletName: string }) {
+function PublicReviewList({ toiletId, toiletName, toiletType, summary }: { toiletId: number; toiletName: string; toiletType: string; summary?: PublicReviewSummary }) {
   const initial = cachedPublicReviews(toiletId)
   const [items, setItems] = useState<StoredReview[]>(initial?.items ?? [])
   const [cursor, setCursor] = useState<string | null>(initial?.hasMore ? initial.nextCursor : null)
@@ -103,19 +104,31 @@ function PublicReviewList({ toiletId, toiletName }: { toiletId: number; toiletNa
 
   const summaryItems = items.slice(0, SUMMARY_LIMIT)
   const hasReviews = items.length > 0
+  const fallbackRating = items.length ? (items.reduce((total, item) => total + Number(reviewAverageLabel(item)), 0) / items.length).toFixed(1) : '—'
+  const fullRating = summary?.rating ?? fallbackRating
+  const fullReviewCount = summary?.count ?? items.length
   const reviewRows = (rows: StoredReview[], expanded: boolean) => rows.map(item => <PublicReviewRow key={item.id} item={item} expanded={expanded} />)
   const fullPanel = fullView && <section className={`public-review-full-panel${portalTarget ? '' : ' is-inline'}`} aria-label={`${toiletName} 전체 리뷰`}>
     <header className="public-review-full-header">
       <button ref={backButton} type="button" className="public-review-back" onClick={() => setFullView(false)} aria-label="화장실 상세로 돌아가기"><ReviewIcon name="back" size={22} /></button>
-      <div><span>이용자 리뷰</span><h2>{toiletName}</h2></div>
+      <div className="public-review-full-heading">
+        <span className="public-review-full-type">{toiletType}</span>
+        <h2>{toiletName}</h2>
+        <div className="public-review-total-rating" aria-label={`총 평점 ${fullRating}점, 리뷰 ${fullReviewCount}개`}>
+          <span>총 평점</span><ReviewIcon name="star" size={17} /><strong>{fullRating}</strong><small>/ 5</small><em>리뷰 {fullReviewCount}개</em>
+        </div>
+      </div>
     </header>
-    <div className="public-review-full-list" tabIndex={0}>
-      {reviewRows(items, true)}
-      {!loading && !error && items.length === 0 && <p className="public-review-empty">아직 작성된 리뷰가 없어요.</p>}
-      {loading && <PublicReviewLoading />}
-      {error && <ReviewLoadError message={error} onRetry={() => void load(items.length ? cursor : null, !items.length)} />}
-      {cursor && !error && <button className="public-review-more" type="button" disabled={loading} onClick={() => void load(cursor)}>{loading ? '불러오는 중…' : '리뷰 더 불러오기'}</button>}
-    </div>
+    <section className="public-review-full-reviews" aria-labelledby="public-review-full-list-title">
+      <h3 id="public-review-full-list-title">이용자 리뷰 <span>{fullReviewCount}</span></h3>
+      <div className="public-review-full-list" tabIndex={0}>
+        {reviewRows(items, true)}
+        {!loading && !error && items.length === 0 && <p className="public-review-empty">아직 작성된 리뷰가 없어요.</p>}
+        {loading && <PublicReviewLoading />}
+        {error && <ReviewLoadError message={error} onRetry={() => void load(items.length ? cursor : null, !items.length)} />}
+        {cursor && !error && <button className="public-review-more" type="button" disabled={loading} onClick={() => void load(cursor)}>{loading ? '불러오는 중…' : '리뷰 더 불러오기'}</button>}
+      </div>
+    </section>
   </section>
 
   return <section ref={section} className={`public-reviews${hasReviews ? ' is-clickable' : ''}`} aria-label="이용자 리뷰" onClick={hasReviews ? handleSummaryClick : undefined}>
