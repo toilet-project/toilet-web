@@ -9,9 +9,9 @@ export type ProfilePhotoPolicyPublication = {
 // not rewrite the earlier account-retention or review-policy releases.
 export const profilePhotoPolicyPublication: ProfilePhotoPolicyPublication = {
   status: 'published',
-  version: 'profile-photo-us-r2-public-v2',
-  announcedAt: '2026-09-13T15:15:00Z',
-  effectiveAt: '2026-09-13T15:15:00Z',
+  version: 'profile-photo-us-r2-public-cdn-v3',
+  announcedAt: '2026-09-14T19:30:00Z',
+  effectiveAt: '2026-09-14T19:30:00Z',
 }
 
 export function profilePhotoPolicyPublicationAttributes(value: ProfilePhotoPolicyPublication) {
