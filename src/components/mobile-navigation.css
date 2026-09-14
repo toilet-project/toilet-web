@@ -206,6 +206,8 @@
 }
 
 .public-reviews { width: 100%; margin-top: 18px; padding-top: 13px; border-top: 1px solid #e5ebe7; }
+.card-scroll-content > .public-reviews:first-child,
+.coordinate-inline-details > .public-reviews:first-child { margin-top: 0; padding-top: 0; padding-bottom: 12px; border-top: 0; border-bottom: 1px solid #e5ebe7; }
 .public-review-section-heading { display: flex; min-height: 32px; align-items: center; justify-content: space-between; gap: 12px; }
 .public-review-section-heading h2 { margin: 0; color: #26382d; font-size: 13px; font-weight: 800; letter-spacing: -.02em; }
 .public-review-section-heading button { display: inline-flex; min-height: 32px; align-items: center; gap: 3px; padding: 3px 1px 3px 9px; border: 0; border-radius: 8px; background: transparent; color: #35704b; font: inherit; font-size: 11px; font-weight: 750; cursor: pointer; }
@@ -249,3 +251,7 @@
 }
 @keyframes public-review-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .public-review-loading::before { animation: none; } }
+@media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (pointer: coarse) {
+  .place-card:not(.mobile-card-expanded) .card-scroll-content > .public-reviews:first-child,
+  .place-card.initial-route-card > .public-reviews { display: none; }
+}

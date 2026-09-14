@@ -120,6 +120,23 @@ test('group report action sits beside hours, apart from collapse; metrics and si
   assert.doesNotMatch(css, /\.toilet-community-row \+ \.open-time/)
 })
 
+test('review summaries lead expanded single and grouped toilet details while staying out of the collapsed mobile card', async () => {
+  const app = await source('../src/App.tsx')
+  const route = await source('../src/components/ToiletRouteBridge.tsx')
+  const detail = await source('../src/components/ToiletDetailContents.tsx')
+  const css = await source('../src/components/mobile-navigation.css')
+  const single = app.slice(app.indexOf('<div ref={cardScrollRef} className="card-scroll-content">'), app.indexOf('{selectedCoordinateGroup && ('))
+  const inline = app.slice(app.indexOf('function CoordinateGroupInlineDetails'), app.indexOf('function CompactFacilityStatus'))
+  const routeScroll = route.slice(route.indexOf('<div className="card-scroll-content">'))
+  for (const content of [single, inline, routeScroll]) {
+    assert.ok(content.indexOf('<PublicReviews') >= 0)
+    assert.ok(content.indexOf('<PublicReviews') < content.indexOf('className="open-time"'))
+  }
+  assert.doesNotMatch(detail, /PublicReviews/)
+  assert.match(css, /\.card-scroll-content > \.public-reviews:first-child[\s\S]*border-top: 0;[\s\S]*border-bottom: 1px solid #e5ebe7/)
+  assert.match(css, /\.place-card:not\(\.mobile-card-expanded\) \.card-scroll-content > \.public-reviews:first-child,[\s\S]*display: none/)
+})
+
 test('single and group address rows keep label left and align value toward the right copy action without wrapping', async () => {
   const css = await source('../src/App.css')
   const mobile = await source('../src/components/mobile-navigation.css')
