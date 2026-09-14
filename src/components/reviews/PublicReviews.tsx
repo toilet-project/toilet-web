@@ -120,13 +120,15 @@ function PublicReviewList({ toiletId, toiletName, toiletType, summary }: { toile
       </div>
     </header>
     <section className="public-review-full-reviews" aria-labelledby="public-review-full-list-title">
-      <h3 id="public-review-full-list-title">이용자 리뷰 <span>{fullReviewCount}</span></h3>
       <div className="public-review-full-list" tabIndex={0}>
-        {reviewRows(items, true)}
-        {!loading && !error && items.length === 0 && <p className="public-review-empty">아직 작성된 리뷰가 없어요.</p>}
-        {loading && <PublicReviewLoading />}
-        {error && <ReviewLoadError message={error} onRetry={() => void load(items.length ? cursor : null, !items.length)} />}
-        {cursor && !error && <button className="public-review-more" type="button" disabled={loading} onClick={() => void load(cursor)}>{loading ? '불러오는 중…' : '리뷰 더 불러오기'}</button>}
+        <h3 id="public-review-full-list-title">이용자 리뷰 <span>{fullReviewCount}</span></h3>
+        <div className="public-review-full-rows">
+          {reviewRows(items, true)}
+          {!loading && !error && items.length === 0 && <p className="public-review-empty">아직 작성된 리뷰가 없어요.</p>}
+          {loading && <PublicReviewLoading />}
+          {error && <ReviewLoadError message={error} onRetry={() => void load(items.length ? cursor : null, !items.length)} />}
+          {cursor && !error && <button className="public-review-more" type="button" disabled={loading} onClick={() => void load(cursor)}>{loading ? '불러오는 중…' : '리뷰 더 불러오기'}</button>}
+        </div>
       </div>
     </section>
   </section>
