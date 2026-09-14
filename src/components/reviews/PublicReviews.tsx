@@ -119,9 +119,9 @@ function PublicReviewList({ toiletId, toiletName, toiletType, summary }: { toile
         </div>
       </div>
     </header>
-    <section className="public-review-full-reviews" aria-labelledby="public-review-full-list-title">
-      <div className="public-review-full-list" tabIndex={0}>
-        <h3 id="public-review-full-list-title">이용자 리뷰 <span>{fullReviewCount}</span></h3>
+    <section className="public-review-full-reviews" aria-labelledby="public-review-full-list-title" tabIndex={0}>
+      <h3 id="public-review-full-list-title">이용자 리뷰 <span>{fullReviewCount}</span></h3>
+      <div className="public-review-full-list">
         <div className="public-review-full-rows">
           {reviewRows(items, true)}
           {!loading && !error && items.length === 0 && <p className="public-review-empty">아직 작성된 리뷰가 없어요.</p>}
@@ -134,12 +134,14 @@ function PublicReviewList({ toiletId, toiletName, toiletType, summary }: { toile
   </section>
 
   return <section ref={section} className={`public-reviews${hasReviews ? ' is-clickable' : ''}`} aria-label="이용자 리뷰" onClick={hasReviews ? handleSummaryClick : undefined}>
-    <div className="public-review-section-heading"><h2>리뷰 <span>{fullReviewCount}건</span></h2>{hasReviews && <button type="button" onClick={openFullView}>전체보기 <span aria-hidden="true">›</span></button>}</div>
-    <div className="public-review-summary-list">
-      {reviewRows(summaryItems, false)}
-      {!loading && !error && items.length === 0 && <p className="public-review-empty">아직 작성된 리뷰가 없어요.</p>}
-      {loading && items.length === 0 && <PublicReviewLoading />}
-      {error && items.length === 0 && <ReviewLoadError message={error} onRetry={() => void load(null, true)} />}
+    <div className="public-review-section-heading"><h2>리뷰 <span>{fullReviewCount}</span></h2>{hasReviews && <button type="button" onClick={openFullView}>전체보기 <span aria-hidden="true">›</span></button>}</div>
+    <div className="public-review-summary-panel">
+      <div className="public-review-summary-list">
+        {reviewRows(summaryItems, false)}
+        {!loading && !error && items.length === 0 && <p className="public-review-empty">아직 작성된 리뷰가 없어요.</p>}
+        {loading && items.length === 0 && <PublicReviewLoading />}
+        {error && items.length === 0 && <ReviewLoadError message={error} onRetry={() => void load(null, true)} />}
+      </div>
     </div>
     {fullView && (portalTarget ? createPortal(fullPanel, portalTarget) : fullPanel)}
   </section>
