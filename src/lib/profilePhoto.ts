@@ -20,3 +20,10 @@ export function publicPhotoPath(version: string) {
   if (!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(version)) return null
   return `/api/v1/profile-photos/${version}.webp`
 }
+
+export function ownPhotoDisplay(state: PhotoState | null | undefined) {
+  if (!state?.imageVersion) return { path: null, privatePhoto: false }
+  return state.publicPhoto
+    ? { path: publicPhotoPath(state.imageVersion), privatePhoto: false }
+    : { path: ownPhotoPath(state.imageVersion), privatePhoto: true }
+}
