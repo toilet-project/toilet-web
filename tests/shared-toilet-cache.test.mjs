@@ -10,8 +10,8 @@ class FakeR2 {
   }
   async put(key,value,options={}){
     const current=this.objects.get(key), only=options.onlyIf
-    if(only instanceof Headers){ if(only.get('if-none-match')==='*' && current) return null }
-    else if(only?.etagMatches && current?.etag!==only.etagMatches) return null
+    if(only?.etagDoesNotMatch==='*' && current) return null
+    if(only?.etagMatches && current?.etag!==only.etagMatches) return null
     const etag=`etag-${++this.sequence}`
     this.objects.set(key,{etag,value,options})
     return {etag}
@@ -77,4 +77,17 @@ test('bounded stale positive data is used only when an origin refresh fails',asy
   await readThroughSharedToiletCache({bucket,toiletId:11,fetchOrigin:async()=>detail(11),now:()=>1000})
   const stale=await readThroughSharedToiletCache({bucket,toiletId:11,fetchOrigin:async()=>{throw new Error('origin down')},now:()=>3_602_000})
   assert.equal(stale.name,'공개 화장실')
+})
+
+test('initial writes use a structured create-only condition',async()=>{
+  const bucket=new FakeR2()
+  await readThroughSharedToiletCache({bucket,toiletId:12,fetchOrigin:async()=>detail(12)})
+  assert.deepEqual(bucket.objects.get(sharedToiletCacheKey(12)).options.onlyIf,{etagDoesNotMatch:'*'})
+})
+
+test('persistent cache contention fails open to the public origin',async()=>{
+  const bucket={get:async()=>null,put:async()=>null}; let calls=0
+  const value=await readThroughSharedToiletCache({bucket,toiletId:13,fetchOrigin:async()=>{calls++;return detail(13)}})
+  assert.equal(value.name,'공개 화장실')
+  assert.equal(calls,4)
 })
