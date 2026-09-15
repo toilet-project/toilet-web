@@ -1,0 +1,85 @@
+name: Toilet detail cache maintenance (disabled)
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_id:
+        description: Exact value returned by /version.json
+        required: true
+        type: string
+      mode:
+        description: sample or all public toilet IDs
+        required: true
+        default: sample
+        type: choice
+        options: [sample, all]
+      sample_ids:
+        description: Comma-separated public toilet IDs for sample mode
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  prewarm:
+    if: ${{ vars.CACHE_PREWARM_ENABLED == 'true' }}
+    environment: production-cache-maintenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    concurrency:
+      group: toilet-cache-production
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Restore deployment checkpoint
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache-prewarm
+          key: toilet-cache-prewarm-${{ inputs.deployment_id }}-${{ github.run_id }}
+          restore-keys: |
+            toilet-cache-prewarm-${{ inputs.deployment_id }}-
+      - name: Refuse unapproved production execution
+        if: ${{ env.CACHE_PREWARM_ENABLED != 'true' }}
+        run: exit 1
+        env:
+          CACHE_PREWARM_ENABLED: ${{ vars.CACHE_PREWARM_ENABLED }}
+      - name: Prewarm exact deployed version
+        shell: bash
+        env:
+          CACHE_PREWARM_ENABLED: ${{ vars.CACHE_PREWARM_ENABLED }}
+          SAMPLE_IDS: ${{ inputs.sample_ids }}
+          MODE: ${{ inputs.mode }}
+          DEPLOYMENT_ID: ${{ inputs.deployment_id }}
+        run: |
+          args=(--execute --base-url https://geupddong.com --deployment-id "$DEPLOYMENT_ID" --checkpoint ".cache-prewarm/$DEPLOYMENT_ID.json" --report cache-prewarm-report.json)
+          if [[ "$MODE" == "sample" ]]; then
+            [[ "$SAMPLE_IDS" =~ ^[0-9]+(,[0-9]+)*$ ]] || { echo "Valid sample IDs are required"; exit 1; }
+            args+=(--ids "$SAMPLE_IDS" --concurrency 2 --rps 1 --verify-samples 2)
+          else
+            args+=(--concurrency 4 --rps 2 --verify-samples 20)
+          fi
+          node scripts/prewarm-toilet-pages.mjs "${args[@]}"
+      - name: Save deployment checkpoint
+        if: ${{ always() }}
+        uses: actions/cache/save@v4
+        with:
+          path: .cache-prewarm
+          key: toilet-cache-prewarm-${{ inputs.deployment_id }}-${{ github.run_id }}
+      - if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: toilet-cache-prewarm-${{ inputs.deployment_id }}
+          path: |
+            .cache-prewarm/
+            cache-prewarm-report.json
+          retention-days: 14
+          if-no-files-found: warn

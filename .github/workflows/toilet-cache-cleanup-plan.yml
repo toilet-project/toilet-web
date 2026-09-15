@@ -1,0 +1,47 @@
+name: Incremental cache cleanup plan (disabled)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    if: ${{ vars.CACHE_CLEANUP_DRY_RUN_ENABLED == 'true' }}
+    environment: production-cache-maintenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build protected release registry input
+        shell: bash
+        env:
+          REGISTRY_JSON: ${{ vars.CACHE_RELEASE_REGISTRY_JSON }}
+        run: |
+          [[ -n "$REGISTRY_JSON" ]] || { echo "Release registry is required"; exit 1; }
+          printf '%s' "$REGISTRY_JSON" > cache-release-registry.json
+      - name: Produce dry-run plan only
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CACHE_STATUS_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_CACHE_READ_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_CACHE_READ_SECRET_ACCESS_KEY }}
+          R2_INCREMENTAL_CACHE_BUCKET: geupddong-next-production-cache
+        run: node scripts/cleanup-incremental-cache.mjs --registry cache-release-registry.json --report cache-cleanup-plan.json
+      - if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: incremental-cache-cleanup-plan
+          path: cache-cleanup-plan.json
+          retention-days: 14
+          if-no-files-found: warn

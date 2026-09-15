@@ -9,7 +9,8 @@ const config = JSON.parse(raw)
 const routes = JSON.parse(await readFile('.next/routes-manifest.json', 'utf8'))
 validateBuildPolicy(config, target, process.env.SITE_INDEXABLE, routes)
 const manifest = { target, sourceCommit: process.env.GITHUB_SHA || null,
-  buildId: (await readFile('.next/BUILD_ID','utf8')).trim(), indexable: config.vars.SITE_INDEXABLE === 'true',
+  buildId: (await readFile('.next/BUILD_ID','utf8')).trim(), appVersion: process.env.NEXT_DEPLOYMENT_ID || null,
+  indexable: config.vars.SITE_INDEXABLE === 'true',
   configFile: path, configSha256: createHash('sha256').update(raw).digest('hex'), deploymentApproved: false }
 await writeFile('worker-release-manifest.json', JSON.stringify(manifest,null,2)+'\n')
 console.log(JSON.stringify(manifest))
