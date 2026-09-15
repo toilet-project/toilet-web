@@ -41,15 +41,16 @@ export const getToilet = cache(async (rawId: string): Promise<ToiletDetailRespon
     response = result
   } else {
     if (sharedToiletCacheEnabled()) {
-      let bucket
       try {
-        bucket = await getSharedToiletBucket()
-      } catch {
-        console.error('Shared toilet cache binding unavailable')
-        return fetchPublicToiletOrigin(id, true)
+        const bucket = await getSharedToiletBucket()
+        if (bucket) return await readThroughSharedToiletCache({ bucket, toiletId: id,
+          fetchOrigin: () => fetchPublicToiletOrigin(id, true) })
+      } catch (error) {
+        console.error('Shared toilet cache read-through failed', error)
+        // Keep serving through Next's existing one-hour cache while the
+        // independent R2 cache is unavailable or rejects an origin response.
+        return fetchPublicToiletOrigin(id, false)
       }
-      if (bucket) return readThroughSharedToiletCache({ bucket, toiletId: id,
-        fetchOrigin: () => fetchPublicToiletOrigin(id, true) })
     }
     return fetchPublicToiletOrigin(id, false)
   }
