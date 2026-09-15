@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import {readFileSync} from 'node:fs'
 import test from 'node:test'
 import {applySharedToiletInvalidation,readThroughSharedToiletCache,SHARED_TOILET_CACHE_SCHEMA,sharedToiletCacheKey} from '../src/server/sharedToiletCache.ts'
 
@@ -90,4 +91,10 @@ test('persistent cache contention fails open to the public origin',async()=>{
   const value=await readThroughSharedToiletCache({bucket,toiletId:13,fetchOrigin:async()=>{calls++;return detail(13)}})
   assert.equal(value.name,'공개 화장실')
   assert.equal(calls,4)
+})
+
+test('a shared-cache miss keeps the ISR detail route static-compatible',()=>{
+  const source=readFileSync(new URL('../src/server/toilets.ts',import.meta.url),'utf8')
+  assert.doesNotMatch(source,/cache:\s*['"]no-store['"]/, 'detail origin must not make the ISR route dynamic')
+  assert.match(source,/next:\s*\{\s*revalidate:\s*3600,\s*tags:\s*\[`toilet:\$\{id\}`\]/)
 })
