@@ -7,8 +7,6 @@ import '../components/mobile-navigation.css'
 import '../components/app-update.css'
 import '../components/reviews/reviews.css'
 import '../components/history.css'
-import '../components/analytics-consent.css'
-import { AnalyticsConsentController } from '../components/AnalyticsConsent'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://geupddong.com'),
@@ -25,5 +23,5 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#17683A', colorScheme: 'light' }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return <html lang="ko"><body><div id="root">{children}</div><AnalyticsConsentController /></body></html>
+  return <html lang="ko"><body><div id="root">{children}</div></body></html>
 }
