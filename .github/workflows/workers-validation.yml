@@ -39,6 +39,7 @@ jobs:
       WRANGLER_SEND_METRICS: 'false'
       NEXT_PUBLIC_API_BASE_URL: https://api.geupddong.com
       NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY: ${{ secrets.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY || 'build-validation-placeholder' }}
+      NEXT_PUBLIC_GA4_MEASUREMENT_ID: ${{ secrets.NEXT_PUBLIC_GA4_MEASUREMENT_ID || '' }}
       SITE_INDEXABLE: ${{ matrix.indexable }}
       REVIEW_API_ENABLED: ${{ matrix.review_api_enabled }}
       REVIEW_PRODUCTION_APPROVED: ${{ matrix.review_production_approved }}
