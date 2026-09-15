@@ -41,7 +41,15 @@ export function validateReleaseManifest(manifest, config, configHash, buildId, e
   assert.equal(manifest.configFile, target === 'preview' ? 'wrangler.jsonc' : 'wrangler.production.jsonc')
   assert.equal(manifest.configSha256, configHash, 'Config changed after CI build')
   assert.equal(manifest.buildId, buildId, 'Build ID mismatch')
-  assert.match(manifest.appVersion || '', new RegExp(`^${expectedCommit}-[0-9]+-[0-9]+-${target}$`), 'Invalid app/deployment version')
+  const appVersion = manifest.appVersion || ''
+  const versionPrefix = `${expectedCommit}-`
+  const versionSuffix = `-${target}`
+  assert.ok(
+    appVersion.startsWith(versionPrefix) && appVersion.endsWith(versionSuffix),
+    'Invalid app/deployment version'
+  )
+  const numericVersion = appVersion.slice(versionPrefix.length, -versionSuffix.length)
+  assert.match(numericVersion, /^[0-9]+-[0-9]+$/, 'Invalid app/deployment version')
   if (expectedAppVersion !== undefined) assert.equal(manifest.appVersion, expectedAppVersion, 'App/deployment version mismatch')
   assert.equal(manifest.indexable, target === 'production-candidate')
   assert.equal(manifest.deploymentApproved, false, 'Artifact cannot grant deployment approval')
