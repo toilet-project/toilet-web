@@ -29,7 +29,9 @@ test('release manifest binds target, commit, config and build without granting a
   const check=m=>validateReleaseManifest(m,production,hash,'build-1',commit,'production-candidate')
   check(manifest)
   for(const change of [{target:'preview'},{sourceCommit:'c'.repeat(40)},{configFile:'wrangler.jsonc'},
-    {configSha256:'changed'},{buildId:'different'},{appVersion:'different'},{indexable:false},{deploymentApproved:true}]) assert.throws(()=>check({...manifest,...change}))
+    {configSha256:'changed'},{buildId:'different'},{appVersion:'different'},
+    {appVersion:`${commit}-12-x-production-candidate`},{appVersion:`${commit}-12-1-production-candidate-extra`},
+    {indexable:false},{deploymentApproved:true}]) assert.throws(()=>check({...manifest,...change}))
 })
 test('build/runtime mismatch or preview robots in candidate fails',()=>{
   assert.throws(()=>validateBuildPolicy(production,'production-candidate','false',none))
