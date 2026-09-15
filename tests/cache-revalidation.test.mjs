@@ -12,7 +12,23 @@ test('shared Java/Node HMAC contract vector',()=>{
 })
 
 test('signed valid IDs accepted and duplicate delivery is harmless',async()=>{
-  for(let i=0;i<2;i++) assert.deepEqual(await authenticateRevalidation(request('{"toiletIds":[1,2,1]}'),secret,now),[1,2])
+  for(let i=0;i<2;i++) assert.deepEqual(await authenticateRevalidation(request('{"toiletIds":[1,2,1]}'),secret,now),{
+    protocol:'v1',events:[
+      {toiletId:1,revision:0,action:'UPSERT',catalogChanged:false},
+      {toiletId:2,revision:0,action:'UPSERT',catalogChanged:false},
+    ],
+  })
+})
+test('signed v2 events retain the latest revision and deletion precedence',async()=>{
+  const body=JSON.stringify({contractVersion:2,events:[
+    {toiletId:1,revision:2,action:'UPSERT',catalogChanged:false},
+    {toiletId:1,revision:3,action:'DELETE',catalogChanged:true},
+    {toiletId:2,revision:4,action:'UPSERT',catalogChanged:false},
+  ]})
+  assert.deepEqual(await authenticateRevalidation(request(body),secret,now),{protocol:'v2',events:[
+    {toiletId:1,revision:3,action:'DELETE',catalogChanged:true},
+    {toiletId:2,revision:4,action:'UPSERT',catalogChanged:false},
+  ]})
 })
 test('tampered payload/signature and expired or future signatures rejected',async()=>{
   await reject(request('{"toiletIds":[2]}',timestamp,signatureFor(secret,timestamp,'{"toiletIds":[1]}')),401)
@@ -25,6 +41,8 @@ test('no secret means disabled, not publicly accessible',async()=>{
   await reject(request('{"toiletIds":[1]}'),503,'short')
 })
 test('path/tag injection, bad IDs, malformed JSON and excessive batches rejected',async()=>{
-  for(const body of ['{','{}','{"toiletIds":[]}','{"toiletIds":[0]}','{"toiletIds":["1"]}','{"toiletIds":[9007199254740992]}','{"toiletIds":[1],"path":"/"}',JSON.stringify({toiletIds:Array(101).fill(1)})]) await reject(request(body),400)
-  await reject(request(' '.repeat(4097)),413)
+  for(const body of ['{','{}','{"toiletIds":[]}','{"toiletIds":[0]}','{"toiletIds":["1"]}','{"toiletIds":[9007199254740992]}','{"toiletIds":[1],"path":"/"}',
+    JSON.stringify({toiletIds:Array(101).fill(1)}), JSON.stringify({contractVersion:2,events:[{toiletId:1,revision:0,action:'UPSERT',catalogChanged:false}]}),
+    JSON.stringify({contractVersion:2,events:[{toiletId:1,revision:1,action:'UPSERT',catalogChanged:false,path:'/'}]})]) await reject(request(body),400)
+  await reject(request(' '.repeat(32769)),413)
 })

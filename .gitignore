@@ -14,6 +14,10 @@ dist-ssr
 .next-smoke/
 .open-next/
 worker-release-manifest.json
+.cache-prewarm/
+cache-prewarm-report*.json
+cache-cleanup-plan*.json
+cache-release-registry.json
 .wrangler/
 *.tsbuildinfo
 .dev.vars*

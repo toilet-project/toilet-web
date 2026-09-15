@@ -1,5 +1,7 @@
 # 상세 캐시 갱신 단계
 
+> 이 문서는 2026-09-05 v1 구현 기록이다. 전체 상세 URL 사전 생성과 배포 독립 공개 데이터 캐시는 [2026-09-15 보강 문서](toilet-detail-cache-platform.md)를 기준으로 한다.
+
 2026-09-05 · WBS [#186](https://github.com/toilet-project/toilet-web/issues/186) · **운영 미배포**
 
 ## 구현

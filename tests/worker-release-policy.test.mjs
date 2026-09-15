@@ -25,11 +25,11 @@ test('explicit private staging requires real storage and no version URL',()=>{
 
 test('release manifest binds target, commit, config and build without granting approval',()=>{
   const commit='a'.repeat(40), hash='b'.repeat(64)
-  const manifest={target:'production-candidate',sourceCommit:commit,configFile:'wrangler.production.jsonc',configSha256:hash,buildId:'build-1',indexable:true,deploymentApproved:false}
+  const manifest={target:'production-candidate',sourceCommit:commit,configFile:'wrangler.production.jsonc',configSha256:hash,buildId:'build-1',appVersion:`${commit}-12-1-production-candidate`,indexable:true,deploymentApproved:false}
   const check=m=>validateReleaseManifest(m,production,hash,'build-1',commit,'production-candidate')
   check(manifest)
   for(const change of [{target:'preview'},{sourceCommit:'c'.repeat(40)},{configFile:'wrangler.jsonc'},
-    {configSha256:'changed'},{buildId:'different'},{indexable:false},{deploymentApproved:true}]) assert.throws(()=>check({...manifest,...change}))
+    {configSha256:'changed'},{buildId:'different'},{appVersion:'different'},{indexable:false},{deploymentApproved:true}]) assert.throws(()=>check({...manifest,...change}))
 })
 test('build/runtime mismatch or preview robots in candidate fails',()=>{
   assert.throws(()=>validateBuildPolicy(production,'production-candidate','false',none))
@@ -43,5 +43,6 @@ test('candidate cannot claim root or share preview cache',()=>{
 })
 test('no unexpected target, nested env, CPU upgrade or singular route',()=>{
   assert.throws(()=>validateWorkerConfig(preview,'typo'))
-  for(const change of [{env:{}},{limits:{cpu_ms:1000}},{route:'geupddong.com/*'}]) assert.throws(()=>validateWorkerConfig({...preview,...change},'preview'))
+  for(const change of [{env:{}},{limits:{cpu_ms:1000}},{route:'geupddong.com/*'},
+    {vars:{...preview.vars,SHARED_TOILET_CACHE_ENABLED:'true'}}]) assert.throws(()=>validateWorkerConfig({...preview,...change},'preview'))
 })

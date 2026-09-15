@@ -9,6 +9,8 @@ export function validateWorkerConfig(config, target, {deploy = false, stage = fa
   assert.equal(config.vars?.CACHE_RUNTIME, 'workers')
   assert.equal(config.services?.find(row => row.binding === 'WORKER_SELF_REFERENCE')?.service, config.name)
   assert.equal(config.r2_buckets?.find(row => row.binding === 'NEXT_INC_CACHE_R2_BUCKET')?.bucket_name, `geupddong-next-${suffix}-cache`)
+  assert.equal(config.r2_buckets?.find(row => row.binding === 'PUBLIC_TOILET_DATA_CACHE_R2')?.bucket_name, `geupddong-next-${suffix}-cache`)
+  assert.equal(config.vars?.SHARED_TOILET_CACHE_ENABLED, 'false', 'Shared cache must remain opt-in in release artifacts')
   const d1 = config.d1_databases?.find(row => row.binding === 'NEXT_TAG_CACHE_D1')
   assert.equal(d1?.database_name, `geupddong-next-${suffix}-tags`)
   assert.equal(config.route, undefined, 'Unexpected singular route')
@@ -31,7 +33,7 @@ export function validateWorkerConfig(config, target, {deploy = false, stage = fa
   }
 }
 
-export function validateReleaseManifest(manifest, config, configHash, buildId, expectedCommit, target) {
+export function validateReleaseManifest(manifest, config, configHash, buildId, expectedCommit, target, expectedAppVersion) {
   validateWorkerConfig(config, target)
   assert.match(expectedCommit, /^[a-f0-9]{40}$/, 'Explicit source commit required')
   assert.equal(manifest.target, target, 'Wrong artifact target')
@@ -39,6 +41,8 @@ export function validateReleaseManifest(manifest, config, configHash, buildId, e
   assert.equal(manifest.configFile, target === 'preview' ? 'wrangler.jsonc' : 'wrangler.production.jsonc')
   assert.equal(manifest.configSha256, configHash, 'Config changed after CI build')
   assert.equal(manifest.buildId, buildId, 'Build ID mismatch')
+  assert.match(manifest.appVersion || '', new RegExp(`^${expectedCommit}-[0-9]+-[0-9]+-${target}$`), 'Invalid app/deployment version')
+  if (expectedAppVersion !== undefined) assert.equal(manifest.appVersion, expectedAppVersion, 'App/deployment version mismatch')
   assert.equal(manifest.indexable, target === 'production-candidate')
   assert.equal(manifest.deploymentApproved, false, 'Artifact cannot grant deployment approval')
 }

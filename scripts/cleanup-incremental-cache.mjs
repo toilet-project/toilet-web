@@ -1,0 +1,31 @@
+import {execFile} from 'node:child_process'
+import {promisify} from 'node:util'
+import {readFile,writeFile} from 'node:fs/promises'
+import {resolve} from 'node:path'
+import {normalizeDeploymentStatus,planIncrementalCacheCleanup,sameActiveDeployment} from './cache/cleanup-lib.mjs'
+import {R2S3Store} from './cache/r2-s3-store.mjs'
+const executeFile=promisify(execFile)
+function argsOf(values){const out={};for(let i=0;i<values.length;i++){const key=values[i];if(key==='--execute'){out.execute=true;continue}if(!key.startsWith('--')||values[i+1]===undefined)throw new Error(`Invalid argument ${key}`);out[key.slice(2)]=values[++i]}return out}
+const args=argsOf(process.argv.slice(2)),workerName='geupddong-web-production'
+if(!args.registry||!args.report)throw new Error('Required: --registry FILE --report FILE')
+if(args.execute&&process.env.CACHE_CLEANUP_ENABLED!=='true')throw new Error('Deletion disabled; CACHE_CLEANUP_ENABLED=true is also required')
+const wrangler=process.platform==='win32'?resolve('node_modules/.bin/wrangler.CMD'):resolve('node_modules/.bin/wrangler')
+async function status(){
+  const {stdout}=await executeFile(wrangler,['deployments','status','--name',workerName,'--config','wrangler.production.jsonc','--json'],{maxBuffer:1024*1024})
+  return normalizeDeploymentStatus(JSON.parse(stdout),workerName)
+}
+const config={accountId:process.env.R2_ACCOUNT_ID,accessKeyId:process.env.R2_ACCESS_KEY_ID,secretAccessKey:process.env.R2_SECRET_ACCESS_KEY,bucket:process.env.R2_INCREMENTAL_CACHE_BUCKET}
+if(config.bucket!=='geupddong-next-production-cache')throw new Error('Exact production incremental-cache bucket is required')
+const store=new R2S3Store(config),before=await status(),releases=JSON.parse(await readFile(args.registry,'utf8'))
+const objects=await store.list('incremental-cache/')
+const plan=planIncrementalCacheCleanup({objects,releases,activeWorkerVersions:before.activeWorkerVersions,rollbackProtectionDays:Number(args['rollback-days']||3)})
+const result={...plan,mode:args.execute?'execute':'dry-run',execution:{attempted:false,deletedFiles:0,completedAt:null}}
+await writeFile(args.report,JSON.stringify(result,null,2)+'\n')
+if(args.execute){
+  const after=await status();if(!sameActiveDeployment(before,after))throw new Error('Active deployment changed before deletion')
+  result.execution.attempted=true
+  await store.delete(plan.deleteObjects.map(object=>object.key))
+  result.execution.deletedFiles=plan.deleteObjects.length;result.execution.completedAt=new Date().toISOString()
+  await writeFile(args.report,JSON.stringify(result,null,2)+'\n')
+}
+console.log(JSON.stringify({mode:args.execute?'execute':'dry-run',report:args.report,...plan.summary}))

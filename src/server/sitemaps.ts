@@ -5,7 +5,7 @@ export async function getSitemapIds(shard?: number) {
   const origin = process.env.TOILET_API_ORIGIN || 'https://api.geupddong.com'
   const endpoint = shard === undefined ? 'shards' : `ids?shard=${shard}`
   const response = await fetch(`${origin.replace(/\/$/, '')}/api/v1/toilets/sitemap/${endpoint}`, {
-    next: { revalidate: 3600 }, signal: AbortSignal.timeout(10_000),
+    next: { revalidate: 3600, tags: ['toilet-catalog'] }, signal: AbortSignal.timeout(10_000),
   })
   if (!response.ok) throw new Error('Sitemap source unavailable')
   return validateSitemapIds(await response.json(), shard)

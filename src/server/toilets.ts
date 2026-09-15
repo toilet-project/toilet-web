@@ -4,6 +4,21 @@ import { connection } from 'next/server'
 import type { ToiletDetailResponse } from '../api/toilets'
 import { parseToiletId } from '../lib/toiletRoute'
 import { reviewVerificationResponse } from '../../review-verification-proxy.mjs'
+import { getSharedToiletBucket, readThroughSharedToiletCache, sharedToiletCacheEnabled } from './sharedToiletCache'
+
+async function fetchPublicToiletOrigin(id: number, shared: boolean): Promise<ToiletDetailResponse | null> {
+  const origin = process.env.TOILET_API_ORIGIN || 'https://api.geupddong.com'
+  const response = await fetch(`${origin.replace(/\/$/, '')}/api/v1/toilets/${id}`, shared ? {
+    cache: 'no-store', signal: AbortSignal.timeout(10_000),
+  } : {
+    next: { revalidate: 3600, tags: [`toilet:${id}`] }, signal: AbortSignal.timeout(10_000),
+  })
+  if (response.status === 404) return null
+  if (!response.ok) throw new Error(`Public toilet detail unavailable (${response.status})`)
+  const detail = await response.json() as ToiletDetailResponse
+  if (detail.id !== id || typeof detail.name !== 'string') throw new Error('Invalid toilet detail response')
+  return detail
+}
 
 // Public data only: never forward visitor cookies/Authorization into this shared cache.
 export const getToilet = cache(async (rawId: string): Promise<ToiletDetailResponse | null> => {
@@ -25,11 +40,18 @@ export const getToilet = cache(async (rawId: string): Promise<ToiletDetailRespon
     }
     response = result
   } else {
-    const origin = process.env.TOILET_API_ORIGIN || 'https://api.geupddong.com'
-    response = await fetch(`${origin.replace(/\/$/, '')}/api/v1/toilets/${id}`, {
-    next: { revalidate: 3600, tags: [`toilet:${id}`] },
-    signal: AbortSignal.timeout(10_000),
-    })
+    if (sharedToiletCacheEnabled()) {
+      let bucket
+      try {
+        bucket = await getSharedToiletBucket()
+      } catch {
+        console.error('Shared toilet cache binding unavailable')
+        return fetchPublicToiletOrigin(id, true)
+      }
+      if (bucket) return readThroughSharedToiletCache({ bucket, toiletId: id,
+        fetchOrigin: () => fetchPublicToiletOrigin(id, true) })
+    }
+    return fetchPublicToiletOrigin(id, false)
   }
   if (response.status === 404) return null
   if (!response.ok) throw new Error(`Public toilet detail unavailable (${response.status})`)

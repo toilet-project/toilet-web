@@ -1,0 +1,12 @@
+[
+  {
+    "schema": 1,
+    "target": "production-candidate",
+    "workerName": "geupddong-web-production",
+    "workerVersion": "00000000-0000-4000-8000-000000000000",
+    "appVersion": "FULL_COMMIT-RUN_ID-ATTEMPT-production-candidate",
+    "buildId": "OPEN_NEXT_BUILD_ID",
+    "sourceCommit": "FULL_COMMIT",
+    "deployedAt": "2026-09-15T00:00:00.000Z"
+  }
+]
