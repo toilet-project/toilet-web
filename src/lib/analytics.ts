@@ -41,7 +41,9 @@ export function loadGoogleAnalytics(): Promise<void> {
   if (loading) return loading
   loading = new Promise((resolve, reject) => {
     window.dataLayer = window.dataLayer || []
-    window.gtag = window.gtag || function (...args: unknown[]) { window.dataLayer?.push(args) }
+    // Google tag commands must be queued as the function's Arguments object.
+    // The loader does not reliably process a nested array created from rest parameters.
+    window.gtag = window.gtag || function () { window.dataLayer?.push(arguments) }
     ;(window as unknown as Record<string, unknown>)[`ga-disable-${validMeasurementId}`] = false
     window.gtag('consent', 'default', {
       analytics_storage: 'granted', ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied',
