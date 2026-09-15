@@ -9,7 +9,7 @@ fs.mkdirSync(output, { recursive: true })
 const policies = [
   { id: 1, key: 'SERVICE_TERMS', title: '서비스 이용약관', contentPath: '/policy-history/2026-09-01.html#terms' },
   { id: 2, key: 'PRIVACY_COLLECTION', title: '개인정보 수집·이용', contentPath: '/policies/privacy#collection' },
-  { id: 3, key: 'AGE_14_PLUS', title: '만 14세 이상', contentPath: '/policies/terms' },
+  { id: 3, key: 'AGE_14_PLUS', title: '만 14세 이상', contentPath: '/policies/terms#age' },
 ].map(p => ({ ...p, version: 'fixture-v1', required: true, effectiveAt: '2026-09-01', agreedAt: '2026-09-11T12:00:00+09:00' }))
 ;(async () => {
   const browser = await chromium.launch({ channel: 'chrome', headless: true })
@@ -130,7 +130,13 @@ const policies = [
         await region.locator('h3').first().waitFor()
         assert.equal(await page.locator('.consent-list input:checked').count(), 0)
         assert.equal(await page.getByRole('button', { name: '동의하고 시작하기' }).isDisabled(), true)
+        if (policies[i].key === 'AGE_14_PLUS') {
+          const ageNotice = await region.innerText()
+          assert.match(ageNotice, /가입을 계속하면 본인이 만 14세 이상임을 확인합니다/)
+          assert.doesNotMatch(ageNotice, /서비스 방해|약관 변경/, 'age confirmation must not fall back to the whole service terms')
+        }
         if (i === 0) await page.screenshot({ path: path.join(output, `signup-policy-open-${width}.png`) })
+        if (policies[i].key === 'AGE_14_PLUS') await page.screenshot({ path: path.join(output, `signup-age-open-${width}.png`) })
         await toggle.click()
       }
       await page.getByRole('checkbox', { name: '필수 항목 모두 동의' }).check()

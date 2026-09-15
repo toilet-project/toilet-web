@@ -6,6 +6,7 @@ import type { ToiletDetailResponse } from '../api/toilets'
 import { useMapRouteContext } from './mapRouteContext'
 import { ToiletDetailContents } from './ToiletDetailContents'
 import { ToiletCommunityRow, ToiletReportEntry } from './ToiletCommunityRow'
+import { PublicReviews } from './reviews/PublicReviews'
 import { formatOpenTime } from '../lib/detailFormatting'
 import { toiletPath } from '../lib/toiletRoute'
 
@@ -25,6 +26,7 @@ export function ToiletRouteBridge({ detail }: { detail: ToiletDetailResponse | n
       <p className="open-time">{formatOpenTime(detail)}</p>
       <div className="distance-from-current" aria-label="거리 계산 중"><span className="distance-label">기준점에서 약</span><strong className="distance-value">—</strong><span className="distance-caption">(직선거리)</span></div>
       <div className="route-preview-community"><ToiletCommunityRow pendingReport pendingReview={reviewsEnabled} /></div>
+      <PublicReviews toiletId={detail.id} toiletName={detail.name} toiletType={detail.toiletType} />
       <ToiletDetailContents toilet={detail} />
     </div>
   </aside></div>

@@ -4,6 +4,7 @@ import { decodeReview, type StoredReview } from './reviewApi'
 
 export type PublicReviewPage = { items: StoredReview[]; hasMore: boolean; nextCursor: string | null }
 
+export const PUBLIC_REVIEW_API_ENABLED = process.env.NEXT_PUBLIC_PUBLIC_REVIEW_API_ENABLED === 'true'
 export const PUBLIC_REVIEW_PREFETCH_TTL_MS = 30_000
 export const PUBLIC_REVIEW_PREFETCH_PHOTO_LIMIT = 3
 const MAX_CACHED_TOILETS = 24
@@ -97,13 +98,16 @@ export function cachedPublicReviews(toiletId: number) {
   return entry.page
 }
 
-export function prefetchPublicReviews(toiletId: number, signal?: AbortSignal): Promise<PublicReviewPage> {
+export function prefetchPublicReviews(toiletId: number, _signal?: AbortSignal): Promise<PublicReviewPage> {
   const cached = cachedPublicReviews(toiletId)
   if (cached) return Promise.resolve(cached)
   const current = pending.get(toiletId)
   if (current) return current
   let request: Promise<PublicReviewPage>
-  request = requestPublicReviewPage(toiletId, null, signal)
+  // The first card can be replaced by the interactive map card while this shared
+  // read is in flight. Keep the bounded request alive so the successor can reuse it.
+  // Each caller still ignores completion after its own signal/unmount.
+  request = requestPublicReviewPage(toiletId, null)
     .then(page => remember(toiletId, page))
     .finally(() => { if (pending.get(toiletId) === request) pending.delete(toiletId) })
   pending.set(toiletId, request)

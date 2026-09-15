@@ -38,7 +38,7 @@ import { resolveDistanceReference, type DistanceSource } from './lib/distanceRef
 import { TRANSIENT_NOTICE_MS } from './lib/uiTiming'
 import { warmOwnPhoto } from './lib/warmOwnPhoto'
 import { refreshSignupPhoto } from './lib/signupPhotoWarm'
-import { prefetchPublicReviews } from './lib/publicReviewPrefetch'
+import { prefetchPublicReviews, PUBLIC_REVIEW_API_ENABLED } from './lib/publicReviewPrefetch'
 const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
 const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
@@ -240,7 +240,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
     return () => { disposed = true; controller.abort(); window.clearTimeout(timeout) }
   }, [activeDetailId, detailCache, detailRetry, testToilet])
   useEffect(() => {
-    if (!REVIEW_API_ENABLED || activeDetailId === null || activeDetailId <= 0 || activeDetailId === testToilet?.id) return
+    if (!PUBLIC_REVIEW_API_ENABLED || activeDetailId === null || activeDetailId <= 0 || activeDetailId === testToilet?.id) return
     const controller = new AbortController()
     const timer = window.setTimeout(() => { void prefetchPublicReviews(activeDetailId, controller.signal).catch(() => undefined) }, 0)
     return () => { window.clearTimeout(timer); controller.abort() }
@@ -264,6 +264,8 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
   const [mobileAreaToilets, setMobileAreaToilets] = useState<ToiletMapItem[] | null>(null)
   const [isMobileAreaListLoading, setIsMobileAreaListLoading] = useState(false)
   const [mapZoomLevel, setMapZoomLevel] = useState(3)
+  const [mobileZoomGuideKey, setMobileZoomGuideKey] = useState<number | null>(null)
+  const mobileZoomGuideTimerRef = useRef<number | undefined>(undefined)
   const [reportTarget, setReportTarget] = useState<ReportTarget | null>(null)
   const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null)
   const currentUserRef = useRef<string | null>(null)
@@ -296,6 +298,12 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
     setLocationMessage(message)
     locationMessageTimerRef.current = window.setTimeout(() => setLocationMessage(null), TRANSIENT_NOTICE_MS)
   }, [])
+  const showMobileZoomGuide = useCallback(() => {
+    window.clearTimeout(mobileZoomGuideTimerRef.current)
+    setMobileZoomGuideKey(value => value === null ? 1 : value + 1)
+    mobileZoomGuideTimerRef.current = window.setTimeout(() => setMobileZoomGuideKey(null), 2600)
+  }, [])
+  useEffect(() => () => window.clearTimeout(mobileZoomGuideTimerRef.current), [])
   useEffect(() => {
     if (!locationMessage) return
     const dismiss = () => {
@@ -1178,6 +1186,8 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
           if (disposed) return
           mapInteractionRef.current = true
           setIsMobileAreaListOpen(false)
+          window.clearTimeout(mobileZoomGuideTimerRef.current)
+          setMobileZoomGuideKey(null)
         }
         window.kakao.maps.event.addListener(map, 'dragstart', markMapInteraction)
         window.kakao.maps.event.addListener(map, 'zoom_changed', markMapInteraction)
@@ -1256,8 +1266,11 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
     if (!map || !result) return
 
     closeDetailCard()
+    if (map.getLevel() > MAX_LIST_ZOOM_LEVEL) {
+      showMobileZoomGuide()
+      return
+    }
     setIsMobileAreaListOpen(true)
-    if (map.getLevel() > MAX_LIST_ZOOM_LEVEL) return
     if (result.meta.display_type !== 'CLUSTER') return
 
     const bounds = map.getBounds()
@@ -1279,7 +1292,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
     } finally {
       setIsMobileAreaListLoading(false)
     }
-  }, [closeDetailCard, isMobileAreaListVisible, result])
+  }, [closeDetailCard, isMobileAreaListVisible, result, showMobileZoomGuide])
 
   const selectMobileAreaToilet = useCallback((toilet: ToiletMapItem) => {
     const map = mapRef.current
@@ -1388,6 +1401,11 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
             {isLocating ? '확인 중' : '현재 위치'}
           </button>
         </div>
+        {mobileZoomGuideKey !== null && <div key={mobileZoomGuideKey} className="mobile-map-zoom-guide" role="status" aria-live="polite">
+          <span className="mobile-map-zoom-motion" aria-hidden="true"><i /><i /><b /></span>
+          <strong>두 손가락으로 지도를 확대해 주세요</strong>
+          <span>가까운 화장실 목록이 나타나요</span>
+        </div>}
         {isDesktop && result && <aside className="desktop-area-list" aria-label="현재 지도 영역 화장실 목록">
           <header className="desktop-area-list-header">
             <div>
@@ -1416,7 +1434,6 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
           <button className="mobile-area-list-handle" type="button" onClick={() => setIsMobileAreaListOpen(false)} aria-label="지역 목록 닫기" />
           {!isListZoomLimited && <div className="mobile-area-list-header"><span>화장실명</span><span>구분</span><span>거리</span></div>}
           <div className="mobile-area-list-content">
-            {isListZoomLimited && <p className="map-list-zoom-guide">화장실 목록을 보려면<br />지도를 더 확대해 주세요.</p>}
             {!isListZoomLimited && isMobileAreaListLoading && <p className="mobile-area-list-status">목록을 불러오는 중…</p>}
             {!isListZoomLimited && !isMobileAreaListLoading && areaToilets.length === 0 && <p className="mobile-area-list-status">이 영역의 화장실 목록이 없습니다.</p>}
             {!isListZoomLimited && !isMobileAreaListLoading && sortedAreaToiletGroups.map((group) => {
@@ -1443,6 +1460,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
             <p>등록된 좌표가 없어 지도에 위치를 표시할 수 없습니다.</p>
             <p className="open-time">{formatOpenTime(toiletDetail)}</p>
             {REVIEW_UI_ENABLED && <ToiletCommunityRow onReview={() => reviewPreview.open(toiletDetail)} reviewEntry={reviewPreview.entryState(toiletDetail.id)} previewSummary={reviewPreview.summary(toiletDetail.id)} />}
+            <PublicReviews toiletId={toiletDetail.id} toiletName={toiletDetail.name} toiletType={toiletDetail.toiletType} summary={reviewPreview.summary(toiletDetail.id)} />
             <ToiletDetailContents toilet={toiletDetail} />
           </aside>
         )}
@@ -1475,6 +1493,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
               {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">{distanceReferenceLabel}</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">(직선거리)</span></div>}
               <ToiletCommunityRow pendingReport={!isDesktop && !toiletDetail} onReport={isDesktop ? undefined : toiletDetail ? () => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) : undefined}
                 pendingReview={REVIEW_UI_ENABLED && !toiletDetail} onReview={REVIEW_UI_ENABLED && toiletDetail ? () => reviewPreview.open(toiletDetail) : undefined} reviewEntry={reviewPreview.entryState(selectedToilet.id)} previewSummary={REVIEW_UI_ENABLED ? reviewPreview.summary(selectedToilet.id) : undefined} />
+              {toiletDetail && <PublicReviews toiletId={toiletDetail.id} toiletName={toiletDetail.name} toiletType={toiletDetail.toiletType} summary={reviewPreview.summary(toiletDetail.id)} />}
               {detailError && <div><p className="detail-error" role="alert">{detailError}</p><button type="button" className="detail-retry" onClick={retryDetail}>다시 불러오기</button></div>}
               {!toiletDetail && isDetailLoading && <DetailLoadingFields />}
               {toiletDetail && (toiletDetail.id === testToilet?.id
@@ -1571,7 +1590,7 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
   return <div className="coordinate-inline-details">
     <div className="coordinate-opening-row"><p className="open-time">{formatOpenTime(toilet)}</p>{onReport && <ToiletReportEntry iconOnly onClick={onReport} />}</div>
     <ToiletCommunityRow onReview={onReview} reviewEntry={reviewEntry} previewSummary={previewSummary} />
-    <PublicReviews toiletId={toilet.id} />
+    <PublicReviews toiletId={toilet.id} toiletName={toilet.name} toiletType={toilet.toiletType} summary={previewSummary} />
     {address && <DetailRow className="coordinate-inline-address" label="주소" value={address} copyable />}
     <section className="coordinate-inline-section coordinate-inline-capacity-section" aria-label="화장실 수">
       <h2>화장실 수</h2>

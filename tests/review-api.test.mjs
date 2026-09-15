@@ -94,6 +94,8 @@ test('real integration requires exact preview or separately approved production 
   assert.match(config, /process.env.NEXT_PUBLIC_API_BASE_URL === 'https:\/\/api\.geupddong\.com'/)
   assert.match(config, /const reviewApiEnabled = reviewPreviewApi \|\| reviewProductionApi/)
   assert.match(config, /NEXT_PUBLIC_REVIEW_API_ENABLED: reviewApiEnabled \? 'true' : 'false'/)
+  assert.match(config, /const publicReviewApiEnabled = reviewApiEnabled \|\| process\.env\.SITE_INDEXABLE === 'false'/)
+  assert.match(config, /NEXT_PUBLIC_PUBLIC_REVIEW_API_ENABLED: publicReviewApiEnabled \? 'true' : 'false'/)
   assert.doesNotMatch(hook, /localStorage|sessionStorage|console\.|setReviews|useIntegratedReviewPreview\(/)
   assert.match(hook, /attempt.current.key/); assert.match(hook, /await reviewApi.detach\(item\)/)
   assert.match(hook, /if \(!current\(token\)\) return/)

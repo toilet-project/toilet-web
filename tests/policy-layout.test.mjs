@@ -15,6 +15,8 @@ test('current policy pages use one responsive document hierarchy', async () => {
   assert.match(page, /policy-combined-header/)
   assert.match(page, /const SectionHeading = embedded \? 'h3' : 'h2'/)
   assert.match(page, /className="policy-history-link" href="\/policy-history\/2026-09-01\.html"/)
+  assert.match(page, /<section id="age"><SectionHeading>2\. 만 14세 이상 확인<\/SectionHeading>/)
+  assert.match(page, /가입을 계속하면 본인이 만 14세 이상임을 확인합니다/)
   assert.match(styles, /\.policy-document-header > h1[^}]*line-height: 1\.28/)
   assert.match(styles, /word-break: keep-all/)
   assert.match(styles, /\.policy-combined-header > h2/)

@@ -33,8 +33,8 @@ async function noOverflow(page) {
         geolocation:{latitude:36.3664,longitude:127.344},permissions:['geolocation'],serviceWorkers:'block'})
       let auth='anonymous', newConsent=false, mapFailure=false
       const reports=[], mockedWrites=[], unexpectedWrites=[], errors=[]
-      const policies=[['SERVICE_TERMS','이용약관'],['PRIVACY_COLLECTION','개인정보 수집·이용'],['AGE_14_PLUS','만 14세 이상']]
-        .map(([key,title],i)=>({id:i+1,key,title,version:'test-1',required:true,effectiveAt:'2026-09-05',contentPath:'/policies/terms'}))
+      const policies=[['SERVICE_TERMS','이용약관','/policies/terms'],['PRIVACY_COLLECTION','개인정보 수집·이용','/policies/privacy#collection'],['AGE_14_PLUS','만 14세 이상','/policies/terms#age']]
+        .map(([key,title,contentPath],i)=>({id:i+1,key,title,version:'test-1',required:true,effectiveAt:'2026-09-05',contentPath}))
       await context.route('**/*',async route=>{
         const request=route.request(),url=new URL(request.url()),path=url.pathname,method=request.method()
         const api=url.hostname==='api.geupddong.com' || (url.origin===origin && path.startsWith('/api/v1/'))
