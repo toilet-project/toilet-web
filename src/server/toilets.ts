@@ -6,11 +6,11 @@ import { parseToiletId } from '../lib/toiletRoute'
 import { reviewVerificationResponse } from '../../review-verification-proxy.mjs'
 import { getSharedToiletBucket, readThroughSharedToiletCache, sharedToiletCacheEnabled } from './sharedToiletCache'
 
-async function fetchPublicToiletOrigin(id: number, shared: boolean): Promise<ToiletDetailResponse | null> {
+async function fetchPublicToiletOrigin(id: number): Promise<ToiletDetailResponse | null> {
   const origin = process.env.TOILET_API_ORIGIN || 'https://api.geupddong.com'
-  const response = await fetch(`${origin.replace(/\/$/, '')}/api/v1/toilets/${id}`, shared ? {
-    cache: 'no-store', signal: AbortSignal.timeout(10_000),
-  } : {
+  const response = await fetch(`${origin.replace(/\/$/, '')}/api/v1/toilets/${id}`, {
+    // The detail route is ISR. A no-store fetch here changes a statically
+    // rendered route to dynamic at runtime and Next.js rejects the request.
     next: { revalidate: 3600, tags: [`toilet:${id}`] }, signal: AbortSignal.timeout(10_000),
   })
   if (response.status === 404) return null
@@ -44,15 +44,15 @@ export const getToilet = cache(async (rawId: string): Promise<ToiletDetailRespon
       try {
         const bucket = await getSharedToiletBucket()
         if (bucket) return await readThroughSharedToiletCache({ bucket, toiletId: id,
-          fetchOrigin: () => fetchPublicToiletOrigin(id, true) })
+          fetchOrigin: () => fetchPublicToiletOrigin(id) })
       } catch (error) {
         console.error('Shared toilet cache read-through failed', error)
         // Keep serving through Next's existing one-hour cache while the
         // independent R2 cache is unavailable or rejects an origin response.
-        return fetchPublicToiletOrigin(id, false)
+        return fetchPublicToiletOrigin(id)
       }
     }
-    return fetchPublicToiletOrigin(id, false)
+    return fetchPublicToiletOrigin(id)
   }
   if (response.status === 404) return null
   if (!response.ok) throw new Error(`Public toilet detail unavailable (${response.status})`)
