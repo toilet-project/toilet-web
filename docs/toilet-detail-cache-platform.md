@@ -16,14 +16,14 @@
 
 수정 이벤트의 revision과 R2 ETag 조건부 쓰기를 함께 사용한다. 원본 조회가 진행되는 동안 새 이벤트가 오면 이전 ETag로 시작한 저장이 실패하고 최신 revision에서 다시 조회한다. 삭제·비공개는 tombstone으로 남겨 오래된 데이터가 다시 노출되지 않게 한다. 손상된 객체도 ETag를 유지한 채 정상 원본 결과로 조건부 교체한다.
 
-`SHARED_TOILET_CACHE_ENABLED`의 값이 정확히 `true`일 때만 켜진다. binding이 없거나 R2를 읽지 못하면 기능 활성 상태에서도 원본 공개 API로 fail-open한다. 기능이 꺼져 있으면 기존 `revalidate: 3600`, `toilet:{id}` Next fetch를 그대로 사용한다.
+`SHARED_TOILET_CACHE_ENABLED`의 값이 정확히 `true`일 때만 켜진다. binding이 없거나 R2를 읽지 못하면 기능 활성 상태에서도 원본 공개 API로 fail-open한다. 운영 전환 뒤에는 production만 `true`를 유지하고 preview는 `false`를 유지한다. 기능을 끄면 기존 `revalidate: 3600`, `toilet:{id}` Next fetch로 즉시 복귀한다.
 
 필요한 Worker 설정은 다음과 같다. 실제 버킷 생성·binding·변수 활성화는 운영 전환 작업이다.
 
 | 이름 | 초기값/용도 |
 | --- | --- |
 | `PUBLIC_TOILET_DATA_CACHE_R2` | 환경별 OpenNext R2 버킷의 공유 데이터 전용 binding. `public-toilets/v1/` prefix만 사용 |
-| `SHARED_TOILET_CACHE_ENABLED` | `false`에서 시작 |
+| `SHARED_TOILET_CACHE_ENABLED` | production `true`, preview `false` |
 | `SHARED_TOILET_CACHE_FRESH_SECONDS` | 기본 3600 |
 | `SHARED_TOILET_CACHE_STALE_SECONDS` | 기본 21600 |
 | `SHARED_TOILET_CACHE_NEGATIVE_SECONDS` | 기본 300 |

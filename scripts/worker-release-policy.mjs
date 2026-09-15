@@ -10,7 +10,11 @@ export function validateWorkerConfig(config, target, {deploy = false, stage = fa
   assert.equal(config.services?.find(row => row.binding === 'WORKER_SELF_REFERENCE')?.service, config.name)
   assert.equal(config.r2_buckets?.find(row => row.binding === 'NEXT_INC_CACHE_R2_BUCKET')?.bucket_name, `geupddong-next-${suffix}-cache`)
   assert.equal(config.r2_buckets?.find(row => row.binding === 'PUBLIC_TOILET_DATA_CACHE_R2')?.bucket_name, `geupddong-next-${suffix}-cache`)
-  assert.equal(config.vars?.SHARED_TOILET_CACHE_ENABLED, 'false', 'Shared cache must remain opt-in in release artifacts')
+  assert.equal(
+    config.vars?.SHARED_TOILET_CACHE_ENABLED,
+    production ? 'true' : 'false',
+    production ? 'Production shared cache must stay enabled after cutover' : 'Preview shared cache must remain disabled'
+  )
   const d1 = config.d1_databases?.find(row => row.binding === 'NEXT_TAG_CACHE_D1')
   assert.equal(d1?.database_name, `geupddong-next-${suffix}-tags`)
   assert.equal(config.route, undefined, 'Unexpected singular route')
