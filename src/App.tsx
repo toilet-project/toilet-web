@@ -39,6 +39,7 @@ import { TRANSIENT_NOTICE_MS } from './lib/uiTiming'
 import { warmOwnPhoto } from './lib/warmOwnPhoto'
 import { refreshSignupPhoto } from './lib/signupPhotoWarm'
 import { prefetchPublicReviews, PUBLIC_REVIEW_API_ENABLED } from './lib/publicReviewPrefetch'
+import { resultCountBucket, trackEvent } from './lib/analytics'
 const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
 const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
@@ -398,6 +399,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
 
   const openReport = useCallback((target: ReportTarget) => {
     if (target.toilet.id < 0) return // Browser fixtures cannot enter the real report/auth-resume flow.
+    trackEvent('report_start', { source: 'toilet_detail' })
     if (!authProfile) {
       try { window.sessionStorage.setItem(PENDING_REPORT_TARGET_KEY, JSON.stringify(target)) } catch { /* 저장소 사용 불가 환경에서도 로그인은 계속 제공한다. */ }
       setLoginPurpose('report')
@@ -698,10 +700,16 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
         if (requestSequence !== placeSearchRequestRef.current) return
         setPlaceSearchResults(places)
         setPlaceSearchMessage(places.length === 0 ? '검색 결과가 없습니다.' : null)
+        trackEvent('toilet_search', {
+          query_kind: /\d|로|길/.test(keyword) ? 'address' : 'place',
+          success: true,
+          result_count_bucket: resultCountBucket(places.length),
+        })
       } catch {
         if (requestSequence === placeSearchRequestRef.current) {
           setPlaceSearchResults([])
           setPlaceSearchMessage('장소를 검색하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+          trackEvent('toilet_search', { query_kind: 'unknown', success: false, result_count_bucket: '0' })
         }
       } finally {
         if (requestSequence === placeSearchRequestRef.current) setIsPlaceSearching(false)
@@ -731,6 +739,10 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
   }, [positionPlaceCardAtToilet])
 
   const selectToilet = useCallback((toiletId: number, name: string, latitude: number, longitude: number, keepCoordinateGroup = false, toiletType?: string) => {
+    const zoom = mapRef.current?.getLevel() ?? 7
+    const source = keepCoordinateGroup ? 'coordinate_group' : 'map'
+    trackEvent('toilet_marker_select', { source, zoom_bucket: zoom <= 3 ? 'near' : zoom <= 6 ? 'mid' : 'far' })
+    trackEvent('toilet_detail_open', { source })
     setIsMobileAreaListOpen(false)
     const selected = { id: toiletId, name, latitude, longitude, toiletType }
     selectedToiletRef.current = selected
@@ -1023,6 +1035,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
     const isCurrent = () => referenceRequestGate.isCurrent(request) && mapRef.current === map
 
     if (!navigator.geolocation) {
+      if (!isInitialRequest) trackEvent('nearby_search', { permission_state: 'unsupported', success: false })
       if (!isInitialRequest) showLocationMessage('이 브라우저에서는 현재 위치를 지원하지 않습니다.')
       setIsLocating(false)
       return
@@ -1034,6 +1047,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
         const permission = await navigator.permissions.query({ name: 'geolocation' })
         if (!isCurrent()) return
         if (permission.state === 'denied') {
+          if (!isInitialRequest) trackEvent('nearby_search', { permission_state: 'denied', success: false })
           if (!isInitialRequest) showLocationMessage('위치 권한이 거부되었습니다. 브라우저의 사이트 설정에서 위치를 허용해 주세요.')
           setIsLocating(false)
           return
@@ -1048,6 +1062,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
       ({ coords }) => {
         if (!isCurrent()) return
         updateCurrentLocation({ latitude: coords.latitude, longitude: coords.longitude }, true)
+        if (!isInitialRequest) trackEvent('nearby_search', { permission_state: 'granted', success: true })
         startCurrentLocationWatch()
         window.clearTimeout(locationMessageTimerRef.current)
         setLocationMessage(null)
@@ -1061,6 +1076,10 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
           3: '위치 확인 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.',
         }
         if (!isInitialRequest) showLocationMessage(messageByCode[positionError.code] ?? '현재 위치를 확인하지 못했습니다.')
+        if (!isInitialRequest) trackEvent('nearby_search', {
+          permission_state: positionError.code === 1 ? 'denied' : 'unavailable',
+          success: false,
+        })
         setIsLocating(false)
       },
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
@@ -1070,6 +1089,11 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
   const moveToSearchPlace = useCallback((place: KakaoPlace) => {
     const map = mapRef.current
     if (!map) return
+
+    const selectedRank = placeSearchResults.findIndex((candidate) => candidate.id === place.id)
+    trackEvent('search_result_select', {
+      rank_bucket: selectedRank <= 0 ? 'first' : selectedRank <= 2 ? 'top3' : 'other',
+    })
 
     closeDetailCard()
     const position = new window.kakao.maps.LatLng(place.latitude, place.longitude)
@@ -1099,7 +1123,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
     setIsPlaceSearching(false)
     setIsPlaceSearchFocused(false)
     placeSearchInputRef.current?.blur()
-  }, [closeDetailCard, updateReferencePoint])
+  }, [closeDetailCard, placeSearchResults, updateReferencePoint])
 
   const handlePlaceSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'ArrowDown' && placeSearchResults.length > 0) {
