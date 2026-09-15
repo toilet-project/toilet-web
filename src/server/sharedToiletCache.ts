@@ -14,7 +14,7 @@ export type SharedToiletRecord = {
   freshUntil?: number; staleUntil?: number; data?: ToiletDetailResponse
 }
 export type R2ObjectBodyLike = { etag: string; json<T>(): Promise<T> }
-export type R2PutOnlyIf = { etagMatches?: string; etagDoesNotMatch?: string } | Headers
+export type R2PutOnlyIf = { etagMatches?: string; etagDoesNotMatch?: string }
 export type R2BucketLike = {
   get(key: string): Promise<R2ObjectBodyLike | null>
   put(key: string, value: string, options?: { onlyIf?: R2PutOnlyIf; httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> }): Promise<{ etag: string } | null>
@@ -105,7 +105,9 @@ async function load(bucket: R2BucketLike, id: number): Promise<Loaded> {
   return { record, etag: object.etag }
 }
 function condition(current: Loaded): R2PutOnlyIf {
-  return current ? { etagMatches: current.etag } : new Headers({ 'If-None-Match': '*' })
+  // Use the structured R2 condition in server components. A Headers instance can
+  // cross a Next.js/runtime realm boundary and fail the Workers API brand check.
+  return current ? { etagMatches: current.etag } : { etagDoesNotMatch: '*' }
 }
 async function put(bucket: R2BucketLike, record: SharedToiletRecord, current: Loaded) {
   return bucket.put(sharedToiletCacheKey(record.toiletId), JSON.stringify(record), {
@@ -150,12 +152,16 @@ export async function readThroughSharedToiletCache(options: { bucket: R2BucketLi
     try { if (await put(options.bucket, record, current)) return origin }
     catch { return origin }
   }
-  const winner = await load(options.bucket, options.toiletId)
-  if (winner?.record) {
-    const cached = cachedValue(winner.record, now())
-    if (cached.hit) return cached.value
+  try {
+    const winner = await load(options.bucket, options.toiletId)
+    if (winner?.record) {
+      const cached = cachedValue(winner.record, now())
+      if (cached.hit) return cached.value
+    }
+  } catch {
+    // A shared-cache outage must not make a public detail page unavailable.
   }
-  throw new Error('Shared toilet cache changed during refresh')
+  return options.fetchOrigin()
 }
 
 function eventState(action: ToiletCacheAction): CacheState { return action === 'UPSERT' ? 'invalidated' : 'deleted' }
