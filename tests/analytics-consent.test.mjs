@@ -45,4 +45,6 @@ test('Google tag loads once after explicit analytics consent', async () => {
   assert.equal(appended.length, 1)
   assert.match(appended[0], /googletagmanager\.com\/gtag\/js\?id=G-TEST123/)
   assert.ok(window.dataLayer.length >= 3)
+  assert.deepEqual(window.dataLayer.slice(0, 3).map(command => command[0]), ['consent', 'js', 'config'])
+  assert.ok(window.dataLayer.slice(0, 3).every(command => !Array.isArray(command)))
 })
