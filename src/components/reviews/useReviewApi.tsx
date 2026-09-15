@@ -8,6 +8,7 @@ import { canManageReview, type ReviewInput } from '../../lib/review'
 import { requireReviewFix, reviewLocationProblem, ReviewGateError } from '../../lib/reviewLocation'
 import { isMobileReviewDevice, MOBILE_REVIEW_ONLY_MESSAGE } from '../../lib/reviewDevice'
 import { invalidatePublicReviewPrefetch } from '../../lib/publicReviewPrefetch'
+import { trackEvent } from '../../lib/analytics'
 import { ReviewDialog, ReviewModal, type ReviewEligibility } from './ReviewDialog'
 import { MyReviewsPanel } from './MyReviewsPanel'
 import type { MineNavigation, PreviewReviewSummary, ReviewAccess, ReviewEntryState, ReviewTarget } from './useIntegratedReviewPreview'
@@ -200,8 +201,10 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
       attempt.current = null; setItems(values => values.map(item => item.id === stored.id ? stored : item))
       invalidatePublicReviewPrefetch(facility.id)
       setTarget(null); setEditing(null); setSaved(true); void refreshSummary(facility.id)
+      trackEvent('review_submit', { success: true })
     } catch (error) {
       if (!current(token)) return
+      trackEvent('review_submit', { success: false })
       if (error instanceof ReviewApiError && error.code === 'REVIEW_ALREADY_EXISTS' && error.existingReviewId) { promptExisting(facility, error.existingReviewId); return }
       authFailure(error); throw error
     } finally { writing.current = false }
