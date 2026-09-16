@@ -1,5 +1,6 @@
 export const INCREMENTAL_CACHE_PREFIX='incremental-cache/'
 const UUID=/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i
+const RETIRED_CANDIDATE_NAMESPACE=/^[a-f0-9]{40}-([1-9]\d*)-([1-9]\d*)-(?:review-)?production-candidate$/i
 
 export function cacheNamespaceFromKey(key){
   if(typeof key!=='string'||!key.startsWith(INCREMENTAL_CACHE_PREFIX)) return null
@@ -26,17 +27,28 @@ export function normalizeDeploymentStatus(value,workerName){
 }
 function checkedReleases(releases){
   if(!Array.isArray(releases)||!releases.length) throw new Error('Release registry is empty')
-  return releases.map(release=>{
+  const checked=releases.map(release=>{
     const cacheNamespace=release?.cacheNamespace||release?.appVersion
-    if(!release||release.schema!==1||!UUID.test(release.workerVersion)||typeof cacheNamespace!=='string'||!cacheNamespace
+    if(!release||release.schema!==1||typeof cacheNamespace!=='string'||!cacheNamespace
       ||typeof release.deployedAt!=='string'||!Number.isFinite(Date.parse(release.deployedAt))) throw new Error('Invalid release registry entry')
     if(release.cacheNamespace&&release.appVersion&&release.cacheNamespace!==release.appVersion) throw new Error('Release cache namespace does not match app version')
+    const workerRelease=typeof release.workerVersion==='string'&&UUID.test(release.workerVersion)
+    const candidate=cacheNamespace.match(RETIRED_CANDIDATE_NAMESPACE)
+    const retiredValidation=release.workerVersion===null&&release.lifecycle==='retired-validation'
+      &&Number.isSafeInteger(release.sourceRunId)&&String(release.sourceRunId)===candidate?.[1]
+      &&typeof release.retiredAt==='string'&&Number.isFinite(Date.parse(release.retiredAt))
+    if(!workerRelease&&!retiredValidation) throw new Error('Release must be a Worker version or an audited retired validation candidate')
     return {...release,cacheNamespace}
   })
+  if(new Set(checked.map(release=>release.cacheNamespace)).size!==checked.length) throw new Error('Duplicate cache namespace in release registry')
+  const workerVersions=checked.filter(release=>release.workerVersion!==null).map(release=>release.workerVersion)
+  if(new Set(workerVersions).size!==workerVersions.length) throw new Error('Duplicate Worker version in release registry')
+  return checked
 }
 export function planIncrementalCacheCleanup({objects,releases,activeWorkerVersions,now=Date.now(),rollbackProtectionDays=3}){
   const registry=checkedReleases(releases)
-  const byWorker=new Map(registry.map(release=>[release.workerVersion,release]))
+  const workerReleases=registry.filter(release=>release.workerVersion!==null)
+  const byWorker=new Map(workerReleases.map(release=>[release.workerVersion,release]))
   const active=activeWorkerVersions.map(version=>{
     const release=byWorker.get(version)
     if(!release) throw new Error(`Active Worker version is missing a release manifest: ${version}`)
@@ -44,7 +56,7 @@ export function planIncrementalCacheCleanup({objects,releases,activeWorkerVersio
   })
   const protectedCacheNamespaces=new Map(active.map(release=>[release.cacheNamespace,'active traffic']))
   const newestActive=Math.max(...active.map(release=>Date.parse(release.deployedAt)))
-  const previous=registry.filter(release=>!activeWorkerVersions.includes(release.workerVersion)&&Date.parse(release.deployedAt)<newestActive)
+  const previous=workerReleases.filter(release=>!activeWorkerVersions.includes(release.workerVersion)&&Date.parse(release.deployedAt)<newestActive)
     .sort((a,b)=>Date.parse(b.deployedAt)-Date.parse(a.deployedAt))[0]
   if(previous){
     const retirement=previous.retiredAt?Date.parse(previous.retiredAt):newestActive
