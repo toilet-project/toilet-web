@@ -6,7 +6,7 @@
 
 - 사이트맵에 있는 모든 공개 `/toilet/{id}`를 제한된 속도로 요청해 해당 배포의 OpenNext 페이지 캐시를 생성한다.
 - 공개 시설 데이터는 `public-toilets/v1/toilets/{id}.json` R2 객체로 분리해 배포가 바뀌어도 재사용한다.
-- 페이지 HTML/RSC와 Next.js 데이터 결과는 기존 OpenNext의 `incremental-cache/{buildId}/...` 아래에 배포별로 둔다.
+- 페이지 HTML/RSC와 Next.js 데이터 결과는 기존 OpenNext의 `incremental-cache/{NEXT_DEPLOYMENT_ID}/...` 아래에 배포별로 둔다. 이 값은 릴리스 manifest의 `appVersion`이며 `.next/BUILD_ID`와 다르다.
 - 리뷰 목록·평점·프로필 사진은 현재 브라우저 공개 API/사진 캐시 흐름을 유지한다. 지도 목록도 브라우저가 API를 직접 조회한다.
 - 사전 생성과 정리 워크플로는 수동 실행 전용이며 저장소 변수와 보호 환경 승인 없이는 job이 시작되지 않는다.
 
@@ -58,11 +58,11 @@ CACHE_PREWARM_ENABLED=true pnpm cache:prewarm -- --execute \
 
 ## 정리
 
-`pnpm cache:cleanup`은 기본 dry-run이다. Worker 활성 배포를 Wrangler read-only 명령으로 확인하고, 릴리스 registry의 Worker UUID ↔ OpenNext build ID 매핑을 사용한다. 현재 트래픽의 모든 버전과 직전 정상 배포의 최소 3일을 보호한다. registry가 없거나 알 수 없는 객체는 삭제하지 않는다.
+`pnpm cache:cleanup`은 기본 dry-run이다. Worker 활성 배포를 Wrangler read-only 명령으로 확인하고, 릴리스 registry의 Worker UUID ↔ R2 캐시 namespace(`cacheNamespace`, manifest의 `appVersion`) 매핑을 사용한다. `.next/BUILD_ID`는 배포 검증 정보로만 보관하며 정리 경로 판정에 사용하지 않는다. 현재 트래픽의 모든 버전과 직전 정상 배포의 최소 3일을 보호한다. registry가 없거나 알 수 없는 객체는 삭제하지 않는다.
 
 삭제는 `--execute`와 `CACHE_CLEANUP_ENABLED=true`가 함께 있어야 하며, 삭제 직전에 활성 배포를 다시 확인한다. 제공한 Actions workflow는 dry-run 계획만 만들며 삭제 키를 사용하지 않는다. 대상은 `incremental-cache/`뿐이므로 `public-toilets/v1/`, 정적 자산, 업로드 이미지와 다른 버킷은 제외된다.
 
-정리 workflow는 구현됐지만 2026-09-17 현재 저장소/환경의 `CACHE_CLEANUP_DRY_RUN_ENABLED`, `CACHE_RELEASE_REGISTRY_JSON`, `CACHE_STATUS_API_TOKEN`, `R2_CACHE_READ_ACCESS_KEY_ID`, `R2_CACHE_READ_SECRET_ACCESS_KEY`가 아직 구성되지 않았다. 따라서 정리 dry-run은 실행 전이며 WBS #243의 유일한 미완료 체크리스트다. 현재 활성 Worker는 `d18a7bd4-97db-49fe-9502-1af054d28f29`, 운영 `/BUILD_ID`는 `build-TfctsWXpff2fKS`로 확인했다. 자격증명은 활성 배포 조회와 해당 운영 캐시 버킷 객체 목록 조회만 허용하는 읽기 전용 권한으로 발급하고, 삭제 권한은 넣지 않는다.
+2026-09-17 읽기 전용 Worker 상태 토큰과 운영 캐시 객체 읽기 전용 R2 키를 `production-cache-maintenance` GitHub Environment에 구성했다. 첫 실측 dry-run [Actions #35139962673](https://github.com/toilet-project/toilet-web/actions/runs/35139962673)은 삭제를 시도하지 않았고 264,530개(8,478,874,679 bytes)를 모두 unknown으로 보호했다. 이 결과로 기존 정리기가 `.next/BUILD_ID`를 R2 경로와 비교하던 불일치를 발견했다. 실제 R2 namespace인 manifest `appVersion`을 사용하도록 보강한 뒤 결과를 다시 검증한다. 실행 게이트 `CACHE_CLEANUP_DRY_RUN_ENABLED`는 발행 직후 `false`로 되돌리며, workflow에는 삭제 자격증명과 `--execute`가 없다.
 
 ## 적용·복구
 
