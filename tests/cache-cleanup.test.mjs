@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {assertReviewedCleanupPlan,cacheNamespaceFromKey,cleanupPlanFingerprint,normalizeDeploymentStatus,planIncrementalCacheCleanup,sameActiveDeployment} from '../scripts/cache/cleanup-lib.mjs'
+import {assertAutomaticCleanupPlan,assertReviewedCleanupPlan,cacheNamespaceFromKey,cleanupPlanFingerprint,normalizeDeploymentStatus,planIncrementalCacheCleanup,sameActiveDeployment} from '../scripts/cache/cleanup-lib.mjs'
 
 const active='11111111-1111-4111-8111-111111111111',previous='22222222-2222-4222-8222-222222222222',old='33333333-3333-4333-8333-333333333333'
 const retiredNamespace='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-12345-1-review-production-candidate'
@@ -43,4 +43,17 @@ test('deployment snapshots normalize traffic and detect a change',()=>{
   const same=normalizeDeploymentStatus({versions:[{version_id:active,percentage:100}]},'worker')
   const changed=normalizeDeploymentStatus({versions:[{version_id:previous,percentage:100}]},'worker')
   assert.equal(sameActiveDeployment(one,same),true);assert.equal(sameActiveDeployment(one,changed),false)
+})
+test('automatic cleanup refuses unknown or oversized plans and skips empty plans',()=>{
+  const clean=planIncrementalCacheCleanup({objects:[{key:'incremental-cache/cache-old/c.cache',size:30}],releases,activeWorkerVersions:[active],now:Date.parse('2026-09-19T12:00:00Z')})
+  assert.deepEqual(assertAutomaticCleanupPlan(clean,{maxFiles:1,maxBytes:30}),{shouldExecute:true,files:1,bytes:30,fingerprint:clean.deleteFingerprint})
+  assert.throws(()=>assertAutomaticCleanupPlan(clean,{maxFiles:1,maxBytes:29}),/exceeds/)
+  const empty=planIncrementalCacheCleanup({objects:[{key:'incremental-cache/cache-active/a.cache',size:10}],releases,activeWorkerVersions:[active],now:Date.parse('2026-09-15T12:00:00Z')})
+  assert.equal(assertAutomaticCleanupPlan(empty,{maxFiles:1,maxBytes:1}).shouldExecute,false)
+})
+test('a release newer than the active deployment is protected as a pending candidate',()=>{
+  const future={schema:1,workerVersion:'55555555-5555-4555-8555-555555555555',buildId:'future',appVersion:'cache-future',deployedAt:'2026-09-16T00:00:00.000Z'}
+  const plan=planIncrementalCacheCleanup({objects:[{key:'incremental-cache/cache-future/a.cache',size:10}],releases:[...releases,future],
+    activeWorkerVersions:[active],now:Date.parse('2026-09-20T00:00:00Z')})
+  assert.equal(plan.summary.delete.files,0);assert.equal(plan.protectedCacheNamespaces['cache-future'],'newer deployment candidate')
 })

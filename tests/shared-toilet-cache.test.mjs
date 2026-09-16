@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
 import test from 'node:test'
-import {applySharedToiletInvalidation,readThroughSharedToiletCache,SHARED_TOILET_CACHE_SCHEMA,sharedToiletCacheKey} from '../src/server/sharedToiletCache.ts'
+import {applySharedToiletInvalidation,readThroughSharedToiletCache,refreshSharedToiletCache,SHARED_TOILET_CACHE_SCHEMA,sharedToiletCacheKey} from '../src/server/sharedToiletCache.ts'
 
 class FakeR2 {
   objects=new Map(); sequence=0
@@ -92,6 +92,25 @@ test('the 30-day policy adopts valid objects written by the former one-hour poli
     freshUntil:3_601_000,staleUntil:21_601_000,data:detail(14,'기존 캐시')}))
   const value=await readThroughSharedToiletCache({bucket,toiletId:14,fetchOrigin:async()=>{calls++;return detail(14,'원본')},now:()=>2*86_400_000+1000})
   assert.equal(value.name,'기존 캐시');assert.equal(calls,0)
+})
+
+test('maintenance refresh replaces fresh data in the same key and renews storedAt',async()=>{
+  const bucket=new FakeR2()
+  await readThroughSharedToiletCache({bucket,toiletId:16,fetchOrigin:async()=>detail(16,'이전'),now:()=>1000})
+  const refreshed=await refreshSharedToiletCache({bucket,toiletId:16,fetchOrigin:async()=>detail(16,'최신'),now:()=>2000})
+  assert.equal(refreshed.state,'data');assert.equal(refreshed.storedAt,2000);assert.equal(bucket.value(16).data.name,'최신')
+  assert.equal(bucket.objects.size,1)
+})
+
+test('maintenance refresh cannot overwrite a concurrent newer deletion',async()=>{
+  const bucket=new FakeR2()
+  await applySharedToiletInvalidation(bucket,{toiletId:17,revision:1,action:'UPSERT',catalogChanged:false},()=>1000)
+  let calls=0
+  const refreshed=await refreshSharedToiletCache({bucket,toiletId:17,now:()=>3000,fetchOrigin:async()=>{
+    calls++;await applySharedToiletInvalidation(bucket,{toiletId:17,revision:2,action:'DELETE',catalogChanged:true},()=>2000)
+    return detail(17,'삭제 전 응답')
+  }})
+  assert.equal(calls,1);assert.equal(refreshed.state,'deleted');assert.equal(bucket.value(17).revision,2)
 })
 
 test('initial writes use a structured create-only condition',async()=>{

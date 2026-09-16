@@ -118,6 +118,17 @@ async function put(bucket: R2BucketLike, record: SharedToiletRecord, current: Lo
   })
 }
 function policyExpiry(record: SharedToiletRecord, seconds: number) { return record.storedAt + seconds * 1000 }
+function recordFromOrigin(toiletId: number, revision: number, origin: ToiletDetailResponse | null,
+  timestamp: number, timing: ReturnType<typeof cacheTiming>): SharedToiletRecord {
+  return origin ? {
+    schema: SHARED_TOILET_CACHE_SCHEMA, toiletId, revision, state: 'data', storedAt: timestamp,
+    freshUntil: timestamp + timing.fresh * 1000, staleUntil: timestamp + timing.stale * 1000,
+    data: sanitizePublicToiletDetail(origin, toiletId),
+  } : {
+    schema: SHARED_TOILET_CACHE_SCHEMA, toiletId, revision, state: 'negative', storedAt: timestamp,
+    freshUntil: timestamp + timing.negative * 1000,
+  }
+}
 function cachedValue(record: SharedToiletRecord, now: number, timing: ReturnType<typeof cacheTiming>) {
   // Expiry follows the currently deployed policy. This lets valid v1 objects
   // created by the former one-hour policy be adopted without an origin read.
@@ -144,16 +155,7 @@ export async function readThroughSharedToiletCache(options: { bucket: R2BucketLi
       if (current?.record?.state === 'data' && policyExpiry(current.record, timing.stale) > now()) return current.record.data!
       throw error
     }
-    const timestamp = now()
-    const revision = current?.record?.revision ?? 0
-    const record: SharedToiletRecord = origin ? {
-      schema: SHARED_TOILET_CACHE_SCHEMA, toiletId: options.toiletId, revision, state: 'data', storedAt: timestamp,
-      freshUntil: timestamp + timing.fresh * 1000, staleUntil: timestamp + timing.stale * 1000,
-      data: sanitizePublicToiletDetail(origin, options.toiletId),
-    } : {
-      schema: SHARED_TOILET_CACHE_SCHEMA, toiletId: options.toiletId, revision, state: 'negative', storedAt: timestamp,
-      freshUntil: timestamp + timing.negative * 1000,
-    }
+    const record = recordFromOrigin(options.toiletId, current?.record?.revision ?? 0, origin, now(), timing)
     try { if (await put(options.bucket, record, current)) return origin }
     catch { return origin }
   }
@@ -167,6 +169,22 @@ export async function readThroughSharedToiletCache(options: { bucket: R2BucketLi
     // A shared-cache outage must not make a public detail page unavailable.
   }
   return options.fetchOrigin()
+}
+
+export async function refreshSharedToiletCache(options: { bucket: R2BucketLike; toiletId: number;
+  fetchOrigin: () => Promise<ToiletDetailResponse | null>; now?: () => number }) {
+  const now = options.now ?? Date.now
+  const timing = cacheTiming()
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const current = await load(options.bucket, options.toiletId)
+    // A delete/private event is authoritative. A later UPSERT event changes the
+    // tombstone to invalidated before this maintenance path can repopulate it.
+    if (current?.record?.state === 'deleted') return current.record
+    const origin = await options.fetchOrigin()
+    const record = recordFromOrigin(options.toiletId, current?.record?.revision ?? 0, origin, now(), timing)
+    if (await put(options.bucket, record, current)) return record
+  }
+  throw new Error('Shared toilet refresh contention')
 }
 
 function eventState(action: ToiletCacheAction): CacheState { return action === 'UPSERT' ? 'invalidated' : 'deleted' }

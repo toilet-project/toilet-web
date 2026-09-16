@@ -26,6 +26,14 @@ export function assertReviewedCleanupPlan(plan,{files,bytes,fingerprint}){
     throw new Error('Deletion refused: current cache plan does not match the reviewed dry-run')
   }
 }
+export function assertAutomaticCleanupPlan(plan,{maxFiles,maxBytes}){
+  const files=Number(maxFiles),bytes=Number(maxBytes)
+  if(!Number.isSafeInteger(files)||files<1||!Number.isSafeInteger(bytes)||bytes<1)throw new Error('Automatic cleanup limits must be positive safe integers')
+  if(plan.unknownObjects.length)throw new Error(`Automatic deletion refused: ${plan.unknownObjects.length} cache objects are unclassified`)
+  if(plan.summary.delete.files>files||plan.summary.delete.bytes>bytes)throw new Error('Automatic deletion refused: candidate total exceeds the configured limit')
+  return {shouldExecute:plan.summary.delete.files>0,files:plan.summary.delete.files,bytes:plan.summary.delete.bytes,
+    fingerprint:plan.deleteFingerprint}
+}
 export function normalizeDeploymentStatus(value,workerName){
   if(!value||typeof value!=='object') throw new Error('Invalid deployment status')
   const root=value
@@ -71,6 +79,11 @@ export function planIncrementalCacheCleanup({objects,releases,activeWorkerVersio
   })
   const protectedCacheNamespaces=new Map(active.map(release=>[release.cacheNamespace,'active traffic']))
   const newestActive=Math.max(...active.map(release=>Date.parse(release.deployedAt)))
+  for(const release of workerReleases){
+    if(!activeWorkerVersions.includes(release.workerVersion)&&Date.parse(release.deployedAt)>=newestActive){
+      protectedCacheNamespaces.set(release.cacheNamespace,'newer deployment candidate')
+    }
+  }
   const previous=workerReleases.filter(release=>!activeWorkerVersions.includes(release.workerVersion)&&Date.parse(release.deployedAt)<newestActive)
     .sort((a,b)=>Date.parse(b.deployedAt)-Date.parse(a.deployedAt))[0]
   if(previous){

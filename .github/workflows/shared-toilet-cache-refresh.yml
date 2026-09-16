@@ -1,0 +1,99 @@
+name: Shared toilet data cache refresh (disabled)
+
+on:
+  schedule:
+    - cron: '30 20 * * *'
+  workflow_dispatch:
+    inputs:
+      partition:
+        description: Optional partition override (0-27) for resume/retry
+        required: false
+        type: string
+      cycle_id:
+        description: Optional cycle ID override paired with the partition
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shared-toilet-data-cache-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: ${{ vars.CACHE_DATA_REFRESH_ENABLED == 'true' }}
+    environment: production-cache-maintenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: pnpm/action-setup@v6.1.0
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Select stable 28-day partition
+        id: selection
+        shell: bash
+        env:
+          REQUESTED_PARTITION: ${{ inputs.partition }}
+          REQUESTED_CYCLE_ID: ${{ inputs.cycle_id }}
+        run: |
+          kst_date="$(TZ=Asia/Seoul date +%F)"
+          epoch_day="$(( $(date -u -d "${kst_date}T00:00:00Z" +%s) / 86400 ))"
+          partition="${REQUESTED_PARTITION:-$((epoch_day % 28))}"
+          cycle_id="${REQUESTED_CYCLE_ID:-cycle-$((epoch_day / 28))}"
+          [[ "$partition" =~ ^([0-9]|1[0-9]|2[0-7])$ ]] || { echo 'Partition must be 0-27'; exit 1; }
+          [[ "$cycle_id" =~ ^[a-zA-Z0-9._-]{1,100}$ ]] || { echo 'Invalid cycle ID'; exit 1; }
+          echo "partition=$partition" >> "$GITHUB_OUTPUT"
+          echo "cycle_id=$cycle_id" >> "$GITHUB_OUTPUT"
+          echo "checkpoint=.cache-refresh/${cycle_id}-${partition}.json" >> "$GITHUB_OUTPUT"
+      - name: Restore the same cycle and partition checkpoint
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache-refresh
+          key: shared-toilet-refresh-${{ steps.selection.outputs.cycle_id }}-${{ steps.selection.outputs.partition }}-${{ github.run_id }}
+          restore-keys: |
+            shared-toilet-refresh-${{ steps.selection.outputs.cycle_id }}-${{ steps.selection.outputs.partition }}-
+      - name: Refresh shared data only at 5 requests per second
+        env:
+          CACHE_DATA_REFRESH_ENABLED: 'true'
+          CACHE_MAINTENANCE_SECRET: ${{ secrets.CACHE_MAINTENANCE_SECRET }}
+          PARTITION: ${{ steps.selection.outputs.partition }}
+          CYCLE_ID: ${{ steps.selection.outputs.cycle_id }}
+          CHECKPOINT: ${{ steps.selection.outputs.checkpoint }}
+        run: >-
+          node scripts/refresh-shared-toilet-data.mjs
+          --execute
+          --base-url https://geupddong.com
+          --partition-count 28
+          --partition "$PARTITION"
+          --cycle-id "$CYCLE_ID"
+          --checkpoint "$CHECKPOINT"
+          --report shared-cache-refresh-report.json
+          --concurrency 8
+          --rps 5
+          --max-minutes 80
+          --retries 5
+          --request-timeout-seconds 30
+          --progress-every 25
+      - name: Save resumable checkpoint
+        if: ${{ always() }}
+        uses: actions/cache/save@v4
+        with:
+          path: .cache-refresh
+          key: shared-toilet-refresh-${{ steps.selection.outputs.cycle_id }}-${{ steps.selection.outputs.partition }}-${{ github.run_id }}
+      - if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: shared-toilet-refresh-${{ steps.selection.outputs.cycle_id }}-${{ steps.selection.outputs.partition }}
+          path: |
+            .cache-refresh/
+            shared-cache-refresh-report.json
+          retention-days: 35
+          if-no-files-found: warn

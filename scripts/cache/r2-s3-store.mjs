@@ -25,9 +25,10 @@ export class R2S3Store{
     }while(token)
     return objects
   }
-  async delete(keys,{onBatch}={}){
+  async delete(keys,{beforeBatch,onBatch}={}){
     for(let offset=0;offset<keys.length;offset+=1000){
       const batch=keys.slice(offset,offset+1000),body=`<?xml version="1.0" encoding="UTF-8"?><Delete>${batch.map(key=>`<Object><Key>${escapeXml(key)}</Key></Object>`).join('')}<Quiet>false</Quiet></Delete>`
+      await beforeBatch?.({offset,batchFiles:batch.length,totalFiles:keys.length})
       const response=await this.signed(`${this.endpoint}?delete`,{method:'POST',headers:{'content-type':'application/xml'},body})
       if(!response.ok)throw new Error(`R2 delete failed (${response.status})`)
       const result=await response.text(),errors=values(result,'Error');if(errors.length)throw new Error(`R2 delete returned ${errors.length} errors`)
