@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict'
+import {execFile} from 'node:child_process'
 import test from 'node:test'
 import {mkdtemp,readFile,rm,writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
+import {promisify} from 'node:util'
 import {collectPublicToiletIds,failedIdsFromCheckpoint,prewarmToiletPages,requestDetail} from '../scripts/cache/prewarm-lib.mjs'
 
 const response=(body,{status=200,headers={}}={})=>new Response(typeof body==='string'?body:JSON.stringify(body),{status,headers})
+const execFileAsync=promisify(execFile)
 test('public IDs are collected from same-origin sitemap shards only',async()=>{
   const routes=new Map([
     ['https://preview.example/sitemap.xml','<sitemapindex><loc>https://preview.example/sitemap-toilets-0.xml</loc><loc>https://preview.example/pages-sitemap.xml</loc></sitemapindex>'],
@@ -58,6 +61,19 @@ test('failed-only mode selects sorted retryable IDs from the matching checkpoint
     await writeFile(checkpointPath,JSON.stringify({schema:1,deploymentId:'deploy-1',completedIds:[1],failures:{'9':'STALE','3':'timeout'}}))
     assert.deepEqual(await failedIdsFromCheckpoint(checkpointPath,'deploy-1'),[3,9])
     await assert.rejects(failedIdsFromCheckpoint(checkpointPath,'deploy-2'),/Checkpoint deployment mismatch/)
+  }finally{await rm(directory,{recursive:true,force:true})}
+})
+test('failed-only CLI flag is parsed without consuming the next option',async()=>{
+  const directory=await mkdtemp(join(tmpdir(),'prewarm-cli-')),checkpointPath=join(directory,'missing.json')
+  try{
+    let error
+    try{
+      await execFileAsync(process.execPath,['scripts/prewarm-toilet-pages.mjs','--execute','--require-fresh','--failed-from-checkpoint','--base-url','https://preview.example','--deployment-id','deploy-1','--checkpoint',checkpointPath],{
+        cwd:new URL('..',import.meta.url),env:{...process.env,CACHE_PREWARM_ENABLED:'true'},
+      })
+    }catch(caught){error=caught}
+    assert.match(error?.stderr??'',/No failed toilet IDs found/)
+    assert.doesNotMatch(error?.stderr??'',/Missing value/)
   }finally{await rm(directory,{recursive:true,force:true})}
 })
 test('fresh mode checkpoints an ID only after HIT or REVALIDATED evidence',async()=>{
