@@ -33,7 +33,7 @@ GitHub Actions는 매일 05:30 KST에 그날의 파티션을 선택한다. 저�
 다음 대상은 항상 보호한다.
 
 - 현재 트래픽을 받는 모든 Worker version의 cache namespace
-- 직전 정상 배포의 퇴역 시점부터 최소 3일인 rollback namespace
+- 식별 가능한 모든 퇴역 namespace는 각각의 퇴역 시점부터 최소 3일
 - 현재 활성 배포보다 나중에 만들어진 배포 후보 namespace
 - 공유 데이터 `public-toilets/v1/`, 정적 자산, 업로드 이미지, 다른 버킷
 

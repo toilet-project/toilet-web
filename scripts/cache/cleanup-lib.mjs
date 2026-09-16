@@ -84,12 +84,15 @@ export function planIncrementalCacheCleanup({objects,releases,activeWorkerVersio
       protectedCacheNamespaces.set(release.cacheNamespace,'newer deployment candidate')
     }
   }
-  const previous=workerReleases.filter(release=>!activeWorkerVersions.includes(release.workerVersion)&&Date.parse(release.deployedAt)<newestActive)
-    .sort((a,b)=>Date.parse(b.deployedAt)-Date.parse(a.deployedAt))[0]
-  if(previous){
-    const retirement=previous.retiredAt?Date.parse(previous.retiredAt):newestActive
-    if(!Number.isFinite(retirement)) throw new Error('Previous release retirement time is unavailable')
-    if(now-retirement<rollbackProtectionDays*86_400_000) protectedCacheNamespaces.set(previous.cacheNamespace,`rollback protection until ${new Date(retirement+rollbackProtectionDays*86_400_000).toISOString()}`)
+  const workerDeployments=workerReleases.map(release=>Date.parse(release.deployedAt)).sort((a,b)=>a-b)
+  for(const release of registry){
+    if(protectedCacheNamespaces.has(release.cacheNamespace)) continue
+    const deployedAt=Date.parse(release.deployedAt)
+    const nextWorkerDeployment=workerDeployments.find(candidate=>candidate>deployedAt)
+    const retirement=release.retiredAt?Date.parse(release.retiredAt):nextWorkerDeployment
+    if(!Number.isFinite(retirement)) throw new Error(`Release retirement time is unavailable: ${release.cacheNamespace}`)
+    const protectedUntil=retirement+rollbackProtectionDays*86_400_000
+    if(now<protectedUntil) protectedCacheNamespaces.set(release.cacheNamespace,`retirement protection until ${new Date(protectedUntil).toISOString()}`)
   }
   const knownCacheNamespaces=new Set(registry.map(release=>release.cacheNamespace)),deleteObjects=[],protectedObjects=[],unknownObjects=[]
   for(const object of objects){
