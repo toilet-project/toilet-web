@@ -11,7 +11,7 @@ async function fetchPublicToiletOrigin(id: number): Promise<ToiletDetailResponse
   const response = await fetch(`${origin.replace(/\/$/, '')}/api/v1/toilets/${id}`, {
     // The detail route is ISR. A no-store fetch here changes a statically
     // rendered route to dynamic at runtime and Next.js rejects the request.
-    next: { revalidate: 3600, tags: [`toilet:${id}`] }, signal: AbortSignal.timeout(10_000),
+    next: { revalidate: 2_592_000, tags: [`toilet:${id}`] }, signal: AbortSignal.timeout(10_000),
   })
   if (response.status === 404) return null
   if (!response.ok) throw new Error(`Public toilet detail unavailable (${response.status})`)

@@ -15,6 +15,11 @@ export function validateWorkerConfig(config, target, {deploy = false, stage = fa
     production ? 'true' : 'false',
     production ? 'Production shared cache must stay enabled after cutover' : 'Preview shared cache must remain disabled'
   )
+  if (production) {
+    assert.equal(config.vars?.SHARED_TOILET_CACHE_FRESH_SECONDS, '2592000', 'Production detail data must stay fresh for 30 days')
+    assert.equal(config.vars?.SHARED_TOILET_CACHE_STALE_SECONDS, '3196800', 'Production stale fallback must cover seven additional days')
+    assert.equal(config.vars?.SHARED_TOILET_CACHE_NEGATIVE_SECONDS, '300', 'Production negative cache must stay short')
+  }
   const d1 = config.d1_databases?.find(row => row.binding === 'NEXT_TAG_CACHE_D1')
   assert.equal(d1?.database_name, `geupddong-next-${suffix}-tags`)
   assert.equal(config.route, undefined, 'Unexpected singular route')
