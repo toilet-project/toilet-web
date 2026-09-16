@@ -3,7 +3,7 @@ import test from 'node:test'
 import {mkdtemp,readFile,rm} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
-import {collectPublicToiletIds,prewarmToiletPages} from '../scripts/cache/prewarm-lib.mjs'
+import {collectPublicToiletIds,prewarmToiletPages,requestDetail} from '../scripts/cache/prewarm-lib.mjs'
 
 const response=(body,{status=200,headers={}}={})=>new Response(typeof body==='string'?body:JSON.stringify(body),{status,headers})
 test('public IDs are collected from same-origin sitemap shards only',async()=>{
@@ -40,4 +40,15 @@ test('a changed target deployment stops the run',async()=>{
     assert.match(error.message,/Deployment changed/)
     assert.equal(error.report.deploymentId,'deploy-1');assert.equal(error.report.succeeded.length,1);assert.ok(error.report.finishedAt)
   }finally{await rm(directory,{recursive:true,force:true})}
+})
+test('detail requests consume the body and time out before retrying',async()=>{
+  let attempts=0,consumed=0
+  const successful=await requestDetail({baseUrl:'https://preview.example',id:1,retries:0,requestTimeoutMs:100,
+    waitImpl:async()=>{},fetchImpl:async()=>({ok:true,headers:new Headers(),arrayBuffer:async()=>{consumed++;return new ArrayBuffer(0)}})})
+  assert.equal(successful.ok,true);assert.equal(consumed,1)
+  await assert.rejects(requestDetail({baseUrl:'https://preview.example',id:2,retries:1,requestTimeoutMs:5,waitImpl:async()=>{},fetchImpl:async(_url,{signal})=>{
+    attempts++
+    return new Promise((_resolve,reject)=>signal.addEventListener('abort',()=>reject(signal.reason),{once:true}))
+  }}),/timeout|aborted/i)
+  assert.equal(attempts,2)
 })
