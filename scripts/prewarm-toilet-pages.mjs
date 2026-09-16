@@ -7,7 +7,7 @@ function argumentsOf(values){
   for(let index=0;index<values.length;index++){
     const key=values[index]
     if(!key.startsWith('--')) throw new Error(`Unexpected argument ${key}`)
-    if(key==='--execute'||key==='--require-fresh'){parsed[key.slice(2)]=true;continue}
+    if(['--execute','--require-fresh','--failed-from-checkpoint'].includes(key)){parsed[key.slice(2)]=true;continue}
     const value=values[++index]
     if(value===undefined||value.startsWith('--')) throw new Error(`Missing value for ${key}`)
     parsed[key.slice(2)]=value
