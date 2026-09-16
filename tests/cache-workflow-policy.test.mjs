@@ -14,6 +14,10 @@ test('cache workflows stay manually dispatched and opt-in',()=>{
   assert.match(prewarm,/group: toilet-cache-production/)
   assert.match(prewarm,/actions\/cache\/restore@v4/)
   assert.match(prewarm,/actions\/cache\/save@v4/)
+  assert.match(prewarm,/--require-fresh/)
+  assert.match(prewarm,/\$DEPLOYMENT_ID-fresh-v1\.json/)
+  assert.match(prewarm,/--fresh-attempts 6 --fresh-wait-seconds 1/)
+  assert.match(prewarm,/--concurrency 8 --rps 5 --verify-samples 20/)
   assert.match(cleanup,/vars\.CACHE_CLEANUP_DRY_RUN_ENABLED == 'true'/)
 })
 

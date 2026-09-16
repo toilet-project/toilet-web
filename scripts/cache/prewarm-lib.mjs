@@ -28,24 +28,27 @@ export function toiletIdsFromXml(xml,baseUrl){
   }
   return [...new Set(ids)]
 }
-async function checkedText(fetchImpl,url){
-  const response=await fetchImpl(url,{headers:{'user-agent':'geupddong-cache-prewarm/1'}})
+function requestSignal(timeoutMs){
+  return AbortSignal.timeout(positiveInteger(timeoutMs,'request timeout',{maximum:300_000}))
+}
+async function checkedText(fetchImpl,url,timeoutMs=30_000){
+  const response=await fetchImpl(url,{headers:{'user-agent':'geupddong-cache-prewarm/1'},signal:requestSignal(timeoutMs)})
   if(!response.ok) throw new Error(`Source request failed (${response.status})`)
   return response.text()
 }
-export async function collectPublicToiletIds({fetchImpl=fetch,baseUrl,mode='all',ids=[],shard}){
+export async function collectPublicToiletIds({fetchImpl=fetch,baseUrl,mode='all',ids=[],shard,requestTimeoutMs=30_000}){
   if(mode==='ids') return [...new Set(ids.map(id=>positiveInteger(id,'toilet ID')))]
-  const index=await checkedText(fetchImpl,`${baseUrl}/sitemap.xml`)
+  const index=await checkedText(fetchImpl,`${baseUrl}/sitemap.xml`,requestTimeoutMs)
   const shards=xmlLocations(index).map(location=>new URL(location,new URL(baseUrl)))
     .filter(url=>url.origin===new URL(baseUrl).origin && /^\/sitemap-toilets-\d+\.xml$/.test(url.pathname))
   const selected=mode==='shard' ? shards.filter(url=>url.pathname===`/sitemap-toilets-${positiveInteger(shard,'shard',{minimum:0})}.xml`) : shards
   if(!selected.length) throw new Error('No matching toilet sitemap shards')
   const found=[]
-  for(const url of selected) found.push(...toiletIdsFromXml(await checkedText(fetchImpl,url),baseUrl))
+  for(const url of selected) found.push(...toiletIdsFromXml(await checkedText(fetchImpl,url,requestTimeoutMs),baseUrl))
   return [...new Set(found)]
 }
-export async function readDeploymentVersion(fetchImpl,baseUrl){
-  const response=await fetchImpl(`${baseUrl}/version.json`,{cache:'no-store',headers:{'user-agent':'geupddong-cache-prewarm/1'}})
+export async function readDeploymentVersion(fetchImpl,baseUrl,requestTimeoutMs=30_000){
+  const response=await fetchImpl(`${baseUrl}/version.json`,{cache:'no-store',headers:{'user-agent':'geupddong-cache-prewarm/1'},signal:requestSignal(requestTimeoutMs)})
   if(!response.ok) throw new Error(`Version check failed (${response.status})`)
   const value=await response.json()
   if(!value || typeof value.version!=='string' || !value.version) throw new Error('Invalid version response')
@@ -69,10 +72,14 @@ function retryDelay(response,attempt){
   return Number.isFinite(header)&&header>=0 ? Math.min(header*1000,30_000) : Math.min(500*2**attempt,10_000)
 }
 const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds))
-export async function requestDetail({fetchImpl,id,baseUrl,retries,waitImpl=wait}){
+export async function requestDetail({fetchImpl,id,baseUrl,retries,requestTimeoutMs=30_000,waitImpl=wait,onRequest}){
   for(let attempt=0;attempt<=retries;attempt++){
     let response
-    try{response=await fetchImpl(`${baseUrl}/toilet/${id}`,{redirect:'error',headers:{'user-agent':'geupddong-cache-prewarm/1'}})}catch(error){
+    try{
+      onRequest?.()
+      response=await fetchImpl(`${baseUrl}/toilet/${id}`,{redirect:'error',headers:{'user-agent':'geupddong-cache-prewarm/1'},signal:requestSignal(requestTimeoutMs)})
+      await response.arrayBuffer()
+    }catch(error){
       if(attempt===retries) throw error
       await waitImpl(retryDelay(null,attempt));continue
     }
@@ -83,18 +90,21 @@ export async function requestDetail({fetchImpl,id,baseUrl,retries,waitImpl=wait}
 }
 export function cacheEvidence(response){
   const value=(response.headers.get('x-nextjs-cache')||response.headers.get('x-opennext-cache')||'').toUpperCase()
-  return ['HIT','STALE','REVALIDATED'].includes(value) ? value : null
+  return ['HIT','STALE','REVALIDATED','MISS'].includes(value) ? value : null
 }
+export const cacheIsPresent=evidence=>['HIT','STALE','REVALIDATED'].includes(evidence)
+export const cacheIsFresh=evidence=>['HIT','REVALIDATED'].includes(evidence)
 
 export async function prewarmToiletPages(options){
   const startedAt=Date.now(),deadline=startedAt+options.maxSeconds*1000
   const checkpoint=await loadCheckpoint(options.checkpointPath,options.deploymentId)
   const pending=options.ids.filter(id=>!checkpoint.completedIds.has(id))
   const report={schema:1,deploymentId:options.deploymentId,targetCount:options.ids.length,resumedCount:options.ids.length-pending.length,
-    succeeded:[],failed:[],cacheVerification:[],startedAt:new Date(startedAt).toISOString(),finishedAt:null,requestsPerSecond:0}
+    succeeded:[],failed:[],cacheVerification:[],cacheEvidenceCounts:{HIT:0,STALE:0,REVALIDATED:0,MISS:0,NONE:0},requestCount:0,
+    freshRequired:Boolean(options.requireFresh),startedAt:new Date(startedAt).toISOString(),finishedAt:null,requestsPerSecond:0,completedIdsPerSecond:0}
   let cursor=0,completedSinceVersionCheck=0,nextRequestAt=Date.now(),versionPromise=null,checkpointWrite=Promise.resolve()
   const assertVersion=async()=>{
-    const version=await readDeploymentVersion(options.fetchImpl,options.baseUrl)
+    const version=await readDeploymentVersion(options.fetchImpl,options.baseUrl,options.requestTimeoutMs)
     if(version!==options.deploymentId) throw new Error(`Deployment changed: expected ${options.deploymentId}, received ${version}`)
   }
   const fail=error=>{
@@ -119,15 +129,29 @@ export async function prewarmToiletPages(options){
     checkpointWrite=checkpointWrite.then(()=>saveCheckpoint(options.checkpointPath,checkpoint))
     return checkpointWrite
   }
+  const requestWithCacheProof=async(id,{requireFresh=Boolean(options.requireFresh)}={})=>{
+    const attempts=requireFresh ? options.freshAttempts : 1
+    let lastEvidence=null
+    for(let attempt=1;attempt<=attempts;attempt++){
+      if(Date.now()>=deadline) throw new Error('Maximum execution time reached')
+      await rate()
+      const response=await requestDetail({...options,id,onRequest:()=>{report.requestCount++}})
+      lastEvidence=cacheEvidence(response)
+      report.cacheEvidenceCounts[lastEvidence??'NONE']++
+      if(!requireFresh || cacheIsFresh(lastEvidence)) return {response,evidence:lastEvidence,attempts:attempt}
+      if(attempt<attempts) await options.waitImpl(options.freshWaitMs)
+    }
+    throw new Error(`Fresh cache not observed after ${attempts} attempts (last evidence: ${lastEvidence??'NONE'})`)
+  }
   const worker=async()=>{
     while(cursor<pending.length){
       if(Date.now()>=deadline) throw new Error('Maximum execution time reached')
       const id=pending[cursor++]
-      await rate()
       try{
-        await requestDetail({...options,id})
+        await requestWithCacheProof(id)
         checkpoint.completedIds.add(id);delete checkpoint.failures[id];report.succeeded.push(id)
       }catch(error){
+        if(error instanceof Error&&error.message==='Maximum execution time reached') throw error
         const message=error instanceof Error?error.message:'Unknown error'
         checkpoint.failures[id]=message;report.failed.push({id,error:message})
       }
@@ -141,15 +165,18 @@ export async function prewarmToiletPages(options){
   try { await assertVersion() } catch (error) { fail(error) }
   const verificationCandidates=options.ids.filter(id=>checkpoint.completedIds.has(id)).slice(0,options.verifySamples)
   for(const id of verificationCandidates){
-    await rate()
-    let response
-    try { response=await requestDetail({...options,id,retries:1}) }
+    let proof
+    try { proof=await requestWithCacheProof(id) }
     catch (error) { fail(error) }
-    report.cacheVerification.push({id,evidence:cacheEvidence(response)})
+    report.cacheVerification.push({id,evidence:proof.evidence,attempts:proof.attempts})
   }
-  if(report.cacheVerification.some(item=>!item.evidence)) fail(new Error('Cache creation could not be verified from response evidence'))
+  if(report.cacheVerification.some(item=>options.requireFresh?!cacheIsFresh(item.evidence):!cacheIsPresent(item.evidence))) {
+    fail(new Error(options.requireFresh?'Fresh cache could not be verified from response evidence':'Cache creation could not be verified from response evidence'))
+  }
   const finishedAt=Date.now()
   report.finishedAt=new Date(finishedAt).toISOString()
-  report.requestsPerSecond=Number((report.succeeded.length/Math.max((finishedAt-startedAt)/1000,0.001)).toFixed(3))
+  const elapsedSeconds=Math.max((finishedAt-startedAt)/1000,0.001)
+  report.requestsPerSecond=Number((report.requestCount/elapsedSeconds).toFixed(3))
+  report.completedIdsPerSecond=Number((report.succeeded.length/elapsedSeconds).toFixed(3))
   return report
 }

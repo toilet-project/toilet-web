@@ -16,6 +16,13 @@
   "preview_urls": false,
   "routes": [],
   "observability": { "enabled": true, "head_sampling_rate": 0.1 },
-  "vars": { "CACHE_RUNTIME": "workers", "SITE_INDEXABLE": "true", "SHARED_TOILET_CACHE_ENABLED": "true" },
+  "vars": {
+    "CACHE_RUNTIME": "workers",
+    "SITE_INDEXABLE": "true",
+    "SHARED_TOILET_CACHE_ENABLED": "true",
+    "SHARED_TOILET_CACHE_FRESH_SECONDS": "2592000",
+    "SHARED_TOILET_CACHE_STALE_SECONDS": "3196800",
+    "SHARED_TOILET_CACHE_NEGATIVE_SECONDS": "300"
+  },
   "d1_databases": [{ "binding": "NEXT_TAG_CACHE_D1", "database_name": "geupddong-next-production-tags", "database_id": "653ca351-872d-4f36-a248-759d176a5571" }]
 }

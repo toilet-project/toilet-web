@@ -2,8 +2,8 @@ import type { ToiletDetailResponse } from '../api/toilets'
 
 export const SHARED_TOILET_CACHE_SCHEMA = 1
 export const SHARED_TOILET_CACHE_PREFIX = `public-toilets/v${SHARED_TOILET_CACHE_SCHEMA}`
-const DEFAULT_FRESH_SECONDS = 3600
-const DEFAULT_STALE_SECONDS = 21_600
+const DEFAULT_FRESH_SECONDS = 2_592_000
+const DEFAULT_STALE_SECONDS = 3_196_800
 const DEFAULT_NEGATIVE_SECONDS = 300
 
 export type ToiletCacheAction = 'UPSERT' | 'DELETE' | 'PRIVATE'
@@ -30,11 +30,13 @@ function integerSetting(name: string, fallback: number, minimum: number, maximum
   return parsed
 }
 function cacheTiming() {
-  return {
-    fresh: integerSetting('SHARED_TOILET_CACHE_FRESH_SECONDS', DEFAULT_FRESH_SECONDS, 60, 86_400),
-    stale: integerSetting('SHARED_TOILET_CACHE_STALE_SECONDS', DEFAULT_STALE_SECONDS, 60, 604_800),
+  const timing = {
+    fresh: integerSetting('SHARED_TOILET_CACHE_FRESH_SECONDS', DEFAULT_FRESH_SECONDS, 60, 31_536_000),
+    stale: integerSetting('SHARED_TOILET_CACHE_STALE_SECONDS', DEFAULT_STALE_SECONDS, 60, 31_536_000),
     negative: integerSetting('SHARED_TOILET_CACHE_NEGATIVE_SECONDS', DEFAULT_NEGATIVE_SECONDS, 10, 3600),
   }
+  if (timing.stale < timing.fresh) throw new Error('Shared toilet stale period must include the fresh period')
+  return timing
 }
 function optionalString(value: unknown) { return value == null ? '' : String(value) }
 function nullableString(value: unknown) { return value == null ? null : String(value) }
@@ -115,31 +117,34 @@ async function put(bucket: R2BucketLike, record: SharedToiletRecord, current: Lo
     customMetadata: { schema: String(record.schema), revision: String(record.revision), state: record.state },
   })
 }
-function cachedValue(record: SharedToiletRecord, now: number) {
-  if (record.state === 'data' && record.freshUntil! > now) return { hit: true as const, value: record.data! }
-  if (record.state === 'negative' && record.freshUntil! > now) return { hit: true as const, value: null }
+function policyExpiry(record: SharedToiletRecord, seconds: number) { return record.storedAt + seconds * 1000 }
+function cachedValue(record: SharedToiletRecord, now: number, timing: ReturnType<typeof cacheTiming>) {
+  // Expiry follows the currently deployed policy. This lets valid v1 objects
+  // created by the former one-hour policy be adopted without an origin read.
+  if (record.state === 'data' && policyExpiry(record, timing.fresh) > now) return { hit: true as const, value: record.data! }
+  if (record.state === 'negative' && policyExpiry(record, timing.negative) > now) return { hit: true as const, value: null }
   if (record.state === 'deleted') return { hit: true as const, value: null }
   return { hit: false as const }
 }
 
 export async function readThroughSharedToiletCache(options: { bucket: R2BucketLike; toiletId: number; fetchOrigin: () => Promise<ToiletDetailResponse | null>; now?: () => number }) {
   const now = options.now ?? Date.now
+  const timing = cacheTiming()
   for (let attempt = 0; attempt < 3; attempt += 1) {
     let current: Loaded
     try { current = await load(options.bucket, options.toiletId) }
     catch { return options.fetchOrigin() }
     if (current?.record) {
-      const cached = cachedValue(current.record, now())
+      const cached = cachedValue(current.record, now(), timing)
       if (cached.hit) return cached.value
     }
     let origin: ToiletDetailResponse | null
     try { origin = await options.fetchOrigin() }
     catch (error) {
-      if (current?.record?.state === 'data' && current.record.staleUntil! > now()) return current.record.data!
+      if (current?.record?.state === 'data' && policyExpiry(current.record, timing.stale) > now()) return current.record.data!
       throw error
     }
     const timestamp = now()
-    const timing = cacheTiming()
     const revision = current?.record?.revision ?? 0
     const record: SharedToiletRecord = origin ? {
       schema: SHARED_TOILET_CACHE_SCHEMA, toiletId: options.toiletId, revision, state: 'data', storedAt: timestamp,
@@ -155,7 +160,7 @@ export async function readThroughSharedToiletCache(options: { bucket: R2BucketLi
   try {
     const winner = await load(options.bucket, options.toiletId)
     if (winner?.record) {
-      const cached = cachedValue(winner.record, now())
+      const cached = cachedValue(winner.record, now(), timing)
       if (cached.hit) return cached.value
     }
   } catch {

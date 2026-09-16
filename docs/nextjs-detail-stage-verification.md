@@ -10,7 +10,7 @@
 
 ## 데이터·지도 동작
 
-- 상세 server fetch를 React cache로 page/metadata 간 공유하고 `revalidate: 3600`, `toilet:{id}` 태그를 지정했다. 개인 쿠키와 Authorization은 전달하지 않는다.
+- 이 문서를 작성한 단계에서는 상세 server fetch를 React cache로 page/metadata 간 공유하고 `revalidate: 3600`, `toilet:{id}` 태그를 지정했다. 개인 쿠키와 Authorization은 전달하지 않는다. 현재 운영 정책은 [전체 화장실 상세 캐시 구현](./toilet-detail-cache-platform.md)의 30일 설정을 따른다.
 - 서버 HTML은 화장실명·주소·운영정보·시설·검증된 지역정보를 기존 카드 컴포넌트로 출력한다. 브라우저 지도 준비 후 같은 데이터를 카드에 인계한다. 지도 선택에서 별도 browser 상세 API 호출은 제거했다.
 - 직접 접속만 유효 좌표를 초기 지도 중심으로 사용하며 자동 현재위치 이동을 하지 않는다. 앱 내부 URL 변경은 지도 중심/확대/영역 조회를 변경하지 않는다. 기존 모바일 목록 선택의 명시적 이동은 유지한다.
 - 좌표가 없으면 임의 핀을 만들지 않는다. 주소는 도로명 우선, 없으면 지번 하나를 표시한다.

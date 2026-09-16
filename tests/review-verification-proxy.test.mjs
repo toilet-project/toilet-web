@@ -44,7 +44,7 @@ test('synthetic detail has a separate dynamic renderer; production keeps its exi
   assert.match(fixture, /NEXT_PUBLIC_API_BASE_URL !== 'https:\/\/preview\.geupddong\.com\/__review-verification'/)
   assert.match(fixture, /notFound\(\)/)
   const normal = readFileSync(new URL('../src/app/(map)/toilet/[id]/page.tsx', import.meta.url), 'utf8')
-  assert.match(normal, /export const revalidate = 3600/)
+  assert.match(normal, /export const revalidate = 2_592_000/)
 })
 test('mutations require same origin and a bounded JSON body; redirects never escape sandbox', async () => {
   const original = globalThis.fetch; let calls = 0
