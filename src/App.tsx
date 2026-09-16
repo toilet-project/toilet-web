@@ -342,6 +342,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
 
   const resumePendingLoginAction = useCallback(() => {
     if (new URLSearchParams(window.location.search).get('login') !== 'success') return
+    trackEvent('login_result', { provider: 'unknown', success: true })
 
     const url = new URL(window.location.href)
     url.searchParams.delete('login')
@@ -389,6 +390,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
         setIsAuthLoading(false)
         const url = new URL(window.location.href)
         if (url.searchParams.get('login') === 'failed') {
+          trackEvent('login_result', { provider: 'unknown', success: false })
           url.searchParams.delete('login')
           window.history.replaceState(window.history.state, '', url)
           showLocationMessage('로그인이 취소되었거나 완료되지 않았습니다. 다시 시도해 주세요.')

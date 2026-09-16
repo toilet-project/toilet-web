@@ -4,6 +4,7 @@ import type { ToiletDetailResponse } from '../api/toilets'
 import { createKakaoMap, reverseGeocodeKakaoCoordinates, type KakaoMapInstance } from '../lib/kakaoMap'
 import { getDisplayAddress } from '../lib/address'
 import { attachReportViewport } from '../lib/reportViewport'
+import { trackEvent } from '../lib/analytics'
 
 type ReportType = 'choice' | 'location' | 'locationConfirm' | 'openTime' | 'complete'
 type Coordinates = { latitude: number; longitude: number }
@@ -100,12 +101,15 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
     if (step === 'openTime' && !openTime.trim()) { setError('변경할 개방 시간을 입력해 주세요.'); return }
 
     setIsSubmitting(true)
+    const reportKind = step === 'locationConfirm' ? 'coordinate' : 'open_time'
     try {
       await createToiletReport(step === 'locationConfirm'
         ? { toiletId: toilet.id, reportType: 'COORDINATE_CORRECTION', latitude: coordinates.latitude, longitude: coordinates.longitude, roadAddress, reason: reason.trim() }
         : { toiletId: toilet.id, reportType: 'OPEN_TIME_CORRECTION', openTime: openTime.trim(), reason: reason.trim() })
+      trackEvent('report_submit', { report_kind: reportKind, success: true })
       setStep('complete')
     } catch (submissionError) {
+      trackEvent('report_submit', { report_kind: reportKind, success: false })
       setError(submissionError instanceof Error ? submissionError.message : '제보를 접수하지 못했습니다.')
     } finally { setIsSubmitting(false) }
   }

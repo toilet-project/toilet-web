@@ -7,7 +7,7 @@ import {
 } from '../src/lib/analytics.ts'
 
 test('detail routes and query strings never expose identifiers', () => {
-  assert.equal(sanitizeAnalyticsPagePath('/toilet/20243500000100769?source=search'), '/toilet/[id]')
+  assert.equal(sanitizeAnalyticsPagePath('/toilet/20243500000100769?source=search'), '/toilet/:id')
   assert.equal(sanitizeAnalyticsPagePath('/policies/privacy#analytics'), '/policies/privacy')
 })
 
@@ -26,5 +26,5 @@ test('event parameters retain only short allowlisted dimensions', () => {
 })
 
 test('result totals use coarse buckets', () => {
-  assert.deepEqual([0, 1, 4, 8, 14].map(resultCountBucket), ['0', '1', '2_5', '6_10', '11_plus'])
+  assert.deepEqual([0, 1, 4, 8, 14, 26].map(resultCountBucket), ['0', '1', '2-5', '6-10', '11-25', '26+'])
 })
