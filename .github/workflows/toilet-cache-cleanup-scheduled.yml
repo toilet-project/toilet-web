@@ -1,4 +1,4 @@
-name: Retired incremental cache cleanup (disabled)
+name: Retired incremental cache cleanup
 
 on:
   schedule:
