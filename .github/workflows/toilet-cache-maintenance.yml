@@ -8,11 +8,11 @@ on:
         required: true
         type: string
       mode:
-        description: sample or all public toilet IDs
+        description: sample IDs, checkpoint failures, or all public toilet IDs
         required: true
         default: sample
         type: choice
-        options: [sample, all]
+        options: [sample, failed, all]
       sample_ids:
         description: Comma-separated public toilet IDs for sample mode
         required: false
@@ -64,6 +64,8 @@ jobs:
           if [[ "$MODE" == "sample" ]]; then
             [[ "$SAMPLE_IDS" =~ ^[0-9]+(,[0-9]+)*$ ]] || { echo "Valid sample IDs are required"; exit 1; }
             args+=(--ids "$SAMPLE_IDS" --concurrency 2 --rps 1 --verify-samples 2)
+          elif [[ "$MODE" == "failed" ]]; then
+            args+=(--failed-from-checkpoint --concurrency 8 --rps 5 --verify-samples 20)
           else
             args+=(--concurrency 8 --rps 5 --verify-samples 20)
           fi

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {mkdtemp,readFile,rm} from 'node:fs/promises'
+import {mkdtemp,readFile,rm,writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
-import {collectPublicToiletIds,prewarmToiletPages,requestDetail} from '../scripts/cache/prewarm-lib.mjs'
+import {collectPublicToiletIds,failedIdsFromCheckpoint,prewarmToiletPages,requestDetail} from '../scripts/cache/prewarm-lib.mjs'
 
 const response=(body,{status=200,headers={}}={})=>new Response(typeof body==='string'?body:JSON.stringify(body),{status,headers})
 test('public IDs are collected from same-origin sitemap shards only',async()=>{
@@ -51,6 +51,14 @@ test('detail requests consume the body and time out before retrying',async()=>{
     return new Promise((_resolve,reject)=>signal.addEventListener('abort',()=>reject(signal.reason),{once:true}))
   }}),/timeout|aborted/i)
   assert.equal(attempts,2)
+})
+test('failed-only mode selects sorted retryable IDs from the matching checkpoint',async()=>{
+  const directory=await mkdtemp(join(tmpdir(),'prewarm-failures-')),checkpointPath=join(directory,'checkpoint.json')
+  try{
+    await writeFile(checkpointPath,JSON.stringify({schema:1,deploymentId:'deploy-1',completedIds:[1],failures:{'9':'STALE','3':'timeout'}}))
+    assert.deepEqual(await failedIdsFromCheckpoint(checkpointPath,'deploy-1'),[3,9])
+    await assert.rejects(failedIdsFromCheckpoint(checkpointPath,'deploy-2'),/Checkpoint deployment mismatch/)
+  }finally{await rm(directory,{recursive:true,force:true})}
 })
 test('fresh mode checkpoints an ID only after HIT or REVALIDATED evidence',async()=>{
   const directory=await mkdtemp(join(tmpdir(),'prewarm-fresh-')),checkpointPath=join(directory,'checkpoint.json')
