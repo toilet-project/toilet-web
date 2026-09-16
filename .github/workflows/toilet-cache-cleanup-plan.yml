@@ -1,4 +1,4 @@
-name: Incremental cache cleanup plan (disabled)
+name: Incremental cache cleanup plan
 
 on:
   workflow_dispatch:
@@ -8,6 +8,8 @@ permissions:
 
 jobs:
   dry-run:
+    # Job-level conditions are evaluated before the Environment is attached.
+    # Keep this non-secret gate as a repository variable.
     if: ${{ vars.CACHE_CLEANUP_DRY_RUN_ENABLED == 'true' }}
     environment: production-cache-maintenance
     runs-on: ubuntu-latest
