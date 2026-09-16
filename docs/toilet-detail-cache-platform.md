@@ -60,6 +60,8 @@ CACHE_PREWARM_ENABLED=true pnpm cache:prewarm -- --execute \
 
 `pnpm cache:cleanup`은 기본 dry-run이다. Worker 활성 배포를 Wrangler read-only 명령으로 확인하고, 릴리스 registry의 Worker UUID ↔ R2 캐시 namespace(`cacheNamespace`, manifest의 `appVersion`) 매핑을 사용한다. `.next/BUILD_ID`는 배포 검증 정보로만 보관하며 정리 경로 판정에 사용하지 않는다. 현재 트래픽의 모든 버전과 직전 정상 배포의 최소 3일을 보호한다. registry가 없거나 알 수 없는 객체는 삭제하지 않는다.
 
+실제 Worker version이 없는 CI 검증 후보 namespace는 `retired-validation` 항목으로 따로 등록할 수 있다. namespace에 포함된 GitHub Actions run ID, 성공한 실행 이력, 정확한 namespace와 퇴역 시각을 대조한 항목만 허용한다. 이 항목은 rollback 후보를 고르는 Worker 배포 이력에는 참여하지 않으며, registry에 없는 namespace는 계속 unknown으로 보호한다.
+
 삭제는 `--execute`와 `CACHE_CLEANUP_ENABLED=true`가 함께 있어야 하며, 삭제 직전에 활성 배포를 다시 확인한다. 제공한 Actions workflow는 dry-run 계획만 만들며 삭제 키를 사용하지 않는다. 대상은 `incremental-cache/`뿐이므로 `public-toilets/v1/`, 정적 자산, 업로드 이미지와 다른 버킷은 제외된다.
 
 2026-09-17 읽기 전용 Worker 상태 토큰과 운영 캐시 객체 읽기 전용 R2 키를 `production-cache-maintenance` GitHub Environment에 구성했다. 첫 실측 dry-run [Actions #35139962673](https://github.com/toilet-project/toilet-web/actions/runs/35139962673)은 삭제를 시도하지 않았고 264,530개(8,478,874,679 bytes)를 모두 unknown으로 보호했다. 이 결과로 기존 정리기가 `.next/BUILD_ID`를 R2 경로와 비교하던 불일치를 발견했고 [PR #258](https://github.com/toilet-project/toilet-web/pull/258)에서 실제 R2 namespace인 manifest `appVersion` 기준으로 보강했다.
