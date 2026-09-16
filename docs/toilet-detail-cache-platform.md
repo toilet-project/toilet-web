@@ -62,7 +62,9 @@ CACHE_PREWARM_ENABLED=true pnpm cache:prewarm -- --execute \
 
 삭제는 `--execute`와 `CACHE_CLEANUP_ENABLED=true`가 함께 있어야 하며, 삭제 직전에 활성 배포를 다시 확인한다. 제공한 Actions workflow는 dry-run 계획만 만들며 삭제 키를 사용하지 않는다. 대상은 `incremental-cache/`뿐이므로 `public-toilets/v1/`, 정적 자산, 업로드 이미지와 다른 버킷은 제외된다.
 
-2026-09-17 읽기 전용 Worker 상태 토큰과 운영 캐시 객체 읽기 전용 R2 키를 `production-cache-maintenance` GitHub Environment에 구성했다. 첫 실측 dry-run [Actions #35139962673](https://github.com/toilet-project/toilet-web/actions/runs/35139962673)은 삭제를 시도하지 않았고 264,530개(8,478,874,679 bytes)를 모두 unknown으로 보호했다. 이 결과로 기존 정리기가 `.next/BUILD_ID`를 R2 경로와 비교하던 불일치를 발견했다. 실제 R2 namespace인 manifest `appVersion`을 사용하도록 보강한 뒤 결과를 다시 검증한다. 실행 게이트 `CACHE_CLEANUP_DRY_RUN_ENABLED`는 발행 직후 `false`로 되돌리며, workflow에는 삭제 자격증명과 `--execute`가 없다.
+2026-09-17 읽기 전용 Worker 상태 토큰과 운영 캐시 객체 읽기 전용 R2 키를 `production-cache-maintenance` GitHub Environment에 구성했다. 첫 실측 dry-run [Actions #35139962673](https://github.com/toilet-project/toilet-web/actions/runs/35139962673)은 삭제를 시도하지 않았고 264,530개(8,478,874,679 bytes)를 모두 unknown으로 보호했다. 이 결과로 기존 정리기가 `.next/BUILD_ID`를 R2 경로와 비교하던 불일치를 발견했고 [PR #258](https://github.com/toilet-project/toilet-web/pull/258)에서 실제 R2 namespace인 manifest `appVersion` 기준으로 보강했다.
+
+보강 후 dry-run [Actions #35141194627](https://github.com/toilet-project/toilet-web/actions/runs/35141194627)은 활성 namespace 70,365개(2,992,016,167 bytes)와 직전 rollback namespace 73,672개(2,118,807,518 bytes)를 보호했다. release registry에 없는 120,493개(3,368,050,981 bytes)는 unknown으로 계속 보호했다. 삭제 후보·삭제 시도·실제 삭제는 모두 0이다. 실행 게이트 `CACHE_CLEANUP_DRY_RUN_ENABLED`는 저장소와 Environment에서 `false`이며, workflow에는 삭제 자격증명과 `--execute`가 없다.
 
 ## 적용·복구
 
