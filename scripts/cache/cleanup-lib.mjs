@@ -1,3 +1,5 @@
+import {createHash} from 'node:crypto'
+
 export const INCREMENTAL_CACHE_PREFIX='incremental-cache/'
 const UUID=/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i
 const RETIRED_CANDIDATE_NAMESPACE=/^[a-f0-9]{40}-([1-9]\d*)-([1-9]\d*)-(?:review-)?production-candidate$/i
@@ -11,6 +13,19 @@ export function cacheNamespaceFromKey(key){
 // Kept for callers that imported the old name before the R2 namespace was
 // distinguished from Next.js' .next/BUILD_ID.
 export const buildIdFromKey=cacheNamespaceFromKey
+export function cleanupPlanFingerprint(objects){
+  const canonical=objects.map(object=>`${object.key}\0${Number(object.size)}\n`).sort().join('')
+  return createHash('sha256').update(canonical).digest('hex')
+}
+export function assertReviewedCleanupPlan(plan,{files,bytes,fingerprint}){
+  const expectedFiles=Number(files),expectedBytes=Number(bytes)
+  if(!Number.isSafeInteger(expectedFiles)||expectedFiles<1||!Number.isSafeInteger(expectedBytes)||expectedBytes<1)throw new Error('Expected delete totals must be positive safe integers')
+  if(typeof fingerprint!=='string'||!/^[a-f0-9]{64}$/i.test(fingerprint))throw new Error('Expected delete fingerprint must be a SHA-256 hex digest')
+  if(plan.unknownObjects.length)throw new Error(`Deletion refused: ${plan.unknownObjects.length} cache objects are unclassified`)
+  if(plan.summary.delete.files!==expectedFiles||plan.summary.delete.bytes!==expectedBytes||plan.deleteFingerprint!==fingerprint){
+    throw new Error('Deletion refused: current cache plan does not match the reviewed dry-run')
+  }
+}
 export function normalizeDeploymentStatus(value,workerName){
   if(!value||typeof value!=='object') throw new Error('Invalid deployment status')
   const root=value
@@ -75,6 +90,7 @@ export function planIncrementalCacheCleanup({objects,releases,activeWorkerVersio
   const summarize=rows=>({files:rows.length,bytes:rows.reduce((sum,row)=>sum+Number(row.size),0)})
   return {schema:1,generatedAt:new Date(now).toISOString(),activeWorkerVersions:[...activeWorkerVersions].sort(),
     protectedCacheNamespaces:Object.fromEntries(protectedCacheNamespaces),deleteObjects,protectedObjects,unknownObjects,
+    deleteFingerprint:cleanupPlanFingerprint(deleteObjects),
     summary:{delete:summarize(deleteObjects),protected:summarize(protectedObjects),unknown:summarize(unknownObjects)}}
 }
 export function sameActiveDeployment(left,right){

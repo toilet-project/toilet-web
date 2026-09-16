@@ -68,6 +68,10 @@ CACHE_PREWARM_ENABLED=true pnpm cache:prewarm -- --execute \
 
 보강 후 dry-run [Actions #35141194627](https://github.com/toilet-project/toilet-web/actions/runs/35141194627)은 활성 namespace 70,365개(2,992,016,167 bytes)와 직전 rollback namespace 73,672개(2,118,807,518 bytes)를 보호했다. release registry에 없는 120,493개(3,368,050,981 bytes)는 unknown으로 계속 보호했다. 삭제 후보·삭제 시도·실제 삭제는 모두 0이다. 실행 게이트 `CACHE_CLEANUP_DRY_RUN_ENABLED`는 저장소와 Environment에서 `false`이며, workflow에는 삭제 자격증명과 `--execute`가 없다.
 
+35개 unknown namespace가 성공한 과거 Workers 검증·후보 빌드에서 생성됐음을 Actions 실행 기록으로 대조해 `retired-validation` registry 항목으로 등록했다. 최종 읽기 전용 dry-run [Actions #35143499954](https://github.com/toilet-project/toilet-web/actions/runs/35143499954)은 삭제 후보 120,493개(3,368,050,981 bytes), 현재·직전 rollback 보호 144,037개(5,110,823,751 bytes), unknown 0개를 확인했다. 실행 모드는 dry-run, 삭제 시도와 실제 삭제는 0개다.
+
+실제 정리는 별도 수동 workflow와 저장소 게이트 `CACHE_CLEANUP_EXECUTE_ENABLED=true`가 모두 필요하다. 실행할 때는 직전 검토한 삭제 파일 수·바이트·정렬된 키/크기의 SHA-256 지문이 현재 R2 재조회 결과와 정확히 같아야 하며, unknown이 하나라도 있거나 활성 Worker가 재확인 사이에 바뀌면 삭제하지 않는다. 삭제 키는 R2 제한에 맞춰 최대 1,000개씩 처리하고 진행 수와 실패 보고서를 남긴다. 쓰기 키는 `geupddong-next-production-cache` 버킷에만 한정한 일회성 자격증명을 사용하고, 정리와 사후 dry-run이 끝나면 폐기한다.
+
 ## 적용·복구
 
 적용 순서는 환경별 R2 binding 확인 → API outbox V2 SQL → API v1 호환 배포 → Web v1/v2 수신 배포 → 공유 캐시 표본 활성화 → API 계약 v2 → 표본/한 shard/전체 사전 생성 → 정리 dry-run 검토다. 공유 데이터는 기존 환경별 OpenNext R2 버킷 안의 별도 prefix를 쓰므로 새 버킷을 만들 필요는 없다.
