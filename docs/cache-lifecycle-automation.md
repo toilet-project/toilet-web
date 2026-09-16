@@ -14,7 +14,7 @@
 - 예상 일일 대상: 53,590개 기준 평균 약 1,914개
 - 이론상 요청 시간: 약 6분 23초. sitemap 조회, R2 조건부 저장, 재시도를 포함한 정상 범위는 약 8~15분이다.
 
-GitHub Actions는 매일 05:30 KST에 그날의 파티션을 선택한다. `CACHE_DATA_REFRESH_ENABLED`가 `true`일 때만 실행된다. 내부 POST 경로는 `CACHE_MAINTENANCE_SECRET`으로 HMAC 서명하며 한 요청에 화장실 ID 하나만 허용한다. 이 secret은 기존 변경 이벤트용 `CACHE_REVALIDATION_SECRET`과 분리한다.
+GitHub Actions는 매일 05:30 KST에 그날의 파티션을 선택한다. 저장소 변수 `CACHE_DATA_REFRESH_ENABLED`가 `true`일 때만 실행된다. 내부 POST 경로는 `CACHE_MAINTENANCE_SECRET`으로 HMAC 서명하며 한 요청에 화장실 ID 하나만 허용한다. 이 secret은 기존 변경 이벤트용 `CACHE_REVALIDATION_SECRET`과 분리한다.
 
 갱신은 fresh 객체도 원본 API에서 다시 읽어 같은 키에 조건부 저장한다. 공개 필드 정제, source revision, R2 ETag를 그대로 사용하므로 갱신 도중 수정·삭제 이벤트가 오면 최신 이벤트가 이긴다. 삭제·비공개 tombstone은 자동 갱신이 되살리지 않는다.
 
@@ -28,7 +28,7 @@ GitHub Actions는 매일 05:30 KST에 그날의 파티션을 선택한다. `CACH
 
 ## 퇴역 페이지 캐시 정리
 
-정기 정리는 매일 06:30 KST에 계획을 새로 만든다. `CACHE_CLEANUP_AUTOMATIC_ENABLED`가 `true`일 때만 실행된다.
+정기 정리는 매일 06:30 KST에 계획을 새로 만든다. 저장소 변수 `CACHE_CLEANUP_AUTOMATIC_ENABLED`가 `true`일 때만 실행된다.
 
 다음 대상은 항상 보호한다.
 
@@ -43,6 +43,13 @@ release registry에 없는 namespace가 하나라도 있거나 활성 배포를 
 
 ## 설정 위치
 
+GitHub 저장소 변수(job 시작 전 gate 판정용):
+
+- variable `CACHE_DATA_REFRESH_ENABLED`
+- variable `CACHE_CLEANUP_DRY_RUN_ENABLED`
+- variable `CACHE_CLEANUP_EXECUTE_ENABLED`
+- variable `CACHE_CLEANUP_AUTOMATIC_ENABLED`
+
 GitHub Environment `production-cache-maintenance`:
 
 - secret `CACHE_MAINTENANCE_SECRET`
@@ -51,9 +58,9 @@ GitHub Environment `production-cache-maintenance`:
 - secret `R2_CACHE_READ_ACCESS_KEY_ID`, `R2_CACHE_READ_SECRET_ACCESS_KEY`
 - secret `R2_CACHE_DELETE_ACCESS_KEY_ID`, `R2_CACHE_DELETE_SECRET_ACCESS_KEY`
 - variable `CACHE_RELEASE_REGISTRY_JSON`
-- variable `CACHE_DATA_REFRESH_ENABLED`
-- variable `CACHE_CLEANUP_AUTOMATIC_ENABLED`
 - 선택 variable `CACHE_CLEANUP_AUTO_MAX_FILES`, `CACHE_CLEANUP_AUTO_MAX_BYTES`
+
+Environment는 job이 시작된 뒤 연결되므로 Environment 변수는 job 수준 `if`에서 gate로 사용할 수 없다. gate는 비밀값이 아니며 저장소 변수에 둔다. 서명 키와 R2 자격증명은 계속 보호 Environment secret에만 둔다.
 
 Cloudflare Worker에는 같은 `CACHE_MAINTENANCE_SECRET`을 secret으로 저장한다. 실제 값은 저장소, 이슈, 로그, artifact에 기록하지 않는다.
 
@@ -62,8 +69,8 @@ Cloudflare Worker에는 같은 `CACHE_MAINTENANCE_SECRET`을 secret으로 저장
 1. 코드 병합과 운영 Worker 배포 후 내부 경로가 서명 없이는 거부되는지 확인한다.
 2. 유지보수 secret을 Worker와 GitHub Environment에 각각 저장한다.
 3. gate가 꺼진 상태에서 지정 파티션 소수 ID를 격리 또는 수동 검증한다.
-4. `CACHE_DATA_REFRESH_ENABLED=true`로 바꾸고 한 파티션을 실행해 성공·실패·실제 처리율을 확인한다.
+4. 저장소 변수 `CACHE_DATA_REFRESH_ENABLED=true`로 바꾸고 한 파티션을 실행해 성공·실패·실제 처리율을 확인한다.
 5. 최신 release registry와 최소 권한 삭제 키를 준비한다.
-6. 정리 dry-run의 unknown 0, 보호 namespace, 후보 크기를 확인한 뒤 `CACHE_CLEANUP_AUTOMATIC_ENABLED=true`로 바꾼다.
+6. 정리 dry-run의 unknown 0, 보호 namespace, 후보 크기를 확인한 뒤 저장소 변수 `CACHE_CLEANUP_AUTOMATIC_ENABLED=true`로 바꾼다.
 
 문제가 생기면 해당 gate를 `false`로 돌린다. 공유 데이터 갱신 중단은 사용자 요청 시 read-through 동작에 영향을 주지 않는다. 정리가 중단돼도 남은 페이지 캐시는 보관될 뿐 서비스 응답은 계속된다.

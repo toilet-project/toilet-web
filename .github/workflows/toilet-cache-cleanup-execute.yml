@@ -29,6 +29,8 @@ concurrency:
 
 jobs:
   execute:
+    # Job-level conditions are evaluated before the Environment is attached.
+    # Keep this non-secret gate as a repository variable.
     if: ${{ vars.CACHE_CLEANUP_EXECUTE_ENABLED == 'true' && inputs.confirmation == 'DELETE_RETIRED_INCREMENTAL_CACHE' }}
     environment: production-cache-maintenance
     runs-on: ubuntu-latest

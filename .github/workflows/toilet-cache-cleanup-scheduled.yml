@@ -14,6 +14,8 @@ concurrency:
 
 jobs:
   cleanup:
+    # Job-level conditions are evaluated before the Environment is attached.
+    # Keep this non-secret gate as a repository variable.
     if: ${{ vars.CACHE_CLEANUP_AUTOMATIC_ENABLED == 'true' }}
     environment: production-cache-maintenance
     runs-on: ubuntu-latest

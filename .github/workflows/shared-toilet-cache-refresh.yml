@@ -1,4 +1,4 @@
-name: Shared toilet data cache refresh (disabled)
+name: Shared toilet data cache refresh
 
 on:
   schedule:
@@ -23,6 +23,8 @@ concurrency:
 
 jobs:
   refresh:
+    # Job-level conditions are evaluated before the Environment is attached.
+    # Keep this non-secret gate as a repository variable.
     if: ${{ vars.CACHE_DATA_REFRESH_ENABLED == 'true' }}
     environment: production-cache-maintenance
     runs-on: ubuntu-latest
