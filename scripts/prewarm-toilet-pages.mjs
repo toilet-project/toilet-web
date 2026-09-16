@@ -20,7 +20,8 @@ const baseUrl=normalizeBaseUrl(args['base-url'])
 const deploymentId=args['deployment-id']
 if(!deploymentId || !/^[a-zA-Z0-9._-]{4,200}$/.test(deploymentId)) throw new Error('Explicit deployment ID required')
 const mode=args.ids?'ids':args.shard!==undefined?'shard':'all'
-const ids=await collectPublicToiletIds({baseUrl,mode,ids:args.ids?.split(',')??[],shard:args.shard})
+const requestTimeoutMs=positiveInteger(args['request-timeout-seconds']||30,'request timeout seconds',{maximum:300})*1000
+const ids=await collectPublicToiletIds({baseUrl,mode,ids:args.ids?.split(',')??[],shard:args.shard,requestTimeoutMs})
 if(!ids.length) throw new Error('No public toilet IDs selected')
 const safeDeployment=deploymentId.replace(/[^a-zA-Z0-9._-]/g,'_')
 const checkpointPath=resolve(args.checkpoint||`.cache-prewarm/${safeDeployment}.json`)
@@ -29,7 +30,7 @@ let report
 try {
   report=await prewarmToiletPages({fetchImpl:fetch,waitImpl:milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds)),baseUrl,deploymentId,ids,checkpointPath,
     concurrency:positiveInteger(args.concurrency||4,'concurrency',{maximum:32}),rps:positiveInteger(args.rps||2,'rps',{maximum:50}),
-    maxSeconds:positiveInteger(args['max-minutes']||300,'max minutes',{maximum:330})*60,retries:positiveInteger(args.retries||3,'retries',{minimum:0,maximum:10}),
+    maxSeconds:positiveInteger(args['max-minutes']||300,'max minutes',{maximum:330})*60,retries:positiveInteger(args.retries||3,'retries',{minimum:0,maximum:10}),requestTimeoutMs,
     verifySamples:positiveInteger(args['verify-samples']||10,'verify samples',{minimum:0,maximum:100}),
     versionCheckEvery:positiveInteger(args['version-check-every']||25,'version check interval',{maximum:500}),
     onProgress:value=>console.log(JSON.stringify({type:'progress',...value})),})
