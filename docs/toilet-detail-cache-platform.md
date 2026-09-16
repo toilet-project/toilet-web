@@ -1,6 +1,6 @@
 # 전체 화장실 상세 캐시 구현
 
-2026-09-15 구현, 2026-09-16 30일 정책 보강 · WBS [#242](https://github.com/toilet-project/toilet-web/issues/242), [#243](https://github.com/toilet-project/toilet-web/issues/243)
+2026-09-15 구현, 2026-09-16 30일 정책 보강, 2026-09-17 fresh 검증 보강 · WBS [#242](https://github.com/toilet-project/toilet-web/issues/242), [#243](https://github.com/toilet-project/toilet-web/issues/243)
 
 ## 구현 범위
 
@@ -44,15 +44,25 @@ CACHE_PREWARM_ENABLED=true pnpm cache:prewarm -- --execute \
   --concurrency 2 --rps 1 --ids 53585
 ```
 
-프로그램은 같은 origin의 사이트맵 shard만 읽고, ID 목록·shard·전체 모드를 지원한다. 배포 ID를 실행 전·중·후 확인하고 변경되면 중단한다. 체크포인트와 성공·실패·속도·cache header 표본 검증 보고서를 남긴다. GitHub Actions는 같은 배포 체크포인트를 다음 수동 실행에서 복원하며 새 실행이 기존 실행을 취소한다.
+프로그램은 같은 origin의 사이트맵 shard만 읽고, ID 목록·shard·전체 모드를 지원한다. 배포 ID를 실행 전·중·후 확인하고 변경되면 중단한다. 체크포인트와 성공·실패·속도·cache header 검증 보고서를 남긴다. GitHub Actions는 같은 배포 체크포인트를 다음 수동 실행에서 복원하며 새 실행이 기존 실행을 취소한다.
 
-이론상 53,590건은 5 req/s 약 2시간 59분이다. 운영 전체 설정은 동시 요청 8개·5 req/s이며, 429/5xx는 지수 지연 후 재시도한다. 배포 변경이나 실행 중단은 배포별 체크포인트로 이어서 처리한다.
+운영용 workflow는 `--require-fresh`를 사용한다. `MISS`와 `STALE`은 캐시 객체의 존재나 재검증 시작만 뜻하므로 완료로 기록하지 않는다. 같은 전역 속도 제한 아래 최대 6회, 1초 간격으로 다시 요청해 `HIT` 또는 `REVALIDATED`가 확인된 ID만 `fresh-v1` 체크포인트에 완료로 기록한다. 끝까지 fresh 증거가 나오지 않은 ID는 실패 목록에 남아 다음 실행에서 다시 처리된다. 보고서는 ID 완료 속도와 별도로 실제 HTTP 요청 수·요청 속도·cache evidence별 개수를 기록한다.
+
+한 ID당 한 번만 요청하면 53,590건은 5 req/s에서 약 2시간 59분이다. fresh 확인을 위한 재요청이 있으면 실제 요청 수만큼 늘어난다. 운영 전체 설정은 동시 요청 8개·5 req/s이며, 429/5xx는 지수 지연 후 재시도한다. 배포 변경이나 실행 중단은 배포별 `fresh-v1` 체크포인트로 이어서 처리한다.
+
+## 운영 검증 기록
+
+- 2026-09-16 기존 사전 생성 실행 [Actions #35091327638](https://github.com/toilet-project/toilet-web/actions/runs/35091327638): 공개 ID 53,590개 완료, 실패 0, 평균 3.47 ID/s. 당시 검증기는 `STALE`도 캐시 존재 증거로 인정했으므로 30일 fresh 상태 전체 증명으로는 사용하지 않는다.
+- 2026-09-17 fresh 검증 표본 [Actions #35118300307](https://github.com/toilet-project/toilet-web/actions/runs/35118300307): 고르게 고른 11개 ID 모두 완료, 실패 0. 총 25회 요청에서 `HIT 13`, `STALE 12`, `MISS 0`, `REVALIDATED 0`이었고, 각 ID는 마지막에 `HIT`을 확인한 뒤에만 완료됐다.
+- 2026-09-17 전체 fresh 검증 [Actions #35118665768](https://github.com/toilet-project/toilet-web/actions/runs/35118665768): 53,590개 대상으로 실행 중이다. 완료 artifact의 `targetCount`, `succeeded`, `failed`, `cacheEvidenceCounts`, `requestCount`를 확인하기 전에는 전체 fresh 검증 완료로 기록하지 않는다.
 
 ## 정리
 
 `pnpm cache:cleanup`은 기본 dry-run이다. Worker 활성 배포를 Wrangler read-only 명령으로 확인하고, 릴리스 registry의 Worker UUID ↔ OpenNext build ID 매핑을 사용한다. 현재 트래픽의 모든 버전과 직전 정상 배포의 최소 3일을 보호한다. registry가 없거나 알 수 없는 객체는 삭제하지 않는다.
 
 삭제는 `--execute`와 `CACHE_CLEANUP_ENABLED=true`가 함께 있어야 하며, 삭제 직전에 활성 배포를 다시 확인한다. 제공한 Actions workflow는 dry-run 계획만 만들며 삭제 키를 사용하지 않는다. 대상은 `incremental-cache/`뿐이므로 `public-toilets/v1/`, 정적 자산, 업로드 이미지와 다른 버킷은 제외된다.
+
+정리 workflow는 구현됐지만 2026-09-17 현재 저장소/환경의 `CACHE_CLEANUP_DRY_RUN_ENABLED`, `CACHE_RELEASE_REGISTRY_JSON`, `CACHE_STATUS_API_TOKEN`, `R2_CACHE_READ_ACCESS_KEY_ID`, `R2_CACHE_READ_SECRET_ACCESS_KEY`가 아직 구성되지 않았다. 따라서 정리 dry-run은 실행 전이며 WBS #243의 유일한 미완료 체크리스트다. 현재 활성 Worker는 `d18a7bd4-97db-49fe-9502-1af054d28f29`, 운영 `/BUILD_ID`는 `build-TfctsWXpff2fKS`로 확인했다. 자격증명은 활성 배포 조회와 해당 운영 캐시 버킷 객체 목록 조회만 허용하는 읽기 전용 권한으로 발급하고, 삭제 권한은 넣지 않는다.
 
 ## 적용·복구
 
