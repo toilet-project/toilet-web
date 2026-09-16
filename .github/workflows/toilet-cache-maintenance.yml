@@ -17,6 +17,10 @@ on:
         description: Comma-separated public toilet IDs for sample mode
         required: false
         type: string
+      checkpoint_source_run_id:
+        description: Exact source run ID whose checkpoint failures should be retried
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -40,13 +44,27 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Restore deployment checkpoint
+      - name: Validate failed checkpoint source
+        if: ${{ inputs.mode == 'failed' }}
+        shell: bash
+        env:
+          CHECKPOINT_SOURCE_RUN_ID: ${{ inputs.checkpoint_source_run_id }}
+        run: '[[ "$CHECKPOINT_SOURCE_RUN_ID" =~ ^[0-9]+$ ]] || { echo "Exact checkpoint source run ID is required"; exit 1; }'
+      - name: Restore latest deployment checkpoint
+        if: ${{ inputs.mode != 'failed' }}
         uses: actions/cache/restore@v4
         with:
           path: .cache-prewarm
           key: toilet-cache-prewarm-${{ inputs.deployment_id }}-${{ github.run_id }}
           restore-keys: |
             toilet-cache-prewarm-${{ inputs.deployment_id }}-
+      - name: Restore exact failed checkpoint
+        if: ${{ inputs.mode == 'failed' }}
+        uses: actions/cache/restore@v4
+        with:
+          path: .cache-prewarm
+          key: toilet-cache-prewarm-${{ inputs.deployment_id }}-${{ inputs.checkpoint_source_run_id }}
+          fail-on-cache-miss: true
       - name: Refuse unapproved production execution
         if: ${{ env.CACHE_PREWARM_ENABLED != 'true' }}
         run: exit 1
