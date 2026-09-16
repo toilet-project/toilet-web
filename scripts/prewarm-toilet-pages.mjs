@@ -1,6 +1,6 @@
 import {mkdir,writeFile} from 'node:fs/promises'
 import {dirname,resolve} from 'node:path'
-import {collectPublicToiletIds,normalizeBaseUrl,positiveInteger,prewarmToiletPages} from './cache/prewarm-lib.mjs'
+import {collectPublicToiletIds,failedIdsFromCheckpoint,normalizeBaseUrl,positiveInteger,prewarmToiletPages} from './cache/prewarm-lib.mjs'
 
 function argumentsOf(values){
   const parsed={}
@@ -19,12 +19,14 @@ if(!args.execute || process.env.CACHE_PREWARM_ENABLED!=='true') throw new Error(
 const baseUrl=normalizeBaseUrl(args['base-url'])
 const deploymentId=args['deployment-id']
 if(!deploymentId || !/^[a-zA-Z0-9._-]{4,200}$/.test(deploymentId)) throw new Error('Explicit deployment ID required')
-const mode=args.ids?'ids':args.shard!==undefined?'shard':'all'
 const requestTimeoutMs=positiveInteger(args['request-timeout-seconds']||30,'request timeout seconds',{maximum:300})*1000
-const ids=await collectPublicToiletIds({baseUrl,mode,ids:args.ids?.split(',')??[],shard:args.shard,requestTimeoutMs})
-if(!ids.length) throw new Error('No public toilet IDs selected')
 const safeDeployment=deploymentId.replace(/[^a-zA-Z0-9._-]/g,'_')
 const checkpointPath=resolve(args.checkpoint||`.cache-prewarm/${safeDeployment}.json`)
+const mode=args['failed-from-checkpoint']?'failed':args.ids?'ids':args.shard!==undefined?'shard':'all'
+const ids=mode==='failed'
+  ? await failedIdsFromCheckpoint(checkpointPath,deploymentId)
+  : await collectPublicToiletIds({baseUrl,mode,ids:args.ids?.split(',')??[],shard:args.shard,requestTimeoutMs})
+if(!ids.length) throw new Error(mode==='failed'?'No failed toilet IDs found in the restored checkpoint':'No public toilet IDs selected')
 const reportPath=resolve(args.report||`cache-prewarm-report-${safeDeployment}.json`)
 const requireFresh=Boolean(args['require-fresh'])
 let report

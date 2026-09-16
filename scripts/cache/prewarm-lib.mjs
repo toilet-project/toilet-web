@@ -61,6 +61,10 @@ export async function loadCheckpoint(path,deploymentId){
     return {schema:1,deploymentId,completedIds:new Set(value.completedIds),failures:value.failures&&typeof value.failures==='object'?value.failures:{}}
   }catch(error){if(error.code==='ENOENT') return {schema:1,deploymentId,completedIds:new Set(),failures:{}};throw error}
 }
+export async function failedIdsFromCheckpoint(path,deploymentId){
+  const checkpoint=await loadCheckpoint(path,deploymentId)
+  return Object.keys(checkpoint.failures).map(id=>positiveInteger(id,'failed toilet ID')).sort((a,b)=>a-b)
+}
 export async function saveCheckpoint(path,state){
   await mkdir(dirname(path),{recursive:true})
   const temporary=`${path}.${process.pid}.tmp`
