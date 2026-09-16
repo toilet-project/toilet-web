@@ -6,7 +6,7 @@ import { ToiletRouteBridge } from '../../../../components/ToiletRouteBridge'
 import { placeData, safeJsonLd, toiletMetadataText } from '../../../../lib/seo'
 
 type Props = { params: Promise<{ id: string }> }
-export const revalidate = 3600
+export const revalidate = 2_592_000
 // On demand, never pre-build the nationwide data set.
 export function generateStaticParams() { return [] }
 

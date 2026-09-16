@@ -73,11 +73,25 @@ test('delete tombstones survive duplicate and out-of-order upserts without origi
   assert.equal(calls,0); assert.equal(bucket.value(10).state,'deleted'); assert.equal(bucket.value(10).revision,5)
 })
 
-test('bounded stale positive data is used only when an origin refresh fails',async()=>{
-  const bucket=new FakeR2()
+test('fresh data is refreshed after 30 days and stale data is bounded to seven more days',async()=>{
+  const bucket=new FakeR2();let calls=0
   await readThroughSharedToiletCache({bucket,toiletId:11,fetchOrigin:async()=>detail(11),now:()=>1000})
-  const stale=await readThroughSharedToiletCache({bucket,toiletId:11,fetchOrigin:async()=>{throw new Error('origin down')},now:()=>3_602_000})
+  const refreshed=await readThroughSharedToiletCache({bucket,toiletId:11,fetchOrigin:async()=>{calls++;return detail(11,'갱신됨')},now:()=>30*86_400_000+1001})
+  assert.equal(refreshed.name,'갱신됨');assert.equal(calls,1)
+
+  const staleBucket=new FakeR2()
+  await readThroughSharedToiletCache({bucket:staleBucket,toiletId:15,fetchOrigin:async()=>detail(15),now:()=>1000})
+  const stale=await readThroughSharedToiletCache({bucket:staleBucket,toiletId:15,fetchOrigin:async()=>{throw new Error('origin down')},now:()=>31*86_400_000+1000})
   assert.equal(stale.name,'공개 화장실')
+  await assert.rejects(()=>readThroughSharedToiletCache({bucket:staleBucket,toiletId:15,fetchOrigin:async()=>{throw new Error('origin down')},now:()=>37*86_400_000+1001}),/origin down/)
+})
+
+test('the 30-day policy adopts valid objects written by the former one-hour policy',async()=>{
+  const bucket=new FakeR2();let calls=0
+  await bucket.put(sharedToiletCacheKey(14),JSON.stringify({schema:SHARED_TOILET_CACHE_SCHEMA,toiletId:14,revision:0,state:'data',storedAt:1000,
+    freshUntil:3_601_000,staleUntil:21_601_000,data:detail(14,'기존 캐시')}))
+  const value=await readThroughSharedToiletCache({bucket,toiletId:14,fetchOrigin:async()=>{calls++;return detail(14,'원본')},now:()=>2*86_400_000+1000})
+  assert.equal(value.name,'기존 캐시');assert.equal(calls,0)
 })
 
 test('initial writes use a structured create-only condition',async()=>{
@@ -96,5 +110,5 @@ test('persistent cache contention fails open to the public origin',async()=>{
 test('a shared-cache miss keeps the ISR detail route static-compatible',()=>{
   const source=readFileSync(new URL('../src/server/toilets.ts',import.meta.url),'utf8')
   assert.doesNotMatch(source,/cache:\s*['"]no-store['"]/, 'detail origin must not make the ISR route dynamic')
-  assert.match(source,/next:\s*\{\s*revalidate:\s*3600,\s*tags:\s*\[`toilet:\$\{id\}`\]/)
+  assert.match(source,/next:\s*\{\s*revalidate:\s*2_592_000,\s*tags:\s*\[`toilet:\$\{id\}`\]/)
 })

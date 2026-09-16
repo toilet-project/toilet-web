@@ -1,6 +1,6 @@
 # 전체 화장실 상세 캐시 구현
 
-2026-09-15 · WBS [#242](https://github.com/toilet-project/toilet-web/issues/242), [#243](https://github.com/toilet-project/toilet-web/issues/243) · **운영 미적용**
+2026-09-15 구현, 2026-09-16 30일 정책 보강 · WBS [#242](https://github.com/toilet-project/toilet-web/issues/242), [#243](https://github.com/toilet-project/toilet-web/issues/243)
 
 ## 구현 범위
 
@@ -12,11 +12,13 @@
 
 ## 공유 데이터
 
-`src/server/sharedToiletCache.ts`는 원본 응답에서 공개 상세 계약 필드만 복사한다. Cookie·Authorization을 전달하지 않고 알 수 없는 필드를 보관하지 않는다. 기본 fresh 1시간, stale 장애 fallback 6시간, 404 negative 5분이다. R2 장애는 공개 원본 API로 우회하고, 원본 장애 때만 유효한 stale 정상 데이터를 사용한다.
+`src/server/sharedToiletCache.ts`는 원본 응답에서 공개 상세 계약 필드만 복사한다. Cookie·Authorization을 전달하지 않고 알 수 없는 필드를 보관하지 않는다. 기본 fresh 30일, 이후 7일 동안 원본 장애 시에만 사용하는 stale fallback, 404 negative 5분이다. R2 장애는 공개 원본 API로 우회한다.
+
+유효기간은 객체에 과거 정책의 만료 시각이 남아 있어도 검증된 `storedAt`과 현재 배포 정책으로 다시 계산한다. 따라서 1시간 정책에서 생성한 정상 v1 객체는 저장 후 30일 이내라면 원본 API 재조회 없이 재사용한다. 수정·삭제·비공개 이벤트가 기록한 invalidated/deleted 상태에는 이 연장 규칙을 적용하지 않는다.
 
 수정 이벤트의 revision과 R2 ETag 조건부 쓰기를 함께 사용한다. 원본 조회가 진행되는 동안 새 이벤트가 오면 이전 ETag로 시작한 저장이 실패하고 최신 revision에서 다시 조회한다. 삭제·비공개는 tombstone으로 남겨 오래된 데이터가 다시 노출되지 않게 한다. 손상된 객체도 ETag를 유지한 채 정상 원본 결과로 조건부 교체한다.
 
-`SHARED_TOILET_CACHE_ENABLED`의 값이 정확히 `true`일 때만 켜진다. binding이 없거나 R2를 읽지 못하면 기능 활성 상태에서도 원본 공개 API로 fail-open한다. 운영 전환 뒤에는 production만 `true`를 유지하고 preview는 `false`를 유지한다. 기능을 끄면 기존 `revalidate: 3600`, `toilet:{id}` Next fetch로 즉시 복귀한다.
+`SHARED_TOILET_CACHE_ENABLED`의 값이 정확히 `true`일 때만 켜진다. binding이 없거나 R2를 읽지 못하면 기능 활성 상태에서도 원본 공개 API로 fail-open한다. production만 `true`를 유지하고 preview는 `false`를 유지한다. 기능을 끄면 30일 `toilet:{id}` Next fetch로 즉시 복귀한다.
 
 필요한 Worker 설정은 다음과 같다. 실제 버킷 생성·binding·변수 활성화는 운영 전환 작업이다.
 
@@ -24,8 +26,8 @@
 | --- | --- |
 | `PUBLIC_TOILET_DATA_CACHE_R2` | 환경별 OpenNext R2 버킷의 공유 데이터 전용 binding. `public-toilets/v1/` prefix만 사용 |
 | `SHARED_TOILET_CACHE_ENABLED` | production `true`, preview `false` |
-| `SHARED_TOILET_CACHE_FRESH_SECONDS` | 기본 3600 |
-| `SHARED_TOILET_CACHE_STALE_SECONDS` | 기본 21600 |
+| `SHARED_TOILET_CACHE_FRESH_SECONDS` | 기본 2592000(30일) |
+| `SHARED_TOILET_CACHE_STALE_SECONDS` | 기본 3196800(저장 후 37일, 7일 추가 장애 fallback) |
 | `SHARED_TOILET_CACHE_NEGATIVE_SECONDS` | 기본 300 |
 
 ## 갱신
@@ -44,7 +46,7 @@ CACHE_PREWARM_ENABLED=true pnpm cache:prewarm -- --execute \
 
 프로그램은 같은 origin의 사이트맵 shard만 읽고, ID 목록·shard·전체 모드를 지원한다. 배포 ID를 실행 전·중·후 확인하고 변경되면 중단한다. 체크포인트와 성공·실패·속도·cache header 표본 검증 보고서를 남긴다. GitHub Actions는 같은 배포 체크포인트를 다음 수동 실행에서 복원하며 새 실행이 기존 실행을 취소한다.
 
-이론상 53,600건은 1 req/s 약 14시간 53분, 2 req/s 약 7시간 27분, 4 req/s 약 3시간 43분이다. 실제 속도는 표본에서 확인한다. 기본 전체 설정은 2 req/s이므로 5시간 실행 제한에 걸리면 체크포인트로 이어서 완료한다.
+이론상 53,590건은 5 req/s 약 2시간 59분이다. 운영 전체 설정은 동시 요청 8개·5 req/s이며, 429/5xx는 지수 지연 후 재시도한다. 배포 변경이나 실행 중단은 배포별 체크포인트로 이어서 처리한다.
 
 ## 정리
 
@@ -56,4 +58,4 @@ CACHE_PREWARM_ENABLED=true pnpm cache:prewarm -- --execute \
 
 적용 순서는 환경별 R2 binding 확인 → API outbox V2 SQL → API v1 호환 배포 → Web v1/v2 수신 배포 → 공유 캐시 표본 활성화 → API 계약 v2 → 표본/한 shard/전체 사전 생성 → 정리 dry-run 검토다. 공유 데이터는 기존 환경별 OpenNext R2 버킷 안의 별도 prefix를 쓰므로 새 버킷을 만들 필요는 없다.
 
-문제가 생기면 공유 캐시 플래그를 끄면 기존 1시간 Next fetch로 돌아간다. API 계약도 v1으로 되돌릴 수 있다. 페이지 캐시나 공유 데이터를 즉시 삭제할 필요는 없으며, Worker는 검증된 직전 버전으로 되돌린다.
+문제가 생기면 공유 캐시 플래그를 끄면 30일 Next fetch로 돌아간다. API 계약도 v1으로 되돌릴 수 있다. 페이지 캐시나 공유 데이터를 즉시 삭제할 필요는 없으며, Worker는 검증된 직전 버전으로 되돌린다.
