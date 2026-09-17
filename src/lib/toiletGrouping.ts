@@ -1,6 +1,10 @@
 export type ToiletMapItem = { id: number; name: string; toiletType?: string; latitude: number; longitude: number; displayGroupId?: number | null; displayGroupName?: string | null }
 export type MapPoint = { id?: number; latitude: number; longitude: number; count: number; name?: string; toiletType?: string; toilets?: ToiletMapItem[]; displayGroupName?: string }
 
+export function coordinateGroupCategory(toilets: ToiletMapItem[]): string {
+  return [...new Set(toilets.map(toilet => toilet.toiletType?.trim()).filter(Boolean))].join(' · ') || '화장실'
+}
+
 export function groupToiletsByCoordinate(toilets: ToiletMapItem[]): MapPoint[] {
   const groups = new Map<string, ToiletMapItem[]>()
   for (const toilet of toilets) {

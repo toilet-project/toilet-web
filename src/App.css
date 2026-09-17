@@ -233,6 +233,9 @@
 .coordinate-group-card { position: absolute; z-index: 7; top: 0; bottom: 0; left: 0; display: flex; width: clamp(340px, 25vw, 440px); min-height: 0; max-height: none; padding: 20px; flex-direction: column; overflow: hidden; border-right: 1px solid #e3e8e1; border-radius: 0; background: #fff; box-shadow: 5px 0 18px rgb(31 46 34 / 12%); }
 .coordinate-group-card > strong { display: block; padding-right: 26px; color: #1d2b21; font-size: 19px; }
 .coordinate-group-display-name { margin: 7px 0 0; padding-right: 28px; overflow: hidden; color: #1d2b21; font-size: 20px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.coordinate-group-labels { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding-right: 28px; margin-bottom: 6px; }
+.coordinate-group-labels .card-label { margin: 0; font-size: 13px; }
+.coordinate-group-admin-badge { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 5px; background: #eaf1fc; color: #315b94; font-size: 12px; font-weight: 600; line-height: 1.25; white-space: nowrap; }
 .coordinate-group-card > p { margin: 8px 0 14px; color: #647168; font-size: 13px; line-height: 1.45; }
 .coordinate-group-distance { position: absolute; top: 19px; right: 47px; margin: 0 !important; color: #17683a !important; font-size: 11px !important; font-weight: 700; white-space: nowrap; }
 .coordinate-group-distance strong { margin-left: 3px; font-size: 16px; }
