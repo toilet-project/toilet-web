@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { groupToiletsByCoordinate, representativeToilet } from '../src/lib/toiletGrouping.ts'
+import { groupToiletsByCoordinate, representativeToilet, coordinateGroupCategory } from '../src/lib/toiletGrouping.ts'
 
 test('single open toilet retains category through list grouping and selection', () => {
   const toilet = { id: 13448, name: '테스트', toiletType: '개방화장실', latitude: 36.4, longitude: 127.3 }
@@ -25,6 +25,13 @@ test('absent category stays absent instead of inventing a source category', () =
   const [group] = groupToiletsByCoordinate([{ id: 3, name: 'C', latitude: 36, longitude: 127 }])
   assert.equal(representativeToilet(group).toiletType, undefined)
   assert.deepEqual(groupToiletsByCoordinate([]), [])
+})
+
+test('group header keeps source categories, independently of the administrator badge', () => {
+  const toilets = [{ toiletType: '개방화장실', displayGroupName: '문화원' }, { toiletType: '개방화장실' }]
+  assert.equal(coordinateGroupCategory(toilets), '개방화장실')
+  assert.equal(coordinateGroupCategory([...toilets, { toiletType: '공중화장실' }]), '개방화장실 · 공중화장실')
+  assert.equal(coordinateGroupCategory([{ toiletType: '' }]), '화장실')
 })
 
 test('administrator display group replaces the generic same-coordinate label', () => {

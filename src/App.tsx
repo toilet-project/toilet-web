@@ -31,7 +31,7 @@ import { readReviewTestToilet } from './lib/reviewTestToilet'
 import { DetailLoadingFields, LoadingOpenTime } from './components/ToiletCardLoading'
 import { hasValue, formatOpenTime, formatFacilityLocation } from './lib/detailFormatting'
 import { toiletCoordinates } from './lib/toiletRoute'
-import { groupToiletsByCoordinate, representativeToilet, type ToiletMapItem, type MapPoint } from './lib/toiletGrouping'
+import { groupToiletsByCoordinate, representativeToilet, coordinateGroupCategory, type ToiletMapItem, type MapPoint } from './lib/toiletGrouping'
 import type { MapRouteData } from './components/mapRouteContext'
 import { DESKTOP_LAYOUT_QUERY } from './lib/responsiveLayout'
 import { resolveDistanceReference, type DistanceSource } from './lib/distanceReference'
@@ -1531,7 +1531,10 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
         {selectedCoordinateGroup && (
           <aside className="coordinate-group-card" aria-live="polite" aria-label={selectedCoordinateGroup.displayGroupName ? `${selectedCoordinateGroup.displayGroupName} 화장실 목록` : '같은 위치 화장실 목록'}>
             <button type="button" className="close-button" onClick={closeDetailCard} aria-label="목록 닫기">×</button>
-            <span className="card-label">{selectedCoordinateGroup.displayGroupName ? '관리자 지정 장소' : '동일 좌표로 등록됨'}</span>
+            <div className="coordinate-group-labels">
+              <span className="card-label">{coordinateGroupCategory(selectedCoordinateGroup.toilets)}</span>
+              {selectedCoordinateGroup.displayGroupName && <span className="coordinate-group-admin-badge" title="관리자가 지정한 장소">관리자</span>}
+            </div>
             {selectedCoordinateGroup.displayGroupName && <h2 className="coordinate-group-display-name">{selectedCoordinateGroup.displayGroupName}</h2>}
             {distanceToCoordinateGroup && <p className="coordinate-group-distance">{distanceReferenceLabel} <strong>{distanceToCoordinateGroup}</strong></p>}
             <p>화장실을 선택하면 해당 행 아래에서 상세 정보가 펼쳐집니다.</p>
