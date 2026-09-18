@@ -70,6 +70,15 @@ test('all marker paths let original down/move gestures reach the SDK and only su
   assert.match(app, /\(\{ coords \}\) => \{\s+if \(!isCurrent\(\)\) return/)
   assert.match(app, /\(positionError\) => \{\s+if \(!isCurrent\(\)\) return/)
 })
+test('administrator groups use the ordinary toilet pin and keep the existing group click action', async () => {
+  const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8')
+  const groupedMarker = app.slice(app.indexOf("const isNamedCoordinateGroup"), app.indexOf("const content = document.createElement('button')", app.indexOf("const isNamedCoordinateGroup") + 1))
+  assert.match(groupedMarker, /toilet-marker coordinate-display-group-marker/)
+  assert.match(groupedMarker, /name\.className = 'toilet-marker-name'/)
+  assert.match(groupedMarker, /name\.textContent = point\.displayGroupName/)
+  assert.match(groupedMarker, /if \(isCoordinateGroup\) \{\s*openCoordinateGroup\(point\)/)
+  assert.match(groupedMarker, /yAnchor: isNamedCoordinateGroup \? 1 : 0\.5/)
+})
 const pointer = (x, y, pointerId = 1) => ({ clientX: x, clientY: y, pointerId })
 test('marker taps and keyboard activation work; a drag returning to its start never selects', () => {
   const gesture = createMarkerTapGesture()

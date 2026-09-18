@@ -886,9 +886,27 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
       if (point.count > 1) {
         const content = document.createElement('button')
         const isCoordinateGroup = point.toilets != null
-        content.className = isCoordinateGroup ? 'coordinate-group-marker' : 'cluster-marker'
+        const isNamedCoordinateGroup = isCoordinateGroup && Boolean(point.displayGroupName)
+        content.className = isNamedCoordinateGroup
+          ? 'toilet-marker coordinate-display-group-marker'
+          : isCoordinateGroup ? 'coordinate-group-marker' : 'cluster-marker'
         content.type = 'button'
-        content.textContent = isCoordinateGroup ? point.displayGroupName || `동일 위치 ${point.count}` : String(point.count)
+        if (isNamedCoordinateGroup) {
+          const pin = document.createElement('span')
+          pin.className = 'toilet-marker-pin'
+          pin.setAttribute('aria-hidden', 'true')
+          const logo = document.createElement('img')
+          logo.className = 'toilet-marker-logo'
+          logo.src = toiletMarkerLogo
+          logo.alt = ''
+          pin.append(logo)
+          const name = document.createElement('span')
+          name.className = 'toilet-marker-name'
+          name.textContent = point.displayGroupName ?? ''
+          content.append(pin, name)
+        } else {
+          content.textContent = isCoordinateGroup ? `동일 위치 ${point.count}` : String(point.count)
+        }
         content.setAttribute('aria-label', isCoordinateGroup ? `${point.displayGroupName || '동일 위치'}에 등록된 화장실 ${point.count}곳 목록 보기` : `${point.count}개의 화장실이 있는 구역 확대하기`)
         content.addEventListener('click', (event) => {
           if (!suppressMapClickFromMarker(event)) return
@@ -903,7 +921,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
         return new window.kakao.maps.CustomOverlay({
           position: new window.kakao.maps.LatLng(point.latitude, point.longitude),
           content,
-          yAnchor: 0.5,
+          yAnchor: isNamedCoordinateGroup ? 1 : 0.5,
           zIndex: 2,
           clickable: false,
         })
