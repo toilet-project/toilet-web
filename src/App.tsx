@@ -79,6 +79,13 @@ function formatDistance(distanceInMeters: number) {
   return `${(distanceInMeters / 1_000).toFixed(1)}km`
 }
 
+function scrollCoordinateGroupItem(list: HTMLElement, item: HTMLElement, behavior: ScrollBehavior = 'auto') {
+  const listBounds = list.getBoundingClientRect()
+  const itemBounds = item.getBoundingClientRect()
+  const top = list.scrollTop + itemBounds.top - listBounds.top - 8
+  list.scrollTo({ top: Math.max(0, top), behavior })
+}
+
 function formatLastUpdatedAt(updatedAt: Date | null) {
   if (!updatedAt) return '확인할 수 없음'
   return new Intl.DateTimeFormat('ko-KR', {
@@ -680,7 +687,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
       const frame = window.requestAnimationFrame(() => {
         const list = coordinateGroupListRef.current
         const item = coordinateGroupItemRefs.current.get(detail.id)
-        if (list && item) list.scrollTo({ top: Math.max(0, item.offsetTop - list.offsetTop - 8) })
+        if (list && item) scrollCoordinateGroupItem(list, item)
       })
       return () => window.cancelAnimationFrame(frame)
     }
@@ -829,8 +836,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
       const item = coordinateGroupItemRefs.current.get(toilet.id)
       if (!list || !item) return
 
-      const itemTop = item.offsetTop - list.offsetTop
-      list.scrollTo({ top: Math.max(0, itemTop - 8), behavior: 'smooth' })
+      scrollCoordinateGroupItem(list, item, 'smooth')
     }
 
     requestAnimationFrame(scrollExpandedItemIntoView)
@@ -1532,13 +1538,15 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
         {selectedCoordinateGroup && (
           <aside className="coordinate-group-card" aria-live="polite" aria-label={selectedCoordinateGroup.displayGroupName ? `${selectedCoordinateGroup.displayGroupName} 화장실 목록` : '같은 위치 화장실 목록'}>
             <button type="button" className="close-button" onClick={closeDetailCard} aria-label="목록 닫기">×</button>
-            <div className="coordinate-group-labels">
-              <span className="card-label">{coordinateGroupCategory(selectedCoordinateGroup.toilets)}</span>
-              {selectedCoordinateGroup.displayGroupName && <span className="coordinate-group-admin-badge" title="관리자가 지정한 장소">관리자</span>}
-            </div>
-            {selectedCoordinateGroup.displayGroupName && <h2 className="coordinate-group-display-name">{selectedCoordinateGroup.displayGroupName}</h2>}
-            {distanceToCoordinateGroup && <p className="coordinate-group-distance">{distanceReferenceLabel} <strong>{distanceToCoordinateGroup}</strong></p>}
-            <p>화장실을 선택하면 해당 행 아래에서 상세 정보가 펼쳐집니다.</p>
+            <header className="coordinate-group-header">
+              <div className="coordinate-group-labels">
+                <span className="card-label">{coordinateGroupCategory(selectedCoordinateGroup.toilets)}</span>
+                {selectedCoordinateGroup.displayGroupName && <span className="coordinate-group-admin-badge" title="관리자가 지정한 장소">관리자<svg viewBox="0 0 12 12" aria-hidden="true"><path d="m2.5 6.2 2.2 2.2 4.8-4.8" /></svg></span>}
+              </div>
+              {selectedCoordinateGroup.displayGroupName && <h2 className="coordinate-group-display-name">{selectedCoordinateGroup.displayGroupName}</h2>}
+              {distanceToCoordinateGroup && <p className="coordinate-group-distance">{distanceReferenceLabel} <strong>{distanceToCoordinateGroup}</strong></p>}
+              <p className="coordinate-group-description">화장실을 선택하면 해당 행 아래에서 상세 정보가 펼쳐집니다.</p>
+            </header>
             <div ref={coordinateGroupListRef} className="coordinate-group-list">
               {selectedCoordinateGroup.toilets.map((toilet, index) => {
                 const isExpanded = expandedCoordinateToilet?.id === toilet.id

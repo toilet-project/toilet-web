@@ -18,6 +18,17 @@ test('all mobile map sheets reserve the same upper control area', async () => {
   assert.match(css, /max-height: min\(280px, calc\(100% - 80px\)\)/)
 })
 
+test('coordinate group keeps its title visible while only the detail list scrolls', async () => {
+  const app = await source('../src/App.tsx')
+  const css = await source('../src/App.css')
+  assert.match(app, /<header className="coordinate-group-header">[\s\S]*className="coordinate-group-description"/)
+  assert.match(css, /\.coordinate-group-header\s*\{[^}]*flex: 0 0 auto/)
+  assert.match(app, /list\.scrollTop \+ itemBounds\.top - listBounds\.top - 8/)
+  assert.doesNotMatch(app, /item\.offsetTop - list\.offsetTop/)
+  assert.match(app, /coordinate-group-admin-badge[^>]*>관리자<svg[^>]*aria-hidden="true"/)
+  assert.match(css, /\.coordinate-group-admin-badge\s*\{[^}]*font-size: 10px/)
+})
+
 test('report login prompt uses brand and concise labels without removing the auth gate', async () => {
   const app = await source('../src/App.tsx')
   const row = await source('../src/components/ToiletCommunityRow.tsx')
