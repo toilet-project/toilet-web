@@ -1539,12 +1539,14 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
           <aside className="coordinate-group-card" aria-live="polite" aria-label={selectedCoordinateGroup.displayGroupName ? `${selectedCoordinateGroup.displayGroupName} 화장실 목록` : '같은 위치 화장실 목록'}>
             <button type="button" className="close-button" onClick={closeDetailCard} aria-label="목록 닫기">×</button>
             <header className="coordinate-group-header">
-              <div className="coordinate-group-labels">
-                <span className="card-label">{coordinateGroupCategory(selectedCoordinateGroup.toilets)}</span>
-                {selectedCoordinateGroup.displayGroupName && <span className="coordinate-group-admin-badge" title="관리자가 지정한 장소">관리자<svg viewBox="0 0 12 12" aria-hidden="true"><path d="m2.5 6.2 2.2 2.2 4.8-4.8" /></svg></span>}
+              <div className="coordinate-group-meta-row">
+                <div className="coordinate-group-labels">
+                  <span className="card-label">{coordinateGroupCategory(selectedCoordinateGroup.toilets)}</span>
+                  {selectedCoordinateGroup.displayGroupName && <span className="coordinate-group-admin-badge" title="관리자가 지정한 장소">관리자<svg viewBox="0 0 12 12" aria-hidden="true"><path d="m2.5 6.2 2.2 2.2 4.8-4.8" /></svg></span>}
+                </div>
+                {distanceToCoordinateGroup && <p className="coordinate-group-distance">{distanceReferenceLabel} <strong>{distanceToCoordinateGroup}</strong></p>}
               </div>
               {selectedCoordinateGroup.displayGroupName && <h2 className="coordinate-group-display-name">{selectedCoordinateGroup.displayGroupName}</h2>}
-              {distanceToCoordinateGroup && <p className="coordinate-group-distance">{distanceReferenceLabel} <strong>{distanceToCoordinateGroup}</strong></p>}
               <p className="coordinate-group-description">화장실을 선택하면 해당 행 아래에서 상세 정보가 펼쳐집니다.</p>
             </header>
             <div ref={coordinateGroupListRef} className="coordinate-group-list">
