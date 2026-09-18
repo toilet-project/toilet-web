@@ -117,6 +117,12 @@ async function noOverflow(page) {
       assert.ok(await grouped.count()>0,'Expected live same-coordinate campus group')
       await grouped.click()
       await visible(page.locator('.coordinate-group-card'))
+      assert.equal(await page.locator('.coordinate-group-header').evaluate(header=>{
+        const distance=header.querySelector('.coordinate-group-distance'), title=header.querySelector('.coordinate-group-display-name')
+        if(!distance||!title)return true
+        const d=distance.getBoundingClientRect(), t=title.getBoundingClientRect()
+        return d.bottom<=t.top
+      }),true,'Group distance must occupy its own row above the title')
       const toggles=page.locator('.coordinate-group-item-toggle')
       const count=await toggles.count()
       assert.ok(count>1)
