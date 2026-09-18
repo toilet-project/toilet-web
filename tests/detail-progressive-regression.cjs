@@ -6,8 +6,8 @@ const origin = mobileTestOrigin(process.env.MOBILE_TEST_ORIGIN, {allowLoopback:t
 const items = [
   {id:13032,name:'공학3호관',toiletType:'개방화장실',latitude:36.365,longitude:127.346},
   {id:12941,name:'중앙도서관',toiletType:'공중화장실',latitude:36.368,longitude:127.347},
-  {id:13543,name:'경상대학 및 별관',toiletType:'공중화장실',latitude:36.369,longitude:127.344},
-  {id:13144,name:'공학1호관',toiletType:'공중화장실',latitude:36.369,longitude:127.344},
+  {id:13543,name:'경상대학 및 별관',toiletType:'공중화장실',latitude:36.369,longitude:127.344,displayGroupId:7,displayGroupName:'충남대학교 공학구역'},
+  {id:13144,name:'공학1호관',toiletType:'공중화장실',latitude:36.369,longitude:127.344,displayGroupId:7,displayGroupName:'충남대학교 공학구역'},
 ]
 function detail(item) {
   return {...item,roadAddress:'검증용 주소 '+item.id,jibunAddress:'',openTime:'상시',openTimeDetail:'',
@@ -75,8 +75,11 @@ function detail(item) {
       await page.waitForTimeout(2400)
       assert.equal(await page.locator('.place-card').count(),0,'Closed card must not reopen after response')
       assert.ok(await map.evaluate(el=>el.isConnected && el===document.querySelector('.map')))
-      // Group detail uses the same partial fields and direct fetch.
-      await page.locator('.coordinate-group-marker').first().click()
+      // An administrator group keeps the ordinary toilet pin and uses its group name below it.
+      const groupMarker=page.locator('.coordinate-display-group-marker').first()
+      assert.equal(await groupMarker.locator('.toilet-marker-pin').count(),1)
+      assert.equal(await groupMarker.locator('.toilet-marker-name').innerText(),'충남대학교 공학구역')
+      await groupMarker.click()
       await page.locator('.coordinate-group-item-toggle').filter({hasText:'경상대학 및 별관'}).click()
       await page.locator('.coordinate-inline-details .detail-loading-fields').waitFor()
       await page.locator('.coordinate-inline-details .coordinate-inline-facilities').waitFor()
