@@ -16,6 +16,16 @@ export function PublicReviews({ toiletId, toiletName = '화장실', toiletType =
   return <PublicReviewList key={toiletId} toiletId={toiletId} toiletName={toiletName} toiletType={toiletType} summary={summary} />
 }
 
+export function PublicReviewsLoading() {
+  if (!PUBLIC_REVIEW_API_ENABLED) return null
+  return <section className="public-reviews is-loading" aria-label="이용자 리뷰 불러오는 중" aria-busy="true">
+    <div className="public-review-section-heading"><h2>리뷰 <span>—</span></h2></div>
+    <div className="public-review-summary-panel">
+      <div className="public-review-summary-list"><PublicReviewLoading /></div>
+    </div>
+  </section>
+}
+
 function PublicReviewList({ toiletId, toiletName, toiletType, summary }: { toiletId: number; toiletName: string; toiletType: string; summary?: PublicReviewSummary }) {
   const initial = cachedPublicReviews(toiletId)
   const [items, setItems] = useState<StoredReview[]>(initial?.items ?? [])

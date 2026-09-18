@@ -122,6 +122,12 @@ async function noOverflow(page) {
       assert.ok(count>1)
       await toggles.last().click()
       await visible(page.locator('.coordinate-group-item.is-expanded .coordinate-opening-row .review-card-report'))
+      assert.equal(await page.locator('.coordinate-group-header').evaluate(header=>{
+        const card=header.closest('.coordinate-group-card'), list=card?.querySelector('.coordinate-group-list')
+        if(!card||!list)return false
+        const h=header.getBoundingClientRect(), c=card.getBoundingClientRect(), l=list.getBoundingClientRect()
+        return h.top>=c.top && h.bottom<=l.top+1
+      }),true,'Group title must remain fully visible above the scrolling detail list')
       await withinViewport(page,page.locator('.coordinate-group-item.is-expanded .coordinate-opening-row .review-card-report'))
       assert.match(page.url(),/\/toilet\/\d+/)
       await noOverflow(page)
