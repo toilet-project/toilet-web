@@ -8,26 +8,28 @@ import { historyDateLabel, historyRange, selectHistory, type HistoryRange } from
 import { HistoryFilters, HistoryHeading, HistoryMore } from './HistoryControls'
 import { historyScroller, useHistoryWindow } from '../lib/useHistoryWindow'
 
+import { useLocale, useMessages } from '../i18n/context'
+import type { MessageKey } from '../i18n/messages'
+
 type Filter = 'ALL' | ToiletReportStatus
 
-const filters: { value: Filter; label: string }[] = [
-  { value: 'ALL', label: '전체' },
-  { value: 'PENDING', label: '대기' },
-  { value: 'APPROVED', label: '승인' },
-  { value: 'REJECTED', label: '반려' },
-  { value: 'CANCELLED', label: '취소' },
+const filters: { value: Filter; label: MessageKey }[] = [
+  { value: 'ALL', label: 'common.all' },
+  { value: 'PENDING', label: 'report.pending' },
+  { value: 'APPROVED', label: 'report.approved' },
+  { value: 'REJECTED', label: 'report.rejected' },
+  { value: 'CANCELLED', label: 'report.cancelled' },
 ]
 
-const statusLabel: Record<ToiletReportStatus, string> = {
-  PENDING: '검토 대기', APPROVED: '승인', REJECTED: '반려', CANCELLED: '취소',
+const statusLabel: Record<ToiletReportStatus, MessageKey> = {
+  PENDING: 'report.pendingReview', APPROVED: 'report.approved', REJECTED: 'report.rejected', CANCELLED: 'report.cancelled',
 }
 
-const reportTypeLabel = (type: ToiletReport['reportType']) => type === 'COORDINATE_CORRECTION' ? '위치 제보' : '개방시간 제보'
-const formatDate = (value?: string | null) => value
-  ? historyDateLabel(value)
-  : '-'
+const reportTypeLabel = (type: ToiletReport['reportType']) => type === 'COORDINATE_CORRECTION' ? 'report.location' : 'report.hours'
 
 export function MyReportsPanel({ onClose, onSessionExpired, initialExpandedId = null, embedded = false, onBack }: { onClose: () => void; onSessionExpired: () => void; initialExpandedId?: number | null; embedded?: boolean; onBack?: () => void }) {
+  const locale = useLocale(), t = useMessages()
+  const formatDate = (value?: string | null) => value ? historyDateLabel(value, locale) : '-'
   const dialog = useDialogFocus(!embedded, onClose)
   const expireRef = useRef(onSessionExpired)
   useEffect(() => { expireRef.current = onSessionExpired }, [onSessionExpired])
@@ -49,11 +51,11 @@ export function MyReportsPanel({ onClose, onSessionExpired, initialExpandedId = 
       .catch((reason: unknown) => {
         if (!active) return
         if (reason instanceof AuthExpiredError) { setReports([]); expireRef.current(); return }
-        setError(reportReadErrorMessage(reason))
+        setError(reportReadErrorMessage(reason, locale))
       })
       .finally(() => { if (active) setIsLoading(false) })
     return () => { active = false }
-  }, [requestVersion])
+  }, [requestVersion, locale])
 
   const retryReports = () => {
     if (isLoading) return
@@ -81,43 +83,43 @@ export function MyReportsPanel({ onClose, onSessionExpired, initialExpandedId = 
 
   return <div className={`history-list ${embedded ? 'my-reports-embedded' : 'my-reports-backdrop'}`} onMouseDown={(event) => { if (!embedded && event.target === event.currentTarget) onClose() }}>
     <section ref={dialog} tabIndex={embedded ? undefined : -1} className="my-reports-panel" role={embedded ? undefined : 'dialog'} aria-modal={embedded ? undefined : true} aria-labelledby={titleId}>
-      <HistoryHeading id={titleId} title="내 제보" onClose={embedded ? onBack : onClose} />
+      <HistoryHeading id={titleId} title={t('nav.myReports')} onClose={embedded ? onBack : onClose} />
       <HistoryFilters embedded={embedded} value={range} onChange={value => { reset(); setRange(value) }} count={matchingReports.length}>
-        <nav className="my-reports-filters" aria-label="제보 상태 필터">
+        <nav className="my-reports-filters" aria-label={t('report.statusFilter')}>
           {filters.map((item) => <button key={item.value} type="button" aria-pressed={filter === item.value} className={filter === item.value ? 'is-active' : ''} onClick={() => { reset(); setFilter(item.value) }}>
-            {item.label}<span>{item.value === 'ALL' ? datedReports.length : datedReports.filter((report) => report.status === item.value).length}</span>
+            {t(item.label)}<span>{item.value === 'ALL' ? datedReports.length : datedReports.filter((report) => report.status === item.value).length}</span>
           </button>)}
         </nav>
       </HistoryFilters>
       <div className="my-reports-content" aria-busy={isLoading}>
-        {isLoading && <p className="my-reports-state" role="status">내 제보를 불러오는 중…</p>}
+        {isLoading && <p className="my-reports-state" role="status">{t('report.loading')}</p>}
         {error && <div className="my-reports-retry">
           <span className="my-reports-retry-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4M9 16h6M9 12h3" /><circle cx="18" cy="6" r="4" /><path d="M18 4.5v1.8M18 8h.01" /></svg>
           </span>
           <p className="my-reports-retry-message" role="alert">{error}</p>
-          <button type="button" className="my-reports-retry-button" onClick={retryReports} disabled={isLoading}>다시 불러오기</button>
+          <button type="button" className="my-reports-retry-button" onClick={retryReports} disabled={isLoading}>{t('common.retry')}</button>
         </div>}
-        {!isLoading && !error && visibleReports.length === 0 && <div className="my-reports-empty history-empty"><strong>이 기간에 표시할 제보가 없어요</strong><p>기간이나 상태를 바꾸어 확인해 보세요.</p></div>}
+        {!isLoading && !error && visibleReports.length === 0 && <div className="my-reports-empty history-empty"><strong>{t('report.empty')}</strong><p>{t('report.emptyHint')}</p></div>}
         {!isLoading && !error && visibleReports.map((report) => {
           const expanded = expandedId === report.id
           return <article key={report.id} ref={report.id === initialExpandedId ? focusedReportRef : undefined} className={`my-report-item is-${report.status.toLowerCase()}${report.id === initialExpandedId ? ' is-focused' : ''}`}>
             <button type="button" className="my-report-summary" aria-expanded={expanded} onClick={() => setExpandedId(expanded ? null : report.id)}>
-              <span className="my-report-type">{reportTypeLabel(report.reportType)}</span>
-              <strong>{report.toiletName || `화장실 #${report.toiletId}`}</strong>
-              <span className={`my-report-status is-${report.status.toLowerCase()}`}>{statusLabel[report.status]}</span>
+              <span className="my-report-type">{t(reportTypeLabel(report.reportType))}</span>
+              <strong>{report.toiletName || t('report.toilet', { id: report.toiletId })}</strong>
+              <span className={`my-report-status is-${report.status.toLowerCase()}`}>{t(statusLabel[report.status])}</span>
               <time>{formatDate(report.createdAt)}</time>
               <i aria-hidden="true" />
             </button>
             {expanded && <div className="my-report-detail">
               <dl>
-                {report.reportType === 'COORDINATE_CORRECTION' && <div><dt>제보 주소</dt><dd>{getDisplayAddress(report.roadAddress, report.jibunAddress) || '주소 정보 없음'}</dd></div>}
-                {report.reportType === 'OPEN_TIME_CORRECTION' && <div><dt>제보 개방시간</dt><dd>{report.openTime || '입력 정보 없음'}</dd></div>}
-                <div><dt>제보 사유</dt><dd>{report.reason}</dd></div>
-                {report.reviewedAt && <div><dt>처리 일시</dt><dd>{formatDate(report.reviewedAt)}</dd></div>}
+                {report.reportType === 'COORDINATE_CORRECTION' && <div><dt>{t('report.address')}</dt><dd>{getDisplayAddress(report.roadAddress, report.jibunAddress) || t('map.noAddress')}</dd></div>}
+                {report.reportType === 'OPEN_TIME_CORRECTION' && <div><dt>{t('report.openTime')}</dt><dd>{report.openTime || t('common.noInfo')}</dd></div>}
+                <div><dt>{t('report.reason')}</dt><dd>{report.reason}</dd></div>
+                {report.reviewedAt && <div><dt>{t('report.reviewedAt')}</dt><dd>{formatDate(report.reviewedAt)}</dd></div>}
               </dl>
-              {report.status === 'PENDING' && <p className="my-report-review-note is-pending">관리자가 내용을 확인하고 있습니다.</p>}
-              {report.status !== 'PENDING' && <div className="my-report-review-note"><span>관리자 메모</span><p>{report.reviewNote?.trim() || '별도 메모가 없습니다.'}</p></div>}
+              {report.status === 'PENDING' && <p className="my-report-review-note is-pending">{t('report.reviewing')}</p>}
+              {report.status !== 'PENDING' && <div className="my-report-review-note"><span>{t('report.note')}</span><p>{report.reviewNote?.trim() || t('report.noNote')}</p></div>}
             </div>}
           </article>
         })}

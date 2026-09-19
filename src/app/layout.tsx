@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import type { ReactNode } from 'react'
 import { ServiceAnalytics } from '../components/ServiceAnalytics'
+import { LocaleDocument } from '../i18n/LocaleDocument'
 import '../index.css'
 import '../App.css'
 // Keep global override order deterministic on initial, cached and restored routes.
@@ -24,5 +25,5 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#17683A', colorScheme: 'light' }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  return <html lang="ko"><body><ServiceAnalytics /><div id="root">{children}</div></body></html>
+  return <LocaleDocument><body><ServiceAnalytics /><div id="root">{children}</div></body></LocaleDocument>
 }

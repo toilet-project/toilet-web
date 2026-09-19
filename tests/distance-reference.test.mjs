@@ -26,5 +26,5 @@ test('GPS hides reference overlay and single-card address lives in details first
   assert.match(app, /if \(source === 'current-location'\) return/)
   assert.match(app, /updateReferencePoint\(coordinates, 'current-location'\)/)
   assert.doesNotMatch(app, /isDesktop \? mapCenter : currentLocation|className="summary-address"/)
-  assert.ok(details.indexOf('className="detail-address"') < details.indexOf('label="지역"'))
+  assert.ok(details.indexOf('className="detail-address"') < details.indexOf("label={t('detail.region')}"))
 })

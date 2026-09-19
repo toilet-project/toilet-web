@@ -1,10 +1,11 @@
+import { isMapPath } from '../i18n/routes.ts'
 export const MAP_NAVIGATION_EVENT = 'geupddong:map-navigation'
 export const NAVIGATION_DIAGNOSTICS_KEY = 'geupddong.navigation-diagnostics.v1'
 
 export function mapNavigationPath(value: string, origin: string): string | null {
   try {
     const url = new URL(value, origin)
-    return url.origin === origin && /^\/(?:toilet\/[1-9]\d*)?$/.test(url.pathname) ? url.pathname : null
+    return url.origin === origin && isMapPath(url.pathname) ? url.pathname : null
   } catch { return null }
 }
 

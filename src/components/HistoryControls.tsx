@@ -2,10 +2,13 @@ import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } f
 import { historyRange, type HistoryRange } from '../lib/history'
 import { historyScroller } from '../lib/useHistoryWindow'
 import { HistoryDatePicker } from './HistoryDatePicker'
+import { useMessages } from '../i18n/context'
 export function HistoryHeading({ title, onClose, id, closeDisabled = false }: { title: string; onClose?: () => void; id?: string; closeDisabled?: boolean }) {
-  return <header className="history-heading"><div className="history-title-row"><h1 id={id} tabIndex={-1}>{title}</h1>{onClose && <button type="button" className="history-close" disabled={closeDisabled} onClick={onClose} aria-label={`${title} 닫기`}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" /></svg></button>}</div></header>
+  const t = useMessages()
+  return <header className="history-heading"><div className="history-title-row"><h1 id={id} tabIndex={-1}>{title}</h1>{onClose && <button type="button" className="history-close" disabled={closeDisabled} onClick={onClose} aria-label={t('history.close', { title })}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" /></svg></button>}</div></header>
 }
 export function HistoryFilters({ value, onChange, count, countLabel, embedded = false, floatingCalendar = embedded, children }: { value: HistoryRange; onChange: (value: HistoryRange) => void; count: number; countLabel?: string; embedded?: boolean; floatingCalendar?: boolean; children?: ReactNode }) {
+  const t = useMessages()
   const [open, setOpen] = useState(false)
   const id = useId(), root = useRef<HTMLDivElement>(null), periods = useRef<HTMLDivElement>(null), calendar = useRef<HTMLDivElement>(null), toggle = useRef<HTMLButtonElement>(null)
   useLayoutEffect(() => {
@@ -46,23 +49,24 @@ export function HistoryFilters({ value, onChange, count, countLabel, embedded = 
     onChange(next); setOpen(false)
     if (root.current) { const scroll = historyScroller(root.current); if (scroll) scroll.scrollTop = 0 }
   }
-  const rangeLabel = value.period === 'all' ? '전체 기간' : `${value.from.replaceAll('-', '.')} – ${value.to.replaceAll('-', '.')}`
+  const rangeLabel = value.period === 'all' ? t('history.allTime') : `${value.from.replaceAll('-', '.')} – ${value.to.replaceAll('-', '.')}`
   return <div className={`history-filter-shell${embedded ? ' is-embedded' : ''}${floatingCalendar ? ' has-floating-calendar' : ''}`} ref={root} onKeyDownCapture={event => {
     // Dismiss the date popup before the enclosing dialog's native Escape listener.
     if (open && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); toggle.current?.focus({ preventScroll: true }); setOpen(false) }
   }}>
     <div className="history-filters">
-      <div ref={periods} className="history-periods" role="group" aria-label="조회 기간">
-        {(['7', '30', 'all'] as const).map(period => <button type="button" key={period} aria-pressed={value.period === period} onClick={() => change(historyRange(period))}>{period === 'all' ? '전체' : `최근 ${period}일`}</button>)}
-        <button type="button" ref={toggle} className="history-date-toggle" aria-label="날짜 직접 선택" title={open ? '날짜 선택 닫기' : '날짜 직접 선택'} aria-expanded={open} aria-controls={`${id}-dates`} aria-pressed={value.period === 'custom'} onClick={() => setOpen(!open)}><svg viewBox="0 0 24 24" aria-hidden="true">{open ? <path d="m6 15 6-6 6 6" /> : <><path d="M3 7h7m4 0h7M3 17h3m4 0h11" /><circle cx="12" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></>}</svg></button>
+      <div ref={periods} className="history-periods" role="group" aria-label={t('history.range')}>
+        {(['7', '30', 'all'] as const).map(period => <button type="button" key={period} aria-pressed={value.period === period} onClick={() => change(historyRange(period))}>{period === 'all' ? t('common.all') : t('history.lastDays', { days: period })}</button>)}
+        <button type="button" ref={toggle} className="history-date-toggle" aria-label={t('history.custom')} title={t(open ? 'history.closeDates' : 'history.custom')} aria-expanded={open} aria-controls={`${id}-dates`} aria-pressed={value.period === 'custom'} onClick={() => setOpen(!open)}><svg viewBox="0 0 24 24" aria-hidden="true">{open ? <path d="m6 15 6-6 6 6" /> : <><path d="M3 7h7m4 0h7M3 17h3m4 0h11" /><circle cx="12" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></>}</svg></button>
       </div>
       {open && <div ref={calendar} className="history-date-popover"><HistoryDatePicker id={`${id}-dates`} initialFrom={value.from} initialTo={value.to} onApply={(from, to) => { change({ period: 'custom', from, to }); toggle.current?.focus({ preventScroll: true }) }} onClose={() => { setOpen(false); toggle.current?.focus({ preventScroll: true }) }} /></div>}
-      <div className="history-range-caption"><span>{rangeLabel}</span><span>{countLabel ?? `${count}개 · 최신순`}</span></div>
+      <div className="history-range-caption"><span>{rangeLabel}</span><span>{countLabel ?? t('history.count', { count })}</span></div>
     </div>
     {children}
   </div>
 }
 export function HistoryMore({ count, total, onMore, label }: { count: number; total: number; onMore: () => void; label?: string }) {
+  const t = useMessages()
   const button = useRef<HTMLButtonElement>(null)
   const latest = useRef(onMore)
   useEffect(() => { latest.current = onMore }, [onMore])
@@ -74,5 +78,5 @@ export function HistoryMore({ count, total, onMore, label }: { count: number; to
     observer.observe(button.current)
     return () => observer.disconnect()
   }, [count, total])
-  return count < total ? <button ref={button} type="button" className="history-more" onClick={onMore}>{label ?? <>더 보기 <span>{count} / {total}</span></>}</button> : total > 0 ? <p className="history-end">모든 내역을 확인했어요</p> : null
+  return count < total ? <button ref={button} type="button" className="history-more" onClick={onMore}>{label ?? <>{t('common.more')} <span>{count} / {total}</span></>}</button> : total > 0 ? <p className="history-end">{t('history.end')}</p> : null
 }

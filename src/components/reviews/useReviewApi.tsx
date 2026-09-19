@@ -1,12 +1,14 @@
 'use client'
 
+import { useLocale, useMessages } from '../../i18n/context'
+import { reviewErrorMessage } from '../../i18n/reviewErrors'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { reviewApi } from '../../api/reviews'
 import { ReviewApiError, type StoredReview } from '../../lib/reviewApi'
 import { historyRange } from '../../lib/history'
 import { canManageReview, type ReviewInput } from '../../lib/review'
 import { requireReviewFix, reviewLocationProblem, ReviewGateError } from '../../lib/reviewLocation'
-import { isMobileReviewDevice, MOBILE_REVIEW_ONLY_MESSAGE } from '../../lib/reviewDevice'
+import { isMobileReviewDevice } from '../../lib/reviewDevice'
 import { invalidatePublicReviewPrefetch } from '../../lib/publicReviewPrefetch'
 import { trackEvent } from '../../lib/analytics'
 import { ReviewDialog, ReviewModal, type ReviewEligibility } from './ReviewDialog'
@@ -15,11 +17,12 @@ import type { MineNavigation, PreviewReviewSummary, ReviewAccess, ReviewEntrySta
 
 type Entry = ReviewEntryState & { id: number }
 type ExistingPrompt = { reviewId: string; toiletId: number; toiletName: string }
-const apiMessage = (error: unknown) => error instanceof ReviewApiError || error instanceof ReviewGateError ? error.message : '리뷰를 불러오지 못했어요. 다시 확인해 주세요.'
 const sameInput = (toiletId: number, v: ReviewInput) => JSON.stringify([toiletId, v.satisfaction, v.cleanliness, v.paper, v.waitMinutes, v.comment])
 
 /** Server-backed mode. No memory fallback after an API error, and no writes to fixture facilities. */
 export function useReviewApi(owner: string | null, access: ReviewAccess, navigation?: MineNavigation) {
+  const locale = useLocale(), t = useMessages()
+  const apiMessage = (error: unknown) => reviewErrorMessage(error, locale)
   const [target, setTarget] = useState<ReviewTarget | null>(null), [editing, setEditing] = useState<StoredReview | null>(null)
   const [mine, setMine] = useState(false), [saved, setSaved] = useState(false)
   const [existingPrompt, setExistingPrompt] = useState<ExistingPrompt | null>(null)
@@ -84,7 +87,7 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
     const token = ++epoch.current
     updateEntry(null); setMine(true); setTarget(null); setEditing(null); setSaved(false); setExistingPrompt(null); setRange(nextRange)
     setFocus(value => ({ id: focusedId, visit: value.visit + 1 })); setItems([]); setCursor(null); setHasMore(false)
-    setMessage(focusedId ? '작성한 리뷰 내역이 있습니다. 기존 리뷰를 확인하거나 수정해 주세요.' : '')
+    setMessage(focusedId ? t('review.existingHint') : '')
     setListLoading(true); setListError(''); setMoreError(''); setMoreLoading(false); navigation?.onOpen()
     try {
       await session(token)
@@ -124,10 +127,10 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
   }
   async function check(next: ReviewTarget, fresh = false, inEditor = false) {
     if (!owner) { access.requireLogin(); return }
-    if (next.id <= 0) { updateEntry({ id: next.id, status: 'notice', message: '테스트 화장실에는 실제 리뷰를 저장하지 않아요.' }); return }
+    if (next.id <= 0) { updateEntry({ id: next.id, status: 'notice', message: t('review.testOnly') }); return }
     const token = ++epoch.current
-    if (inEditor) setEligibility({ status: 'checking', message: '현재 위치를 확인하고 있어요.' })
-    else updateEntry({ id: next.id, status: 'checking', message: '작성한 리뷰·로그인 확인 중' })
+    if (inEditor) setEligibility({ status: 'checking', message: t('review.checkingLocation') })
+    else updateEntry({ id: next.id, status: 'checking', message: t('review.checkingAccess') })
     try {
       const [, status] = await Promise.all([session(token), reviewApi.status(next.id)])
       if (!current(token)) return
@@ -135,7 +138,7 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
         if (status.existingReviewId) { promptExisting(next, status.existingReviewId); return }
         throw new ReviewApiError('REVIEW_ALREADY_EXISTS', '작성 후 24시간이 지나야 다시 리뷰를 남길 수 있어요.')
       }
-      if (!inEditor) updateEntry({ id: next.id, status: 'checking', message: '현재 위치 확인 중' })
+      if (!inEditor) updateEntry({ id: next.id, status: 'checking', message: t('review.checkingLocation') })
       await requireReviewFix(next, { fresh })
       if (!current(token)) return
       setEligibility({ status: 'ready', message: '' })
@@ -151,7 +154,7 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
     if (entryRef.current?.status === 'checking') return
     if (!owner) { access.requireLogin(); return }
     if (!isMobileReviewDevice()) {
-      updateEntry({ id: next.id, status: 'notice', message: MOBILE_REVIEW_ONLY_MESSAGE })
+      updateEntry({ id: next.id, status: 'notice', message: t('review.mobileRequired') })
       return
     }
     const fresh = entryRef.current?.id === next.id && entryRef.current.status === 'retry'
@@ -220,7 +223,7 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
       if (!current(token)) return
       invalidatePublicReviewPrefetch(item.toiletId)
       setItems(values => values.filter(v => v.id !== item.id))
-      setMessage('작성자 정보만 지웠어요. 글과 평가는 남고, 내 리뷰에서는 제외됐어요.'); void refreshSummary(item.toiletId)
+      setMessage(t('review.detached')); void refreshSummary(item.toiletId)
     } catch (error) { if (current(token)) { authFailure(error); throw error } }
     finally { writing.current = false }
   }
@@ -230,9 +233,9 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
     onEdit={item => { void edit(item) }} onDetach={detach} remote={{ range, onRangeChange: value => { void loadMine(value) }, hasMore, loadingMore: moreLoading, moreError, onMore: () => { void more() } }} />
   const modal = target ? <ReviewDialog key={`${owner}:${editing?.id ?? target.id}`} toiletName={target.name} initial={editing ?? undefined} onClose={closeOverlay} onSave={save}
     eligibility={editing ? undefined : eligibility} onRetryEligibility={editing ? undefined : () => { void check(target, true, true) }} />
-    : saved ? <ReviewModal title="리뷰를 저장했어요" onClose={closeOverlay} footer={<div className="rv-two-actions"><button className="rv-secondary" onClick={closeOverlay}>{mine ? '목록으로 돌아가기' : '지도로 돌아가기'}</button><button className="rv-primary" onClick={() => { void openMine() }}>내 리뷰 보기</button></div>}><div className="rv-complete"><h1>이용 경험을 남겼어요</h1><p>저장한 리뷰는 내 리뷰에서 다시 확인할 수 있어요.</p></div></ReviewModal>
-    : existingPrompt ? <ReviewModal title="작성한 리뷰가 있어요" onClose={dismissExisting} footer={<div className="rv-two-actions"><button className="rv-secondary" onClick={dismissExisting}>뒤로 가기</button><button className="rv-primary" onClick={viewExisting}>내 리뷰 보기</button></div>}><div className="rv-complete"><h1>{existingPrompt.toiletName}</h1><p>이 화장실에 오늘 작성한 리뷰가 있어요. 기존 리뷰를 확인할까요?</p></div></ReviewModal>
-    : mine && !navigation?.embedded ? <ReviewModal title="내 리뷰" onClose={() => { if (!writing.current) close() }}>{content}</ReviewModal> : null
+    : saved ? <ReviewModal title={t('review.saved')} onClose={closeOverlay} footer={<div className="rv-two-actions"><button className="rv-secondary" onClick={closeOverlay}>{t(mine ? 'review.backList' : 'detail.back')}</button><button className="rv-primary" onClick={() => { void openMine() }}>{t('review.viewMine')}</button></div>}><div className="rv-complete"><h1>{t('review.savedTitle')}</h1><p>{t('review.savedHint')}</p></div></ReviewModal>
+    : existingPrompt ? <ReviewModal title={t('review.existingTitle')} onClose={dismissExisting} footer={<div className="rv-two-actions"><button className="rv-secondary" onClick={dismissExisting}>{t('common.back')}</button><button className="rv-primary" onClick={viewExisting}>{t('review.viewMine')}</button></div>}><div className="rv-complete"><h1>{existingPrompt.toiletName}</h1><p>{t('review.existingQuestion')}</p></div></ReviewModal>
+    : mine && !navigation?.embedded ? <ReviewModal title={t('nav.myReviews')} onClose={() => { if (!writing.current) close() }}>{content}</ReviewModal> : null
   return { open, openMine, close, summary: (id: number) => summaries[id], entryState: (id: number) => entry?.id === id ? entry : undefined,
     modal, page: mine && navigation?.embedded ? content : null, active: Boolean(target || saved || existingPrompt || mine || listLoading || entry?.status === 'checking') }
 }

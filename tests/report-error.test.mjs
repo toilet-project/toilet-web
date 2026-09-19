@@ -20,7 +20,7 @@ test('report panel exposes a read-only retry and guards stale completion', () =>
   assert.match(source,/onClick=\{retryReports\}/)
   assert.match(source,/if \(isLoading\) return/)
   assert.match(source,/setError\(null\)/)
-  assert.match(source,/\[requestVersion\]/)
+  assert.match(source,/\[requestVersion, locale\]/)
   assert.match(source,/return \(\) => \{ active = false \}/)
   assert.doesNotMatch(source,/createToiletReport|method:\s*['"]POST/)
 })

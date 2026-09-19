@@ -3,6 +3,8 @@ import { socialLoginPath } from '../lib/oauthReturn'
 import { lifecycleErrorMessage, recoveryReceipt, withdrawalReceipt } from '../lib/accountLifecycle'
 import { fetchSessionRead } from './session'
 import { decodePhoto, type PhotoState } from '../lib/profilePhoto'
+import { saveLanguageLoginReturn } from '../i18n/loginReturn'
+import { ENGLISH_UI_ENABLED } from '../i18n/feature'
 
 export type AuthProfile = {
   userId: string
@@ -50,6 +52,9 @@ export async function getCurrentUser(): Promise<AuthProfile | null> {
 }
 
 export function startSocialLogin(provider: 'google' | 'kakao') {
+  if (ENGLISH_UI_ENABLED) {
+    try { saveLanguageLoginReturn(window.sessionStorage, window.location.pathname) } catch { /* Login is still available. */ }
+  }
   window.location.assign(createApiUrl(socialLoginPath(provider, window.location.origin)))
 }
 
