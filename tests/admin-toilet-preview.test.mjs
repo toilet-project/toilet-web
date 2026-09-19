@@ -31,6 +31,10 @@ test('admin toilet preview is isolated under the fixed preview route', () => {
   assert.match(script, /selectToilet\(Number\(toilet\.id\)\)/)
   assert.match(script, /const PAGE_SIZE = 10/)
   assert.match(styles, /\.toilet-list-address\s*\{[^}]*-webkit-line-clamp:\s*2/)
+  assert.match(script, /width="24" height="38" viewBox="0 0 24 38"/)
+  assert.match(script, /M12 11V36/)
+  assert.match(script, /markerImage\(K,'#157d48'\)/)
+  assert.match(script, /markerImage\(K,'#ee872c'\)/)
 })
 
 test('preview uses existing real-data reads and blocks production writes', () => {
