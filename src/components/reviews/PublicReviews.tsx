@@ -5,6 +5,7 @@ import { reviewAverageLabel } from '../../lib/review'
 import type { StoredReview } from '../../lib/reviewApi'
 import { publicPhotoPath } from '../../lib/profilePhoto'
 import { cachedPublicReviews, loadPublicReviews, prefetchPublicReviews, PUBLIC_REVIEW_API_ENABLED } from '../../lib/publicReviewPrefetch'
+import { trackEvent } from '../../lib/analytics'
 import { PhotoImage } from '../ProfilePhoto'
 import { ReviewIcon } from './ReviewDialog'
 
@@ -105,6 +106,7 @@ function PublicReviewList({ toiletId, toiletName, toiletType, summary }: { toile
   function openFullView() {
     setPortalTarget(section.current?.closest<HTMLElement>('.place-card, .coordinate-group-card') ?? null)
     setFullView(true)
+    trackEvent('screen_view', { screen: 'review_list' })
   }
 
   function handleSummaryClick(event: MouseEvent<HTMLElement>) {
