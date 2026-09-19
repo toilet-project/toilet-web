@@ -22,6 +22,8 @@ test('admin toilet preview is isolated under the fixed preview route', () => {
   assert.match(script, /\/admin-toilets-preview\/map-config/)
   assert.match(script, /SUGGESTION_DELAY_MS = 60/)
   assert.match(script, /suggestionCache/)
+  assert.match(script, /input\.addEventListener\('input', event => schedule\(\{ includeList: !event\.isComposing && !composing \}\)\)/)
+  assert.doesNotMatch(script, /if \(composing\) return/)
 })
 
 test('preview uses existing real-data reads and blocks production writes', () => {
