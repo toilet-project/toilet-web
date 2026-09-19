@@ -35,6 +35,8 @@ test('admin toilet preview is isolated under the fixed preview route', () => {
   assert.match(script, /M12 11V36/)
   assert.match(script, /markerImage\(K,'#157d48'\)/)
   assert.match(script, /markerImage\(K,'#ee872c'\)/)
+  assert.doesNotMatch(script, /if \(validCoordinates\(original\)\) editMarker\.setMap\(map\)/)
+  assert.match(script, /const setCoordinate =[\s\S]*editMarker\.setMap\(map\)/)
 })
 
 test('preview uses existing real-data reads and blocks production writes', () => {
