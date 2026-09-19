@@ -11,6 +11,7 @@ export function LanguageSelector({ locale, onSelect }: { locale: Locale; onSelec
   const root = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
   const menu = useRef<HTMLDivElement>(null)
+  const pointerInside = useRef(false)
   const menuId = useId()
   const current = LOCALE_OPTIONS.find(option => option.locale === locale)!
 
@@ -18,14 +19,26 @@ export function LanguageSelector({ locale, onSelect }: { locale: Locale; onSelec
     if (!open) return
     menu.current?.querySelector<HTMLButtonElement>('[aria-checked="true"]')?.focus()
     const outside = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node)) setOpen(false)
+      if (!root.current?.contains(event.target as Node)) { pointerInside.current = false; setOpen(false) }
     }
+    const releasePointer = () => { pointerInside.current = false }
     document.addEventListener('pointerdown', outside)
-    return () => document.removeEventListener('pointerdown', outside)
+    // Touch browsers dispatch compatibility mousedown (and blur) AFTER pointerup.
+    document.addEventListener('click', releasePointer)
+    document.addEventListener('pointercancel', releasePointer)
+    return () => {
+      document.removeEventListener('pointerdown', outside)
+      document.removeEventListener('click', releasePointer)
+      document.removeEventListener('pointercancel', releasePointer)
+      releasePointer()
+    }
   }, [open])
 
   const close = () => { setOpen(false); trigger.current?.focus() }
-  return <div ref={root} className="language-selector" onBlur={event => {
+  return <div ref={root} className="language-selector" onPointerDownCapture={() => { pointerInside.current = true }} onKeyDownCapture={() => { pointerInside.current = false }} onBlur={event => {
+    // Safari blurs the focused option to the body before a tapped button's click.
+    // Keep that option mounted until activation; outside pointers and Tab still close.
+    if (event.relatedTarget === null && pointerInside.current) return
     if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setOpen(false)
   }} onKeyDown={event => {
     if (event.key === 'Escape' && open) { event.preventDefault(); event.stopPropagation(); close() }
