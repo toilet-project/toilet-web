@@ -152,6 +152,7 @@ module.exports = async function runAccountChecks(browser, origin) {
         assert.equal(await page.locator('html').getAttribute('lang'), 'en')
         assert.equal(await page.getByRole('link', { name: 'Back to map', exact: true }).getAttribute('href'), '/en')
         assert.equal(await page.locator('.policy-translation-note a').getAttribute('href'), '/policies/' + kind)
+        assert.equal(await page.locator('.policy-footer').getByRole('link', { name: 'Terms', exact: true }).getAttribute('href'), '/en/policies/terms')
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
         if (kind === 'all') await page.screenshot({ path: path.resolve(`.next/i18n-policy-${width}.png`) })
       }

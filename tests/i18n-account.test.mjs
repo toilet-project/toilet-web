@@ -18,6 +18,7 @@ test('only current verified policy paths are localized; versions and archives ne
   assert.equal(policyTitle('en', 'AGE_14_PLUS', '원문'), 'Confirmation of Age 14 or Older')
   assert.equal(policyTitle('en', 'unknown', '원문'), '원문')
   assert.equal(policyTitle('ko', 'SERVICE_TERMS', '원문'), '원문')
+  for (const key of ['menu.terms', 'menu.privacy', 'menu.location', 'policy.terms', 'policy.privacy']) assert.doesNotMatch(message('en', key), /Korean/)
 })
 
 test('account dates remain in Korea time and only fixed errors are translated', () => {

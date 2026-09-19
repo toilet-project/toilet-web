@@ -6,15 +6,15 @@ const pairs = {
   ],
   "menu.terms": [
     "이용약관",
-    "Terms (Korean)"
+    "Terms"
   ],
   "menu.privacy": [
     "개인정보 처리방침",
-    "Privacy (Korean)"
+    "Privacy"
   ],
   "menu.location": [
     "위치정보 안내",
-    "Location policy (Korean)"
+    "Location policy"
   ],
   "menu.contact": [
     "문의",
@@ -299,10 +299,6 @@ const pairs = {
   "detail.femaleToilets": [
     "여성 대변기",
     "Women’s toilets"
-  ],
-  "policy.original": [
-    "약관·동의 안내는 한국어 원문입니다.",
-    "Policy documents and consent information are provided in Korean."
   ],
   "policy.loading": [
     "약관을 불러오는 중…",

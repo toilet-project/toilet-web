@@ -49,6 +49,7 @@ async function main() {
     await page.getByRole('dialog', { name: 'Log in or sign up' }).waitFor()
     assert.equal(await page.locator('.login-modal p').first().innerText(), 'Log in to write a review.')
     await page.getByRole('button', { name: 'Close login', exact: true }).click()
+    assert.equal(await page.locator('.policy-footer').getByRole('link', { name: 'Terms', exact: true }).getAttribute('href'), '/en/policies/terms')
     assert.deepEqual(errors, [])
     console.log(JSON.stringify({ passed: true, browser: touchSafari ? 'webkit-touch' : 'chromium', realKakaoMap: true, originalFacilityTitle: title, widths: [320, 390, 1280], blockedWriteRequests: [...new Set(writes)], loginSubmitted: false }))
   } finally { await browser.close() }
