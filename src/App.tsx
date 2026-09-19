@@ -8,6 +8,11 @@ import { createDetailCache } from './lib/detailCache'
 import { createCardHandleGesture, createMarkerTapGesture, createReferenceRequestGate, relayoutPreservingCenter } from './lib/mapInteraction'
 import { cardPlacement } from './lib/cardPlacement'
 import { DesktopHeaderMenu } from './components/DesktopHeaderMenu'
+import { LanguageSelector } from './components/LanguageSelector'
+import { useLocale, useMessages } from './i18n/context'
+import { ENGLISH_UI_ENABLED } from './i18n/feature'
+import { isLanguageOnlyNavigation, localizedPublicPath } from './i18n/routes'
+import type { Locale } from './i18n/locale'
 import { MobileNavigation, MobilePage, type MobileTab, type MobileAccountView } from './components/MobileNavigation'
 import { AppUpdateNotice } from './components/AppUpdateNotice'
 import { readMapResume, saveMapResume, MAP_RESUME_KEY } from './lib/appUpdate'
@@ -159,7 +164,10 @@ function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
   })
 }
 
-function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: MapRouteData; onNavigate: (id: number | null) => void; onMounted: () => void; testToiletHash?: string }) {
+function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash = '' }: { route: MapRouteData; onNavigate: (id: number | null) => void; onMounted: () => void; onLocaleChange: (locale: Locale, id: number | null) => void; testToiletHash?: string }) {
+  const locale = useLocale()
+  const t = useMessages()
+  const previousRoutePath = useRef('')
   const [initialRoute] = useState(route)
   // MapShell remounts only when this explicit test link changes, clearing its memory reviews.
   const [testToilet] = useState(() => readReviewTestToilet(testToiletHash, REVIEW_DESIGN_PREVIEW))
@@ -658,6 +666,9 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
   }, [isMapReady, mapCenter, distanceSource, currentLocation, isMobileCardExpanded])
 
   useEffect(() => {
+    const languageOnly = isLanguageOnlyNavigation(previousRoutePath.current, route.path)
+    previousRoutePath.current = route.path
+    if (languageOnly) return // Keep open groups, selected cards, list scroll and map viewport.
     const detail = route.detail ? detailCache.get(route.detail.id) ?? route.detail : null
     if (!detail) {
       if (testToilet && selectedToiletRef.current?.id === testToilet.id) return
@@ -1366,7 +1377,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
           const map = mapRef.current
           if (!map) return false
           // Do not reload while URL navigation is still catching up with the selected card.
-          const expectedPath = selectedToilet ? `/toilet/${selectedToilet.id}` : '/'
+          const expectedPath = localizedPublicPath(selectedToilet ? `/toilet/${selectedToilet.id}` : '/', locale)!
           if (window.location.pathname !== expectedPath || route.path !== expectedPath) return false
           const center = map.getCenter()
           try {
@@ -1378,17 +1389,17 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
         }} />
       <header className="topbar">
         <div className="topbar-inner">
-        <a className="brand" href="/" aria-label="급똥 지도 홈">급똥</a>
-        <span className="subtitle">내 주변 공중화장실 찾기</span>
+        <a className="brand" href={localizedPublicPath('/', locale)!} aria-label={t('map.home')}>급똥</a>
+        <span className="subtitle">{t('map.subtitle')}</span>
         <div className="place-search">
-          <label className="sr-only" htmlFor="place-search-input">주소 또는 장소 검색</label>
+          <label className="sr-only" htmlFor="place-search-input">{t('map.search')}</label>
           <input
             ref={placeSearchInputRef}
             id="place-search-input"
             className="place-search-input"
             type="search"
             value={placeSearchKeyword}
-            placeholder={isDesktop ? '주소 또는 장소 검색' : '주소·장소 검색'}
+            placeholder={isDesktop ? t('map.search') : t('map.searchShort')}
             role="combobox"
             aria-autocomplete="list"
             aria-expanded={isPlaceSearchResultsOpen}
@@ -1399,8 +1410,8 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
             onFocus={handlePlaceSearchFocus}
             onBlur={() => setIsPlaceSearchFocused(false)}
           />
-          {isPlaceSearchResultsOpen && <div id="place-search-results" className="place-search-results" role="listbox" aria-label="장소 검색 결과">
-            {isPlaceSearching && <p className="place-search-status">검색 중…</p>}
+          {isPlaceSearchResultsOpen && <div id="place-search-results" className="place-search-results" role="listbox" aria-label={t('map.results')}>
+            {isPlaceSearching && <p className="place-search-status">{t('map.searching')}</p>}
             {!isPlaceSearching && placeSearchMessage && <p className="place-search-status">{placeSearchMessage}</p>}
             {!isPlaceSearching && placeSearchResults.map((place, index) => <button
               id={`place-search-result-${place.id}`}
@@ -1411,24 +1422,27 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
               className={activePlaceSearchIndex === index ? 'is-active' : ''}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => moveToSearchPlace(place)}
-            ><strong>{place.name}</strong><span>{place.address || '주소 정보 없음'}</span></button>)}
+            ><strong>{place.name}</strong><span>{place.address || t('map.noAddress')}</span></button>)}
           </div>}
         </div>
         {!isDesktop && <div className="mobile-header-actions">
+          {ENGLISH_UI_ENABLED ? <LanguageSelector locale={locale} onSelect={next => onLocaleChange(next, testToilet ? null : selectedToilet?.id ?? expandedCoordinateToilet?.id ?? null)} /> : <>
           {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => setMobileTab('account')}>로그인</button>}
           <DesktopHeaderMenu compact authenticated={Boolean(authProfile)} onReports={openMyReports} onAccount={() => { reviewPreview.close(); setMobileTab('account'); setMobileAccountView('home') }} onLogout={handleLogout} />
+          </>}
         </div>}
         {isDesktop && <div className="desktop-header-actions">
           {isAuthLoading ? <span className="auth-status">확인 중…</span> : authProfile ? <>
             <button type="button" className="notification-button" onClick={() => setIsNotificationsOpen(true)} aria-label={unreadNotificationCount ? `읽지 않은 알림 ${unreadNotificationCount}개` : '알림'}><span aria-hidden="true" />{unreadNotificationCount > 0 && <strong>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</strong>}</button>
-            <button type="button" className="header-account-button" onClick={() => setIsAccountOpen(true)}>내 계정</button>
-          </> : <button type="button" className="header-account-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}>로그인 / 회원가입</button>}
+            <button type="button" className="header-account-button" onClick={() => setIsAccountOpen(true)}>{t('auth.account')}</button>
+          </> : <button type="button" className="header-account-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}>{t('auth.login')}</button>}
+          {ENGLISH_UI_ENABLED && <LanguageSelector locale={locale} onSelect={next => onLocaleChange(next, testToilet ? null : selectedToilet?.id ?? expandedCoordinateToilet?.id ?? null)} />}
           <DesktopHeaderMenu authenticated={Boolean(authProfile)} onReviews={REVIEW_UI_ENABLED ? reviewPreview.openMine : undefined} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} />
         </div>}
         </div>
       </header>
 
-      <section className="map-section" aria-label="공중화장실 지도">
+      <section className="map-section" aria-label={t('map.title')}>
         <div className="map-stage" inert={!isDesktop && mobileTab !== 'map'} style={!isDesktop && mobileTab !== 'map' ? { visibility: 'hidden' } : undefined}>
         <div ref={mapContainerRef} className="map" />
         {error && result && <div className="connection-status-banner" role="alert">
@@ -1439,7 +1453,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
           </div>
           <button type="button" onClick={() => void loadMapArea()} disabled={isLoading}>{isLoading ? '연결 중…' : '다시 연결'}</button>
         </div>}
-        <p className="desktop-map-reference-hint">지도를 클릭해 거리 기준점을 옮길 수 있어요.</p>
+        <p className="desktop-map-reference-hint">{t('map.referenceHint')}</p>
         <div className={`map-controls${hasMapCard ? ' is-with-card' : ''}`}>
           <div className="map-hud" aria-live="polite">
             {isLoading && <span className="map-loading-message">지도를 조회하는 중…</span>}
@@ -1448,7 +1462,7 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
             {error && !result && <span className="error-message">{error}</span>}
           </div>
           <button className={`location-button${hasMapCard ? ' is-with-card' : ''}`} type="button" onClick={() => void moveToCurrentLocation()} disabled={isLocating}>
-            {isLocating ? '확인 중' : '현재 위치'}
+            {isLocating ? t('map.checking') : t('map.currentLocation')}
           </button>
         </div>
         {mobileZoomGuideKey !== null && <div key={mobileZoomGuideKey} className="mobile-map-zoom-guide" role="status" aria-live="polite">

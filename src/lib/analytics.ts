@@ -18,7 +18,8 @@ export type AnalyticsEventName = keyof typeof eventParameters
 export type AnalyticsParameters = Record<string, string | number | boolean | undefined>
 
 export function sanitizeAnalyticsPagePath(pathname: string) {
-  const path = pathname.split(/[?#]/, 1)[0] || '/'
+  // Language is a presentation variant, not a new analytics path or identifier.
+  const path = pathname.split(/[?#]/, 1)[0].replace(/^\/en(?=\/|$)/, '') || '/'
   if (/^\/toilet\/\d+\/?$/.test(path)) return '/toilet/:id'
   if (/^\/review-verification\/[^/]+\/?$/.test(path)) return '/review-verification/:id'
   return /^\/[a-z0-9/_-]{0,119}$/i.test(path) ? path : '/other'

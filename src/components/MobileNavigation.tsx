@@ -8,6 +8,7 @@ import { NotificationPanel } from './NotificationPanel'
 import { HistoryScrollTop } from './HistoryScrollTop'
 import { AccountDialog } from './AccountDialog'
 import { TRANSIENT_NOTICE_MS } from '../lib/uiTiming'
+import { useMessages, useLocale } from '../i18n/context'
 
 export type MobileTab = 'map' | 'notifications' | 'account'
 export type MobileAccountView = 'home' | 'reports' | 'reviews' | 'settings'
@@ -25,6 +26,8 @@ function Icon({ name }: { name: IconName }) {
 }
 
 export function MobileNavigation({ tab, onChange, unread }: { tab: MobileTab; onChange: (tab: MobileTab) => void; unread: number }) {
+  const t = useMessages()
+  const locale = useLocale()
   const [communityNotice, setCommunityNotice] = useState(false)
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (noticeTimer.current) clearTimeout(noticeTimer.current) }, [])
@@ -40,12 +43,12 @@ export function MobileNavigation({ tab, onChange, unread }: { tab: MobileTab; on
     setCommunityNotice(true)
     noticeTimer.current = setTimeout(() => { setCommunityNotice(false); noticeTimer.current = null }, TRANSIENT_NOTICE_MS)
   }
-  return <nav className="mobile-navigation" aria-label="하단 내비게이션">
-    <button type="button" aria-current={tab === 'map' ? 'page' : undefined} onClick={() => onChange('map')}><span className="mobile-nav-icon"><Icon name="map" /></span><span>지도</span></button>
-    <button type="button" onClick={showCommunityNotice}><span className="mobile-nav-icon"><Icon name="community" /></span><span>커뮤니티</span></button>
-    <button type="button" aria-current={tab === 'notifications' ? 'page' : undefined} onClick={() => onChange('notifications')}><span className="mobile-nav-icon"><Icon name="notifications" /></span><span>알림</span>{unread > 0 && <b aria-label={`읽지 않은 알림 ${unread}개`}>{unread > 99 ? '99+' : unread}</b>}</button>
-    <button type="button" aria-current={tab === 'account' ? 'page' : undefined} onClick={() => onChange('account')}><span className="mobile-nav-icon"><Icon name="account" /></span><span>내 페이지</span></button>
-    <div className="mobile-community-notice" role="status" aria-live="polite" aria-atomic="true">{communityNotice ? '준비 중이에요' : ''}</div>
+  return <nav className="mobile-navigation" aria-label={t('nav.main')}>
+    <button type="button" aria-current={tab === 'map' ? 'page' : undefined} onClick={() => onChange('map')}><span className="mobile-nav-icon"><Icon name="map" /></span><span>{t('nav.map')}</span></button>
+    <button type="button" onClick={showCommunityNotice}><span className="mobile-nav-icon"><Icon name="community" /></span><span>{t('nav.community')}</span></button>
+    <button type="button" aria-current={tab === 'notifications' ? 'page' : undefined} onClick={() => onChange('notifications')}><span className="mobile-nav-icon"><Icon name="notifications" /></span><span>{t('nav.notifications')}</span>{unread > 0 && <b aria-label={locale === 'en' ? `${unread} unread notifications` : `읽지 않은 알림 ${unread}개`}>{unread > 99 ? '99+' : unread}</b>}</button>
+    <button type="button" aria-current={tab === 'account' ? 'page' : undefined} onClick={() => onChange('account')}><span className="mobile-nav-icon"><Icon name="account" /></span><span>{t('nav.account')}</span></button>
+    <div className="mobile-community-notice" role="status" aria-live="polite" aria-atomic="true">{communityNotice ? t('nav.comingSoon') : ''}</div>
   </nav>
 }
 

@@ -6,69 +6,74 @@ import { getDisplayAddress } from '../lib/address'
 import { regionLabel } from '../lib/toiletRoute'
 import { visibleCounts, hasValue, formatPhoneNumber, formatInstallationDate, formatFacilityLocation, type CountItem } from '../lib/detailFormatting'
 import { TRANSIENT_NOTICE_MS } from '../lib/uiTiming'
+import { useLocale, useMessages } from '../i18n/context'
 
 export function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse }) {
+  const t = useMessages()
   const maleCounts = visibleCounts([
-    { label: '대변기', count: toilet.maleToiletCount },
-    { label: '소변기', count: toilet.maleUrinalCount },
-    { label: '장애인 대변기', count: toilet.maleDisabledToiletCount },
-    { label: '장애인 소변기', count: toilet.maleDisabledUrinalCount },
-    { label: '어린이 대변기', count: toilet.maleChildToiletCount },
-    { label: '어린이 소변기', count: toilet.maleChildUrinalCount },
+    { label: t('detail.toilets'), count: toilet.maleToiletCount },
+    { label: t('detail.urinals'), count: toilet.maleUrinalCount },
+    { label: t('detail.accessibleToilets'), count: toilet.maleDisabledToiletCount },
+    { label: t('detail.accessibleUrinals'), count: toilet.maleDisabledUrinalCount },
+    { label: t('detail.childToilets'), count: toilet.maleChildToiletCount },
+    { label: t('detail.childUrinals'), count: toilet.maleChildUrinalCount },
   ])
   const femaleCounts = visibleCounts([
-    { label: '대변기', count: toilet.femaleToiletCount },
-    { label: '장애인 대변기', count: toilet.femaleDisabledToiletCount },
-    { label: '어린이 대변기', count: toilet.femaleChildToiletCount },
+    { label: t('detail.toilets'), count: toilet.femaleToiletCount },
+    { label: t('detail.accessibleToilets'), count: toilet.femaleDisabledToiletCount },
+    { label: t('detail.childToilets'), count: toilet.femaleChildToiletCount },
   ])
   const address = getDisplayAddress(toilet.roadAddress, toilet.jibunAddress)
 
   return (
-    <div className="card-details" tabIndex={0} aria-label="화장실 상세 정보">
-      {address && <DetailRow className="detail-address" label="주소" value={address} copyable />}
-      {regionLabel(toilet.region) && <DetailRow label="지역" value={regionLabel(toilet.region)} />}
-      {hasValue(toilet.openTimeDetail) && <DetailRow label="개방시간 상세" value={toilet.openTimeDetail} />}
-      {hasValue(toilet.installationDate) && <DetailRow label="설치연월" value={formatInstallationDate(toilet.installationDate)} />}
+    <div className="card-details" tabIndex={0} aria-label={t('detail.title')}>
+      {address && <DetailRow className="detail-address" label={t('detail.address')} value={address} copyable />}
+      {regionLabel(toilet.region) && <DetailRow label={t('detail.region')} value={regionLabel(toilet.region)} />}
+      {hasValue(toilet.openTimeDetail) && <DetailRow label={t('detail.openingDetails')} value={toilet.openTimeDetail} />}
+      {hasValue(toilet.installationDate) && <DetailRow label={t('detail.installed')} value={formatInstallationDate(toilet.installationDate)} />}
       {(maleCounts.length > 0 || femaleCounts.length > 0) && <section className="detail-section">
-        <h2>화장실 수</h2>
+        <h2>{t('detail.capacity')}</h2>
         <div className="capacity-groups">
-          {maleCounts.length > 0 && <CapacityGroup title="남성" items={maleCounts} />}
-          {femaleCounts.length > 0 && <CapacityGroup title="여성" items={femaleCounts} />}
+          {maleCounts.length > 0 && <CapacityGroup title={t('detail.male')} items={maleCounts} />}
+          {femaleCounts.length > 0 && <CapacityGroup title={t('detail.female')} items={femaleCounts} />}
         </div>
       </section>}
       <section className="detail-section facility-section">
-        <h2>편의·안전</h2>
-        <FacilityRow label="비상벨" available={toilet.hasEmergencyBell === 'Y'} location={toilet.emergencyBellLocation} />
+        <h2>{t('detail.safety')}</h2>
+        <FacilityRow label={t('detail.bell')} available={toilet.hasEmergencyBell === 'Y'} location={toilet.emergencyBellLocation} />
         <FacilityRow label="CCTV" available={toilet.hasCctv === 'Y'} />
-        <FacilityRow label="기저귀 교환대" available={toilet.hasDiaperTable === 'Y'} location={toilet.diaperTableLocation} />
+        <FacilityRow label={t('detail.diaper')} available={toilet.hasDiaperTable === 'Y'} location={toilet.diaperTableLocation} />
       </section>
-      {hasValue(toilet.agencyName) && <DetailRow label="관리기관" value={toilet.agencyName} />}
-      {hasValue(toilet.phoneNumber) && <DetailRow label="전화" value={formatPhoneNumber(toilet.phoneNumber)} />}
-      {hasValue(toilet.dataBaseDate) && <DetailRow label="데이터 기준일" value={toilet.dataBaseDate} />}
+      {hasValue(toilet.agencyName) && <DetailRow label={t('detail.agency')} value={toilet.agencyName} />}
+      {hasValue(toilet.phoneNumber) && <DetailRow label={t('detail.phone')} value={formatPhoneNumber(toilet.phoneNumber)} />}
+      {hasValue(toilet.dataBaseDate) && <DetailRow label={t('detail.dataDate')} value={toilet.dataBaseDate} />}
     </div>
   )
 }
 
 function CapacityGroup({ title, items }: { title: string; items: CountItem[] }) {
-  return <div className="capacity-group"><h3>{title}</h3><dl>{items.map(({ label, count }) => <div key={label}><dt>{label}</dt><dd>{count}대</dd></div>)}</dl></div>
+  const locale = useLocale()
+  return <div className="capacity-group"><h3>{title}</h3><dl>{items.map(({ label, count }) => <div key={label}><dt>{label}</dt><dd>{count}{locale === 'ko' ? '대' : ''}</dd></div>)}</dl></div>
 }
 
 function FacilityRow({ label, available, location }: { label: string; available: boolean; location?: string }) {
+  const t = useMessages()
   if (!available) {
-    return <div className="facility-row"><strong>{label}</strong><span className="facility-status is-unavailable">미설치</span><span className="facility-location-placeholder" aria-hidden="true" /></div>
+    return <div className="facility-row"><strong>{label}</strong><span className="facility-status is-unavailable">{t('detail.unavailable')}</span><span className="facility-location-placeholder" aria-hidden="true" /></div>
   }
 
   if (!hasValue(location ?? '')) {
-    return <div className="facility-row"><strong>{label}</strong><span className="facility-status">설치됨</span><span className="facility-location-placeholder" aria-hidden="true" /></div>
+    return <div className="facility-row"><strong>{label}</strong><span className="facility-status">{t('detail.available')}</span><span className="facility-location-placeholder" aria-hidden="true" /></div>
   }
 
   return <details className="facility-row facility-row-expandable">
-    <summary><strong>{label}</strong><span className="facility-status">설치됨</span><span className="facility-location-label">위치 보기 <span className="facility-location-arrow" aria-hidden="true" /></span></summary>
-    <p>위치: {formatFacilityLocation(location ?? '')}</p>
+    <summary><strong>{label}</strong><span className="facility-status">{t('detail.available')}</span><span className="facility-location-label">{t('detail.location')} <span className="facility-location-arrow" aria-hidden="true" /></span></summary>
+    <p>{t('detail.location')}: {formatFacilityLocation(location ?? '')}</p>
   </details>
 }
 
 export function DetailRow({ label, value, copyable = false, className = '' }: { label: string; value: string; copyable?: boolean; className?: string }) {
+  const t = useMessages()
   const [copied, setCopied] = useState(false)
   const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
@@ -102,5 +107,5 @@ export function DetailRow({ label, value, copyable = false, className = '' }: { 
     }
   }
 
-  return <div className={`detail-row ${className}`.trim()}><dt>{label}</dt><dd><span>{value}</span>{copyable && <button type="button" className="copy-address-button" onClick={() => void copyValue()}>{copied ? '복사됨' : '주소 복사'}</button>}</dd></div>
+  return <div className={`detail-row ${className}`.trim()}><dt>{label}</dt><dd><span>{value}</span>{copyable && <button type="button" className="copy-address-button" onClick={() => void copyValue()}>{t(copied ? 'detail.copied' : 'detail.copy')}</button>}</dd></div>
 }
