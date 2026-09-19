@@ -106,7 +106,7 @@ const pairs = {
   ],
   "policy.terms": [
     "이용약관",
-    "Terms (Korean)"
+    "Terms"
   ],
   "policy.contact": [
     "문의",
@@ -606,7 +606,7 @@ const pairs = {
   ],
   "policy.privacy": [
     "개인정보 처리방침",
-    "Privacy policy (Korean)"
+    "Privacy policy"
   ],
   "report.reasonRequired": [
     "제보 사유를 입력해 주세요.",
