@@ -3,6 +3,7 @@ const API = 'https://api.geupddong.com'
 const PAGE_SIZE = 15
 const SEARCH_DELAY_MS = 260
 const SUGGESTION_DELAY_MS = 60
+const PREVIEW_READ_ONLY = true
 const SUGGESTION_CACHE_LIMIT = 40
 const number = value => new Intl.NumberFormat('ko-KR').format(Number(value || 0))
 const escapeHtml = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[char])
@@ -471,7 +472,7 @@ function renderDetail(detail) {
   const item = detail.editable
   $('toilet-map-card').innerHTML = `<header class="toilet-card-head"><div><small>LOCATION</small><h2>${escapeHtml(item.name)}</h2></div><div class="toilet-card-actions"><button id="toilet-origin" class="secondary-button" type="button">기존 위치</button></div></header><form id="toilet-map-search-form" class="toilet-map-toolbar"><input id="toilet-map-search" type="search" autocomplete="off" placeholder="지도에서 장소나 주소 찾기"/><button type="submit">이동</button></form><div id="toilet-map" class="toilet-map"></div><footer class="toilet-map-foot"><span>지도를 누르거나 주황 핀을 움직여 수정 좌표를 지정합니다.</span><strong id="toilet-coordinate-status">${escapeHtml(coordinateText(item))}</strong></footer>`
   const groups = fieldGroups.map(group => `<section class="toilet-edit-section"><h3>${escapeHtml(group.title)}</h3><div class="toilet-compare-head"><span>항목</span><span>현재값</span><span>수정값</span></div>${group.fields.map(field => inputMarkup(field, item)).join('')}</section>`).join('')
-  $('toilet-editor-card').innerHTML = `<header class="toilet-card-head"><div><small>DETAIL EDITOR</small><h2>${escapeHtml(item.name)}</h2></div><div class="toilet-editor-meta"><span>ID ${detail.id}</span><span>${escapeHtml(detail.managementNumber || '관리번호 없음')}</span><span>${escapeHtml(regionName(detail.region))}</span><span>${escapeHtml(detail.visibilityStatus)}</span></div></header><div class="toilet-editor-scroll">${groups}</div><footer class="toilet-save-bar"><p id="toilet-save-status">${legacyPreview ? '실데이터 프리뷰에서는 저장하지 않습니다.' : '변경된 항목이 없습니다.'}</p><div class="toilet-card-actions"><button id="toilet-reset-form" class="secondary-button" type="button" disabled>되돌리기</button><button id="toilet-save" type="button" disabled>${legacyPreview ? '프리뷰 저장 차단' : '변경 저장'}</button></div></footer>`
+  $('toilet-editor-card').innerHTML = `<header class="toilet-card-head"><div><small>DETAIL EDITOR</small><h2>${escapeHtml(item.name)}</h2></div><div class="toilet-editor-meta"><span>ID ${detail.id}</span><span>${escapeHtml(detail.managementNumber || '관리번호 없음')}</span><span>${escapeHtml(regionName(detail.region))}</span><span>${escapeHtml(detail.visibilityStatus)}</span></div></header><div class="toilet-editor-scroll">${groups}</div><footer class="toilet-save-bar"><p id="toilet-save-status">${PREVIEW_READ_ONLY || legacyPreview ? '실데이터 프리뷰에서는 저장하지 않습니다.' : '변경된 항목이 없습니다.'}</p><div class="toilet-card-actions"><button id="toilet-reset-form" class="secondary-button" type="button" disabled>되돌리기</button><button id="toilet-save" type="button" disabled>${PREVIEW_READ_ONLY || legacyPreview ? '프리뷰 저장 차단' : '변경 저장'}</button></div></footer>`
   document.querySelectorAll('#toilet-editor-card [data-field]').forEach(input => input.addEventListener('input', updateDirtyState))
   $('toilet-reset-form').addEventListener('click', () => renderDetail(selectedDetail))
   $('toilet-save').addEventListener('click', () => void saveDetail())
@@ -507,16 +508,16 @@ function updateDirtyState() {
   const changed = changedKeys()
   const status = $('toilet-save-status')
   if (!status) return
-  status.textContent = legacyPreview
+  status.textContent = PREVIEW_READ_ONLY || legacyPreview
     ? (changed.length ? `${changed.length}개 수정값을 프리뷰 중입니다. 운영 데이터에는 반영되지 않습니다.` : '실데이터 프리뷰에서는 저장하지 않습니다.')
     : (changed.length ? `${changed.length}개 항목이 변경되었습니다.` : '변경된 항목이 없습니다.')
   status.classList.toggle('is-dirty', changed.length > 0)
-  $('toilet-save').disabled = legacyPreview || !changed.length || saving
+  $('toilet-save').disabled = PREVIEW_READ_ONLY || legacyPreview || !changed.length || saving
   $('toilet-reset-form').disabled = !changed.length || saving
 }
 
 async function saveDetail() {
-  if (legacyPreview) return
+  if (PREVIEW_READ_ONLY || legacyPreview) return
   if (!selectedDetail || saving || !changedKeys().length) return
   if (!window.confirm(`${selectedDetail.editable.name}의 변경 내용을 저장할까요?`)) return
   saving = true

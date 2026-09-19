@@ -27,7 +27,8 @@ test('admin toilet preview is isolated under the fixed preview route', () => {
 test('preview uses existing real-data reads and blocks production writes', () => {
   assert.match(script, /api\/admin\/v1\/regions\?/)
   assert.match(script, /프리뷰 저장 차단/)
-  assert.match(script, /if \(legacyPreview\) return/)
+  assert.match(script, /const PREVIEW_READ_ONLY = true/)
+  assert.match(script, /if \(PREVIEW_READ_ONLY \|\| legacyPreview\) return/)
   assert.match(route, /NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY/)
   assert.match(route, /private, no-store/)
 })
