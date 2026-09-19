@@ -98,7 +98,7 @@ const pairs = {
   ],
   "metric.pending": [
     "준비 중",
-    "No data yet"
+    "No data"
   ],
   "metric.reviews": [
     "이용자 리뷰 {count}개 기준",
@@ -162,7 +162,7 @@ const pairs = {
   ],
   "map.area": [
     "이 지역 {count}곳",
-    "{count} toilets in this area"
+    "Toilets here: {count}"
   ],
   "map.clustered": [
     " · 묶어서 표시 중",
@@ -318,4 +318,3 @@ type Key = keyof typeof pairs
 const dictionary = (index: 0 | 1) => Object.fromEntries(Object.entries(pairs).map(([key, value]) => [key, value[index]])) as Record<Key, string>
 export const mapKo = dictionary(0)
 export const mapEn = dictionary(1)
-
