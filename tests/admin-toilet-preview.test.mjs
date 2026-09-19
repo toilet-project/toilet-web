@@ -25,7 +25,12 @@ test('admin toilet preview is isolated under the fixed preview route', () => {
   assert.match(script, /input\.addEventListener\('input', event => schedule\(\{ includeList: !event\.isComposing && !composing \}\)\)/)
   assert.doesNotMatch(script, /if \(composing\) return/)
   assert.match(script, /\/api\/v1\/toilets\?\$\{query\}/)
-  assert.match(script, /addListener\(marker, 'click',[\s\S]*selectToilet\(Number\(toilet\.id\)\)/)
+  assert.match(script, /toilet-public-marker/)
+  assert.match(script, /toilet-marker-logo\.svg/)
+  assert.match(script, /label\.textContent = name/)
+  assert.match(script, /selectToilet\(Number\(toilet\.id\)\)/)
+  assert.match(script, /const PAGE_SIZE = 10/)
+  assert.match(styles, /\.toilet-list-address\s*\{[^}]*-webkit-line-clamp:\s*2/)
 })
 
 test('preview uses existing real-data reads and blocks production writes', () => {
