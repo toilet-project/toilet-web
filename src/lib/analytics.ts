@@ -1,6 +1,7 @@
 import { createApiUrl } from '../config/api.ts'
 
 const eventParameters = {
+  screen_view: ['screen'],
   toilet_search: ['query_kind', 'success', 'result_count_bucket'],
   search_result_select: ['rank_bucket'],
   toilet_marker_select: ['zoom_bucket', 'source'],
@@ -16,13 +17,63 @@ const eventParameters = {
 
 export type AnalyticsEventName = keyof typeof eventParameters
 export type AnalyticsParameters = Record<string, string | number | boolean | undefined>
+export type AnalyticsAcquisition = { referrerHost?: string; utmSource?: string; utmMedium?: string }
 
 export function sanitizeAnalyticsPagePath(pathname: string) {
-  // Language is a presentation variant, not a new analytics path or identifier.
-  const path = pathname.split(/[?#]/, 1)[0].replace(/^\/en(?=\/|$)/, '') || '/'
-  if (/^\/toilet\/\d+\/?$/.test(path)) return '/toilet/:id'
-  if (/^\/review-verification\/[^/]+\/?$/.test(path)) return '/review-verification/:id'
-  return /^\/[a-z0-9/_-]{0,119}$/i.test(path) ? path : '/other'
+  // Keep the strict page allowlist; language adds no identifier to analytics.
+  const raw = pathname.split(/[?#]/, 1)[0].replace(/^\/en(?=\/|$)/, '') || '/'
+  const path = raw.length > 1 ? raw.replace(/\/+$/, '') : raw
+  if (path === '/') return '/'
+  if (/^\/toilet\/\d+$/.test(path) || path === '/toilet/:id') return '/toilet/:id'
+  if (/^\/policies\/(terms|privacy|location|all)$/.test(path)) return path
+  return '/other'
+}
+
+function attributionValue(value: string | null | undefined, maximum: number) {
+  const normalized = String(value || '').trim().toLowerCase()
+  return normalized.length <= maximum && /^[a-z0-9._+-]+$/.test(normalized) ? normalized : undefined
+}
+
+function referrerHostValue(value: string | null | undefined) {
+  const normalized = String(value || '').trim().toLowerCase()
+  return normalized.length <= 120 && /^[a-z0-9.-]+$/.test(normalized) ? normalized : undefined
+}
+
+export function buildAnalyticsAcquisition(locationHref: string, documentReferrer: string): AnalyticsAcquisition {
+  let referrerHost: string | undefined
+  try {
+    const host = documentReferrer ? new URL(documentReferrer).hostname.toLowerCase() : ''
+    referrerHost = referrerHostValue(host)
+  } catch { /* A malformed or privacy-reduced referrer is treated as unavailable. */ }
+
+  try {
+    const params = new URL(locationHref).searchParams
+    return {
+      referrerHost,
+      utmSource: attributionValue(params.get('utm_source'), 40),
+      utmMedium: attributionValue(params.get('utm_medium'), 24),
+    }
+  } catch {
+    return { referrerHost }
+  }
+}
+
+export function resolveAnalyticsAcquisition(
+  stored: string | null,
+  locationHref: string,
+  documentReferrer: string,
+): AnalyticsAcquisition {
+  if (stored !== null) {
+    try {
+      const parsed = JSON.parse(stored) as AnalyticsAcquisition
+      return {
+        referrerHost: referrerHostValue(parsed.referrerHost),
+        utmSource: attributionValue(parsed.utmSource, 40),
+        utmMedium: attributionValue(parsed.utmMedium, 24),
+      }
+    } catch { /* A broken storage value starts a fresh attribution below. */ }
+  }
+  return buildAnalyticsAcquisition(locationHref, documentReferrer)
 }
 
 export function sanitizeAnalyticsParameters(name: AnalyticsEventName, parameters: AnalyticsParameters = {}) {
@@ -55,6 +106,7 @@ export function buildAnalyticsPayload(name: AnalyticsEventName | 'page_view' | '
 
 const SESSION_KEY = 'geupddong.analytics-session.v1'
 const VISITOR_KEY = 'geupddong.analytics-visitor.v1'
+const ACQUISITION_KEY = 'geupddong.analytics-acquisition.v1'
 
 function randomId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
@@ -86,8 +138,22 @@ function claimNewVisitor() {
   }
 }
 
+function acquisition(): AnalyticsAcquisition {
+  const initial = () => resolveAnalyticsAcquisition(null, window.location.href, document.referrer)
+  try {
+    const current = window.sessionStorage.getItem(ACQUISITION_KEY)
+    const created = resolveAnalyticsAcquisition(current, window.location.href, document.referrer)
+    if (current !== null) return created
+    window.sessionStorage.setItem(ACQUISITION_KEY, JSON.stringify(created))
+    return created
+  } catch {
+    return initial()
+  }
+}
+
 function eventDetail(name: string, safe: AnalyticsParameters) {
-  const key = name === 'toilet_search' ? 'query_kind'
+  const key = name === 'screen_view' ? 'screen'
+    : name === 'toilet_search' ? 'query_kind'
     : name === 'nearby_search' ? 'permission_state'
       : name === 'search_result_select' ? 'rank_bucket'
         : name === 'toilet_marker_select' ? 'zoom_bucket'
@@ -106,7 +172,7 @@ function send(payload: AnalyticsPayload) {
     credentials: 'omit',
     keepalive: true,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...payload, sessionId: sessionId() }),
+    body: JSON.stringify({ ...payload, ...acquisition(), sessionId: sessionId() }),
   }).catch(() => undefined)
 }
 
