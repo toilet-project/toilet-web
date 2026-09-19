@@ -287,6 +287,20 @@ function MapApp({ route, onNavigate, onMounted, testToiletHash = '' }: { route: 
   const [isAccountOpen, setIsAccountOpen] = useState(false)
   const [mobileTab, setMobileTab] = useState<MobileTab>('map')
   const [mobileAccountView, setMobileAccountView] = useState<MobileAccountView>('home')
+  useEffect(() => {
+    if (isDesktop || mobileTab === 'map' || mobileAccountView === 'reviews') return
+    const screen = mobileTab === 'notifications' ? 'notifications'
+      : mobileAccountView === 'reports' ? 'my_reports'
+        : mobileAccountView === 'settings' ? 'account_settings' : 'account_home'
+    trackEvent('screen_view', { screen })
+  }, [isDesktop, mobileTab, mobileAccountView])
+  useEffect(() => {
+    if (!isDesktop) return
+    const screen = isNotificationsOpen ? 'notifications'
+      : isMyReportsOpen ? 'my_reports'
+        : isAccountOpen ? 'account_settings' : ''
+    if (screen) trackEvent('screen_view', { screen })
+  }, [isDesktop, isNotificationsOpen, isMyReportsOpen, isAccountOpen])
   useLayoutEffect(() => {
     const next = authProfile?.userId ?? null
     // Initial OAuth return may already have selected a pending history destination.

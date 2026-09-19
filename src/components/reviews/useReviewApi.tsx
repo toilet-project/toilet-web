@@ -78,8 +78,9 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
     epoch.current++; updateEntry(null); setTarget(null); setEditing(null); setSaved(false); setMine(false); setExistingPrompt(null)
     setItems([]); setListLoading(false); setMoreLoading(false); setMessage(''); attempt.current = null
   }
-  async function loadMine(nextRange = historyRange(), focusedId?: string, expectedToilet?: number) {
+  async function loadMine(nextRange = historyRange(), focusedId?: string, expectedToilet?: number, opened = false) {
     if (!owner) { access.requireLogin(); return }
+    if (opened) trackEvent('screen_view', { screen: 'my_reviews' })
     const token = ++epoch.current
     updateEntry(null); setMine(true); setTarget(null); setEditing(null); setSaved(false); setExistingPrompt(null); setRange(nextRange)
     setFocus(value => ({ id: focusedId, visit: value.visit + 1 })); setItems([]); setCursor(null); setHasMore(false)
@@ -96,7 +97,7 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
     } catch (error) { if (current(token)) { authFailure(error); setListError(apiMessage(error)) } }
     finally { if (current(token)) setListLoading(false) }
   }
-  const openMine = () => loadMine()
+  const openMine = () => loadMine(historyRange(), undefined, undefined, true)
   function promptExisting(next: ReviewTarget, reviewId: string) {
     updateEntry(null); setMine(false); setTarget(null); setEditing(null); setSaved(false)
     setExistingPrompt({ reviewId, toiletId: next.id, toiletName: next.name })
@@ -105,7 +106,7 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
   function viewExisting() {
     const prompt = existingPrompt
     if (!prompt) return
-    setExistingPrompt(null); void loadMine(historyRange(), prompt.reviewId, prompt.toiletId)
+    setExistingPrompt(null); void loadMine(historyRange(), prompt.reviewId, prompt.toiletId, true)
   }
   async function more() {
     if (loadingMore.current === epoch.current || listLoading || !hasMore || !cursor) return
@@ -138,7 +139,7 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
       await requireReviewFix(next, { fresh })
       if (!current(token)) return
       setEligibility({ status: 'ready', message: '' })
-      if (!inEditor) { updateEntry(null); setTarget(next); setEditing(null); attempt.current = null }
+      if (!inEditor) { updateEntry(null); setTarget(next); setEditing(null); attempt.current = null; trackEvent('screen_view', { screen: 'review_write' }) }
     } catch (error) {
       if (!current(token)) return
       epoch.current++; authFailure(error)
