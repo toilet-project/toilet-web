@@ -36,6 +36,12 @@ async function main() {
     if (url.pathname === '/api/v1/reports/me') return send([{ id: 9, toiletId: 123, toiletName: facility.name, reportType: 'OPEN_TIME_CORRECTION', openTime: '오전 9시', reason: '작성자가 남긴 제보 원문', status: 'APPROVED', reviewNote: '관리자 답변 원문', createdAt: new Date().toISOString() }])
     if (url.pathname === '/api/v1/notifications/unread-count') return send({ count: 1 })
     if (url.pathname === '/api/v1/notifications') return send({ items: [{ id: 1, type: 'REPORT_APPROVED', referenceType: 'TOILET_REPORT', referenceId: 9, title: '제보 승인', message: '합성 알림 원문', read: false, createdAt: new Date().toISOString() }], page: 0, size: 20, totalElements: 1, totalPages: 1 })
+    if (url.pathname === '/api/v1/toilets/123/reviews') return send({ items: [false, true].map((removed, index) => ({
+      id: String(index + 1), toiletId: 123, toiletName: facility.name, satisfaction: 4, cleanliness: 5, paper: true,
+      waitMinutes: 10, comment: '공개 리뷰 원문 ' + index, version: 0, createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(), editableUntil: new Date().toISOString(), canManage: false,
+      authorRemoved: removed, authorDisplayName: removed ? '익명' : '합성 공개 작성자', authorPhotoVersion: null,
+    })), hasMore: false, nextCursor: null })
     if (url.pathname.includes('reviews')) return send({ items: [], nextCursor: null, hasNext: false })
     if (url.pathname.includes('toilets')) return send({ meta: { total_count: 1, display_type: 'TOILET' }, toilets: [facility], clusters: [] })
     return send({})
@@ -45,7 +51,7 @@ async function main() {
   const options = {
     cwd: process.cwd(), windowsHide: true, env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1', SITE_INDEXABLE: 'false', ENGLISH_UI_PREVIEW: 'true',
       NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY: 'synthetic-local-sdk-not-a-real-key',
-      NEXT_PUBLIC_API_BASE_URL: api, TOILET_API_ORIGIN: api, SHARED_TOILET_CACHE_ENABLED: 'false', REVIEW_API_ENABLED: 'false' }, stdio: ['ignore', 'pipe', 'pipe'],
+      NEXT_PUBLIC_API_BASE_URL: 'https://api.geupddong.com', TOILET_API_ORIGIN: api, SHARED_TOILET_CACHE_ENABLED: 'false', REVIEW_API_ENABLED: 'false' }, stdio: ['ignore', 'pipe', 'pipe'],
   }
   if (process.env.TEST_PRODUCTION === '1') {
     next = spawn(process.execPath, [path.resolve('node_modules/next/dist/bin/next'), 'build'], options)
@@ -73,8 +79,15 @@ async function main() {
   browser = await chromium.launch({ channel: 'chrome', headless: true })
   for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }, { width: 1280, height: 850 }]) {
     const context = await browser.newContext({ viewport, isMobile: viewport.width < 500, hasTouch: viewport.width < 500, serviceWorkers: 'block', ...(viewport.width < 500 ? { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148' } : {}) })
-    await context.route('**/*', route => {
+    await context.route('**/*', async route => {
       const url = new URL(route.request().url())
+      if (url.origin === 'https://api.geupddong.com') {
+        // No request reaches production: fulfill ALL API calls from our loopback fixture.
+        const loggedIn = (await context.cookies(api)).some(cookie => cookie.name === 'fixture-login')
+        const response = await route.fetch({ url: api + url.pathname + url.search,
+          headers: { ...route.request().headers(), cookie: loggedIn ? 'fixture-login=1' : '' }, maxRedirects: 0 })
+        return route.fulfill({ response })
+      }
       return [origin, api].includes(url.origin) ? route.continue() : route.abort()
     })
     await context.addInitScript(() => {
@@ -131,6 +144,16 @@ async function main() {
     await page.waitForURL('**/en/toilet/123*')
     await page.waitForFunction(() => document.documentElement.lang === 'en')
     assert.equal(await page.evaluate(() => sessionStorage.getItem('geupddong.language-login-return.v1')), null)
+    if (viewport.width < 500) await page.getByRole('button', { name: 'Show details', exact: true }).click()
+    await page.locator('.public-reviews .public-review-name').filter({ hasText: 'Anonymous' }).waitFor()
+    assert.ok(await page.getByText('합성 공개 작성자', { exact: true }).isVisible())
+    assert.ok(await page.getByText('공개 리뷰 원문 0', { exact: true }).isVisible())
+    await page.getByRole('button', { name: 'View all', exact: false }).click()
+    await page.getByRole('heading', { name: /User reviews/ }).waitFor()
+    assert.ok(await page.locator('.public-review-full-panel').getByText('공개 리뷰 원문 1', { exact: true }).isVisible())
+    await page.getByRole('button', { name: 'Back to toilet details', exact: true }).click()
+    if (viewport.width < 500) await page.getByRole('button', { name: 'Collapse', exact: true }).click()
+    console.log('PASS public reviews: English labels/anonymous, original author and review text')
     await page.locator('.review-entry').click()
     await page.getByRole('dialog', { name: 'Log in or sign up' }).waitFor()
     assert.equal(await page.locator('.login-modal p').first().innerText(), 'Log in to write a review.')

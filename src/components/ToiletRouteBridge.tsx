@@ -11,6 +11,7 @@ import { formatOpenTime } from '../lib/detailFormatting'
 import { toiletPath } from '../lib/toiletRoute'
 import { localizedPublicPath } from '../i18n/routes'
 import type { Locale } from '../i18n/locale'
+import { toiletTypeLabel } from '../i18n/facilityLabels'
 import { message } from '../i18n/messages'
 
 export function ToiletRouteBridge({ detail, locale = 'ko' }: { detail: ToiletDetailResponse | null; locale?: Locale }) {
@@ -25,9 +26,9 @@ export function ToiletRouteBridge({ detail, locale = 'ko' }: { detail: ToiletDet
   return <div className="route-card-stage"><aside className="place-card initial-route-card route-preview-card" aria-label={t('detail.title')}>
     <Link href={localizedPublicPath('/', locale)!} className="close-button" aria-label={t('common.close')}>×</Link>
     <button type="button" className="mobile-card-handle" disabled aria-expanded={false}>{t('detail.show')}</button>
-    <div className="place-card-summary"><span className="card-label">{detail.toiletType || '화장실'}</span>{reviewsEnabled ? <div className="review-card-title-row"><h1>{detail.name}</h1><ToiletReportEntry disabled /></div> : <h1>{detail.name}</h1>}</div>
+    <div className="place-card-summary"><span className="card-label">{toiletTypeLabel(detail.toiletType, locale)}</span>{reviewsEnabled ? <div className="review-card-title-row"><h1>{detail.name}</h1><ToiletReportEntry disabled /></div> : <h1>{detail.name}</h1>}</div>
     <div className="card-scroll-content">
-      <p className="open-time">{formatOpenTime(detail)}</p>
+      <p className="open-time">{formatOpenTime(detail, locale)}</p>
       <div className="distance-from-current" aria-label={t('map.distanceLoading')}><span className="distance-label">{t('map.distanceFrom')}</span><strong className="distance-value">—</strong><span className="distance-caption">{t('map.straightLine')}</span></div>
       <div className="route-preview-community"><ToiletCommunityRow pendingReport pendingReview={reviewsEnabled} /></div>
       <PublicReviews toiletId={detail.id} toiletName={detail.name} toiletType={detail.toiletType} />

@@ -10,6 +10,7 @@ import { useLocale, useMessages } from '../i18n/context'
 
 export function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse }) {
   const t = useMessages()
+  const locale = useLocale()
   const maleCounts = visibleCounts([
     { label: t('detail.toilets'), count: toilet.maleToiletCount },
     { label: t('detail.urinals'), count: toilet.maleUrinalCount },
@@ -30,7 +31,7 @@ export function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse 
       {address && <DetailRow className="detail-address" label={t('detail.address')} value={address} copyable />}
       {regionLabel(toilet.region) && <DetailRow label={t('detail.region')} value={regionLabel(toilet.region)} />}
       {hasValue(toilet.openTimeDetail) && <DetailRow label={t('detail.openingDetails')} value={toilet.openTimeDetail} />}
-      {hasValue(toilet.installationDate) && <DetailRow label={t('detail.installed')} value={formatInstallationDate(toilet.installationDate)} />}
+      {hasValue(toilet.installationDate) && <DetailRow label={t('detail.installed')} value={formatInstallationDate(toilet.installationDate, locale)} />}
       {(maleCounts.length > 0 || femaleCounts.length > 0) && <section className="detail-section">
         <h2>{t('detail.capacity')}</h2>
         <div className="capacity-groups">

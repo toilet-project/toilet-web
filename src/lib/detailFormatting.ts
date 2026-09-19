@@ -1,3 +1,4 @@
+import type { Locale } from '../i18n/locale'
 import type { ToiletDetailResponse } from '../api/toilets'
 
 export type CountItem = { label: string; count: number }
@@ -10,8 +11,8 @@ export function hasValue(value: string | null | undefined): value is string {
   return typeof value === 'string' && value.trim().length > 0
 }
 
-export function formatOpenTime(toilet: ToiletDetailResponse) {
-  return [toilet.openTime, toilet.openTimeDetail].filter(hasValue).join(' · ') || '운영시간 정보 없음'
+export function formatOpenTime(toilet: ToiletDetailResponse, locale: Locale = 'ko') {
+  return [toilet.openTime, toilet.openTimeDetail].filter(hasValue).join(' · ') || (locale === 'en' ? 'Opening hours unavailable' : '운영시간 정보 없음')
 }
 
 export function formatPhoneNumber(phoneNumber: string) {
@@ -21,12 +22,13 @@ export function formatPhoneNumber(phoneNumber: string) {
   return phoneNumber
 }
 
-export function formatInstallationDate(installationDate: string) {
+export function formatInstallationDate(installationDate: string, locale: Locale = 'ko') {
   const digits = installationDate.replace(/\D/g, '')
   const matched = digits.match(/^(\d{4})(\d{1,2})$/)
   if (!matched) return installationDate
 
   const month = Number(matched[2])
+  if (locale === 'en') return month >= 1 && month <= 12 ? `${matched[1]}-${String(month).padStart(2, '0')}` : matched[1]
   if (month < 1 || month > 12) return `${matched[1]}년`
   return `${matched[1]}년 ${month}월`
 }

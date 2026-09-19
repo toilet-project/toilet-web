@@ -1,9 +1,11 @@
 import type { Locale } from './locale.ts'
+import { mapKo, mapEn } from './mapMessages.ts'
 import { activityKo, activityEn } from './activityMessages.ts'
 
 // UI text only. Facility names, free-form opening hours and user text stay untouched.
 const ko = {
   ...activityKo,
+  ...mapKo,
   'language.choose': '언어 선택',
   'language.current': '현재 언어',
   'common.close': '닫기',
@@ -84,6 +86,7 @@ type Dictionary = { readonly [Key in MessageKey]: string }
 
 const en = {
   ...activityEn,
+  ...mapEn,
   'language.choose': 'Choose language',
   'language.current': 'Current language',
   'common.close': 'Close',

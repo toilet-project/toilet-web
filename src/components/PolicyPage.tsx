@@ -1,3 +1,4 @@
+import { LocalizedPolicyFooter } from './LocalizedPolicyFooter'
 import type { ReactNode } from 'react'
 import { accountPolicyPublication, policyPublicationAttributes } from '../lib/accountPolicyPublication'
 import { profilePhotoPolicyPublication, profilePhotoPolicyPublicationAttributes } from '../lib/profilePhotoPolicyPublication'
@@ -123,5 +124,5 @@ export function PolicyPage({ kind, embedded = false }: { kind: PolicyPageKind; e
 }
 
 export function PolicyFooter() {
-  return <div className="policy-footer"><nav aria-label="서비스 정책"><a href="/policies/terms">이용약관</a><a href="/policies/privacy">개인정보 처리방침</a><a href="/policies/location">위치정보 안내</a><a href="mailto:privacy@geupddong.com">문의</a></nav><small>© 2026 급똥</small></div>
+  return <LocalizedPolicyFooter />
 }

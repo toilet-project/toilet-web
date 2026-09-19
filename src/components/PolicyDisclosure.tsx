@@ -1,3 +1,4 @@
+import { useLocale, useMessages } from '../i18n/context'
 import { createElement, useEffect, useId, useState, type ReactNode } from 'react'
 import './policy-disclosure.css'
 
@@ -33,6 +34,7 @@ function documentContent(html: string, url: URL): ReactNode {
 }
 
 export function PolicyDisclosure({ title, meta, contentPath, selection }: { title: string; meta: string; contentPath: string; selection?: ReactNode }) {
+  const t = useMessages(), locale = useLocale()
   const id = useId()
   const [open, setOpen] = useState(false)
   const [content, setContent] = useState<ReactNode>(null)
@@ -61,12 +63,12 @@ export function PolicyDisclosure({ title, meta, contentPath, selection }: { titl
     <div className="policy-disclosure-row">
       {selection}
       <button type="button" className="policy-disclosure-toggle" aria-expanded={open} aria-controls={id} onClick={() => { setOpen(value => !value); setError(false) }}>
-        <span className="policy-disclosure-label"><strong>{title}</strong><small>{meta}</small></span>
+        <span className="policy-disclosure-label"><strong>{title}</strong><small>{meta}{locale === 'en' ? ' · Korean original' : ''}</small></span>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
       </button>
     </div>
-    {open && <div id={id} className="policy-disclosure-content" role="region" aria-label={`${title} 내용`}>
-      {content || (error ? <p role="alert">약관을 불러오지 못했어요. <button type="button" onClick={() => { setError(false); setAttempt(value => value + 1) }}>다시 불러오기</button></p> : <p role="status">약관을 불러오는 중…</p>)}
+    {open && <div id={id} className="policy-disclosure-content" role="region" aria-label={title} lang="ko">
+      {content || (error ? <p role="alert">{t('policy.error')} <button type="button" onClick={() => { setError(false); setAttempt(value => value + 1) }}>{t('common.retry')}</button></p> : <p role="status">{t('policy.loading')}</p>)}
     </div>}
   </div>
 }

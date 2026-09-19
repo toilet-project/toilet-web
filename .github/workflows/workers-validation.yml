@@ -40,6 +40,8 @@ jobs:
       NEXT_PUBLIC_API_BASE_URL: https://api.geupddong.com
       NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY: ${{ secrets.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY || 'build-validation-placeholder' }}
       SITE_INDEXABLE: ${{ matrix.indexable }}
+      # English UI is preview-only; indexable builds keep the feature disabled.
+      ENGLISH_UI_PREVIEW: ${{ matrix.target == 'preview' && 'true' || 'false' }}
       REVIEW_API_ENABLED: ${{ matrix.review_api_enabled }}
       REVIEW_PRODUCTION_APPROVED: ${{ matrix.review_production_approved }}
       NEXT_PUBLIC_PROFILE_PHOTO_ENABLED: ${{ matrix.profile_photo_enabled }}

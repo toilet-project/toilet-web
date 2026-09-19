@@ -1,4 +1,6 @@
 'use client'
+import { useLocale, useMessages } from '../../i18n/context'
+import { toiletTypeLabel } from '../../i18n/facilityLabels'
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { reviewAverageLabel } from '../../lib/review'
@@ -18,9 +20,10 @@ export function PublicReviews({ toiletId, toiletName = '화장실', toiletType =
 }
 
 export function PublicReviewsLoading() {
+  const t = useMessages()
   if (!PUBLIC_REVIEW_API_ENABLED) return null
-  return <section className="public-reviews is-loading" aria-label="이용자 리뷰 불러오는 중" aria-busy="true">
-    <div className="public-review-section-heading"><h2>리뷰 <span>—</span></h2></div>
+  return <section className="public-reviews is-loading" aria-label={t('public.loading')} aria-busy="true">
+    <div className="public-review-section-heading"><h2>{t('public.title')} <span>—</span></h2></div>
     <div className="public-review-summary-panel">
       <div className="public-review-summary-list"><PublicReviewLoading /></div>
     </div>
@@ -28,10 +31,12 @@ export function PublicReviewsLoading() {
 }
 
 function PublicReviewList({ toiletId, toiletName, toiletType, summary }: { toiletId: number; toiletName: string; toiletType: string; summary?: PublicReviewSummary }) {
+  const t = useMessages()
+  const locale = useLocale()
   const initial = cachedPublicReviews(toiletId)
   const [items, setItems] = useState<StoredReview[]>(initial?.items ?? [])
   const [cursor, setCursor] = useState<string | null>(initial?.hasMore ? initial.nextCursor : null)
-  const [loading, setLoading] = useState(!initial), [error, setError] = useState('')
+  const [loading, setLoading] = useState(!initial), [error, setError] = useState(false)
   const [fullView, setFullView] = useState(false), [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null)
   const section = useRef<HTMLElement>(null), backButton = useRef<HTMLButtonElement>(null)
   const active = useRef(false), epoch = useRef(0), abort = useRef<AbortController | null>(null)
@@ -48,9 +53,9 @@ function PublicReviewList({ toiletId, toiletName, toiletType, summary }: { toile
         if (!active.current) return
         setItems(page.items)
         setCursor(page.hasMore ? page.nextCursor : null)
-        setError('')
+        setError(false)
       }).catch(() => {
-        if (active.current) setError('리뷰를 불러오지 못했어요. 다시 시도해 주세요.')
+        if (active.current) setError(true)
       }).finally(() => {
         requests.delete(controller)
         loadingRef.current = false
@@ -88,14 +93,14 @@ function PublicReviewList({ toiletId, toiletName, toiletType, summary }: { toile
     requests.add(controller)
     loadingRef.current = true
     setLoading(true)
-    setError('')
+    setError(false)
     try {
       const page = await loadPublicReviews(toiletId, next, controller.signal, refresh)
       if (!active.current || token !== epoch.current) return
       setItems(previous => next ? [...previous, ...page.items.filter(item => !previous.some(old => old.id === item.id))] : page.items)
       setCursor(page.hasMore ? page.nextCursor : null)
     } catch {
-      if (active.current && token === epoch.current) setError('리뷰를 불러오지 못했어요. 다시 시도해 주세요.')
+      if (active.current && token === epoch.current) setError(true)
     } finally {
       requests.delete(controller)
       loadingRef.current = false
@@ -120,39 +125,39 @@ function PublicReviewList({ toiletId, toiletName, toiletType, summary }: { toile
   const fullRating = summary?.rating ?? fallbackRating
   const fullReviewCount = summary?.count ?? items.length
   const reviewRows = (rows: StoredReview[], expanded: boolean) => rows.map(item => <PublicReviewRow key={item.id} item={item} expanded={expanded} />)
-  const fullPanel = fullView && <section className={`public-review-full-panel${portalTarget ? '' : ' is-inline'}`} aria-label={`${toiletName} 전체 리뷰`}>
+  const fullPanel = fullView && <section className={`public-review-full-panel${portalTarget ? '' : ' is-inline'}`} aria-label={t('public.full', { name: toiletName })}>
     <header className="public-review-full-header">
-      <button ref={backButton} type="button" className="public-review-back" onClick={() => setFullView(false)} aria-label="화장실 상세로 돌아가기"><ReviewIcon name="back" size={22} /></button>
+      <button ref={backButton} type="button" className="public-review-back" onClick={() => setFullView(false)} aria-label={t('public.back')}><ReviewIcon name="back" size={22} /></button>
       <div className="public-review-full-heading">
-        <span className="card-label public-review-full-type">{toiletType}</span>
+        <span className="card-label public-review-full-type">{toiletTypeLabel(toiletType, locale)}</span>
         <div className="review-card-title-row public-review-full-title-row"><h2>{toiletName}</h2></div>
-        <div className="public-review-total-rating" aria-label={`총 평점 ${fullRating}점, 리뷰 ${fullReviewCount}개`}>
-          <span>총 평점</span><ReviewIcon name="star" size={17} /><strong>{fullRating}</strong><small>/ 5</small><em>리뷰 {fullReviewCount}개</em>
+        <div className="public-review-total-rating" aria-label={t('public.summary', { rating: fullRating, count: fullReviewCount })}>
+          <span>{t('public.total')}</span><ReviewIcon name="star" size={17} /><strong>{fullRating}</strong><small>/ 5</small><em>{t('public.count', { count: fullReviewCount })}</em>
         </div>
       </div>
     </header>
     <section className="public-review-full-reviews" aria-labelledby="public-review-full-list-title" tabIndex={0}>
-      <h3 id="public-review-full-list-title">이용자 리뷰 <span>{fullReviewCount}</span></h3>
+      <h3 id="public-review-full-list-title">{t('public.users')} <span>{fullReviewCount}</span></h3>
       <div className="public-review-full-list">
         <div className="public-review-full-rows">
           {reviewRows(items, true)}
-          {!loading && !error && items.length === 0 && <p className="public-review-empty">아직 작성된 리뷰가 없어요.</p>}
+          {!loading && !error && items.length === 0 && <p className="public-review-empty">{t('public.empty')}</p>}
           {loading && <PublicReviewLoading />}
-          {error && <ReviewLoadError message={error} onRetry={() => void load(items.length ? cursor : null, !items.length)} />}
-          {cursor && !error && <button className="public-review-more" type="button" disabled={loading} onClick={() => void load(cursor)}>{loading ? '불러오는 중…' : '리뷰 더 불러오기'}</button>}
+          {error && <ReviewLoadError message={t('public.error')} onRetry={() => void load(items.length ? cursor : null, !items.length)} />}
+          {cursor && !error && <button className="public-review-more" type="button" disabled={loading} onClick={() => void load(cursor)}>{t(loading ? 'common.loading' : 'public.more')}</button>}
         </div>
       </div>
     </section>
   </section>
 
-  return <section ref={section} className={`public-reviews${hasReviews ? ' is-clickable' : ''}`} aria-label="이용자 리뷰" onClick={hasReviews ? handleSummaryClick : undefined}>
-    <div className="public-review-section-heading"><h2>리뷰 <span>{fullReviewCount}</span></h2>{hasReviews && <button type="button" onClick={openFullView}>전체보기 <span aria-hidden="true">›</span></button>}</div>
+  return <section ref={section} className={`public-reviews${hasReviews ? ' is-clickable' : ''}`} aria-label={t('public.users')} onClick={hasReviews ? handleSummaryClick : undefined}>
+    <div className="public-review-section-heading"><h2>{t('public.title')} <span>{fullReviewCount}</span></h2>{hasReviews && <button type="button" onClick={openFullView}>{t('public.all')} <span aria-hidden="true">›</span></button>}</div>
     <div className="public-review-summary-panel">
       <div className="public-review-summary-list">
         {reviewRows(summaryItems, false)}
-        {!loading && !error && items.length === 0 && <p className="public-review-empty">아직 작성된 리뷰가 없어요.</p>}
+        {!loading && !error && items.length === 0 && <p className="public-review-empty">{t('public.empty')}</p>}
         {loading && items.length === 0 && <PublicReviewLoading />}
-        {error && items.length === 0 && <ReviewLoadError message={error} onRetry={() => void load(null, true)} />}
+        {error && items.length === 0 && <ReviewLoadError message={t('public.error')} onRetry={() => void load(null, true)} />}
       </div>
     </div>
     {fullView && (portalTarget ? createPortal(fullPanel, portalTarget) : fullPanel)}
@@ -160,23 +165,27 @@ function PublicReviewList({ toiletId, toiletName, toiletType, summary }: { toile
 }
 
 function PublicReviewRow({ item, expanded }: { item: StoredReview; expanded: boolean }) {
+  const t = useMessages()
+  const locale = useLocale()
   const average = reviewAverageLabel(item)
   const comment = item.comment?.trim()
   return <article className={`public-review-row${expanded ? ' is-expanded' : ''}`}>
     <div className="public-review-meta">
-      <span className="public-review-avatar"><PhotoImage enabled path={item.authorRemoved || !item.authorPhotoVersion ? null : publicPhotoPath(item.authorPhotoVersion)} fallback={<span role="img" aria-label="기본 프로필 이미지">👤</span>} /></span>
-      <strong className="public-review-name">{item.authorDisplayName}</strong>
-      <span className="public-review-rating" aria-label={`평균 평점 ${average}점`}><ReviewIcon name="star" size={14} /><strong>{average}</strong></span>
-      <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}</time>
+      <span className="public-review-avatar"><PhotoImage enabled path={item.authorRemoved || !item.authorPhotoVersion ? null : publicPhotoPath(item.authorPhotoVersion)} fallback={<span role="img" aria-label={t('public.avatar')}>👤</span>} /></span>
+      <strong className="public-review-name">{item.authorRemoved ? t('public.anonymous') : item.authorDisplayName}</strong>
+      <span className="public-review-rating" aria-label={t('public.average', { rating: average })}><ReviewIcon name="star" size={14} /><strong>{average}</strong></span>
+      <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'ko-KR', { timeZone: 'Asia/Seoul' })}</time>
     </div>
     {comment && <p className="public-review-comment">{comment}</p>}
   </article>
 }
 
 function PublicReviewLoading() {
-  return <div className="public-review-loading" role="status"><span /><span />리뷰를 불러오는 중…</div>
+  const t = useMessages()
+  return <div className="public-review-loading" role="status"><span /><span />{t('public.loading')}</div>
 }
 
 function ReviewLoadError({ message, onRetry }: { message: string; onRetry: () => void }) {
-  return <p className="public-review-error" role="status"><span>{message}</span><button type="button" onClick={onRetry}>다시 불러오기</button></p>
+  const t = useMessages()
+  return <p className="public-review-error" role="status"><span>{message}</span><button type="button" onClick={onRetry}>{t('common.retry')}</button></p>
 }

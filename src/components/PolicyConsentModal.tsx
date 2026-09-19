@@ -1,3 +1,4 @@
+import { useLocale, useMessages } from '../i18n/context'
 import { useEffect, useMemo, useState } from 'react'
 import { agreeToRequiredPolicies, fetchPolicies, type PolicyDocument, type PolicyKey } from '../api/auth'
 import { PolicyDisclosure } from './PolicyDisclosure'
@@ -7,6 +8,7 @@ export function PolicyConsentModal({ isNewRegistration, onComplete, onLogout }: 
   onComplete: () => void
   onLogout: () => void
 }) {
+  const locale = useLocale(), t = useMessages()
   const [policies, setPolicies] = useState<PolicyDocument[]>([])
   const [checked, setChecked] = useState<Set<PolicyKey>>(new Set())
   const [error, setError] = useState<string | null>(null)
@@ -37,6 +39,7 @@ export function PolicyConsentModal({ isNewRegistration, onComplete, onLogout }: 
 
   return <div className="consent-backdrop">
     <section className="consent-modal" role="dialog" aria-modal="true" aria-labelledby="consent-title">
+      {locale === 'en' && <p className="consent-description" lang="en">{t('policy.original')}</p>}
       <p className="consent-eyebrow">{isNewRegistration ? '가입 마지막 단계' : '약관 업데이트'}</p>
       <h1 id="consent-title">{isNewRegistration ? '급똥 가입을 위한 동의가 필요해요' : '계속 이용하려면 동의가 필요해요'}</h1>
       <p className="consent-description">지도는 동의 없이 볼 수 있어요. 동의 후 제보 기능을 이용할 수 있습니다.</p>
