@@ -84,7 +84,7 @@
 **영어 프리뷰 게시 완료 / 1차 전체 작업은 진행 중 / 운영 미반영**
 
 - [영어 프리뷰](https://preview.geupddong.com/en) · [한국어 프리뷰](https://preview.geupddong.com/)
-- [기능 PR #276](https://github.com/toilet-project/toilet-web/pull/276) · [통합 프리뷰 검사](https://github.com/toilet-project/toilet-web/actions/runs/35441745397)
+- [기능 PR #276](https://github.com/toilet-project/toilet-web/pull/276) · [통합 프리뷰 검사](https://github.com/toilet-project/toilet-web/actions/runs/35442840007)
 
 ### 지금 확인할 수 있는 내용
 
@@ -103,6 +103,13 @@
 - 기존 관리자 프리뷰 파일 10개가 최신 관리자 소스와 동일하다. 운영 웹 버전은 배포 전후 같다.
 
 실제 브라우저 검사는 새 비로그인 세션에서 수행했고 모든 쓰기 요청을 차단했다. 로그인·GPS 권한 승인·실제 리뷰/제보 작성은 하지 않았다. iPhone과 실제 소셜 로그인 인수를 대신하지 않는다.
+
+### iPhone 국기 선택 오류 보완
+
+- Safari 계열에서 언어 항목을 터치하면 선택 처리보다 먼저 메뉴가 닫히는 오류를 재현했다. 터치 선택이 끝날 때까지 메뉴를 유지하도록 수정해 프리뷰에 반영했다.
+- 수정 전 공개 프리뷰에서 실패하던 터치 전환이 수정 후 WebKit·Chrome 검사에서 통과했다. 실제 카카오 지도와 선택 시설을 유지한 한국어↔영어 전환을 확인했다.
+- 반복 터치·버튼 재선택·바깥 누르기·취소된 터치·키보드 이동 및 닫기를 회귀 검사에 추가했다. 사용자 iPhone에서의 최종 재확인은 남아 있다.
+- 최신 관리자 좌표 핀 변경을 포함한 관리자 프리뷰를 유지했고, 운영 서비스는 변경하지 않았다.
 
 ### 프리뷰 이용 시 구분
 

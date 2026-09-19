@@ -28,11 +28,12 @@ async function main() {
     assert.ok(title.length > 0)
     await activate(page.locator('.language-selector-trigger'))
     await activate(page.getByRole('menuitemradio', { name: '한국어', exact: true }))
-    await page.waitForURL('**/toilet/13448')
+    await page.waitForURL(url => url.pathname === '/toilet/13448')
     await page.waitForFunction(() => document.documentElement.lang === 'ko')
     assert.ok(await mapNode.evaluate(node => node === document.querySelector('.map')))
     await activate(page.locator('.language-selector-trigger'))
     await activate(page.getByRole('menuitemradio', { name: 'English', exact: true }))
+    await page.waitForURL(url => url.pathname === '/en/toilet/13448')
     await page.waitForFunction(() => document.documentElement.lang === 'en')
     assert.equal(await page.locator('.place-card h1').innerText(), title)
     for (const width of [320, 390, 1280]) {
