@@ -1650,10 +1650,10 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         {authProfile?.consentRequired && <PolicyConsentModal isNewRegistration={authProfile.status === 'PENDING_CONSENT'} onComplete={handleConsentComplete} onLogout={handleLogout} />}
         {authProfile && isAccountOpen && <AccountDialog profile={authProfile} onClose={() => setIsAccountOpen(false)} onWithdrawn={handleWithdrawn} />}
         {withdrawalNotice && <div className="account-backdrop"><section className="account-dialog account-recovery account-result" role="dialog" aria-modal="true" aria-labelledby="withdrawal-result-title">
-          <h1 id="withdrawal-result-title">탈퇴 처리 안내</h1>
+          <h1 id="withdrawal-result-title">{t('account.resultTitle')}</h1>
           <p role="status">{withdrawalNotice}</p>
-          <p><a href="mailto:privacy@geupddong.com">개인정보 문의</a></p>
-          <div className="recovery-actions"><button type="button" className="recovery-primary" onClick={() => setWithdrawalNotice(null)}>확인</button></div>
+          <p><a href="mailto:privacy@geupddong.com">{t('account.contact')}</a></p>
+          <div className="recovery-actions"><button type="button" className="recovery-primary" onClick={() => setWithdrawalNotice(null)}>{t('account.confirm')}</button></div>
         </section></div>}
         {!isAuthLoading && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('recovery') === 'required' && <AccountRecoveryDialog />}
       </section>
@@ -1664,7 +1664,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
 
 
 function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () => void }) {
-  const t = useMessages()
+  const t = useMessages(), locale = useLocale()
   const title = t('auth.title')
   const description = t(({ review: 'review.loginRequired', 'my-reports': 'auth.reportsLogin', report: 'auth.reportLogin', general: 'auth.intro' } as const)[purpose])
   return <div className="login-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
@@ -1676,7 +1676,7 @@ function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () 
       <button type="button" className="social-login google-login" onClick={() => startSocialLogin('google')}>{t('auth.google')}</button>
       <button type="button" className="social-login kakao-login" onClick={() => startSocialLogin('kakao')}>{t('auth.kakao')}</button>
       <p className="login-policy-note">{t('auth.ageNote')}</p>
-      <nav className="login-policy-links"><a href="/policies/terms" target="_blank" rel="noreferrer">{t('policy.terms')}</a><a href="/policies/privacy" target="_blank" rel="noreferrer">{t('policy.privacy')}</a></nav>
+      <nav className="login-policy-links"><a href={localizedPublicPath('/policies/terms', locale)!} target="_blank" rel="noreferrer">{t('policy.terms')}</a><a href={localizedPublicPath('/policies/privacy', locale)!} target="_blank" rel="noreferrer">{t('policy.privacy')}</a></nav>
     </section>
   </div>
 }

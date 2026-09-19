@@ -1,10 +1,12 @@
 import type { Locale } from './locale.ts'
 import { mapKo, mapEn } from './mapMessages.ts'
 import { activityKo, activityEn } from './activityMessages.ts'
+import { accountKo, accountEn } from './accountMessages.ts'
 
 // UI text only. Facility names, free-form opening hours and user text stay untouched.
 const ko = {
   ...activityKo,
+  ...accountKo,
   ...mapKo,
   'language.choose': '언어 선택',
   'language.current': '현재 언어',
@@ -86,6 +88,7 @@ type Dictionary = { readonly [Key in MessageKey]: string }
 
 const en = {
   ...activityEn,
+  ...accountEn,
   ...mapEn,
   'language.choose': 'Choose language',
   'language.current': 'Current language',
@@ -110,14 +113,14 @@ const en = {
   'review.nearbyRequired': 'You must be within 150 m to write a review.',
   'review.mobileRequired': 'Please use a mobile device to write a review.',
   'content.original': 'Original',
-  'map.subtitle': 'Find public toilets nearby',
+  'map.subtitle': 'Restrooms in Korea, for travelers',
   'map.home': 'Geupddong map home',
   'map.search': 'Search address or place',
   'map.searchShort': 'Search places',
   'map.results': 'Place search results',
   'map.searching': 'Searching…',
   'map.noAddress': 'Address unavailable',
-  'map.title': 'Public toilet map',
+  'map.title': 'Public restroom map',
   'map.currentLocation': 'My location',
   'map.checking': 'Checking',
   'map.loading': 'Loading map…',
@@ -126,11 +129,11 @@ const en = {
   'map.distanceLoading': 'Calculating distance',
   'map.straightLine': '(straight-line)',
   'map.referenceHint': 'Click the map to change the distance reference point.',
-  'detail.title': 'Toilet details',
+  'detail.title': 'Restroom details',
   'detail.show': 'Show details',
-  'detail.missing': 'Toilet not found.',
-  'detail.error': 'Could not load toilet details.',
-  'detail.missingHint': 'Check the address or find another toilet on the map.',
+  'detail.missing': 'Restroom not found.',
+  'detail.error': 'Could not load restroom details.',
+  'detail.missingHint': 'Check the address or find another restroom on the map.',
   'detail.errorHint': 'Please try again shortly.',
   'detail.back': 'Back to map',
   'detail.address': 'Address',

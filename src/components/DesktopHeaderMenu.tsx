@@ -1,12 +1,13 @@
 'use client'
 
-import { useMessages } from '../i18n/context'
+import { useLocale, useMessages } from '../i18n/context'
+import { localizedPublicPath } from '../i18n/routes'
 import { useEffect, useRef, useState } from 'react'
 
 export function DesktopHeaderMenu({ authenticated, onReports, onAccount, onLogout, onReviews, compact = false }: {
   authenticated: boolean; onReports: () => void; onAccount: () => void; onLogout: () => void; onReviews?: () => void; compact?: boolean
 }) {
-  const t = useMessages()
+  const t = useMessages(), locale = useLocale()
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
@@ -34,9 +35,9 @@ export function DesktopHeaderMenu({ authenticated, onReports, onAccount, onLogou
       {!compact && <>{onReviews && <button type="button" onClick={() => action(onReviews)}>{t('nav.myReviews')}</button>}<button type="button" onClick={() => action(onReports)}>{t('nav.myReports')}</button>
       {authenticated && <button type="button" onClick={() => action(onAccount)}>{t('auth.account')}</button>}
       <div className="header-menu-divider" /></>}
-      <a href={compact ? '/policies/all' : '/policies/terms'}>{t('menu.terms')}</a>
-      {!compact && <><a href="/policies/privacy">{t('menu.privacy')}</a>
-      <a href="/policies/location">{t('menu.location')}</a></>}
+      <a href={localizedPublicPath(compact ? '/policies/all' : '/policies/terms', locale)!}>{t('menu.terms')}</a>
+      {!compact && <><a href={localizedPublicPath('/policies/privacy', locale)!}>{t('menu.privacy')}</a>
+      <a href={localizedPublicPath('/policies/location', locale)!}>{t('menu.location')}</a></>}
       <a href="mailto:privacy@geupddong.com">{t('menu.contact')}</a>
       {authenticated && !compact && <><div className="header-menu-divider" /><button type="button" onClick={() => action(onLogout)}>{t('menu.logout')}</button></>}
     </nav>}

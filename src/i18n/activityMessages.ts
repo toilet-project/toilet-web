@@ -298,7 +298,7 @@ const pairs = {
   ],
   "review.target": [
     "이용한 화장실",
-    "Toilet visited"
+    "Restroom visited"
   ],
   "review.invalidRatings": [
     "만족도와 청결도를 별점으로 선택해 주세요.",
@@ -410,7 +410,7 @@ const pairs = {
   ],
   "review.existingQuestion": [
     "이 화장실에 오늘 작성한 리뷰가 있어요. 기존 리뷰를 확인할까요?",
-    "You reviewed this toilet within the last 24 hours. Would you like to see that review?"
+    "You reviewed this restroom within the last 24 hours. Would you like to see that review?"
   ],
   "review.viewMine": [
     "내 리뷰 보기",
@@ -442,7 +442,7 @@ const pairs = {
   ],
   "review.testOnly": [
     "테스트 화장실에는 실제 리뷰를 저장하지 않아요.",
-    "Real reviews cannot be saved for test toilets."
+    "Real reviews cannot be saved for test restrooms."
   ],
   "review.loadFailed": [
     "리뷰를 불러오지 못했어요. 다시 확인해 주세요.",
@@ -494,7 +494,7 @@ const pairs = {
   ],
   "report.toilet": [
     "화장실 #{id}",
-    "Toilet #{id}"
+    "Restroom #{id}"
   ],
   "report.address": [
     "제보 주소",
@@ -646,7 +646,7 @@ const pairs = {
   ],
   "report.target": [
     "제보 대상",
-    "Toilet"
+    "Restroom"
   ],
   "report.reviewHint": [
     "관리자가 확인한 뒤 서비스 정보에 반영합니다.",
@@ -682,7 +682,7 @@ const pairs = {
   ],
   "report.locationExample": [
     "예: 실제 화장실은 건물 동쪽 출입구 옆에 있습니다.",
-    "For example: The toilet is beside the east entrance."
+    "For example: The restroom is beside the east entrance."
   ],
   "report.submitLocation": [
     "위치 제보 접수",
@@ -742,7 +742,7 @@ const pairs = {
   ],
   "review.previewSaved": [
     "선택한 화장실 카드에 체험 평가가 반영됐어요.",
-    "The toilet card now shows your preview ratings."
+    "The restroom card now shows your preview ratings."
   ],
   "review.previewMemory": [
     "프리뷰 메모리 저장 · 실제 DB에 저장되지 않아요.",

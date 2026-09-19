@@ -7,9 +7,10 @@ import { formatOpenTime, formatInstallationDate } from '../src/lib/detailFormatt
 import { message } from '../src/i18n/messages.ts'
 
 test('only exact structured categories translate; unknown labels and free opening hours stay original', () => {
-  assert.equal(toiletTypeLabel('공중화장실', 'en'), 'Public toilet')
+  assert.equal(toiletTypeLabel('공중화장실', 'en'), 'Public restroom')
+  assert.equal(toiletTypeLabel('개방화장실', 'en'), 'Public-access restroom')
   for (const value of ['사유 시설 이름', '__proto__', '서울 화장실']) assert.equal(toiletTypeLabel(value, 'en'), value)
-  assert.equal(toiletTypeLabel(undefined, 'en'), 'Toilet')
+  assert.equal(toiletTypeLabel(undefined, 'en'), 'Restroom')
   assert.equal(formatOpenTime({ openTime: '평일 오전 9시', openTimeDetail: '이용 제한 원문' }, 'en'), '평일 오전 9시 · 이용 제한 원문')
   assert.equal(formatOpenTime({}, 'en'), 'Opening hours unavailable')
   assert.equal(formatInstallationDate('202609', 'en'), '2026-09')
@@ -28,7 +29,7 @@ test('map overlays relabel in place and preserve original named groups', () => {
   const root = { querySelectorAll: () => nodes }
   localizeMapLabels(root, 'en')
   assert.equal(nodes[0].textContent, '원문 표시')
-  assert.equal(nodes[0].attributes['aria-label'], 'View 2 toilets at 관리자 원문 장소')
+  assert.equal(nodes[0].attributes['aria-label'], 'View 2 restrooms at 관리자 원문 장소')
   assert.equal(nodes[1].textContent, 'Same location 3')
   localizeMapLabels(root, 'ko')
   assert.equal(nodes[1].textContent, '동일 위치 3')

@@ -34,3 +34,5 @@
 .account-embedded .account-confirm > div { flex-wrap: wrap; }
 .account-embedded .account-confirm button { min-height: 44px; }
 @media(prefers-reduced-motion:reduce) { .policy-disclosure-toggle > svg { transition: none; } }
+.policy-translation-note { margin: 14px 0; padding: 12px 14px; border: 1px solid #dbe9e0; border-radius: 12px; background: #f5f9f6; color: #496355; font-size: 13px; line-height: 1.65; overflow-wrap: anywhere; }
+.policy-translation-note p { margin: 0 0 6px; }

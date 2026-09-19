@@ -46,7 +46,7 @@ const pairs = {
   ],
   "public.back": [
     "화장실 상세로 돌아가기",
-    "Back to toilet details"
+    "Back to restroom details"
   ],
   "public.total": [
     "총 평점",
@@ -162,7 +162,7 @@ const pairs = {
   ],
   "map.area": [
     "이 지역 {count}곳",
-    "Toilets here: {count}"
+    "Restrooms here: {count}"
   ],
   "map.clustered": [
     " · 묶어서 표시 중",
@@ -190,11 +190,11 @@ const pairs = {
   ],
   "map.zoomHint": [
     "가까운 화장실 목록이 나타나요",
-    "See a list of nearby toilets"
+    "See a list of nearby restrooms"
   ],
   "map.list": [
     "현재 지도 영역 화장실 목록",
-    "Toilets in this map area"
+    "Restrooms in this map area"
   ],
   "map.nearest": [
     "현재 위치 기준 가까운 순",
@@ -206,15 +206,15 @@ const pairs = {
   ],
   "map.zoomList": [
     "화장실 목록을 보려면 지도를 더 확대해 주세요.",
-    "Zoom in to see the toilet list."
+    "Zoom in to see the restroom list."
   ],
   "map.empty": [
     "이 영역에는 표시할 화장실이 없습니다.",
-    "No toilets in this area."
+    "No restrooms in this area."
   ],
   "map.name": [
     "화장실명",
-    "Toilet"
+    "Restroom"
   ],
   "map.type": [
     "구분",
@@ -226,7 +226,7 @@ const pairs = {
   ],
   "map.unnamed": [
     "이름 없는 공중화장실",
-    "Unnamed public toilet"
+    "Unnamed public restroom"
   ],
   "map.sameLocation": [
     "동일 위치",
@@ -238,7 +238,7 @@ const pairs = {
   ],
   "map.groupList": [
     "동일 위치 화장실 목록",
-    "Toilets at this location"
+    "Restrooms at this location"
   ],
   "map.admin": [
     "관리자",
@@ -250,7 +250,7 @@ const pairs = {
   ],
   "map.expandHint": [
     "화장실을 선택하면 해당 행 아래에서 상세 정보가 펼쳐집니다.",
-    "Select a toilet to see its details."
+    "Select a restroom to see its details."
   ],
   "map.expand": [
     "상세 보기",
@@ -266,11 +266,11 @@ const pairs = {
   ],
   "map.noCoordinates": [
     "위치 좌표가 없어 지도에는 표시할 수 없어요.",
-    "Coordinates are unavailable for this toilet."
+    "Coordinates are unavailable for this restroom."
   ],
   "map.footer": [
     "지도 이동 또는 확대/축소 후 이 영역의 화장실을 다시 조회합니다.",
-    "Moving or zooming the map refreshes the toilets in this area."
+    "Moving or zooming the map refreshes the restrooms in this area."
   ],
   "map.unread": [
     "읽지 않은 알림 {count}개",
@@ -278,11 +278,11 @@ const pairs = {
   ],
   "map.groupMarker": [
     "{name}에 등록된 화장실 {count}곳 목록 보기",
-    "View {count} toilets at {name}"
+    "View {count} restrooms at {name}"
   ],
   "map.clusterMarker": [
     "{count}개의 화장실이 있는 구역 확대하기",
-    "Zoom into an area with {count} toilets"
+    "Zoom into an area with {count} restrooms"
   ],
   "detail.openingLoading": [
     "개방시간 불러오는 중",

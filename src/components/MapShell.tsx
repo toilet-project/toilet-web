@@ -35,7 +35,8 @@ export function MapShell({ children }: { children: ReactNode }) {
     if (!ENGLISH_UI_ENABLED) return
     const url = new URL(window.location.href)
     try {
-      const target = consumeLanguageLoginReturn(window.sessionStorage, url.searchParams.get('login'))
+      const target = consumeLanguageLoginReturn(window.sessionStorage, url.searchParams.get('login')
+        ?? (url.searchParams.get('recovery') === 'required' ? 'recovery' : null))
       if (target && target !== url.pathname) routerRef.current.replace(target + url.search, { scroll: false })
     } catch { /* Normal login completion must remain usable without storage. */ }
   }, [])
