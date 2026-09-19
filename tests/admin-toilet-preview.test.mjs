@@ -20,6 +20,8 @@ test('admin toilet preview is isolated under the fixed preview route', () => {
   assert.ok(shell.indexOf("nav('reports'") < shell.indexOf("nav('toilets'"))
   assert.match(script, /https:\/\/api\.geupddong\.com/)
   assert.match(script, /\/admin-toilets-preview\/map-config/)
+  assert.match(script, /SUGGESTION_DELAY_MS = 60/)
+  assert.match(script, /suggestionCache/)
 })
 
 test('preview uses existing real-data reads and blocks production writes', () => {
