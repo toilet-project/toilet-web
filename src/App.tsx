@@ -1650,18 +1650,19 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
 
 
 function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () => void }) {
-  const title = '로그인 · 간편가입'
-  const description = { review: '리뷰는 로그인 후 이용할 수 있어요.', 'my-reports': '내 제보는 로그인 후 확인할 수 있어요.', report: '제보는 로그인 후 이용할 수 있어요.', general: '구글·카카오로 간편하게 로그인하세요.' }[purpose]
+  const t = useMessages()
+  const title = t('auth.title')
+  const description = t(({ review: 'review.loginRequired', 'my-reports': 'auth.reportsLogin', report: 'auth.reportLogin', general: 'auth.intro' } as const)[purpose])
   return <div className="login-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
-      <button type="button" className="login-modal-close" onClick={onClose} aria-label="로그인 창 닫기">×</button>
+      <button type="button" className="login-modal-close" onClick={onClose} aria-label={t('auth.close')}>×</button>
       <span className="brand login-brand">급똥</span>
       <h1 id="login-modal-title">{title}</h1>
       <p>{description}</p>
-      <button type="button" className="social-login google-login" onClick={() => startSocialLogin('google')}>Google로 계속하기</button>
-      <button type="button" className="social-login kakao-login" onClick={() => startSocialLogin('kakao')}>Kakao로 계속하기</button>
-      <p className="login-policy-note">첫 가입 시 만 14세 이상 확인·필수 약관 동의가 필요해요.</p>
-      <nav className="login-policy-links"><a href="/policies/terms" target="_blank" rel="noreferrer">이용약관</a><a href="/policies/privacy" target="_blank" rel="noreferrer">개인정보 처리방침</a></nav>
+      <button type="button" className="social-login google-login" onClick={() => startSocialLogin('google')}>{t('auth.google')}</button>
+      <button type="button" className="social-login kakao-login" onClick={() => startSocialLogin('kakao')}>{t('auth.kakao')}</button>
+      <p className="login-policy-note">{t('auth.ageNote')}</p>
+      <nav className="login-policy-links"><a href="/policies/terms" target="_blank" rel="noreferrer">{t('policy.terms')}</a><a href="/policies/privacy" target="_blank" rel="noreferrer">{t('policy.privacy')}</a></nav>
     </section>
   </div>
 }

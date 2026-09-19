@@ -12,6 +12,7 @@ const facility = { id: 123, name: '합성 검증 화장실', toiletType: '공중
   hasEmergencyBell: 'Y', hasCctv: 'N', hasDiaperTable: 'N' }
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms))
 let server, next, browser, logs = ''
+const reportWrites = []
 async function main() {
   server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://localhost')
@@ -21,10 +22,20 @@ async function main() {
     res.setHeader('access-control-allow-headers', 'content-type')
     const send = (body, status = 200) => { res.statusCode = status; res.end(JSON.stringify(body)) }
     if (req.method === 'OPTIONS') return send({})
+    if (req.method === 'POST' && url.pathname === '/api/v1/reports' && req.headers.cookie?.includes('fixture-login=1')) {
+      let body = ''
+      req.on('data', chunk => { body += chunk })
+      req.on('end', () => { reportWrites.push(JSON.parse(body)); send({}) })
+      return
+    }
     if (req.method !== 'GET') return send({}, 405)
     if (url.pathname === '/api/v1/toilets/123') return send(facility)
     if (url.pathname.startsWith('/api/v1/toilets/') && /\/\d+$/.test(url.pathname)) return send({}, 404)
+    if (url.pathname === '/api/v1/auth/me' && req.headers.cookie?.includes('fixture-login=1')) return send({ userId: 'synthetic-owner', displayName: '합성 닉네임', email: null, status: 'ACTIVE', roles: [], consentRequired: false })
     if (url.pathname.includes('auth')) return send({}, 401)
+    if (url.pathname === '/api/v1/reports/me') return send([{ id: 9, toiletId: 123, toiletName: facility.name, reportType: 'OPEN_TIME_CORRECTION', openTime: '오전 9시', reason: '작성자가 남긴 제보 원문', status: 'APPROVED', reviewNote: '관리자 답변 원문', createdAt: new Date().toISOString() }])
+    if (url.pathname === '/api/v1/notifications/unread-count') return send({ count: 1 })
+    if (url.pathname === '/api/v1/notifications') return send({ items: [{ id: 1, type: 'REPORT_APPROVED', referenceType: 'TOILET_REPORT', referenceId: 9, title: '제보 승인', message: '합성 알림 원문', read: false, createdAt: new Date().toISOString() }], page: 0, size: 20, totalElements: 1, totalPages: 1 })
     if (url.pathname.includes('reviews')) return send({ items: [], nextCursor: null, hasNext: false })
     if (url.pathname.includes('toilets')) return send({ meta: { total_count: 1, display_type: 'TOILET' }, toilets: [facility], clusters: [] })
     return send({})
@@ -60,8 +71,8 @@ async function main() {
     if (url.startsWith('/en')) assert.match(html, /noindex/)
   }
   browser = await chromium.launch({ channel: 'chrome', headless: true })
-  for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 850 }]) {
-    const context = await browser.newContext({ viewport, isMobile: viewport.width < 500, hasTouch: viewport.width < 500, serviceWorkers: 'block' })
+  for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }, { width: 1280, height: 850 }]) {
+    const context = await browser.newContext({ viewport, isMobile: viewport.width < 500, hasTouch: viewport.width < 500, serviceWorkers: 'block', ...(viewport.width < 500 ? { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148' } : {}) })
     await context.route('**/*', route => {
       const url = new URL(route.request().url())
       return [origin, api].includes(url.origin) ? route.continue() : route.abort()
@@ -79,7 +90,7 @@ async function main() {
       window.kakao = { maps: { Map: MapStub, LatLng: Point, CustomOverlay: Overlay, load: callback => callback(),
         event: { addListener() {}, preventMap() {} }, services: { Status: { OK: 'OK', ZERO_RESULT: 'ZERO_RESULT' },
           Places: class { keywordSearch(query, callback) { callback([], 'ZERO_RESULT') } }, Geocoder: class { coord2Address(a, b, callback) { callback([], 'ZERO_RESULT') } } } } }
-      Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition(ok, fail) { fail({ code: 1 }) }, watchPosition() { return 1 }, clearWatch() {} } })
+      Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition(ok, fail) { if (window.__fixtureLocation) ok({ coords: { latitude: 36.35, longitude: 127.38, accuracy: 10 }, timestamp: Date.now() }); else fail({ code: 1 }) }, watchPosition() { return 1 }, clearWatch() {} } })
       document.addEventListener('DOMContentLoaded', () => { const style = document.createElement('style'); style.textContent = 'nextjs-portal{pointer-events:none!important}'; document.head.append(style) })
     })
     const page = await context.newPage(), errors = []
@@ -120,6 +131,76 @@ async function main() {
     await page.waitForURL('**/en/toilet/123*')
     await page.waitForFunction(() => document.documentElement.lang === 'en')
     assert.equal(await page.evaluate(() => sessionStorage.getItem('geupddong.language-login-return.v1')), null)
+    await page.locator('.review-entry').click()
+    await page.getByRole('dialog', { name: 'Log in or sign up' }).waitFor()
+    assert.equal(await page.locator('.login-modal p').first().innerText(), 'Log in to write a review.')
+    assert.deepEqual(await page.locator('.login-modal .social-login').allTextContents(), ['Continue with Google', 'Continue with Kakao'])
+    await page.getByRole('button', { name: 'Close login' }).click()
+    if (viewport.width < 500) {
+      const nav = page.getByRole('navigation', { name: 'Main navigation' })
+      await nav.getByRole('button', { name: 'My page', exact: true }).click()
+      await page.getByRole('heading', { name: 'Log in or sign up' }).waitFor()
+      assert.deepEqual(await page.locator('.mobile-login-landing .social-login').allTextContents(), ['Continue with Google', 'Continue with Kakao'])
+      // Only the loopback fixture recognizes this cookie; it is not a real credential.
+      await context.addCookies([{ name: 'fixture-login', value: '1', url: api }])
+      await page.goto(origin + '/en/toilet/123')
+      await nav.getByRole('button', { name: 'My page', exact: true }).click()
+      await page.getByRole('heading', { name: '합성 닉네임' }).waitFor()
+      await page.getByRole('button', { name: 'My reports', exact: false }).click()
+      await page.getByRole('button', { name: /Opening-hours report/ }).click()
+      assert.ok(await page.getByText('작성자가 남긴 제보 원문', { exact: true }).isVisible())
+      assert.ok(await page.getByText('관리자 답변 원문', { exact: true }).isVisible())
+      await page.getByRole('button', { name: 'Choose dates', exact: true }).click()
+      await page.getByRole('button', { name: 'Start date', exact: true }).waitFor()
+      assert.equal(await page.getByRole('columnheader').first().innerText(), 'Su')
+      const dateRow = await page.locator('.history-date-inputs').boundingBox()
+      assert.ok(dateRow.x >= 0 && dateRow.x + dateRow.width <= viewport.width + 1, 'date range controls fit mobile width')
+      await page.screenshot({ path: path.resolve(`.next/i18n-history-${viewport.width}.png`), animations: 'disabled' })
+      await page.getByRole('button', { name: 'Apply', exact: true }).click()
+      await nav.getByRole('button', { name: /Notifications/ }).click()
+      await page.getByText('Report approved', { exact: true }).waitFor()
+      assert.ok(await page.getByText('합성 알림 원문', { exact: true }).isVisible())
+      assert.ok(await page.getByText('Original', { exact: true }).isVisible())
+      await nav.getByRole('button', { name: 'Map', exact: true }).click()
+      await page.evaluate(() => { window.__fixtureLocation = true })
+      await page.locator('.review-entry').click()
+      await page.getByRole('dialog', { name: 'Write a review', exact: true }).waitFor()
+      await page.getByRole('button', { name: 'Post review', exact: true }).click()
+      await page.getByRole('alert').filter({ hasText: 'Rate both satisfaction and cleanliness.' }).waitFor()
+      await page.getByRole('radio', { name: 'Satisfaction: 4 out of 5', exact: true }).check()
+      await page.getByRole('radio', { name: 'Cleanliness: 5 out of 5', exact: true }).check()
+      await page.getByRole('button', { name: 'Available', exact: true }).click()
+      await page.getByRole('button', { name: 'Wait time: 30 min', exact: true }).click()
+      await page.locator('#review-comment').fill('리뷰 원문 🙂')
+      assert.equal(await page.getByRole('slider', { name: 'Wait time', exact: true }).getAttribute('aria-valuetext'), '30 min')
+      await page.screenshot({ path: path.resolve(`.next/i18n-review-${viewport.width}.png`), animations: 'disabled' })
+      await page.getByRole('button', { name: 'Post review', exact: true }).click()
+      await page.getByRole('dialog', { name: 'Review saved', exact: true }).waitFor()
+      await page.getByRole('button', { name: 'View my reviews', exact: true }).click()
+      await page.locator('.rv-my-item').click()
+      assert.equal(await page.locator('.rv-full-comment').innerText(), '리뷰 원문 🙂')
+      await page.getByRole('button', { name: 'Edit', exact: true }).click()
+      assert.equal(await page.locator('#review-comment').inputValue(), '리뷰 원문 🙂')
+      await page.locator('#review-comment').fill('수정한 원문')
+      await page.getByRole('button', { name: 'Save changes', exact: true }).click()
+      await page.getByRole('button', { name: 'Back to list', exact: true }).click()
+      await page.getByRole('button', { name: 'Remove author details', exact: true }).click()
+      await page.getByText(/written text will not be deleted/).waitFor()
+      await page.getByRole('button', { name: 'Remove details', exact: true }).click()
+      assert.equal(await page.locator('.rv-my-item').count(), 0)
+      await nav.getByRole('button', { name: 'Map', exact: true }).click()
+      await page.locator('.review-card-report').click()
+      await page.getByRole('button', { name: /Opening-hours report/ }).click()
+      await page.getByRole('button', { name: 'Send opening-hours report', exact: true }).click()
+      await page.getByRole('alert').filter({ hasText: 'Enter a reason for your report.' }).waitFor()
+      await page.getByPlaceholder('For example: 09:00–18:00').fill('09:00~18:00')
+      await page.getByPlaceholder('For example: Updated according to the sign on site.').fill('보존할 제보 원문')
+      await page.getByRole('button', { name: 'Send opening-hours report', exact: true }).click()
+      await page.getByRole('heading', { name: 'Report received', exact: true }).waitFor()
+      assert.equal(reportWrites.at(-1).reason, '보존할 제보 원문')
+      assert.equal(reportWrites.at(-1).openTime, '09:00~18:00')
+      console.log(`PASS ${viewport.width}px: English login, report/calendar, notification original, memory review create/edit/unlink and fixture-only report submission`)
+    }
     assert.deepEqual(errors, [])
     console.log(`PASS ${viewport.width}px: SSR language, header, switch, menu, history and map preservation`)
     await context.close()
@@ -128,8 +209,14 @@ async function main() {
 main().catch(error => { console.error(error); console.error(logs); process.exitCode = 1 }).finally(async () => {
   if (browser) await browser.close()
   if (next && next.exitCode === null) {
-    if (process.platform === 'win32') { try { execFileSync('taskkill', ['/PID', String(next.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' }) } catch {} }
+    if (process.platform === 'win32') {
+      try { execFileSync('taskkill', ['/PID', String(next.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore', timeout: 10000 }) }
+      catch {
+        console.error(`CLEANUP REQUIRED: could not stop this test's Next server, PID ${next.pid}.`)
+        process.exitCode = 1
+      }
+    }
     else next.kill()
   }
-  if (server) await new Promise(resolve => server.close(resolve))
+  if (server) { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)) }
 })

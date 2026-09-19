@@ -1,7 +1,9 @@
 import type { Locale } from './locale.ts'
+import { activityKo, activityEn } from './activityMessages.ts'
 
 // UI text only. Facility names, free-form opening hours and user text stay untouched.
 const ko = {
+  ...activityKo,
   'language.choose': '언어 선택',
   'language.current': '현재 언어',
   'common.close': '닫기',
@@ -81,6 +83,7 @@ export type MessageKey = keyof typeof ko
 type Dictionary = { readonly [Key in MessageKey]: string }
 
 const en = {
+  ...activityEn,
   'language.choose': 'Choose language',
   'language.current': 'Current language',
   'common.close': 'Close',
@@ -158,6 +161,7 @@ const en = {
 
 export const messages: Readonly<Record<Locale, Dictionary>> = { ko, en }
 
-export function message(locale: Locale, key: MessageKey): string {
-  return messages[locale][key]
+export type MessageValues = Readonly<Record<string, string | number>>
+export function message(locale: Locale, key: MessageKey, values: MessageValues = {}): string {
+  return messages[locale][key].replace(/\{(\w+)\}/g, (placeholder, name: string) => Object.hasOwn(values, name) ? String(values[name]) : placeholder)
 }

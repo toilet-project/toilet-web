@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {readFile} from 'node:fs/promises'
+import { message } from '../src/i18n/messages.ts'
 
 const source = async path => readFile(new URL(path, import.meta.url), 'utf8')
 
@@ -40,19 +41,24 @@ test('report login prompt uses brand and concise labels without removing the aut
   assert.equal((app.match(/onReport=\{isDesktop \? undefined :/g) || []).length, 1)
   assert.match(app, /onReport=\{isDesktop && !REVIEW_UI_ENABLED \? undefined/)
   assert.match(app, /className="brand login-brand">급똥/)
-  assert.match(app, /const title = '로그인 · 간편가입'/)
+  assert.match(app, /const title = t\('auth.title'\)/)
 })
 
 test('login entry copy is one short purpose sentence and notifications use the shared title', async () => {
   const app = await source('../src/App.tsx')
   const mobile = await source('../src/components/MobileNavigation.tsx')
-  assert.match(app, /review: '리뷰는 로그인 후 이용할 수 있어요\.'/)
-  assert.match(app, /'my-reports': '내 제보는 로그인 후 확인할 수 있어요\.'/)
-  assert.match(app, /report: '제보는 로그인 후 이용할 수 있어요\.'/)
+  assert.match(app, /review: 'review.loginRequired'/)
+  assert.match(app, /'my-reports': 'auth.reportsLogin'/)
+  assert.match(app, /report: 'auth.reportLogin'/)
   assert.doesNotMatch(app, /로그인한 뒤 리뷰 버튼을 다시 눌러 주세요\. 새 리뷰는/)
-  assert.match(mobile, /<h1>로그인 · 간편가입<\/h1>/)
+  assert.match(mobile, /<h1>\{t\('auth.title'\)\}<\/h1>/)
   assert.doesNotMatch(mobile, /로그인하고 알림을 확인하세요/)
-  assert.match(app, /첫 가입 시 만 14세 이상 확인·필수 약관 동의가 필요해요\./)
+  assert.match(app, /t\('auth.ageNote'\)/)
+  assert.equal(message('ko', 'auth.title'), '로그인 · 간편가입')
+  assert.equal(message('ko', 'review.loginRequired'), '리뷰는 로그인 후 이용할 수 있어요.')
+  assert.equal(message('ko', 'auth.reportsLogin'), '내 제보는 로그인 후 확인할 수 있어요.')
+  assert.equal(message('ko', 'auth.reportLogin'), '제보는 로그인 후 이용할 수 있어요.')
+  assert.equal(message('ko', 'auth.ageNote'), '첫 가입 시 만 14세 이상 확인·필수 약관 동의가 필요해요.')
 })
 
 test('all login entry surfaces put Google before Kakao with matching provider handlers', async () => {
@@ -62,7 +68,8 @@ test('all login entry surfaces put Google before Kakao with matching provider ha
     assert.equal(buttons.length, 2)
     assert.match(buttons[0], /google-login.*(?:startSocialLogin|onLogin)\('google'\)/)
     assert.match(buttons[1], /kakao-login.*(?:startSocialLogin|onLogin)\('kakao'\)/)
-    assert.match(content, /구글·카카오로 간편하게 로그인하세요\./)
+    assert.match(content, /auth.intro/)
+    assert.equal(message('ko', 'auth.intro'), '구글·카카오로 간편하게 로그인하세요.')
     assert.doesNotMatch(content, /카카오·구글로/)
   }
 })
