@@ -154,8 +154,20 @@ module.exports = async function runAccountChecks(browser, origin) {
         assert.equal(await page.locator('.policy-translation-note a').getAttribute('href'), '/policies/' + kind)
         assert.equal(await page.locator('.policy-footer').getByRole('link', { name: 'Terms', exact: true }).getAttribute('href'), '/en/policies/terms')
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
+        if (kind === 'privacy' || kind === 'all') {
+          const text = await page.locator('.policy-document').innerText()
+          assert.match(text, /Service usage statistics: page types/)
+          assert.match(text, /does not stop statistics collection/)
+          assert.doesNotMatch(text, /Optional analytics|if analytics is allowed/)
+        }
         if (kind === 'all') await page.screenshot({ path: path.resolve(`.next/i18n-policy-${width}.png`) })
       }
+      await page.goto(origin + '/policies/privacy')
+      const original = await page.locator('.policy-document').innerText()
+      assert.match(original, /서비스 이용 통계: 페이지 유형/)
+      assert.match(original, /통계 수집 자체를 중지하는 기능은 아닙니다/)
+      assert.doesNotMatch(original, /선택 분석|분석 사용을 허용한 경우/)
+      assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1))
       assert.deepEqual(unexpectedWrites, []); assert.deepEqual(errors, [])
       console.log(`PASS ${width}px: English policies, exact archives, independent consent, closure pending/retention, recovery, profile/photo fixture writes`)
     } finally { await context.close() }

@@ -44,7 +44,7 @@ test('recovery callback returns to a bounded English map route without storing a
   assert.equal(consumeLanguageLoginReturn(store, 'recovery', now), null)
 })
 
-test('translation tracks unchanged Korean source, clause structure and policy publication markers', () => {
+test('translation tracks reviewed Korean source, clause structure and policy publication markers', () => {
   const ko = read('src/components/PolicyPage.tsx'), en = read('src/components/EnglishPolicyPage.tsx')
   assert.equal(createHash('sha256').update(ko).digest('hex'), policyTranslationSourceSha256, 'Korean source changed: review translation before updating fingerprint')
   const clauseNumbers = source => [...source.matchAll(/<SectionHeading>(\d+(?:-\d+)?)\./g)].map(x => x[1])
@@ -56,7 +56,19 @@ test('translation tracks unchanged Korean source, clause structure and policy pu
   assert.match(en, /not a statutory retention period or automatic deletion date/)
   assert.match(en, /does not mean all existing copies were erased simultaneously/)
   assert.match(en, /does not change the agreement conditions/)
-  assert.match(en, /Optional analytics: if analytics is allowed/, 'Preserve source inconsistency for separate policy review; do not silently change consent terms')
+  assert.doesNotMatch(ko, /선택 분석|분석 사용을 허용한 경우/)
+  assert.doesNotMatch(en, /Optional analytics|if analytics is allowed/)
+  assert.match(ko, /서비스 이용 통계: 페이지 유형/)
+  assert.match(en, /Service usage statistics: page types/)
+  for (const storage of ['sessionStorage', 'localStorage']) {
+    assert.ok(ko.includes(storage))
+    assert.ok(en.includes(storage))
+    assert.ok(read('src/lib/analytics.ts').includes(storage))
+  }
+  assert.match(ko, /통계 수집 자체를 중지하는 기능은 아닙니다/)
+  assert.match(en, /does not stop statistics collection/)
+  assert.match(ko, /Google Analytics 쿠키는 사용하지 않습니다/)
+  assert.match(en, /Google Analytics cookies are not used/)
 })
 
 test('English policies are preview gated; disclosure fails closed on missing fragments', () => {
