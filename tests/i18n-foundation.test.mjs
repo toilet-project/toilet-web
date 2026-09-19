@@ -7,7 +7,7 @@ import { message, messages } from '../src/i18n/messages.ts'
 import { mapNavigationPath } from '../src/lib/navigationCache.ts'
 import { parseMapResume } from '../src/lib/appUpdate.ts'
 import { sanitizeAnalyticsPagePath } from '../src/lib/analytics.ts'
-import { englishToiletMetadata, englishPlaceData } from '../src/i18n/seo.ts'
+import { englishHomeMetadata, englishHomeData, englishToiletMetadata, englishPlaceData } from '../src/i18n/seo.ts'
 import { LANGUAGE_LOGIN_RETURN_KEY, saveLanguageLoginReturn, consumeLanguageLoginReturn } from '../src/i18n/loginReturn.ts'
 
 test('display labels do not replace standards-based locale identifiers', () => {
@@ -113,12 +113,35 @@ test('English analytics do not expose IDs or fragment/query values', () => {
 
 test('English metadata keeps facility names and physical-place identity unchanged', () => {
   const detail = { id: 123, name: '시험 화장실', latitude: 36.3, longitude: 127.3, roadAddress: '시험 주소' }
-  assert.equal(englishToiletMetadata(detail).title, '시험 화장실 — Toilet location and facilities')
+  assert.equal(englishToiletMetadata(detail).title, '시험 화장실 — Restroom in Korea')
+  assert.match(englishToiletMetadata(detail).description, /Visiting Korea\?.*Restroom/)
   const place = englishPlaceData(detail)
   assert.equal(place['@id'], 'https://geupddong.com/toilet/123#place')
   assert.equal(place.url, 'https://geupddong.com/en/toilet/123')
   assert.equal(place.name, detail.name)
   assert.equal(place.address.streetAddress, detail.roadAddress)
+  assert.equal(place.description, englishToiletMetadata(detail).description)
+})
+
+test('English presentation distinguishes restrooms from fixtures and introduces Korea to travelers', () => {
+  assert.match(englishHomeMetadata.title, /public restrooms in Korea/)
+  assert.match(englishHomeMetadata.description, /travelers in Korea/)
+  const home = englishHomeData()
+  for (const entity of home['@graph']) {
+    assert.equal(entity.url, 'https://geupddong.com/en')
+    assert.equal(entity.inLanguage, 'en-US')
+    assert.equal(entity.description, englishHomeMetadata.description)
+  }
+  assert.match(message('en', 'map.subtitle'), /Korea.*travelers/)
+  assert.equal(message('en', 'detail.toilets'), 'Toilets')
+  const fixtureKeys = new Set(['detail.toilets', 'detail.accessibleToilets', 'detail.childToilets', 'detail.maleToilets', 'detail.femaleToilets'])
+  for (const [key, value] of Object.entries(messages.en)) {
+    if (!fixtureKeys.has(key)) assert.doesNotMatch(value, /\btoilets?\b(?![- ]paper)/i, key)
+    assert.doesNotMatch(value, /restroom[- ]paper/i, key)
+  }
+  const original = { id: 123, name: 'Original Toilet Name' }
+  assert.equal(englishPlaceData(original).name, original.name)
+  assert.match(englishToiletMetadata(original).title, /^Original Toilet Name/)
 })
 
 test('the same map owns both routes; English preview remains gated and unindexed', async () => {

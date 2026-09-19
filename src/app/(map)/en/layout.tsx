@@ -2,11 +2,12 @@ import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { ENGLISH_UI_ENABLED } from '../../../i18n/feature'
+import { englishHomeMetadata } from '../../../i18n/seo'
 
 // Keep incomplete English pages out of search results until the full phase is accepted.
 export const metadata: Metadata = {
-  title: { default: 'Geupddong | Find public toilets nearby', template: '%s | Geupddong' },
-  description: 'Find public toilets in Korea, with locations, opening hours and facilities.',
+  title: { default: englishHomeMetadata.title, template: '%s | Geupddong' },
+  description: englishHomeMetadata.description,
   applicationName: 'Geupddong',
   openGraph: { locale: 'en_US', siteName: 'Geupddong', images: ['/og-image.png'] },
   robots: { index: false, follow: false },

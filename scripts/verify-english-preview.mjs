@@ -4,16 +4,29 @@ const origin = 'https://preview.geupddong.com'
 const id = process.argv[2] || '13448'
 assert.match(id, /^[1-9]\d*$/)
 const rows = []
-for (const path of ['/', '/en', `/toilet/${id}`, `/en/toilet/${id}`, '/en/toilet/0', '/en/toilet/nope', '/robots.txt', '/admin-toilets-preview/']) {
+for (const path of ['/', '/en', `/toilet/${id}`, `/en/toilet/${id}`, '/en/toilet/0', '/en/toilet/nope', '/en/policies/terms', '/en/policies/privacy', '/en/policies/location', '/en/policies/all', '/en/policies/unknown', '/robots.txt', '/admin-toilets-preview/']) {
   const response = await fetch(origin + path, { signal: AbortSignal.timeout(30_000), redirect: 'follow' })
   const body = await response.text()
-  const expected = path.endsWith('/0') || path.endsWith('/nope') ? 404 : 200
+  const expected = path.endsWith('/0') || path.endsWith('/nope') || path.endsWith('/unknown') ? 404 : 200
   assert.equal(response.status, expected, path)
   if (path === '/robots.txt') assert.match(body, /Disallow: \//)
   else if (!path.startsWith('/admin-')) {
     assert.match(response.headers.get('x-robots-tag') || '', /noindex/, path)
     assert.match(response.headers.get('cache-control') || '', /no-store/, path)
     if (response.status === 200) assert.match(body, new RegExp(`<html[^>]*lang="${path.startsWith('/en') ? 'en' : 'ko'}"`), path)
+    if (path.startsWith('/en') && response.status === 200) {
+      const meta = key => body.match(new RegExp(`<meta (?:name|property)="${key}" content="([^"]*)"`))?.[1]
+      for (const key of ['description', 'og:description', 'twitter:description']) {
+        assert.match(meta(key), /restroom/i, `${path}: ${key}`)
+        assert.match(meta(key), /Korea/, `${path}: ${key}`)
+      }
+      if (!path.includes('/policies/')) {
+        assert.match(body.match(/<title>(.*?)<\/title>/s)?.[1], /restroom.*Korea/i)
+        assert.match(meta('og:title'), /restroom.*Korea/i)
+        assert.match(meta('twitter:title'), /restroom.*Korea/i)
+      } else assert.match(body, /data-translation-status="preview"/)
+      assert.equal(meta('og:locale'), 'en_US')
+    }
     if (path.startsWith('/en/toilet/') && response.status === 200) {
       assert.ok(body.includes(`https://geupddong.com/en/toilet/${id}`), 'English canonical path')
       const structured = body.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)

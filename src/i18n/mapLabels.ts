@@ -14,7 +14,7 @@ const notices: Record<string, string> = {
   "약관 동의가 완료되었습니다.": "Your consent has been saved.",
   "검색 결과가 없습니다.": "No places found.",
   "장소를 검색하지 못했습니다. 잠시 후 다시 시도해 주세요.": "Could not search places. Please try again.",
-  "화장실 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.": "Could not load toilets. Please try again.",
+  "화장실 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.": "Could not load restrooms. Please try again.",
   "지도를 불러오지 못했습니다.": "Could not load the map. Please try again.",
   "이 브라우저에서는 현재 위치를 지원하지 않습니다.": "This browser does not support location access.",
   "위치 권한이 거부되었습니다. 브라우저의 사이트 설정에서 위치를 허용해 주세요.": "Allow location access in your browser’s site settings.",

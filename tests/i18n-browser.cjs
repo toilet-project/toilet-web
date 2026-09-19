@@ -32,6 +32,7 @@ async function main() {
     if (url.pathname === '/api/v1/toilets/123') return send(facility)
     if (url.pathname.startsWith('/api/v1/toilets/') && /\/\d+$/.test(url.pathname)) return send({}, 404)
     if (url.pathname === '/api/v1/auth/me' && req.headers.cookie?.includes('fixture-login=1')) return send({ userId: 'synthetic-owner', displayName: '합성 닉네임', email: null, status: 'ACTIVE', roles: [], consentRequired: false })
+    if (url.pathname === '/api/v1/auth/me/photo' && req.headers.cookie?.includes('fixture-login=1')) return send({ available: true, publicPhoto: false, imageVersion: null })
     if (url.pathname.includes('auth')) return send({}, 401)
     if (url.pathname === '/api/v1/reports/me') return send([{ id: 9, toiletId: 123, toiletName: facility.name, reportType: 'OPEN_TIME_CORRECTION', openTime: '오전 9시', reason: '작성자가 남긴 제보 원문', status: 'APPROVED', reviewNote: '관리자 답변 원문', createdAt: new Date().toISOString() }])
     if (url.pathname === '/api/v1/notifications/unread-count') return send({ count: 1 })
@@ -51,9 +52,10 @@ async function main() {
   const options = {
     cwd: process.cwd(), windowsHide: true, env: { ...process.env, NEXT_TELEMETRY_DISABLED: '1', SITE_INDEXABLE: 'false', ENGLISH_UI_PREVIEW: 'true',
       NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY: 'synthetic-local-sdk-not-a-real-key',
-      NEXT_PUBLIC_API_BASE_URL: 'https://api.geupddong.com', TOILET_API_ORIGIN: api, SHARED_TOILET_CACHE_ENABLED: 'false', REVIEW_API_ENABLED: 'false' }, stdio: ['ignore', 'pipe', 'pipe'],
+      NEXT_PUBLIC_API_BASE_URL: 'https://api.geupddong.com', TOILET_API_ORIGIN: api, SHARED_TOILET_CACHE_ENABLED: 'false', REVIEW_API_ENABLED: 'false',
+      NEXT_PUBLIC_PROFILE_PHOTO_ENABLED: 'true' }, stdio: ['ignore', 'pipe', 'pipe'],
   }
-  if (process.env.TEST_PRODUCTION === '1') {
+  if (process.env.TEST_PRODUCTION === '1' && process.env.TEST_SKIP_BUILD !== '1') {
     next = spawn(process.execPath, [path.resolve('node_modules/next/dist/bin/next'), 'build'], options)
     for (const stream of [next.stdout, next.stderr]) stream.on('data', chunk => { logs = (logs + chunk.toString()).slice(-12000) })
     const code = await new Promise(resolve => next.once('exit', resolve))
@@ -74,10 +76,21 @@ async function main() {
     const html = await response.text()
     assert.equal(response.status, 200, `${url}: ${html.slice(0, 200)}`)
     assert.match(html, new RegExp(`<html[^>]*lang="${lang}"`), `SSR document language ${url}`)
-    if (url.startsWith('/en')) assert.match(html, /noindex/)
+    if (url.startsWith('/en')) {
+      assert.match(html, /noindex/)
+      const title = html.match(/<title>(.*?)<\/title>/s)?.[1]
+      assert.match(title, /restroom.*Korea/i)
+      for (const key of ['description', 'og:title', 'og:description', 'twitter:title', 'twitter:description']) {
+        const value = html.match(new RegExp(`<meta (?:name|property)="${key}" content="([^"]*)"`))?.[1]
+        assert.ok(value, key)
+        assert.match(value, /restroom/i, key)
+        assert.match(value, /Korea/i, key)
+      }
+      assert.match(html, /property="og:locale" content="en_US"/)
+    }
   }
   browser = await chromium.launch({ channel: 'chrome', headless: true })
-  for (const viewport of [{ width: 320, height: 740 }, { width: 390, height: 844 }, { width: 1280, height: 850 }]) {
+  for (const viewport of process.env.I18N_ACCOUNT_ONLY === '1' ? [] : [{ width: 320, height: 740 }, { width: 390, height: 844 }, { width: 1280, height: 850 }]) {
     const context = await browser.newContext({ viewport, isMobile: viewport.width < 500, hasTouch: viewport.width < 500, serviceWorkers: 'block', ...(viewport.width < 500 ? { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148' } : {}) })
     await context.route('**/*', async route => {
       const url = new URL(route.request().url())
@@ -151,7 +164,7 @@ async function main() {
     await page.getByRole('button', { name: 'View all', exact: false }).click()
     await page.getByRole('heading', { name: /User reviews/ }).waitFor()
     assert.ok(await page.locator('.public-review-full-panel').getByText('공개 리뷰 원문 1', { exact: true }).isVisible())
-    await page.getByRole('button', { name: 'Back to toilet details', exact: true }).click()
+    await page.getByRole('button', { name: 'Back to restroom details', exact: true }).click()
     if (viewport.width < 500) await page.getByRole('button', { name: 'Collapse', exact: true }).click()
     console.log('PASS public reviews: English labels/anonymous, original author and review text')
     await page.locator('.review-entry').click()
@@ -228,6 +241,7 @@ async function main() {
     console.log(`PASS ${viewport.width}px: SSR language, header, switch, menu, history and map preservation`)
     await context.close()
   }
+  await require('./i18n-account-browser.cjs')(browser, origin)
 }
 main().catch(error => { console.error(error); console.error(logs); process.exitCode = 1 }).finally(async () => {
   if (browser) await browser.close()

@@ -2,6 +2,7 @@ import { useLocale, useMessages } from '../i18n/context'
 import { useEffect, useMemo, useState } from 'react'
 import { agreeToRequiredPolicies, fetchPolicies, type PolicyDocument, type PolicyKey } from '../api/auth'
 import { PolicyDisclosure } from './PolicyDisclosure'
+import { accountError, policyTitle } from '../i18n/accountLabels'
 
 export function PolicyConsentModal({ isNewRegistration, onComplete, onLogout }: {
   isNewRegistration: boolean
@@ -15,8 +16,10 @@ export function PolicyConsentModal({ isNewRegistration, onComplete, onLogout }: 
   const [isSaving, setIsSaving] = useState(false)
 
   useEffect(() => {
-    void fetchPolicies().then(setPolicies).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : '약관을 불러오지 못했습니다.'))
-  }, [])
+    let active = true
+    void fetchPolicies().then(value => { if (active) setPolicies(value) }).catch((reason: unknown) => { if (active) setError(accountError(reason, locale, 'consent.loadError')) })
+    return () => { active = false }
+  }, [locale])
 
   const required = useMemo(() => policies.filter((policy) => policy.required), [policies])
   const allChecked = required.length > 0 && required.every((policy) => checked.has(policy.key))
@@ -33,24 +36,23 @@ export function PolicyConsentModal({ isNewRegistration, onComplete, onLogout }: 
       await agreeToRequiredPolicies(required.map((policy) => policy.key))
       onComplete()
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : '약관 동의를 저장하지 못했습니다.')
+      setError(accountError(reason, locale, 'consent.saveError'))
     } finally { setIsSaving(false) }
   }
 
   return <div className="consent-backdrop">
     <section className="consent-modal" role="dialog" aria-modal="true" aria-labelledby="consent-title">
-      {locale === 'en' && <p className="consent-description" lang="en">{t('policy.original')}</p>}
-      <p className="consent-eyebrow">{isNewRegistration ? '가입 마지막 단계' : '약관 업데이트'}</p>
-      <h1 id="consent-title">{isNewRegistration ? '급똥 가입을 위한 동의가 필요해요' : '계속 이용하려면 동의가 필요해요'}</h1>
-      <p className="consent-description">지도는 동의 없이 볼 수 있어요. 동의 후 제보 기능을 이용할 수 있습니다.</p>
-      <label className="consent-all"><input type="checkbox" checked={allChecked} onChange={() => setChecked(allChecked ? new Set() : new Set(required.map((policy) => policy.key)))} /><strong>필수 항목 모두 동의</strong></label>
+      <p className="consent-eyebrow">{isNewRegistration ? t('consent.signupStep') : t('consent.update')}</p>
+      <h1 id="consent-title">{isNewRegistration ? t('consent.signupTitle') : t('consent.updateTitle')}</h1>
+      <p className="consent-description">{t('consent.description')}</p>
+      <label className="consent-all"><input type="checkbox" checked={allChecked} onChange={() => setChecked(allChecked ? new Set() : new Set(required.map((policy) => policy.key)))} /><strong>{t('consent.all')}</strong></label>
       <div className="consent-list">
-        {required.map((policy) => <PolicyDisclosure key={`${policy.id}-${policy.version}-${policy.contentPath}`} title={`[필수] ${policy.title}`} meta={`v${policy.version} · ${policy.effectiveAt}`} contentPath={policy.contentPath} selection={<label className="policy-consent-selection"><input type="checkbox" aria-label={`[필수] ${policy.title} 동의`} checked={checked.has(policy.key)} onChange={() => toggle(policy.key)} /></label>} />)}
+        {required.map((policy) => <PolicyDisclosure key={`${policy.id}-${policy.version}-${policy.contentPath}`} title={t('consent.item', { title: policyTitle(locale, policy.key, policy.title) })} meta={`v${policy.version} · ${policy.effectiveAt}`} contentPath={policy.contentPath} version={policy.version} selection={<label className="policy-consent-selection"><input type="checkbox" aria-label={t('consent.agreeItem', { title: policyTitle(locale, policy.key, policy.title) })} checked={checked.has(policy.key)} onChange={() => toggle(policy.key)} /></label>} />)}
       </div>
-      <p className="consent-age-note">만 14세 이상 확인은 계정당 한 번만 기록됩니다.</p>
+      <p className="consent-age-note">{t('consent.ageNote')}</p>
       {error && <p className="consent-error" role="alert">{error}</p>}
-      <button type="button" className="consent-submit" disabled={!allChecked || isSaving} onClick={() => void submit()}>{isSaving ? '저장 중…' : '동의하고 시작하기'}</button>
-      <button type="button" className="consent-logout" onClick={onLogout}>동의하지 않고 로그아웃</button>
+      <button type="button" className="consent-submit" disabled={!allChecked || isSaving} onClick={() => void submit()}>{isSaving ? t('common.saving') : t('consent.submit')}</button>
+      <button type="button" className="consent-logout" onClick={onLogout}>{t('consent.logout')}</button>
     </section>
   </div>
 }

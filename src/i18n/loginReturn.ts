@@ -14,7 +14,7 @@ export function saveLanguageLoginReturn(storage: Store, path: string, now = Date
 }
 
 export function consumeLanguageLoginReturn(storage: Store, loginResult: string | null, now = Date.now()): string | null {
-  if (loginResult !== 'success' && loginResult !== 'failed') return null
+  if (loginResult !== 'success' && loginResult !== 'failed' && loginResult !== 'recovery') return null
   try {
     const raw = storage.getItem(LANGUAGE_LOGIN_RETURN_KEY)
     storage.removeItem(LANGUAGE_LOGIN_RETURN_KEY)

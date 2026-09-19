@@ -9,6 +9,8 @@ import { HistoryScrollTop } from './HistoryScrollTop'
 import { AccountDialog } from './AccountDialog'
 import { TRANSIENT_NOTICE_MS } from '../lib/uiTiming'
 import { useMessages, useLocale } from '../i18n/context'
+import { accountError } from '../i18n/accountLabels'
+import { localizedPublicPath } from '../i18n/routes'
 
 export type MobileTab = 'map' | 'notifications' | 'account'
 export type MobileAccountView = 'home' | 'reports' | 'reviews' | 'settings'
@@ -53,8 +55,8 @@ export function MobileNavigation({ tab, onChange, unread }: { tab: MobileTab; on
 }
 
 function PolicyLinks() {
-  const t = useMessages()
-  return <nav className="mobile-policy-links" aria-label={t('policy.links')}><a href="/policies/all">{t('policy.terms')}</a><a href="mailto:privacy@geupddong.com">{t('policy.contact')}</a></nav>
+  const t = useMessages(), locale = useLocale()
+  return <nav className="mobile-policy-links" aria-label={t('policy.links')}><a href={localizedPublicPath('/policies/all', locale)!}>{t('policy.terms')}</a><a href="mailto:privacy@geupddong.com">{t('policy.contact')}</a></nav>
 }
 
 function LoginLanding({ onLogin }: { onLogin: (provider: 'google' | 'kakao') => void }) {
@@ -86,7 +88,7 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
       const result = await updateNickname(nickname)
       if (!active.current) return
       onProfile({ ...profile, displayName: result.displayName }); setEditing(false); setMessage(t('account.nicknameSaved'))
-    } catch (reason) { if (!active.current) return; if (reason instanceof AuthExpiredError) onSessionExpired(); else setMessage(locale === 'ko' && reason instanceof Error ? reason.message : t('account.nicknameFailed')) }
+    } catch (reason) { if (!active.current) return; if (reason instanceof AuthExpiredError) onSessionExpired(); else setMessage(accountError(reason, locale, 'account.nicknameFailed')) }
     finally { if (active.current) setSaving(false) }
   }
   return <section className="mobile-profile-card" aria-label={t('account.profile')}>
