@@ -2,7 +2,7 @@ import {execFile} from 'node:child_process'
 import {promisify} from 'node:util'
 import {readFile,writeFile} from 'node:fs/promises'
 import {resolve} from 'node:path'
-import {assertAutomaticCleanupPlan,assertReviewedCleanupPlan,normalizeDeploymentStatus,planIncrementalCacheCleanup,sameActiveDeployment} from './cache/cleanup-lib.mjs'
+import {assertAutomaticCleanupPlan,assertReviewedCleanupPlan,normalizeDeploymentStatus,planIncrementalCacheCleanup,sameActiveDeployment,selectAutomaticCleanupBatch} from './cache/cleanup-lib.mjs'
 import {R2S3Store} from './cache/r2-s3-store.mjs'
 const executeFile=promisify(execFile)
 function argsOf(values){const out={};for(let i=0;i<values.length;i++){const key=values[i];if(['--execute','--automatic'].includes(key)){out[key.slice(2)]=true;continue}if(!key.startsWith('--')||values[i+1]===undefined)throw new Error(`Invalid argument ${key}`);out[key.slice(2)]=values[++i]}return out}
@@ -24,13 +24,15 @@ const config={accountId:process.env.R2_ACCOUNT_ID,accessKeyId:process.env.R2_ACC
 if(config.bucket!=='geupddong-next-production-cache')throw new Error('Exact production incremental-cache bucket is required')
 const store=new R2S3Store(config),before=await status(),releases=JSON.parse(await readFile(args.registry,'utf8'))
 const objects=await store.list('incremental-cache/')
-const plan=planIncrementalCacheCleanup({objects,releases,activeWorkerVersions:before.activeWorkerVersions,rollbackProtectionDays:Number(args['rollback-days']||3)})
+const fullPlan=planIncrementalCacheCleanup({objects,releases,activeWorkerVersions:before.activeWorkerVersions,rollbackProtectionDays:Number(args['rollback-days']||3)})
+const automaticLimits=args.automatic?{maxFiles:requiredExpected('max-delete-files'),maxBytes:requiredExpected('max-delete-bytes')}:null
+const plan=args.automatic?selectAutomaticCleanupBatch(fullPlan,automaticLimits):fullPlan
 const result={...plan,mode:args.execute?'execute':'dry-run',execution:{attempted:false,startedAt:null,deletedFiles:0,completedAt:null,error:null}}
 await writeFile(args.report,JSON.stringify(result,null,2)+'\n')
 if(args.execute){
   assertReviewedCleanupPlan(plan,{files:requiredExpected('expected-delete-files'),bytes:requiredExpected('expected-delete-bytes'),
-    fingerprint:requiredExpected('expected-delete-fingerprint')})
-  if(args.automatic)assertAutomaticCleanupPlan(plan,{maxFiles:requiredExpected('max-delete-files'),maxBytes:requiredExpected('max-delete-bytes')})
+    fingerprint:requiredExpected('expected-delete-fingerprint')},{allowUnknownObjects:args.automatic})
+  if(args.automatic)assertAutomaticCleanupPlan(plan,automaticLimits)
   const after=await status();if(!sameActiveDeployment(before,after))throw new Error('Active deployment changed before deletion')
   result.execution.attempted=true;result.execution.startedAt=new Date().toISOString()
   await writeFile(args.report,JSON.stringify(result,null,2)+'\n')

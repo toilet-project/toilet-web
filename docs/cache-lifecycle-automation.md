@@ -37,7 +37,14 @@ GitHub Actions는 매일 05:30 KST에 그날의 파티션을 선택한다. 저�
 - 현재 활성 배포보다 나중에 만들어진 배포 후보 namespace
 - 공유 데이터 `public-toilets/v1/`, 정적 자산, 업로드 이미지, 다른 버킷
 
-release registry에 없는 namespace가 하나라도 있거나 활성 배포를 확인할 수 없으면 삭제하지 않는다. 계획의 객체 수·바이트·SHA-256 지문을 실행 직전에 다시 계산하며 기본 자동 상한은 100,000개와 4 GiB다. 삭제 중에도 10,000개마다 활성 배포를 다시 확인한다. 상태가 바뀌면 남은 삭제를 중단한다.
+활성 배포를 확인할 수 없으면 삭제하지 않는다. release registry에 없는 객체는 삭제 후보에서 제외하고 경고와 수량을 남긴다. 기본 자동 상한은 100,000개와 4 GiB이며, 임의의 파일 수로 자르지 않고 하나의 cache namespace를 통째로 선택한다. namespace 하나가 상한을 넘으면 삭제하지 않고 운영자가 한도를 재검토하게 한다.
+
+한 번의 예약 실행은 다음 두 단계까지만 처리한다.
+
+1. 첫 계획을 새로 만들고, 상한 안에서 가장 오래된 퇴역 namespace 묶음을 선택한다. 객체 수·바이트·SHA-256 지문과 활성 배포가 일치할 때만 삭제한다.
+2. 남은 후보가 있으면 R2와 활성 배포를 다시 조회해 두 번째 계획을 만든다. 같은 검증을 다시 통과한 다음 별도 묶음으로 삭제한다.
+
+두 단계 뒤에도 후보가 남으면 다음 날 예약 실행으로 넘긴다. 각 단계는 독립된 계획·실행 보고서를 artifact로 남긴다. 삭제 중에도 10,000개마다 활성 배포를 다시 확인하며 상태가 바뀌면 남은 삭제를 중단한다. 공유 데이터, 활성·롤백 보호 namespace, 정적 자산, 업로드 이미지는 선택 대상이 아니다.
 
 새 운영 배포는 `CACHE_RELEASE_REGISTRY_JSON`에 Worker version, cache namespace, build ID, 배포 시각을 기록해야 한다. 누락되면 자동 정리는 실패한 채 캐시를 보존한다. 자동 정리에는 production incremental-cache prefix만 읽고 삭제할 수 있는 별도 최소 권한 R2 키가 필요하다.
 
@@ -71,6 +78,6 @@ Cloudflare Worker에는 같은 `CACHE_MAINTENANCE_SECRET`을 secret으로 저장
 3. gate가 꺼진 상태에서 지정 파티션 소수 ID를 격리 또는 수동 검증한다.
 4. 저장소 변수 `CACHE_DATA_REFRESH_ENABLED=true`로 바꾸고 한 파티션을 실행해 성공·실패·실제 처리율을 확인한다.
 5. 최신 release registry와 최소 권한 삭제 키를 준비한다.
-6. 정리 dry-run의 unknown 0, 보호 namespace, 후보 크기를 확인한 뒤 저장소 변수 `CACHE_CLEANUP_AUTOMATIC_ENABLED=true`로 바꾼다.
+6. 정리 dry-run에서 보호 namespace, 분류 불명 보존 수량, 단계별 후보 크기를 확인한 뒤 저장소 변수 `CACHE_CLEANUP_AUTOMATIC_ENABLED=true`로 바꾼다.
 
 문제가 생기면 해당 gate를 `false`로 돌린다. 공유 데이터 갱신 중단은 사용자 요청 시 read-through 동작에 영향을 주지 않는다. 정리가 중단돼도 남은 페이지 캐시는 보관될 뿐 서비스 응답은 계속된다.

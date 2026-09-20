@@ -17,22 +17,55 @@ export function cleanupPlanFingerprint(objects){
   const canonical=objects.map(object=>`${object.key}\0${Number(object.size)}\n`).sort().join('')
   return createHash('sha256').update(canonical).digest('hex')
 }
-export function assertReviewedCleanupPlan(plan,{files,bytes,fingerprint}){
+export function assertReviewedCleanupPlan(plan,{files,bytes,fingerprint},{allowUnknownObjects=false}={}){
   const expectedFiles=Number(files),expectedBytes=Number(bytes)
   if(!Number.isSafeInteger(expectedFiles)||expectedFiles<1||!Number.isSafeInteger(expectedBytes)||expectedBytes<1)throw new Error('Expected delete totals must be positive safe integers')
   if(typeof fingerprint!=='string'||!/^[a-f0-9]{64}$/i.test(fingerprint))throw new Error('Expected delete fingerprint must be a SHA-256 hex digest')
-  if(plan.unknownObjects.length)throw new Error(`Deletion refused: ${plan.unknownObjects.length} cache objects are unclassified`)
+  if(plan.unknownObjects.length&&!allowUnknownObjects)throw new Error(`Deletion refused: ${plan.unknownObjects.length} cache objects are unclassified`)
   if(plan.summary.delete.files!==expectedFiles||plan.summary.delete.bytes!==expectedBytes||plan.deleteFingerprint!==fingerprint){
     throw new Error('Deletion refused: current cache plan does not match the reviewed dry-run')
   }
 }
-export function assertAutomaticCleanupPlan(plan,{maxFiles,maxBytes}){
+function automaticLimits({maxFiles,maxBytes}){
   const files=Number(maxFiles),bytes=Number(maxBytes)
   if(!Number.isSafeInteger(files)||files<1||!Number.isSafeInteger(bytes)||bytes<1)throw new Error('Automatic cleanup limits must be positive safe integers')
-  if(plan.unknownObjects.length)throw new Error(`Automatic deletion refused: ${plan.unknownObjects.length} cache objects are unclassified`)
-  if(plan.summary.delete.files>files||plan.summary.delete.bytes>bytes)throw new Error('Automatic deletion refused: candidate total exceeds the configured limit')
+  return {files,bytes}
+}
+function summarizeObjects(rows){return {files:rows.length,bytes:rows.reduce((sum,row)=>sum+Number(row.size),0)}}
+export function selectAutomaticCleanupBatch(plan,limits){
+  const maximum=automaticLimits(limits)
+  if(!plan||!Array.isArray(plan.deleteObjects)||!Array.isArray(plan.unknownObjects))throw new Error('Invalid automatic cleanup plan')
+  const groups=new Map()
+  for(const object of plan.deleteObjects){
+    if(typeof object.cacheNamespace!=='string'||!object.cacheNamespace)throw new Error('Automatic deletion requires a recognized cache namespace')
+    const group=groups.get(object.cacheNamespace)||[];group.push(object);groups.set(object.cacheNamespace,group)
+  }
+  const ordered=[...groups].map(([cacheNamespace,objects])=>({cacheNamespace,objects,summary:summarizeObjects(objects),
+    oldestUpload:objects.reduce((oldest,object)=>{
+      const uploaded=Date.parse(object.uploaded)
+      return Math.min(oldest,Number.isFinite(uploaded)?uploaded:Number.MAX_SAFE_INTEGER)
+    },Number.MAX_SAFE_INTEGER)}))
+    .sort((left,right)=>left.oldestUpload-right.oldestUpload||left.cacheNamespace.localeCompare(right.cacheNamespace))
+  const oversized=ordered.filter(group=>group.summary.files>maximum.files||group.summary.bytes>maximum.bytes)
+  if(oversized.length)throw new Error(`Automatic deletion refused: cache namespace exceeds the configured limit: ${oversized[0].cacheNamespace}`)
+  const selected=[],deferred=[];let selectedFiles=0,selectedBytes=0
+  for(const group of ordered){
+    if(selectedFiles+group.summary.files<=maximum.files&&selectedBytes+group.summary.bytes<=maximum.bytes){
+      selected.push(...group.objects);selectedFiles+=group.summary.files;selectedBytes+=group.summary.bytes
+    }else deferred.push(...group.objects)
+  }
+  const summary={...plan.summary,delete:summarizeObjects(selected)}
+  return {...plan,deleteObjects:selected,deleteFingerprint:cleanupPlanFingerprint(selected),summary,
+    automaticBatch:{selectedCacheNamespaces:[...new Set(selected.map(object=>object.cacheNamespace))],deferred:summarizeObjects(deferred),
+      preservedUnknown:summarizeObjects(plan.unknownObjects),limits:{maxFiles:maximum.files,maxBytes:maximum.bytes}}}
+}
+export function assertAutomaticCleanupPlan(plan,{maxFiles,maxBytes}){
+  const {files,bytes}=automaticLimits({maxFiles,maxBytes})
+  if(!plan.automaticBatch)throw new Error('Automatic deletion refused: a bounded cache batch was not selected')
+  if(plan.summary.delete.files>files||plan.summary.delete.bytes>bytes)throw new Error('Automatic deletion refused: selected batch exceeds the configured limit')
   return {shouldExecute:plan.summary.delete.files>0,files:plan.summary.delete.files,bytes:plan.summary.delete.bytes,
-    fingerprint:plan.deleteFingerprint}
+    fingerprint:plan.deleteFingerprint,hasDeferred:plan.automaticBatch.deferred.files>0,
+    unknownFiles:plan.automaticBatch.preservedUnknown.files}
 }
 export function normalizeDeploymentStatus(value,workerName){
   if(!value||typeof value!=='object') throw new Error('Invalid deployment status')
@@ -103,11 +136,10 @@ export function planIncrementalCacheCleanup({objects,releases,activeWorkerVersio
     if(reason) protectedObjects.push({...object,cacheNamespace,reason})
     else deleteObjects.push({...object,cacheNamespace})
   }
-  const summarize=rows=>({files:rows.length,bytes:rows.reduce((sum,row)=>sum+Number(row.size),0)})
   return {schema:1,generatedAt:new Date(now).toISOString(),activeWorkerVersions:[...activeWorkerVersions].sort(),
     protectedCacheNamespaces:Object.fromEntries(protectedCacheNamespaces),deleteObjects,protectedObjects,unknownObjects,
     deleteFingerprint:cleanupPlanFingerprint(deleteObjects),
-    summary:{delete:summarize(deleteObjects),protected:summarize(protectedObjects),unknown:summarize(unknownObjects)}}
+    summary:{delete:summarizeObjects(deleteObjects),protected:summarizeObjects(protectedObjects),unknown:summarizeObjects(unknownObjects)}}
 }
 export function sameActiveDeployment(left,right){
   return left.workerName===right.workerName&&JSON.stringify([...left.activeWorkerVersions].sort())===JSON.stringify([...right.activeWorkerVersions].sort())
