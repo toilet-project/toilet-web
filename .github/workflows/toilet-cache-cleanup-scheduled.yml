@@ -37,7 +37,7 @@ jobs:
         run: |
           [[ -n "$REGISTRY_JSON" ]] || { echo 'Release registry is required'; exit 1; }
           printf '%s' "$REGISTRY_JSON" > cache-release-registry.json
-      - name: Produce a fresh fail-closed plan
+      - name: Produce a fresh fail-closed plan for batch 1
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CACHE_STATUS_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -45,15 +45,15 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_CACHE_READ_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_CACHE_READ_SECRET_ACCESS_KEY }}
           R2_INCREMENTAL_CACHE_BUCKET: geupddong-next-production-cache
-        run: node scripts/cleanup-incremental-cache.mjs --registry cache-release-registry.json --report cache-cleanup-plan.json
-      - name: Enforce automatic deletion limits
-        id: plan
+        run: node scripts/cleanup-incremental-cache.mjs --registry cache-release-registry.json --report cache-cleanup-plan-1.json
+      - name: Select bounded automatic batch 1
+        id: plan_1
         env:
           MAX_DELETE_FILES: ${{ vars.CACHE_CLEANUP_AUTO_MAX_FILES || '100000' }}
           MAX_DELETE_BYTES: ${{ vars.CACHE_CLEANUP_AUTO_MAX_BYTES || '4294967296' }}
-        run: node scripts/evaluate-automatic-cache-cleanup.mjs cache-cleanup-plan.json "$MAX_DELETE_FILES" "$MAX_DELETE_BYTES"
-      - name: Delete the exact freshly reviewed plan
-        if: ${{ steps.plan.outputs.should_execute == 'true' }}
+        run: node scripts/evaluate-automatic-cache-cleanup.mjs cache-cleanup-plan-1.json "$MAX_DELETE_FILES" "$MAX_DELETE_BYTES"
+      - name: Delete exact automatic batch 1
+        if: ${{ steps.plan_1.outputs.should_execute == 'true' }}
         env:
           CACHE_CLEANUP_ENABLED: 'true'
           CACHE_CLEANUP_AUTOMATIC_ENABLED: 'true'
@@ -63,15 +63,59 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_CACHE_DELETE_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_CACHE_DELETE_SECRET_ACCESS_KEY }}
           R2_INCREMENTAL_CACHE_BUCKET: geupddong-next-production-cache
-          EXPECTED_DELETE_FILES: ${{ steps.plan.outputs.expected_files }}
-          EXPECTED_DELETE_BYTES: ${{ steps.plan.outputs.expected_bytes }}
-          EXPECTED_DELETE_FINGERPRINT: ${{ steps.plan.outputs.expected_fingerprint }}
+          EXPECTED_DELETE_FILES: ${{ steps.plan_1.outputs.expected_files }}
+          EXPECTED_DELETE_BYTES: ${{ steps.plan_1.outputs.expected_bytes }}
+          EXPECTED_DELETE_FINGERPRINT: ${{ steps.plan_1.outputs.expected_fingerprint }}
           MAX_DELETE_FILES: ${{ vars.CACHE_CLEANUP_AUTO_MAX_FILES || '100000' }}
           MAX_DELETE_BYTES: ${{ vars.CACHE_CLEANUP_AUTO_MAX_BYTES || '4294967296' }}
         run: >-
           node scripts/cleanup-incremental-cache.mjs
           --registry cache-release-registry.json
-          --report cache-cleanup-execution.json
+          --report cache-cleanup-execution-1.json
+          --execute
+          --automatic
+          --expected-delete-files "$EXPECTED_DELETE_FILES"
+          --expected-delete-bytes "$EXPECTED_DELETE_BYTES"
+          --expected-delete-fingerprint "$EXPECTED_DELETE_FINGERPRINT"
+          --max-delete-files "$MAX_DELETE_FILES"
+          --max-delete-bytes "$MAX_DELETE_BYTES"
+      - name: Produce a fresh fail-closed plan for batch 2
+        if: ${{ steps.plan_1.outputs.has_deferred == 'true' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CACHE_STATUS_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_CACHE_READ_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_CACHE_READ_SECRET_ACCESS_KEY }}
+          R2_INCREMENTAL_CACHE_BUCKET: geupddong-next-production-cache
+        run: node scripts/cleanup-incremental-cache.mjs --registry cache-release-registry.json --report cache-cleanup-plan-2.json
+      - name: Select bounded automatic batch 2
+        if: ${{ steps.plan_1.outputs.has_deferred == 'true' }}
+        id: plan_2
+        env:
+          MAX_DELETE_FILES: ${{ vars.CACHE_CLEANUP_AUTO_MAX_FILES || '100000' }}
+          MAX_DELETE_BYTES: ${{ vars.CACHE_CLEANUP_AUTO_MAX_BYTES || '4294967296' }}
+        run: node scripts/evaluate-automatic-cache-cleanup.mjs cache-cleanup-plan-2.json "$MAX_DELETE_FILES" "$MAX_DELETE_BYTES"
+      - name: Delete exact automatic batch 2
+        if: ${{ steps.plan_2.outputs.should_execute == 'true' }}
+        env:
+          CACHE_CLEANUP_ENABLED: 'true'
+          CACHE_CLEANUP_AUTOMATIC_ENABLED: 'true'
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CACHE_STATUS_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_CACHE_DELETE_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_CACHE_DELETE_SECRET_ACCESS_KEY }}
+          R2_INCREMENTAL_CACHE_BUCKET: geupddong-next-production-cache
+          EXPECTED_DELETE_FILES: ${{ steps.plan_2.outputs.expected_files }}
+          EXPECTED_DELETE_BYTES: ${{ steps.plan_2.outputs.expected_bytes }}
+          EXPECTED_DELETE_FINGERPRINT: ${{ steps.plan_2.outputs.expected_fingerprint }}
+          MAX_DELETE_FILES: ${{ vars.CACHE_CLEANUP_AUTO_MAX_FILES || '100000' }}
+          MAX_DELETE_BYTES: ${{ vars.CACHE_CLEANUP_AUTO_MAX_BYTES || '4294967296' }}
+        run: >-
+          node scripts/cleanup-incremental-cache.mjs
+          --registry cache-release-registry.json
+          --report cache-cleanup-execution-2.json
           --execute
           --automatic
           --expected-delete-files "$EXPECTED_DELETE_FILES"
@@ -84,7 +128,7 @@ jobs:
         with:
           name: scheduled-incremental-cache-cleanup
           path: |
-            cache-cleanup-plan.json
-            cache-cleanup-execution.json
+            cache-cleanup-plan-*.json
+            cache-cleanup-execution-*.json
           retention-days: 35
           if-no-files-found: warn
