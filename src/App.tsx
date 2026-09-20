@@ -1328,7 +1328,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         resizeObserver.observe(container)
         await loadMapArea()
         if (snapshot) window.requestAnimationFrame(() => { if (!disposed) setIsMapSwitching(false) })
-        if (!disposed && !initialRouteRef.current.detail && !resume && !testToilet) void moveToCurrentLocation(true)
+        if (!disposed && !snapshot && !initialRouteRef.current.detail && !resume && !testToilet) void moveToCurrentLocation(true)
         if (!disposed && resume?.source === 'current-location') startCurrentLocationWatch()
       } catch (caughtError) {
         if (disposed) return

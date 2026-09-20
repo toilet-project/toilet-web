@@ -151,6 +151,7 @@ test('the same map owns both routes; English preview remains gated and unindexed
   assert.match(shell, /key=\{testToiletHash\}/)
   assert.doesNotMatch(shell, /key=\{(?:locale|path|route.path)\}/)
   assert.match(app, /if \(languageOnly\) return/)
+  assert.match(app, /!snapshot && !initialRouteRef\.current\.detail && !resume && !testToilet/)
   assert.match(await read('next.config.ts'), /SITE_INDEXABLE === 'false' && process.env.ENGLISH_UI_PREVIEW === 'true'/)
   assert.match(await read('src/app/(map)/en/layout.tsx'), /robots: \{ index: false, follow: false \}/)
   assert.match(await read('src/app/%255Finternal/cache/revalidate/route.ts'), /for \(const path of localizedToiletPaths\(id\)\) revalidatePath\(path\)/)
