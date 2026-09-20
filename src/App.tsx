@@ -233,6 +233,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const [lastSuccessfulMapUpdate, setLastSuccessfulMapUpdate] = useState<Date | null>(null)
   const [result, setResult] = useState<ToiletMapSearchResponse | null>(null)
   const [isMapReady, setIsMapReady] = useState(false)
+  const [isMapSwitching, setIsMapSwitching] = useState(false)
   const [selectedToilet, setSelectedToilet] = useState<SelectedToilet | null>(initialSelected)
   const [selectedCoordinateGroup, setSelectedCoordinateGroup] = useState<SelectedCoordinateGroup | null>(null)
   const [expandedCoordinateToilet, setExpandedCoordinateToilet] = useState<SelectedToilet | null>(null)
@@ -293,6 +294,10 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const mapSwitchSnapshotRef = useRef<{
     center: Coordinates
     level: number
+    bounds: {
+      southWest: Coordinates
+      northEast: Coordinates
+    }
     reference: Coordinates
     source: DistanceSource
     currentLocation: Coordinates | null
@@ -1280,6 +1285,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         const level = snapshot?.level ?? resume?.level ?? (initialRouteRef.current.detail || testToilet ? 4 : 6)
         const map = await createMap(container, center, level, locale, controller.signal)
         if (disposed) return
+        if (snapshot?.bounds) map.setBounds(snapshot.bounds)
         mapRef.current = map
         mapSwitchSnapshotRef.current = null
         setIsMapReady(true)
@@ -1326,11 +1332,13 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         resizeObserver = new ResizeObserver(() => { if (!disposed) relayoutPreservingCenter(map, settledViewportCenter) })
         resizeObserver.observe(container)
         await loadMapArea()
+        if (snapshot) window.requestAnimationFrame(() => { if (!disposed) setIsMapSwitching(false) })
         if (!disposed && !initialRouteRef.current.detail && !resume && !testToilet) void moveToCurrentLocation(true)
         if (!disposed && resume?.source === 'current-location') startCurrentLocationWatch()
       } catch (caughtError) {
         if (disposed) return
         setIsLoading(false)
+        setIsMapSwitching(false)
         setError(caughtError instanceof Error ? caughtError.message : '지도를 불러오지 못했습니다.')
       }
     }
@@ -1344,10 +1352,18 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       const activeMap = mapRef.current
       if (activeMap) {
         const center = activeMap.getCenter()
+        const bounds = activeMap.getBounds()
+        const southWest = bounds.getSouthWest()
+        const northEast = bounds.getNorthEast()
         const live = liveMapStateRef.current
+        setIsMapSwitching(true)
         mapSwitchSnapshotRef.current = {
           center: { latitude: center.getLat(), longitude: center.getLng() },
           level: activeMap.getLevel(),
+          bounds: {
+            southWest: { latitude: southWest.getLat(), longitude: southWest.getLng() },
+            northEast: { latitude: northEast.getLat(), longitude: northEast.getLng() },
+          },
           reference: live.mapCenter,
           source: live.distanceSource,
           currentLocation: live.currentLocation,
@@ -1520,6 +1536,10 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       <section className="map-section" aria-label={t('map.title')}>
         <div className="map-stage" inert={!isDesktop && mobileTab !== 'map'} style={!isDesktop && mobileTab !== 'map' ? { visibility: 'hidden' } : undefined}>
         <div ref={mapContainerRef} className="map" />
+        <div className={`map-provider-transition${isMapSwitching ? ' is-visible' : ''}`} role={isMapSwitching ? 'status' : undefined} aria-hidden={!isMapSwitching}>
+          <span className="map-provider-transition-spinner" aria-hidden="true" />
+          <span>{t('map.switching')}</span>
+        </div>
         {error && result && <div className="connection-status-banner" role="alert">
           <span className="connection-status-dot" aria-hidden="true" />
           <div>
