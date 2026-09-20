@@ -1502,7 +1502,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
               className={activePlaceSearchIndex === index ? 'is-active' : ''}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => moveToSearchPlace(place)}
-            ><strong>{place.name}</strong><span>{place.address || t('map.noAddress')}</span></button>)}
+            ><strong>{place.name}</strong><span className="place-search-result-detail"><small>{place.category || 'Place'}</small><span>{place.address || t('map.noAddress')}</span></span></button>)}
           </div>}
         </div>
         {!isDesktop && <div className="mobile-header-actions">

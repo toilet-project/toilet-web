@@ -5,6 +5,8 @@ type EnglishPlaceSearchResponse = {
     id: string
     name: string
     address?: string
+    category?: string
+    categoryCode?: string
     latitude: number
     longitude: number
   }>
@@ -33,6 +35,8 @@ export async function searchEnglishPlaces(keyword: string, signal?: AbortSignal)
     id: place.id,
     name: place.name,
     address: place.address?.trim() ?? '',
+    category: place.category?.trim() || 'Place',
+    categoryCode: place.categoryCode?.trim() || 'unknown',
     latitude: place.latitude,
     longitude: place.longitude,
   }))

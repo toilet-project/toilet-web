@@ -19,6 +19,9 @@
 .place-search-results button:hover, .place-search-results button.is-active { background: #f0f8f2; }
 .place-search-results button strong { font-size: 14px; }
 .place-search-results button span, .place-search-status { color: #69766e; font-size: 12px; line-height: 1.4; }
+.place-search-result-detail { display: flex; min-width: 0; align-items: center; gap: 7px; }
+.place-search-result-detail small { flex: 0 0 auto; padding: 2px 6px; border-radius: 999px; background: #eaf5ee; color: #17683a; font-size: 10px; font-weight: 800; line-height: 1.35; }
+.place-search-result-detail span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .place-search-status { margin: 0; padding: 13px; }
 .auth-actions { display: flex; margin-left: auto; align-items: center; gap: 8px; }
 .auth-status { color: #66756b; font-size: 12px; font-weight: 700; white-space: nowrap; }

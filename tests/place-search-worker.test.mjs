@@ -36,6 +36,7 @@ test('returns ranked English place results from the preview scope', async () => 
             async all() {
               return { results: [{
                 id: 'Q8684', name_en: 'Seoul', name_ko: '서울특별시', region_en: 'Seoul',
+                category_code: 'city', category_label_en: 'City',
                 latitude: 37.5667, longitude: 126.9783,
               }] }
             },
@@ -52,7 +53,7 @@ test('returns ranked English place results from the preview scope', async () => 
   assert.equal(response.status, 200)
   assert.deepEqual(bindings, ['seoul', 'seoul%', '"seoul"*', 'preview'])
   assert.deepEqual(await response.json(), { results: [{
-    id: 'Q8684', name: 'Seoul', address: 'Seoul, South Korea', latitude: 37.5667, longitude: 126.9783,
+    id: 'Q8684', name: 'Seoul', address: 'Seoul, South Korea', categoryCode: 'city', category: 'City', latitude: 37.5667, longitude: 126.9783,
   }] })
 })
 

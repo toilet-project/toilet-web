@@ -8,11 +8,17 @@ const [metadata, ...rows] = (await readFile(new URL('data/place-search/place-sea
 const seed = { ...metadata, records: rows.map(({ type: _type, ...record }) => record) }
 
 test('keeps all audited records while exposing only preview-usable places', () => {
-  assert.equal(seed.records.length, 1000)
-  assert.deepEqual(seed.counts, { usable_preview: 595, pending_review: 401, excluded: 4 })
-  assert.equal(seed.records.filter(place => place.searchScope === 'preview').length, 595)
-  assert.equal(seed.records.filter(place => place.searchScope === 'disabled').length, 405)
+  assert.equal(seed.records.length, 2000)
+  assert.deepEqual(seed.counts, { usable_preview: 1019, pending_review: 977, excluded: 4 })
+  assert.equal(seed.records.filter(place => place.searchScope === 'preview').length, 1019)
+  assert.equal(seed.records.filter(place => place.searchScope === 'disabled').length, 981)
   assert.equal(seed.records.some(place => place.productionApproved), false)
+  assert.equal(seed.records.every(place => place.categoryCode && place.categoryLabelKo && place.categoryLabelEn), true)
+  assert.deepEqual(seed.records.find(place => place.id === 'Q490915') && {
+    name: seed.records.find(place => place.id === 'Q490915').nameEn,
+    category: seed.records.find(place => place.id === 'Q490915').categoryLabelEn,
+    scope: seed.records.find(place => place.id === 'Q490915').searchScope,
+  }, { name: 'Magok Station', category: 'Station', scope: 'preview' })
 })
 
 test('generated D1 schema and import are executable and searchable', async () => {
@@ -20,8 +26,8 @@ test('generated D1 schema and import are executable and searchable', async () =>
   database.exec(await readFile(new URL('db/place-search-schema.sql', root), 'utf8'))
   database.exec(await readFile(new URL('.generated/place-search-import.sql', root), 'utf8'))
 
-  assert.equal(database.prepare('SELECT count(*) AS count FROM places').get().count, 1000)
-  assert.equal(database.prepare('SELECT count(*) AS count FROM place_search_fts').get().count, 595)
+  assert.equal(database.prepare('SELECT count(*) AS count FROM places').get().count, 2000)
+  assert.equal(database.prepare('SELECT count(*) AS count FROM place_search_fts').get().count, 1019)
   assert.equal(database.prepare("SELECT count(*) AS count FROM places WHERE search_scope='production'").get().count, 0)
   const result = database.prepare(`
     SELECT p.name_en

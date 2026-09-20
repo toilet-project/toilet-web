@@ -56,6 +56,8 @@ export async function englishPlaceSearchResponse(request, env) {
   try {
     const result = await env.PLACE_SEARCH_D1.prepare(`
       SELECT p.id, p.name_en, p.name_ko, p.region_en, p.latitude, p.longitude,
+        json_extract(p.audit_json, '$.categoryCode') AS category_code,
+        json_extract(p.audit_json, '$.categoryLabelEn') AS category_label_en,
         CASE
           WHEN lower(p.name_en) = ?1 THEN 0
           WHEN lower(p.name_en) LIKE ?2 THEN 1
@@ -78,6 +80,8 @@ export async function englishPlaceSearchResponse(request, env) {
         id: row.id,
         name: row.name_en || row.name_ko,
         address: displayRegion(row),
+        categoryCode: row.category_code || 'unknown',
+        category: row.category_label_en || 'Place',
         latitude: Number(row.latitude),
         longitude: Number(row.longitude),
       })),
