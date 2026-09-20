@@ -7,8 +7,10 @@ import { formatOpenTime, formatInstallationDate } from '../src/lib/detailFormatt
 import { message } from '../src/i18n/messages.ts'
 
 test('only exact structured categories translate; unknown labels and free opening hours stay original', () => {
-  assert.equal(toiletTypeLabel('공중화장실', 'en'), 'Public restroom')
-  assert.equal(toiletTypeLabel('개방화장실', 'en'), 'Public-access restroom')
+  assert.equal(toiletTypeLabel('공중화장실', 'en'), 'Public')
+  assert.equal(toiletTypeLabel('개방화장실', 'en'), 'Open')
+  assert.equal(toiletTypeLabel('간이화장실', 'en'), 'Portable')
+  assert.equal(toiletTypeLabel('이동화장실', 'en'), 'Mobile')
   for (const value of ['사유 시설 이름', '__proto__', '서울 화장실']) assert.equal(toiletTypeLabel(value, 'en'), value)
   assert.equal(toiletTypeLabel(undefined, 'en'), 'Restroom')
   assert.equal(formatOpenTime({ openTime: '평일 오전 9시', openTimeDetail: '이용 제한 원문' }, 'en'), '평일 오전 9시 · 이용 제한 원문')

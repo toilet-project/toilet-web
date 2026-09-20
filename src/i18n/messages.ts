@@ -153,7 +153,7 @@ const en = {
   'detail.childUrinals': 'Children’s urinals',
   'detail.safety': 'Facilities & safety',
   'detail.bell': 'Emergency bell',
-  'detail.diaper': 'Baby changing table',
+  'detail.diaper': 'Diaper changing table',
   'detail.agency': 'Managed by',
   'detail.phone': 'Phone',
   'detail.dataDate': 'Data date',

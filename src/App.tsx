@@ -48,6 +48,7 @@ import { REVIEW_API_ENABLED, REVIEW_UI_ENABLED, useReviews } from './components/
 import { readReviewTestToilet } from './lib/reviewTestToilet'
 import { DetailLoadingFields, LoadingOpenTime } from './components/ToiletCardLoading'
 import { hasValue, formatOpenTime, formatFacilityLocation } from './lib/detailFormatting'
+import { BrandWordmark } from './components/BrandWordmark'
 import { toiletCoordinates } from './lib/toiletRoute'
 import { groupToiletsByCoordinate, representativeToilet, type ToiletMapItem, type MapPoint } from './lib/toiletGrouping'
 import type { MapRouteData } from './components/mapRouteContext'
@@ -1468,7 +1469,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         }} />
       <header className="topbar">
         <div className="topbar-inner">
-        <a className="brand" href={localizedPublicPath('/', locale)!} aria-label={t('map.home')}>급똥</a>
+        <a className="brand" href={localizedPublicPath('/', locale)!} aria-label={t('map.home')}><BrandWordmark locale={locale} /></a>
         <span className="subtitle">{t('map.subtitle')}</span>
         <div className="place-search">
           <label className="sr-only" htmlFor="place-search-input">{t('map.search')}</label>
@@ -1725,7 +1726,7 @@ function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () 
   return <div className="login-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
       <button type="button" className="login-modal-close" onClick={onClose} aria-label={t('auth.close')}>×</button>
-      <span className="brand login-brand">급똥</span>
+      <span className="brand login-brand" aria-label={locale === 'en' ? 'Geupddong' : '급똥'}><BrandWordmark locale={locale} /></span>
       <h1 id="login-modal-title">{title}</h1>
       <p>{description}</p>
       <button type="button" className="social-login google-login" onClick={() => startSocialLogin('google')}>{t('auth.google')}</button>

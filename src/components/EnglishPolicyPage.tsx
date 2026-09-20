@@ -5,6 +5,7 @@ import { reviewPolicyPublication, reviewPolicyPublicationAttributes } from '../l
 import { profilePhotoPolicyPublication, profilePhotoPolicyPublicationAttributes } from '../lib/profilePhotoPolicyPublication'
 import { englishPolicyTitles, type EnglishPolicyKind } from '../i18n/policyTranslation'
 import './policy-disclosure.css'
+import { BrandWordmark } from './BrandWordmark'
 const date = (value: string) => new Date(value).toLocaleString('en-GB', { timeZone: 'Asia/Seoul' })
 const publicationNotice = accountPolicyPublication.status === 'draft' ? 'Draft revision for review · Effective date not set'
   : `Revised policy · Announced: ${date(accountPolicyPublication.announcedAt!)} · Effective: ${date(accountPolicyPublication.effectiveAt!)} (Korea time)`
@@ -18,7 +19,7 @@ function EnglishPolicyLayout({ kind, embedded, children }: { kind: EnglishPolicy
     <header className="policy-combined-header"><h2>{title}</h2></header><div className="policy-combined-body">{children}</div>
   </section>
   return <main className="policy-page" lang="en">
-    <header className="policy-header"><a href="/en" className="policy-brand">급똥</a><a href="/en" className="policy-home-link">Back to map</a></header>
+    <header className="policy-header"><a href="/en" className="policy-brand" aria-label="Geupddong home"><BrandWordmark locale="en" /></a><a href="/en" className="policy-home-link">Back to map</a></header>
     <article className="policy-document" data-translation-status="preview" data-translation-source="ko"
       {...policyPublicationAttributes(accountPolicyPublication)} {...reviewPolicyPublicationAttributes(reviewPolicyPublication)} {...profilePhotoPolicyPublicationAttributes(profilePhotoPolicyPublication)}>
       <header className="policy-document-header">

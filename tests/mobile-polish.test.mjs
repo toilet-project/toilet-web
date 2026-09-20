@@ -40,8 +40,21 @@ test('report login prompt uses brand and concise labels without removing the aut
   assert.match(row, /aria-label=\{t\('metric.reportHint'\)\} title=\{t\('metric.reportHint'\)\}/)
   assert.equal((app.match(/onReport=\{isDesktop \? undefined :/g) || []).length, 1)
   assert.match(app, /onReport=\{isDesktop && !REVIEW_UI_ENABLED \? undefined/)
-  assert.match(app, /className="brand login-brand">급똥/)
+  assert.match(app, /className="brand login-brand"[^>]*><BrandWordmark locale=\{locale\}/)
   assert.match(app, /const title = t\('auth.title'\)/)
+})
+
+test('English branding and mobile facility rows remain compact without overlapping location actions', async () => {
+  const app = await source('../src/App.tsx')
+  const mobile = await source('../src/components/MobileNavigation.tsx')
+  const logo = await source('../src/components/BrandWordmark.tsx')
+  const css = await source('../src/App.css')
+  assert.match(app, /<BrandWordmark locale=\{locale\} \/>/)
+  assert.match(mobile, /<BrandWordmark locale=\{locale\} \/>/)
+  assert.match(logo, /<span>GEUP<\/span><span>DDONG<\/span>/)
+  assert.match(css, /\.brand-wordmark\.is-english\s*\{[^}]*grid-template-rows: repeat\(2, auto\)/)
+  assert.match(css, /\.facility-location-label\s*\{[^}]*grid-column: 1 \/ -1[^}]*justify-self: end/)
+  assert.match(css, /\.coordinate-facility-location\s*\{[^}]*grid-column: 1 \/ -1[^}]*justify-self: end/)
 })
 
 test('login entry copy is one short purpose sentence and notifications use the shared title', async () => {
