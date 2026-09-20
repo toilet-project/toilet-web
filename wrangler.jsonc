@@ -17,6 +17,16 @@
   "workers_dev": true,
   "routes": [{ "pattern": "preview.geupddong.com", "custom_domain": true }],
   "observability": { "enabled": true, "head_sampling_rate": 0.1 },
-  "vars": { "CACHE_RUNTIME": "workers", "SITE_INDEXABLE": "false", "SHARED_TOILET_CACHE_ENABLED": "false" },
-  "d1_databases": [{ "binding": "NEXT_TAG_CACHE_D1", "database_name": "geupddong-next-preview-tags", "database_id": "bbf77cf5-62e9-4c94-a8ec-a45c0e26deed" }]
+  "vars": {
+    "CACHE_RUNTIME": "workers",
+    "SITE_INDEXABLE": "false",
+    "SHARED_TOILET_CACHE_ENABLED": "false",
+    "NAVER_MAP_ENABLED": "true",
+    "PLACE_SEARCH_ENABLED": "true",
+    "PLACE_SEARCH_SCOPE": "preview"
+  },
+  "d1_databases": [
+    { "binding": "NEXT_TAG_CACHE_D1", "database_name": "geupddong-next-preview-tags", "database_id": "bbf77cf5-62e9-4c94-a8ec-a45c0e26deed" },
+    { "binding": "PLACE_SEARCH_D1", "database_name": "geupddong-place-search-preview", "database_id": "6c1ba9d5-502d-420d-bc6f-3d81ba5e529b" }
+  ]
 }

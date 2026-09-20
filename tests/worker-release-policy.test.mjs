@@ -49,3 +49,19 @@ test('no unexpected target, nested env, CPU upgrade or singular route',()=>{
   for(const change of [{env:{}},{limits:{cpu_ms:1000}},{route:'geupddong.com/*'},
     {vars:{...preview.vars,SHARED_TOILET_CACHE_ENABLED:'true'}}]) assert.throws(()=>validateWorkerConfig({...preview,...change},'preview'))
 })
+
+test('English place search is preview-only and uses storage separate from cache tags',()=>{
+  const search = preview.d1_databases.find(row=>row.binding==='PLACE_SEARCH_D1')
+  const tags = preview.d1_databases.find(row=>row.binding==='NEXT_TAG_CACHE_D1')
+  assert.equal(preview.vars.PLACE_SEARCH_ENABLED,'true')
+  assert.equal(preview.vars.PLACE_SEARCH_SCOPE,'preview')
+  assert.ok(search)
+  assert.notEqual(search.database_id,tags.database_id)
+  assert.equal(production.vars.PLACE_SEARCH_ENABLED,'false')
+  assert.equal(production.d1_databases.some(row=>row.binding==='PLACE_SEARCH_D1'),false)
+})
+
+test('Naver map is enabled only for the isolated preview',()=>{
+  assert.equal(preview.vars.NAVER_MAP_ENABLED,'true')
+  assert.equal(production.vars.NAVER_MAP_ENABLED,'false')
+})

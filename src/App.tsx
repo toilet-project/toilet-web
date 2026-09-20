@@ -20,7 +20,18 @@ import { AppUpdateNotice } from './components/AppUpdateNotice'
 import { readMapResume, saveMapResume, MAP_RESUME_KEY } from './lib/appUpdate'
 import { MAP_NAVIGATION_EVENT, mapNavigationPath } from './lib/navigationCache'
 import { AuthExpiredError, getCurrentUser, logout, startSocialLogin, type AuthProfile } from './api/auth'
-import { createKakaoMap, searchKakaoPlaces, type KakaoMapInstance, type KakaoOverlay, type KakaoPlace } from './lib/kakaoMap'
+import {
+  addMapEventListener,
+  createMap,
+  createMapCoordinate,
+  createMapOverlay,
+  destroyMap,
+  preventMapEvent,
+  type MapInstance,
+  type MapOverlay,
+} from './lib/mapProvider'
+import { searchPlaces } from './lib/placeSearch'
+import type { PlaceSearchResult } from './lib/placeSearchTypes'
 import { ToiletReportModal } from './components/ToiletReportModal'
 import { MyReportsPanel } from './components/MyReportsPanel'
 import { NotificationPanel } from './components/NotificationPanel'
@@ -142,12 +153,12 @@ function sortCoordinateGroupToilets(toilets: ToiletMapItem[]) {
   })
 }
 
-function groupPointsByScreenGrid(map: KakaoMapInstance, points: MapPoint[]) {
+function groupPointsByScreenGrid(map: MapInstance, points: MapPoint[]) {
   const groups = new Map<string, MapPoint[]>()
   const projection = map.getProjection()
 
   for (const point of points) {
-    const projected = projection.pointFromCoords(new window.kakao.maps.LatLng(point.latitude, point.longitude))
+    const projected = projection.pointFromCoords(createMapCoordinate(map, point.latitude, point.longitude))
     const key = `${Math.floor(projected.x / CLUSTER_GRID_SIZE)}:${Math.floor(projected.y / CLUSTER_GRID_SIZE)}`
     const current = groups.get(key)
     if (current) current.push(point)
@@ -196,12 +207,12 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const groupRef = useRef<SelectedCoordinateGroup | null>(null)
   const preserveGroupOnHomeRef = useRef(false)
   const mapContainerRef = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<KakaoMapInstance | null>(null)
-  const overlaysRef = useRef<KakaoOverlay[]>([])
+  const mapRef = useRef<MapInstance | null>(null)
+  const overlaysRef = useRef<MapOverlay[]>([])
   const toiletMarkerElementsRef = useRef(new Map<number, HTMLButtonElement>())
-  const currentLocationOverlayRef = useRef<KakaoOverlay | null>(null)
-  const searchLocationOverlayRef = useRef<KakaoOverlay | null>(null)
-  const referencePointOverlayRef = useRef<KakaoOverlay | null>(null)
+  const currentLocationOverlayRef = useRef<MapOverlay | null>(null)
+  const searchLocationOverlayRef = useRef<MapOverlay | null>(null)
+  const referencePointOverlayRef = useRef<MapOverlay | null>(null)
   const locationWatchIdRef = useRef<number | null>(null)
   const requestSequenceRef = useRef(0)
   const mapInteractionRef = useRef(false)
@@ -275,9 +286,20 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const [currentLocation, setCurrentLocation] = useState<Coordinates | null>(null)
   const [mapCenter, setMapCenter] = useState<Coordinates>(DAEJEON_CITY_HALL)
   const [distanceSource, setDistanceSource] = useState<DistanceSource>('point')
+  const liveMapStateRef = useRef({ mapCenter, distanceSource, currentLocation })
+  useLayoutEffect(() => {
+    liveMapStateRef.current = { mapCenter, distanceSource, currentLocation }
+  }, [mapCenter, distanceSource, currentLocation])
+  const mapSwitchSnapshotRef = useRef<{
+    center: Coordinates
+    level: number
+    reference: Coordinates
+    source: DistanceSource
+    currentLocation: Coordinates | null
+  } | null>(null)
   const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.matchMedia(DESKTOP_LAYOUT_QUERY).matches)
   const [placeSearchKeyword, setPlaceSearchKeyword] = useState('')
-  const [placeSearchResults, setPlaceSearchResults] = useState<KakaoPlace[]>([])
+  const [placeSearchResults, setPlaceSearchResults] = useState<PlaceSearchResult[]>([])
   const [placeSearchMessage, setPlaceSearchMessage] = useState<string | null>(null)
   const [isPlaceSearching, setIsPlaceSearching] = useState(false)
   const [activePlaceSearchIndex, setActivePlaceSearchIndex] = useState(-1)
@@ -572,7 +594,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   }, [markerGesture])
   const suppressMapClickFromMarker = useCallback((event: MouseEvent) => {
     event.stopPropagation()
-    window.kakao.maps.event.preventMap()
+    preventMapEvent(mapRef.current)
     markerClickUntilRef.current = Date.now() + 750
     return markerGesture.acceptsClick(event.detail)
   }, [markerGesture])
@@ -595,8 +617,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     content.className = 'map-reference-marker'
     content.dataset.mapLabel = 'reference'
     content.innerHTML = '<span class="map-reference-marker-pin" aria-hidden="true"><span></span></span><span class="map-reference-marker-label">기준점</span>'
-    referencePointOverlayRef.current = new window.kakao.maps.CustomOverlay({
-      position: new window.kakao.maps.LatLng(coordinates.latitude, coordinates.longitude),
+    referencePointOverlayRef.current = createMapOverlay(map, {
+      position: createMapCoordinate(map, coordinates.latitude, coordinates.longitude),
       content,
       yAnchor: 1,
       zIndex: 4,
@@ -620,7 +642,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           y: markerRect.top - sectionRect.top + markerRect.height,
         }
       : (() => {
-          const projected = map.getProjection().pointFromCoords(new window.kakao.maps.LatLng(toilet.latitude, toilet.longitude))
+          const projected = map.getProjection().pointFromCoords(createMapCoordinate(map, toilet.latitude, toilet.longitude))
           return { x: projected.x + container.offsetLeft, y: projected.y + container.offsetTop }
         })()
     const mapBounds = {
@@ -729,6 +751,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   useEffect(() => {
     const keyword = placeSearchKeyword.trim()
     const requestSequence = ++placeSearchRequestRef.current
+    const controller = new AbortController()
 
     if (keyword.length < 2) {
       return
@@ -738,7 +761,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       setIsPlaceSearching(true)
       setPlaceSearchMessage(null)
       try {
-        const places = await searchKakaoPlaces(keyword)
+        const places = await searchPlaces(keyword, locale, controller.signal)
         if (requestSequence !== placeSearchRequestRef.current) return
         setPlaceSearchResults(places)
         setPlaceSearchMessage(places.length === 0 ? '검색 결과가 없습니다.' : null)
@@ -748,6 +771,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           result_count_bucket: resultCountBucket(places.length),
         })
       } catch {
+        if (controller.signal.aborted) return
         if (requestSequence === placeSearchRequestRef.current) {
           setPlaceSearchResults([])
           setPlaceSearchMessage('장소를 검색하지 못했습니다. 잠시 후 다시 시도해 주세요.')
@@ -758,8 +782,11 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       }
     }, 300)
 
-    return () => window.clearTimeout(timer)
-  }, [placeSearchKeyword])
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [placeSearchKeyword, locale])
 
   useLayoutEffect(() => {
     if (!isMapReady || !selectedToilet || !placeCardRef.current) return
@@ -826,8 +853,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       if (!suppressMapClickFromMarker(event)) return
       selectToilet(testToilet.id, testToilet.name, point.latitude, point.longitude, false, testToilet.toiletType)
     })
-    const overlay = new window.kakao.maps.CustomOverlay({
-      position: new window.kakao.maps.LatLng(point.latitude, point.longitude), content,
+    const overlay = createMapOverlay(map, {
+      position: createMapCoordinate(map, point.latitude, point.longitude), content,
       yAnchor: 1, zIndex: 4, clickable: false,
     })
     overlay.setMap(map)
@@ -895,15 +922,15 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     pin.append(logo)
     content.append(pin)
     content.addEventListener('click', suppressMapClickFromMarker)
-    const overlay = new window.kakao.maps.CustomOverlay({
-      position: new window.kakao.maps.LatLng(selected.latitude, selected.longitude), content, yAnchor: 1, zIndex: 3,
+    const overlay = createMapOverlay(map, {
+      position: createMapCoordinate(map, selected.latitude, selected.longitude), content, yAnchor: 1, zIndex: 3,
       clickable: false,
     })
     overlay.setMap(map)
     return () => overlay.setMap(null)
   }, [selectedToilet, expandedCoordinateToilet, result, isMapReady, suppressMapClickFromMarker, testToilet])
 
-  const renderResult = useCallback((map: KakaoMapInstance, response: ToiletMapSearchResponse) => {
+  const renderResult = useCallback((map: MapInstance, response: ToiletMapSearchResponse) => {
     clearOverlays()
 
     const points: MapPoint[] = response.meta.display_type === 'CLUSTER'
@@ -950,12 +977,13 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
             openCoordinateGroup(point)
             return
           }
-          map.setLevel(Math.max(1, map.getLevel() - 2), { anchor: new window.kakao.maps.LatLng(point.latitude, point.longitude) })
-          map.panTo(new window.kakao.maps.LatLng(point.latitude, point.longitude))
+          const position = createMapCoordinate(map, point.latitude, point.longitude)
+          map.setLevel(Math.max(1, map.getLevel() - 2), { anchor: position })
+          map.panTo(position)
         })
 
-        return new window.kakao.maps.CustomOverlay({
-          position: new window.kakao.maps.LatLng(point.latitude, point.longitude),
+        return createMapOverlay(map, {
+          position: createMapCoordinate(map, point.latitude, point.longitude),
           content,
           yAnchor: isNamedCoordinateGroup ? 1 : 0.5,
           zIndex: 2,
@@ -992,8 +1020,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         if (point.id != null) void selectToilet(point.id, toiletName, point.latitude, point.longitude, false, point.toiletType)
       })
 
-      return new window.kakao.maps.CustomOverlay({
-        position: new window.kakao.maps.LatLng(point.latitude, point.longitude),
+      return createMapOverlay(map, {
+        position: createMapCoordinate(map, point.latitude, point.longitude),
         content,
         yAnchor: 1,
         zIndex: 1,
@@ -1058,14 +1086,14 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     if (!map) return
 
     setCurrentLocation(coordinates)
-    const position = new window.kakao.maps.LatLng(coordinates.latitude, coordinates.longitude)
+    const position = createMapCoordinate(map, coordinates.latitude, coordinates.longitude)
     currentLocationOverlayRef.current?.setMap(null)
 
     const content = document.createElement('div')
     content.className = 'current-location-marker'
     content.dataset.mapLabel = 'current'
     content.innerHTML = '<span aria-hidden="true"></span><span class="sr-only">현재 위치</span>'
-    currentLocationOverlayRef.current = new window.kakao.maps.CustomOverlay({
+    currentLocationOverlayRef.current = createMapOverlay(map, {
       position,
       content,
       yAnchor: 0.5,
@@ -1151,7 +1179,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     )
   }, [showLocationMessage, startCurrentLocationWatch, updateCurrentLocation, referenceRequestGate])
 
-  const moveToSearchPlace = useCallback((place: KakaoPlace) => {
+  const moveToSearchPlace = useCallback((place: PlaceSearchResult) => {
     const map = mapRef.current
     if (!map) return
 
@@ -1161,7 +1189,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     })
 
     closeDetailCard()
-    const position = new window.kakao.maps.LatLng(place.latitude, place.longitude)
+    const position = createMapCoordinate(map, place.latitude, place.longitude)
     updateReferencePoint({ latitude: place.latitude, longitude: place.longitude })
     searchLocationOverlayRef.current?.setMap(null)
     const content = document.createElement('div')
@@ -1172,7 +1200,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     const label = document.createElement('span')
     label.textContent = place.name
     content.append(icon, label)
-    searchLocationOverlayRef.current = new window.kakao.maps.CustomOverlay({
+    searchLocationOverlayRef.current = createMapOverlay(map, {
       position,
       content,
       yAnchor: 1,
@@ -1239,6 +1267,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     let disposed = false
     const controller = new AbortController()
     let resizeObserver: ResizeObserver | undefined
+    const removeMapListeners: Array<() => void> = []
     const container = mapContainerRef.current
     if (!container) return
 
@@ -1246,21 +1275,25 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       if (!container) return
 
       try {
-        const center = resume?.center ?? toiletCoordinates(initialRouteRef.current.detail) ?? toiletCoordinates(testToilet) ?? DAEJEON_CITY_HALL
-        const map = await createKakaoMap(container, center, resume?.level ?? (initialRouteRef.current.detail || testToilet ? 4 : 6), controller.signal)
+        const snapshot = mapSwitchSnapshotRef.current
+        const center = snapshot?.center ?? resume?.center ?? toiletCoordinates(initialRouteRef.current.detail) ?? toiletCoordinates(testToilet) ?? DAEJEON_CITY_HALL
+        const level = snapshot?.level ?? resume?.level ?? (initialRouteRef.current.detail || testToilet ? 4 : 6)
+        const map = await createMap(container, center, level, locale, controller.signal)
         if (disposed) return
         mapRef.current = map
+        mapSwitchSnapshotRef.current = null
         setIsMapReady(true)
         setMapZoomLevel(map.getLevel())
-        updateReferencePoint(resume?.reference ?? center, resume?.source ?? 'point')
+        updateReferencePoint(snapshot?.reference ?? resume?.reference ?? center, snapshot?.source ?? resume?.source ?? 'point')
+        if (snapshot?.currentLocation) updateCurrentLocation(snapshot.currentLocation, false)
         if (resume) {
-          if (resume.currentLocation) updateCurrentLocation(resume.currentLocation, false)
+          if (!snapshot?.currentLocation && resume.currentLocation) updateCurrentLocation(resume.currentLocation, false)
           setIsMobileCardExpanded(resume.expanded)
           try { window.sessionStorage.removeItem(MAP_RESUME_KEY) } catch { /* Storage may be unavailable. */ }
         }
         // Save before a DOM resize: SDK getCenter() may already reflect the new element size.
         let settledViewportCenter = map.getCenter()
-        window.kakao.maps.event.addListener(map, 'idle', () => {
+        removeMapListeners.push(addMapEventListener(map, 'idle', () => {
           if (disposed) return
           settledViewportCenter = map.getCenter()
           if (mapInteractionRef.current) {
@@ -1270,7 +1303,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           }
           scheduleMapAreaLoad()
           positionSelectedCard()
-        })
+        }))
         const markMapInteraction = () => {
           if (disposed) return
           mapInteractionRef.current = true
@@ -1278,10 +1311,10 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           window.clearTimeout(mobileZoomGuideTimerRef.current)
           setMobileZoomGuideKey(null)
         }
-        window.kakao.maps.event.addListener(map, 'dragstart', markMapInteraction)
-        window.kakao.maps.event.addListener(map, 'zoom_changed', markMapInteraction)
-        window.kakao.maps.event.addListener(map, 'zoom_changed', () => { if (!disposed) setMapZoomLevel(map.getLevel()) })
-        window.kakao.maps.event.addListener(map, 'click', (event) => {
+        removeMapListeners.push(addMapEventListener(map, 'dragstart', markMapInteraction))
+        removeMapListeners.push(addMapEventListener(map, 'zoom_changed', markMapInteraction))
+        removeMapListeners.push(addMapEventListener(map, 'zoom_changed', () => { if (!disposed) setMapZoomLevel(map.getLevel()) }))
+        removeMapListeners.push(addMapEventListener(map, 'click', (event) => {
           if (disposed) return
           setIsMobileAreaListOpen(false)
           if (Date.now() < markerClickUntilRef.current) return
@@ -1289,7 +1322,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
             updateReferencePoint({ latitude: event.latLng.getLat(), longitude: event.latLng.getLng() })
             map.panTo(event.latLng)
           }
-        })
+        }))
         resizeObserver = new ResizeObserver(() => { if (!disposed) relayoutPreservingCenter(map, settledViewportCenter) })
         resizeObserver.observe(container)
         await loadMapArea()
@@ -1308,8 +1341,21 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       controller.abort()
       referenceRequestGate.invalidate()
       requestSequenceRef.current += 1
+      const activeMap = mapRef.current
+      if (activeMap) {
+        const center = activeMap.getCenter()
+        const live = liveMapStateRef.current
+        mapSwitchSnapshotRef.current = {
+          center: { latitude: center.getLat(), longitude: center.getLng() },
+          level: activeMap.getLevel(),
+          reference: live.mapCenter,
+          source: live.distanceSource,
+          currentLocation: live.currentLocation,
+        }
+      }
       mapRef.current = null
       setIsMapReady(false)
+      removeMapListeners.forEach(remove => remove())
       clearOverlays()
       currentLocationOverlayRef.current?.setMap(null)
       searchLocationOverlayRef.current?.setMap(null)
@@ -1319,12 +1365,13 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         locationWatchIdRef.current = null
       }
       resizeObserver?.disconnect()
+      if (activeMap) destroyMap(activeMap)
       // The SDK owns this empty React div. Remove its DOM when dev HMR/Strict Mode disposes it.
       container.replaceChildren()
       window.clearTimeout(mapLoadTimerRef.current)
       window.clearTimeout(locationMessageTimerRef.current)
     }
-  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, startCurrentLocationWatch, referenceRequestGate, testToilet])
+  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, startCurrentLocationWatch, referenceRequestGate, testToilet, locale])
 
   const distanceReference = resolveDistanceReference(distanceSource, mapCenter, currentLocation)
   const distanceReferenceLabel = t(distanceSource === 'current-location' ? 'map.fromMe' : 'map.distanceFrom')
@@ -1388,7 +1435,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     if (!map) return
 
     const selectedGroup = groupedAreaToilets.find((group) => group.id === toilet.id || group.toilets?.some((item) => item.id === toilet.id))
-    const position = new window.kakao.maps.LatLng(toilet.latitude, toilet.longitude)
+    const position = createMapCoordinate(map, toilet.latitude, toilet.longitude)
     setIsMobileAreaListOpen(false)
     if (selectedGroup?.toilets) {
       openCoordinateGroup(selectedGroup)

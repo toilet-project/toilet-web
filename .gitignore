@@ -19,6 +19,7 @@ cache-prewarm-report*.json
 cache-cleanup-plan*.json
 cache-release-registry.json
 .wrangler/
+.generated/
 *.tsbuildinfo
 .dev.vars*
 .env*

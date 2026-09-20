@@ -1,8 +1,8 @@
 import { kakaoJavascriptKey } from '../config/kakao'
 import { getDisplayAddress } from './address'
+import type { PlaceSearchResult } from './placeSearchTypes'
 
 export type KakaoOverlay = { setMap(map: KakaoMapInstance | null): void }
-export type KakaoPlace = { id: string; name: string; address: string; latitude: number; longitude: number }
 export type KakaoMapInstance = {
   getBounds(): { getSouthWest(): { getLat(): number; getLng(): number }; getNorthEast(): { getLat(): number; getLng(): number } }
   getCenter(): { getLat(): number; getLng(): number }
@@ -23,7 +23,11 @@ declare global {
       Map: new (container: HTMLElement, options: { center: unknown; level: number }) => KakaoMapInstance
       LatLng: new (latitude: number, longitude: number) => unknown
       CustomOverlay: new (options: { position: unknown; content: HTMLElement; yAnchor: number; zIndex: number; clickable?: boolean }) => KakaoOverlay
-      event: { preventMap(): void; addListener(map: KakaoMapInstance, event: 'idle' | 'dragstart' | 'zoom_changed' | 'click', callback: (event?: { latLng: { getLat(): number; getLng(): number } }) => void): void }
+      event: {
+        preventMap(): void
+        addListener(map: KakaoMapInstance, event: 'idle' | 'dragstart' | 'zoom_changed' | 'click', callback: (event?: { latLng: { getLat(): number; getLng(): number } }) => void): void
+        removeListener?(map: KakaoMapInstance, event: 'idle' | 'dragstart' | 'zoom_changed' | 'click', callback: (event?: { latLng: { getLat(): number; getLng(): number } }) => void): void
+      }
       services: {
         Places: new () => { keywordSearch(keyword: string, callback: (results: Array<{ id: string; place_name: string; address_name: string; road_address_name: string; x: string; y: string }>, status: string) => void): void }
         Geocoder: new () => { coord2Address(longitude: number, latitude: number, callback: (results: Array<{ road_address?: { address_name: string }; address?: { address_name: string } }>, status: string) => void): void }
@@ -55,7 +59,7 @@ export async function createKakaoMap(container: HTMLElement, center: { latitude:
   return new window.kakao.maps.Map(container, { center: new window.kakao.maps.LatLng(center.latitude, center.longitude), level })
 }
 
-export async function searchKakaoPlaces(keyword: string): Promise<KakaoPlace[]> {
+export async function searchKakaoPlaces(keyword: string): Promise<PlaceSearchResult[]> {
   await loadKakaoSdk()
 
   return new Promise((resolve, reject) => {
