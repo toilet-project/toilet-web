@@ -7,7 +7,6 @@ export type KakaoMapInstance = {
   getBounds(): { getSouthWest(): { getLat(): number; getLng(): number }; getNorthEast(): { getLat(): number; getLng(): number } }
   getCenter(): { getLat(): number; getLng(): number }
   setCenter(position: unknown): void
-  setBounds(bounds: unknown, paddingTop?: number, paddingRight?: number, paddingBottom?: number, paddingLeft?: number): void
   getLevel(): number
   getProjection(): { pointFromCoords(position: unknown): { x: number; y: number } }
   setLevel(level: number, options?: { anchor?: unknown }): void
@@ -23,7 +22,6 @@ declare global {
       load(callback: () => void): void
       Map: new (container: HTMLElement, options: { center: unknown; level: number }) => KakaoMapInstance
       LatLng: new (latitude: number, longitude: number) => unknown
-      LatLngBounds: new (southWest: unknown, northEast: unknown) => unknown
       CustomOverlay: new (options: { position: unknown; content: HTMLElement; yAnchor: number; zIndex: number; clickable?: boolean }) => KakaoOverlay
       event: {
         preventMap(): void

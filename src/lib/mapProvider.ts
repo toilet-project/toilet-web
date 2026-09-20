@@ -20,10 +20,6 @@ export type MapBounds = {
   getSouthWest(): MapCoordinate
   getNorthEast(): MapCoordinate
 }
-export type MapViewportBounds = {
-  southWest: { latitude: number; longitude: number }
-  northEast: { latitude: number; longitude: number }
-}
 export type MapEvent = { latLng?: MapCoordinate }
 export type MapEventName = 'idle' | 'dragstart' | 'zoom_changed' | 'click'
 export type MapOverlay = { setMap(map: MapInstance | null): void }
@@ -33,7 +29,6 @@ export type MapInstance = {
   getBounds(): MapBounds
   getCenter(): MapCoordinate
   setCenter(position: MapCoordinate): void
-  setBounds(bounds: MapViewportBounds): void
   getLevel(): number
   getProjection(): { pointFromCoords(position: MapCoordinate): { x: number; y: number } }
   setLevel(level: number, options?: { anchor?: MapCoordinate }): void
@@ -49,7 +44,6 @@ type NaverMap = {
   getBounds(): { getSW(): NaverCoordinate; getNE(): NaverCoordinate }
   getCenter(): NaverCoordinate
   setCenter(position: NaverCoordinate): void
-  fitBounds(bounds: unknown, options?: { top?: number; right?: number; bottom?: number; left?: number; maxZoom?: number }): void
   getZoom(): number
   setZoom(zoom: number): void
   panTo(position: NaverCoordinate): void
@@ -74,7 +68,6 @@ declare global {
     naver?: { maps: {
       Map: new (container: HTMLElement, options: { center: NaverCoordinate; zoom: number; minZoom?: number; maxZoom?: number }) => NaverMap
       LatLng: new (latitude: number, longitude: number) => NaverCoordinate
-      LatLngBounds: new (southWest: NaverCoordinate, northEast: NaverCoordinate) => unknown
       OverlayView: new () => NaverOverlayBase
       Event: {
         addListener(map: NaverMap, event: MapEventName, callback: (event?: NaverMapEvent) => void): NaverEventListener
@@ -117,10 +110,6 @@ function kakaoAdapter(raw: KakaoMapInstance): MapInstance {
     },
     getCenter: () => kakaoCoordinate(raw.getCenter()),
     setCenter: position => raw.setCenter(position.raw),
-    setBounds: bounds => raw.setBounds(new window.kakao.maps.LatLngBounds(
-      new window.kakao.maps.LatLng(bounds.southWest.latitude, bounds.southWest.longitude),
-      new window.kakao.maps.LatLng(bounds.northEast.latitude, bounds.northEast.longitude),
-    ), 0, 0, 0, 0),
     getLevel: () => raw.getLevel(),
     getProjection: () => ({
       pointFromCoords: position => raw.getProjection().pointFromCoords(position.raw),
@@ -146,14 +135,6 @@ function naverAdapter(raw: NaverMap): MapInstance {
     },
     getCenter: () => naverCoordinate(raw.getCenter()),
     setCenter: position => raw.setCenter(position.raw as NaverCoordinate),
-    setBounds: bounds => {
-      const maps = window.naver?.maps
-      if (!maps) return
-      raw.fitBounds(new maps.LatLngBounds(
-        new maps.LatLng(bounds.southWest.latitude, bounds.southWest.longitude),
-        new maps.LatLng(bounds.northEast.latitude, bounds.northEast.longitude),
-      ), { top: 0, right: 0, bottom: 0, left: 0, maxZoom: 20 })
-    },
     getLevel: () => mapLevelFromNaverZoom(raw.getZoom()),
     getProjection: () => ({
       pointFromCoords: position => raw.getProjection().fromCoordToOffset(position.raw as NaverCoordinate),

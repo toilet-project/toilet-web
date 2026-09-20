@@ -294,10 +294,6 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const mapSwitchSnapshotRef = useRef<{
     center: Coordinates
     level: number
-    bounds: {
-      southWest: Coordinates
-      northEast: Coordinates
-    }
     reference: Coordinates
     source: DistanceSource
     currentLocation: Coordinates | null
@@ -1285,7 +1281,6 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         const level = snapshot?.level ?? resume?.level ?? (initialRouteRef.current.detail || testToilet ? 4 : 6)
         const map = await createMap(container, center, level, locale, controller.signal)
         if (disposed) return
-        if (snapshot?.bounds) map.setBounds(snapshot.bounds)
         mapRef.current = map
         mapSwitchSnapshotRef.current = null
         setIsMapReady(true)
@@ -1352,18 +1347,11 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       const activeMap = mapRef.current
       if (activeMap) {
         const center = activeMap.getCenter()
-        const bounds = activeMap.getBounds()
-        const southWest = bounds.getSouthWest()
-        const northEast = bounds.getNorthEast()
         const live = liveMapStateRef.current
         setIsMapSwitching(true)
         mapSwitchSnapshotRef.current = {
           center: { latitude: center.getLat(), longitude: center.getLng() },
           level: activeMap.getLevel(),
-          bounds: {
-            southWest: { latitude: southWest.getLat(), longitude: southWest.getLng() },
-            northEast: { latitude: northEast.getLat(), longitude: northEast.getLng() },
-          },
           reference: live.mapCenter,
           source: live.distanceSource,
           currentLocation: live.currentLocation,
