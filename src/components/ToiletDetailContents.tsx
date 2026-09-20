@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { ToiletDetailResponse } from '../api/toilets'
 import { getDisplayAddress } from '../lib/address'
 import { regionLabel } from '../lib/toiletRoute'
-import { visibleCounts, hasValue, formatPhoneNumber, formatInstallationDate, formatFacilityLocation, type CountItem } from '../lib/detailFormatting'
+import { visibleCounts, hasValue, formatOpenTime, formatPhoneNumber, formatInstallationDate, formatFacilityLocation, type CountItem } from '../lib/detailFormatting'
 import { TRANSIENT_NOTICE_MS } from '../lib/uiTiming'
 import { useLocale, useMessages } from '../i18n/context'
 import { localizeToiletDetail } from '../i18n/toiletTranslations'
@@ -32,7 +32,7 @@ export function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse 
     <div className="card-details" tabIndex={0} aria-label={t('detail.title')}>
       {address && <DetailRow className="detail-address" label={t('detail.address')} value={address} copyable />}
       {regionLabel(display.region) && <DetailRow label={t('detail.region')} value={regionLabel(display.region)} />}
-      {hasValue(display.openTimeDetail) && <DetailRow label={t('detail.openingDetails')} value={display.openTimeDetail} />}
+      <DetailRow label={t('detail.openingDetails')} value={formatOpenTime(display, locale)} />
       {hasValue(display.installationDate) && <DetailRow label={t('detail.installed')} value={formatInstallationDate(display.installationDate, locale)} />}
       {(maleCounts.length > 0 || femaleCounts.length > 0) && <section className="detail-section">
         <h2>{t('detail.capacity')}</h2>

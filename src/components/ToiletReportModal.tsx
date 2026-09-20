@@ -6,6 +6,7 @@ import { createKakaoMap, reverseGeocodeKakaoCoordinates, type KakaoMapInstance }
 import { getDisplayAddress } from '../lib/address'
 import { attachReportViewport } from '../lib/reportViewport'
 import { trackEvent } from '../lib/analytics'
+import { formatOpenTime } from '../lib/detailFormatting'
 
 type ReportType = 'choice' | 'location' | 'locationConfirm' | 'openTime' | 'complete'
 type Coordinates = { latitude: number; longitude: number }
@@ -156,7 +157,7 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
       {step === 'openTime' && <>
         <h1 id="report-modal-title">{t('report.hoursHeading')}</h1>
         <p className="report-target"><span>{t('report.target')}</span><strong>{toilet.name}</strong></p>
-        <p className="report-modal-description">{t('report.currentHours')} <strong>{toilet.openTime || t('common.noInfo')}</strong></p>
+        <p className="report-modal-description">{t('report.currentHours')} <strong>{formatOpenTime(toilet, locale)}</strong></p>
         <label className="report-field"><span>{t('report.updatedHours')}</span><input value={openTime} maxLength={50} onChange={(event) => setOpenTime(event.target.value)} placeholder={t('report.hoursExample')} /></label>
         <label className="report-field"><span>{t('report.reason')}</span><textarea value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} placeholder={t('report.reasonExample')} /></label>
         {error && <p className="report-error" role="alert">{error}</p>}

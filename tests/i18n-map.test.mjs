@@ -7,14 +7,15 @@ import { formatOpenTime, formatInstallationDate, formatFacilityLocation, formatL
 import { message } from '../src/i18n/messages.ts'
 import { localizeToilet, localizeToiletMapSearch } from '../src/i18n/toiletTranslations.ts'
 
-test('only exact structured categories translate; unknown labels and free opening hours stay original', () => {
+test('only exact structured categories translate and unreviewed opening hours do not pretend to be translated', () => {
   assert.equal(toiletTypeLabel('공중화장실', 'en'), 'Public')
   assert.equal(toiletTypeLabel('개방화장실', 'en'), 'Open')
   assert.equal(toiletTypeLabel('간이화장실', 'en'), 'Portable')
   assert.equal(toiletTypeLabel('이동화장실', 'en'), 'Portable')
   for (const value of ['사유 시설 이름', '__proto__', '서울 화장실']) assert.equal(toiletTypeLabel(value, 'en'), value)
   assert.equal(toiletTypeLabel(undefined, 'en'), 'Restroom')
-  assert.equal(formatOpenTime({ openTime: '평일 오전 9시', openTimeDetail: '이용 제한 원문' }, 'en'), '평일 오전 9시 · 이용 제한 원문')
+  assert.equal(formatOpenTime({ openTime: '평일 오전 9시', openTimeDetail: '이용 제한 원문' }, 'en'), 'Opening hours under review')
+  assert.equal(formatOpenTime({ openTime: '평일 오전 9시', openTimeDetail: '이용 제한 원문' }, 'ko'), '평일 오전 9시 · 이용 제한 원문')
   assert.equal(formatOpenTime({}, 'en'), 'Opening hours unavailable')
   assert.equal(formatInstallationDate('202609', 'en'), '2026-09')
   assert.equal(formatInstallationDate('202609'), '2026년 9월')
@@ -25,6 +26,25 @@ test('only exact structured categories translate; unknown labels and free openin
   assert.equal(formatLastUpdatedAt(null, 'ko'), '확인할 수 없음')
   const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
   assert.doesNotMatch(app, /<small>대<\/small>/)
+})
+test('normalized opening-hour decisions render from the same values in Korean and English', () => {
+  const always = { openTime: '정시', openTimeDetail: '24시간', normalizedOpeningHours: {
+    openingPolicy: 'ALWAYS', open24h: true, status: 'PARSED', confidence: 1, parserVersion: 'v1',
+    holidayPolicy: 'OPEN', manualOverride: false, sourceChanged: false, schedules: [],
+  } }
+  assert.equal(formatOpenTime(always, 'ko'), '24시간 운영 · 공휴일 운영')
+  assert.equal(formatOpenTime(always, 'en'), 'Open 24 hours · Open on public holidays')
+
+  const scheduled = { openTime: '정시', openTimeDetail: '평일 09:00~18:00', normalizedOpeningHours: {
+    openingPolicy: 'SCHEDULED', open24h: false, status: 'CONFIRMED', confidence: 1, parserVersion: 'v1',
+    holidayPolicy: 'CLOSED', manualOverride: true, sourceChanged: false,
+    schedules: [1, 2, 3, 4, 5].map(dayOfWeek => ({ dayOfWeek, slotIndex: 0, startTime: '09:00', endTime: '18:00', crossesMidnight: false, closed: false })),
+  } }
+  assert.equal(formatOpenTime(scheduled, 'ko'), '평일 09:00–18:00 · 공휴일 휴무')
+  assert.equal(formatOpenTime(scheduled, 'en'), 'Weekdays 09:00–18:00 · Closed on public holidays')
+
+  const changed = { ...always, normalizedOpeningHours: { ...always.normalizedOpeningHours, sourceChanged: true } }
+  assert.equal(formatOpenTime(changed, 'en'), 'Opening hours under review')
 })
 test('system notices have safe English fallbacks without leaking arbitrary server errors', () => {
   assert.equal(mapSystemNotice('검색 결과가 없습니다.', 'en'), 'No places found.')

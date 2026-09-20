@@ -25,6 +25,25 @@ export type ToiletMapSearchResponse = {
   clusters: Array<{ latitude: number; longitude: number; count: number }>
 }
 
+export type NormalizedOpeningHours = {
+  openingPolicy: 'ALWAYS' | 'SCHEDULED' | 'IRREGULAR' | 'CLOSED' | 'UNKNOWN' | string
+  open24h: boolean | null
+  status: 'PARSED' | 'REVIEW_REQUIRED' | 'CONFIRMED' | string
+  confidence: number | null
+  parserVersion: string
+  holidayPolicy: 'OPEN' | 'CLOSED' | 'UNKNOWN' | string
+  manualOverride: boolean
+  sourceChanged: boolean
+  schedules: Array<{
+    dayOfWeek: number
+    slotIndex: number
+    startTime: string | null
+    endTime: string | null
+    crossesMidnight: boolean
+    closed: boolean
+  }>
+}
+
 export type ToiletDetailResponse = {
   id: number
   name: string
@@ -54,6 +73,7 @@ export type ToiletDetailResponse = {
   phoneNumber: string
   openTime: string
   openTimeDetail: string
+  normalizedOpeningHours?: NormalizedOpeningHours | null
   installationDate: string
   hasEmergencyBell: string
   emergencyBellLocation: string
