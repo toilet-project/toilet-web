@@ -53,6 +53,7 @@ test('English branding and mobile facility rows remain compact without overlappi
   assert.match(mobile, /<BrandWordmark locale=\{locale\} \/>/)
   assert.match(logo, /<span>GEUP<\/span><span>DDONG<\/span>/)
   assert.match(css, /\.brand-wordmark\.is-english\s*\{[^}]*grid-template-rows: repeat\(2, auto\)/)
+  assert.match(css, /\.brand-wordmark\.is-english > span\s*\{[^}]*font-size: \.72em/)
   assert.match(css, /\.facility-location-label\s*\{[^}]*grid-column: 1 \/ -1[^}]*justify-self: end/)
   assert.match(css, /\.coordinate-facility-location\s*\{[^}]*grid-column: 1 \/ -1[^}]*justify-self: end/)
 })
