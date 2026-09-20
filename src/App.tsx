@@ -47,7 +47,7 @@ import { REVIEW_DESIGN_PREVIEW, type PreviewReviewSummary, type ReviewEntryState
 import { REVIEW_API_ENABLED, REVIEW_UI_ENABLED, useReviews } from './components/reviews/useReviews'
 import { readReviewTestToilet } from './lib/reviewTestToilet'
 import { DetailLoadingFields, LoadingOpenTime } from './components/ToiletCardLoading'
-import { hasValue, formatOpenTime, formatFacilityLocation } from './lib/detailFormatting'
+import { hasValue, formatOpenTime, formatFacilityLocation, formatLastUpdatedAt } from './lib/detailFormatting'
 import { BrandWordmark } from './components/BrandWordmark'
 import { toiletCoordinates } from './lib/toiletRoute'
 import { groupToiletsByCoordinate, representativeToilet, type ToiletMapItem, type MapPoint } from './lib/toiletGrouping'
@@ -103,16 +103,6 @@ function scrollCoordinateGroupItem(list: HTMLElement, item: HTMLElement, behavio
   const itemBounds = item.getBoundingClientRect()
   const top = list.scrollTop + itemBounds.top - listBounds.top - 8
   list.scrollTo({ top: Math.max(0, top), behavior })
-}
-
-function formatLastUpdatedAt(updatedAt: Date | null) {
-  if (!updatedAt) return '확인할 수 없음'
-  return new Intl.DateTimeFormat('ko-KR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  }).format(updatedAt)
 }
 
 function toiletTypeTone(toiletType?: string) {
@@ -1533,7 +1523,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           <span className="connection-status-dot" aria-hidden="true" />
           <div>
             <strong>{t('map.connectionLost')}</strong>
-            <span>{t('map.updated', { time: formatLastUpdatedAt(lastSuccessfulMapUpdate) })}</span>
+            <span>{t('map.updated', { time: formatLastUpdatedAt(lastSuccessfulMapUpdate, locale) })}</span>
           </div>
           <button type="button" onClick={() => void loadMapArea()} disabled={isLoading}>{t(isLoading ? 'map.reconnecting' : 'map.reconnect')}</button>
         </div>}
@@ -1755,7 +1745,7 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
       <h2>{t('detail.capacity')}</h2>
       <dl className="coordinate-inline-capacity">
         <div><dt>{t('detail.maleToilets')}</dt><dd>{toilet.maleToiletCount}<small>{locale === 'ko' ? '대' : ''}</small></dd></div>
-        <div><dt>{t('detail.femaleToilets')}</dt><dd>{toilet.femaleToiletCount}<small>대</small></dd></div>
+        <div><dt>{t('detail.femaleToilets')}</dt><dd>{toilet.femaleToiletCount}<small>{locale === 'ko' ? '대' : ''}</small></dd></div>
       </dl>
     </section>
     <section className="coordinate-inline-facilities" aria-label={t('detail.safety')}>

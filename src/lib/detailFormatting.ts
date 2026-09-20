@@ -33,6 +33,16 @@ export function formatInstallationDate(installationDate: string, locale: Locale 
   return `${matched[1]}년 ${month}월`
 }
 
+export function formatLastUpdatedAt(updatedAt: Date | null, locale: Locale = 'ko') {
+  if (!updatedAt) return locale === 'en' ? 'Unavailable' : '확인할 수 없음'
+  return new Intl.DateTimeFormat(locale === 'en' ? 'en-GB' : 'ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).format(updatedAt)
+}
+
 const ENGLISH_FACILITY_LOCATION_LABELS: Record<string, string> = {
   '장애인화장실': 'Accessible',
   '장애인 화장실': 'Accessible',

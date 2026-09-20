@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { toiletTypeLabel } from '../src/i18n/facilityLabels.ts'
 import { mapSystemNotice, localizeMapLabels } from '../src/i18n/mapLabels.ts'
-import { formatOpenTime, formatInstallationDate, formatFacilityLocation } from '../src/lib/detailFormatting.ts'
+import { formatOpenTime, formatInstallationDate, formatFacilityLocation, formatLastUpdatedAt } from '../src/lib/detailFormatting.ts'
 import { message } from '../src/i18n/messages.ts'
 
 test('only exact structured categories translate; unknown labels and free opening hours stay original', () => {
@@ -20,6 +20,10 @@ test('only exact structured categories translate; unknown labels and free openin
   assert.equal(formatFacilityLocation('장애인화장실 + 남자화장실 + 여자화장실', 'en'), 'Accessible / Men / Women')
   assert.equal(formatFacilityLocation('장애인화장실 + 남자화장실 + 여자화장실'), '장애인화장실 / 남자화장실 / 여자화장실')
   assert.equal(formatFacilityLocation('여자화장실 입구', 'en'), '여자화장실 입구')
+  assert.equal(formatLastUpdatedAt(null, 'en'), 'Unavailable')
+  assert.equal(formatLastUpdatedAt(null, 'ko'), '확인할 수 없음')
+  const app = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
+  assert.doesNotMatch(app, /<small>대<\/small>/)
 })
 test('system notices have safe English fallbacks without leaking arbitrary server errors', () => {
   assert.equal(mapSystemNotice('검색 결과가 없습니다.', 'en'), 'No places found.')
