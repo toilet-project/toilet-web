@@ -59,6 +59,7 @@ import { warmOwnPhoto } from './lib/warmOwnPhoto'
 import { refreshSignupPhoto } from './lib/signupPhotoWarm'
 import { prefetchPublicReviews, PUBLIC_REVIEW_API_ENABLED } from './lib/publicReviewPrefetch'
 import { resultCountBucket, trackEvent } from './lib/analytics'
+import { localizeToiletDetail, localizeToiletMapItem, localizeToiletMapSearch } from './i18n/toiletTranslations'
 const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
 const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
@@ -897,14 +898,15 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
 
   useEffect(() => {
     const selected = selectedToilet ?? expandedCoordinateToilet
+    const displaySelected = selected ? localizeToiletMapItem(selected, locale) : null
     const map = mapRef.current
-    if (!isMapReady || !selected || selected.id === testToilet?.id || !map || toiletMarkerElementsRef.current.has(selected.id)) return
+    if (!isMapReady || !displaySelected || displaySelected.id === testToilet?.id || !map || toiletMarkerElementsRef.current.has(displaySelected.id)) return
     // A directly linked toilet can be absent from the current clustered/bounds response.
     // Show its real coordinate without moving the map or requesting the list again.
     const content = document.createElement('button')
     content.type = 'button'
     content.className = 'toilet-marker is-selected'
-    content.setAttribute('aria-label', selected.name)
+    content.setAttribute('aria-label', displaySelected.name)
     const pin = document.createElement('span')
     pin.className = 'toilet-marker-pin'
     const logo = document.createElement('img')
@@ -915,24 +917,25 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     content.append(pin)
     content.addEventListener('click', suppressMapClickFromMarker)
     const overlay = createMapOverlay(map, {
-      position: createMapCoordinate(map, selected.latitude, selected.longitude), content, yAnchor: 1, zIndex: 3,
+      position: createMapCoordinate(map, displaySelected.latitude, displaySelected.longitude), content, yAnchor: 1, zIndex: 3,
       clickable: false,
     })
     overlay.setMap(map)
     return () => overlay.setMap(null)
-  }, [selectedToilet, expandedCoordinateToilet, result, isMapReady, suppressMapClickFromMarker, testToilet])
+  }, [selectedToilet, expandedCoordinateToilet, result, isMapReady, locale, suppressMapClickFromMarker, testToilet])
 
   const renderResult = useCallback((map: MapInstance, response: ToiletMapSearchResponse) => {
     clearOverlays()
+    const displayResponse = localizeToiletMapSearch(response, mapLocale.current)
 
-    const points: MapPoint[] = response.meta.display_type === 'CLUSTER'
-      ? response.clusters
-      : groupToiletsByCoordinate(response.toilets)
-    const displayPoints = map.getLevel() >= 5 || response.meta.display_type === 'CLUSTER'
+    const points: MapPoint[] = displayResponse.meta.display_type === 'CLUSTER'
+      ? displayResponse.clusters
+      : groupToiletsByCoordinate(displayResponse.toilets)
+    const displayPoints = map.getLevel() >= 5 || displayResponse.meta.display_type === 'CLUSTER'
       ? groupPointsByScreenGrid(map, points)
       : points
 
-    const shouldShowToiletName = map.getLevel() <= 4 && response.meta.display_type !== 'CLUSTER'
+    const shouldShowToiletName = map.getLevel() <= 4 && displayResponse.meta.display_type !== 'CLUSTER'
 
     overlaysRef.current = displayPoints.map((point) => {
       if (point.count > 1) {
@@ -1369,6 +1372,12 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, startCurrentLocationWatch, referenceRequestGate, testToilet, locale])
 
   const distanceReference = resolveDistanceReference(distanceSource, mapCenter, currentLocation)
+  const displaySelectedToilet = selectedToilet ? localizeToiletMapItem(selectedToilet, locale) : null
+  const displayToiletDetail = toiletDetail ? localizeToiletDetail(toiletDetail, locale) : null
+  const displaySelectedCoordinateGroup = selectedCoordinateGroup ? {
+    ...selectedCoordinateGroup,
+    toilets: selectedCoordinateGroup.toilets.map(toilet => localizeToiletMapItem(toilet, locale)),
+  } : null
   const distanceReferenceLabel = t(distanceSource === 'current-location' ? 'map.fromMe' : 'map.distanceFrom')
   const distanceToSelectedToilet = distanceReference && selectedToilet
     ? formatDistance(calculateDistanceInMeters(distanceReference, selectedToilet))
@@ -1379,8 +1388,9 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const hasMapCard = selectedToilet != null || selectedCoordinateGroup != null
   const isListZoomLimited = mapZoomLevel > MAX_LIST_ZOOM_LEVEL
   const areaToilets = useMemo(
-    () => isListZoomLimited ? [] : mobileAreaToilets ?? result?.toilets ?? [],
-    [isListZoomLimited, mobileAreaToilets, result?.toilets],
+    () => (isListZoomLimited ? [] : mobileAreaToilets ?? result?.toilets ?? [])
+      .map(toilet => localizeToiletMapItem(toilet, locale)),
+    [isListZoomLimited, locale, mobileAreaToilets, result?.toilets],
   )
   const groupedAreaToilets = useMemo(() => groupToiletsByCoordinate(areaToilets), [areaToilets])
   const sortedAreaToiletGroups = distanceReference
@@ -1591,18 +1601,18 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           </div>
         </aside>}
         {locationMessage && <p className="location-message" role="status">{mapSystemNotice(locationMessage, locale)}</p>}
-        {toiletDetail && !toiletCoordinates(toiletDetail) && !selectedToilet && !selectedCoordinateGroup && (
+        {displayToiletDetail && !toiletCoordinates(displayToiletDetail) && !displaySelectedToilet && !displaySelectedCoordinateGroup && (
           <aside className="place-card initial-route-card" aria-label={t('detail.title')}>
             <button type="button" className="close-button" onClick={closeDetailCard} aria-label={t('common.close')}>×</button>
-            <h1>{toiletDetail.name}</h1>
+            <h1>{displayToiletDetail.name}</h1>
             <p>{t('map.noCoordinates')}</p>
-            <p className="open-time">{formatOpenTime(toiletDetail, locale)}</p>
-            {REVIEW_UI_ENABLED && <ToiletCommunityRow onReview={() => reviewPreview.open(toiletDetail)} reviewEntry={reviewPreview.entryState(toiletDetail.id)} previewSummary={reviewPreview.summary(toiletDetail.id)} />}
-            <PublicReviews toiletId={toiletDetail.id} toiletName={toiletDetail.name} toiletType={toiletDetail.toiletType} summary={reviewPreview.summary(toiletDetail.id)} />
-            <ToiletDetailContents toilet={toiletDetail} />
+            <p className="open-time">{formatOpenTime(displayToiletDetail, locale)}</p>
+            {REVIEW_UI_ENABLED && <ToiletCommunityRow onReview={() => reviewPreview.open(displayToiletDetail)} reviewEntry={reviewPreview.entryState(displayToiletDetail.id)} previewSummary={reviewPreview.summary(displayToiletDetail.id)} />}
+            <PublicReviews toiletId={displayToiletDetail.id} toiletName={displayToiletDetail.name} toiletType={displayToiletDetail.toiletType} summary={reviewPreview.summary(displayToiletDetail.id)} />
+            <ToiletDetailContents toilet={displayToiletDetail} />
           </aside>
         )}
-        {selectedToilet && (
+        {displaySelectedToilet && (
           <aside
             ref={placeCardRef}
             className={`place-card${isMobileCardExpanded ? ' mobile-card-expanded' : ''}${selectedCoordinateGroup ? ' place-card-with-group' : ''}`}
@@ -1623,40 +1633,40 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
               {t(isMobileCardExpanded ? 'map.collapse' : 'detail.show')}
             </button>
             <div className="place-card-summary">
-              <span className="card-label">{toiletTypeLabel(toiletDetail?.toiletType || selectedToilet.toiletType, locale)}</span>
-              {REVIEW_UI_ENABLED ? <div className="review-card-title-row"><h1>{toiletDetail?.name || selectedToilet.name}</h1><ToiletReportEntry disabled={!toiletDetail || selectedToilet.id === testToilet?.id} onClick={() => { if (toiletDetail) openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) }} /></div> : <h1>{toiletDetail?.name || selectedToilet.name}</h1>}
+              <span className="card-label">{toiletTypeLabel(displayToiletDetail?.toiletType || displaySelectedToilet.toiletType, locale)}</span>
+              {REVIEW_UI_ENABLED ? <div className="review-card-title-row"><h1>{displayToiletDetail?.name || displaySelectedToilet.name}</h1><ToiletReportEntry disabled={!displayToiletDetail || displaySelectedToilet.id === testToilet?.id} onClick={() => { if (displayToiletDetail) openReport({ toilet: displayToiletDetail, latitude: displaySelectedToilet.latitude, longitude: displaySelectedToilet.longitude }) }} /></div> : <h1>{displayToiletDetail?.name || displaySelectedToilet.name}</h1>}
             </div>
             <div ref={cardScrollRef} className="card-scroll-content">
-              {toiletDetail ? <p className="open-time">{toiletDetail.id === testToilet?.id ? '프리뷰 전용 · 운영 데이터에 저장되지 않아요' : formatOpenTime(toiletDetail, locale)}</p> : isDetailLoading && <LoadingOpenTime />}
+              {displayToiletDetail ? <p className="open-time">{displayToiletDetail.id === testToilet?.id ? '프리뷰 전용 · 운영 데이터에 저장되지 않아요' : formatOpenTime(displayToiletDetail, locale)}</p> : isDetailLoading && <LoadingOpenTime />}
               {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">{distanceReferenceLabel}</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">{t('map.straightLine')}</span></div>}
-              <ToiletCommunityRow pendingReport={!isDesktop && !toiletDetail} onReport={isDesktop ? undefined : toiletDetail ? () => openReport({ toilet: toiletDetail, latitude: selectedToilet.latitude, longitude: selectedToilet.longitude }) : undefined}
-                pendingReview={REVIEW_UI_ENABLED && !toiletDetail} onReview={REVIEW_UI_ENABLED && toiletDetail ? () => reviewPreview.open(toiletDetail) : undefined} reviewEntry={reviewPreview.entryState(selectedToilet.id)} previewSummary={REVIEW_UI_ENABLED ? reviewPreview.summary(selectedToilet.id) : undefined} />
-              {toiletDetail && <PublicReviews toiletId={toiletDetail.id} toiletName={toiletDetail.name} toiletType={toiletDetail.toiletType} summary={reviewPreview.summary(toiletDetail.id)} />}
-              {!toiletDetail && isDetailLoading && <PublicReviewsLoading />}
+              <ToiletCommunityRow pendingReport={!isDesktop && !displayToiletDetail} onReport={isDesktop ? undefined : displayToiletDetail ? () => openReport({ toilet: displayToiletDetail, latitude: displaySelectedToilet.latitude, longitude: displaySelectedToilet.longitude }) : undefined}
+                pendingReview={REVIEW_UI_ENABLED && !displayToiletDetail} onReview={REVIEW_UI_ENABLED && displayToiletDetail ? () => reviewPreview.open(displayToiletDetail) : undefined} reviewEntry={reviewPreview.entryState(displaySelectedToilet.id)} previewSummary={REVIEW_UI_ENABLED ? reviewPreview.summary(displaySelectedToilet.id) : undefined} />
+              {displayToiletDetail && <PublicReviews toiletId={displayToiletDetail.id} toiletName={displayToiletDetail.name} toiletType={displayToiletDetail.toiletType} summary={reviewPreview.summary(displayToiletDetail.id)} />}
+              {!displayToiletDetail && isDetailLoading && <PublicReviewsLoading />}
               {detailError && <div><p className="detail-error" role="alert">{t('detail.error')}</p><button type="button" className="detail-retry" onClick={retryDetail}>{t('common.retry')}</button></div>}
-              {!toiletDetail && isDetailLoading && <DetailLoadingFields />}
-              {toiletDetail && (toiletDetail.id === testToilet?.id
+              {!displayToiletDetail && isDetailLoading && <DetailLoadingFields />}
+              {displayToiletDetail && (displayToiletDetail.id === testToilet?.id
                 ? <div className="card-details"><p>실제 시설이 아닌 리뷰 테스트 지점이에요. 로그인과 실제 현재 위치 확인은 그대로 적용돼요.</p></div>
-                : <ToiletDetailContents toilet={toiletDetail} />)}
+                : <ToiletDetailContents toilet={displayToiletDetail} />)}
             </div>
           </aside>
         )}
-        {selectedCoordinateGroup && (
+        {displaySelectedCoordinateGroup && (
           <aside className="coordinate-group-card" aria-live="polite" aria-label={t('map.groupList')}>
             <button type="button" className="close-button" onClick={closeDetailCard} aria-label={t('map.closeList')}>×</button>
             <header className="coordinate-group-header">
               <div className="coordinate-group-meta-row">
                 <div className="coordinate-group-labels">
-                  <span className="card-label">{[...new Set(selectedCoordinateGroup.toilets.map(item => toiletTypeLabel(item.toiletType, locale)))].join(' · ')}</span>
-                  {selectedCoordinateGroup.displayGroupName && <span className="coordinate-group-admin-badge" title={t('map.adminHint')}>{t('map.admin')}<svg viewBox="0 0 12 12" aria-hidden="true"><path d="m2.5 6.2 2.2 2.2 4.8-4.8" /></svg></span>}
+                  <span className="card-label">{[...new Set(displaySelectedCoordinateGroup.toilets.map(item => toiletTypeLabel(item.toiletType, locale)))].join(' · ')}</span>
+                  {displaySelectedCoordinateGroup.displayGroupName && <span className="coordinate-group-admin-badge" title={t('map.adminHint')}>{t('map.admin')}<svg viewBox="0 0 12 12" aria-hidden="true"><path d="m2.5 6.2 2.2 2.2 4.8-4.8" /></svg></span>}
                 </div>
                 {distanceToCoordinateGroup && <p className="coordinate-group-distance">{distanceReferenceLabel} <strong>{distanceToCoordinateGroup}</strong></p>}
               </div>
-              {selectedCoordinateGroup.displayGroupName && <h2 className="coordinate-group-display-name">{selectedCoordinateGroup.displayGroupName}</h2>}
+              {displaySelectedCoordinateGroup.displayGroupName && <h2 className="coordinate-group-display-name">{displaySelectedCoordinateGroup.displayGroupName}</h2>}
               <p className="coordinate-group-description">{t('map.expandHint')}</p>
             </header>
             <div ref={coordinateGroupListRef} className="coordinate-group-list">
-              {selectedCoordinateGroup.toilets.map((toilet, index) => {
+              {displaySelectedCoordinateGroup.toilets.map((toilet, index) => {
                 const isExpanded = expandedCoordinateToilet?.id === toilet.id
                 return <div key={toilet.id} ref={(node) => { if (node) coordinateGroupItemRefs.current.set(toilet.id, node); else coordinateGroupItemRefs.current.delete(toilet.id) }} className={`coordinate-group-item${isExpanded ? ' is-expanded' : ''}`}>
                   <button type="button" className="coordinate-group-item-toggle" onClick={() => void toggleCoordinateToiletDetail(toilet)} aria-expanded={isExpanded}>
@@ -1734,29 +1744,30 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
   if (error) return <div className="coordinate-inline-details"><p className="detail-error" role="alert">{t('detail.error')}</p><button type="button" className="detail-retry" onClick={onRetry}>{t('common.retry')}</button></div>
   if (!toilet) return null
 
-  const address = getDisplayAddress(toilet.roadAddress, toilet.jibunAddress)
+  const display = localizeToiletDetail(toilet, locale)
+  const address = getDisplayAddress(display.roadAddress, display.jibunAddress)
 
   return <div className="coordinate-inline-details">
-    <div className="coordinate-opening-row"><p className="open-time">{formatOpenTime(toilet, locale)}</p>{onReport && <ToiletReportEntry iconOnly onClick={onReport} />}</div>
+    <div className="coordinate-opening-row"><p className="open-time">{formatOpenTime(display, locale)}</p>{onReport && <ToiletReportEntry iconOnly onClick={onReport} />}</div>
     <ToiletCommunityRow onReview={onReview} reviewEntry={reviewEntry} previewSummary={previewSummary} />
-    <PublicReviews toiletId={toilet.id} toiletName={toilet.name} toiletType={toilet.toiletType} summary={previewSummary} />
+    <PublicReviews toiletId={display.id} toiletName={display.name} toiletType={display.toiletType} summary={previewSummary} />
     {address && <DetailRow className="coordinate-inline-address" label={t('detail.address')} value={address} copyable />}
     <section className="coordinate-inline-section coordinate-inline-capacity-section" aria-label={t('detail.capacity')}>
       <h2>{t('detail.capacity')}</h2>
       <dl className="coordinate-inline-capacity">
-        <div><dt>{t('detail.maleToilets')}</dt><dd>{toilet.maleToiletCount}<small>{locale === 'ko' ? '대' : ''}</small></dd></div>
-        <div><dt>{t('detail.femaleToilets')}</dt><dd>{toilet.femaleToiletCount}<small>{locale === 'ko' ? '대' : ''}</small></dd></div>
+        <div><dt>{t('detail.maleToilets')}</dt><dd>{display.maleToiletCount}<small>{locale === 'ko' ? '대' : ''}</small></dd></div>
+        <div><dt>{t('detail.femaleToilets')}</dt><dd>{display.femaleToiletCount}<small>{locale === 'ko' ? '대' : ''}</small></dd></div>
       </dl>
     </section>
     <section className="coordinate-inline-facilities" aria-label={t('detail.safety')}>
       <h2>{t('detail.safety')}</h2>
       <div className="coordinate-facility-list">
-        <CompactFacilityStatus label={t('detail.bell')} available={toilet.hasEmergencyBell === 'Y'} location={toilet.emergencyBellLocation} />
-        <CompactFacilityStatus label="CCTV" available={toilet.hasCctv === 'Y'} />
-        <CompactFacilityStatus label={t('detail.diaper')} available={toilet.hasDiaperTable === 'Y'} location={toilet.diaperTableLocation} />
+        <CompactFacilityStatus label={t('detail.bell')} available={display.hasEmergencyBell === 'Y'} location={display.emergencyBellLocation} />
+        <CompactFacilityStatus label="CCTV" available={display.hasCctv === 'Y'} />
+        <CompactFacilityStatus label={t('detail.diaper')} available={display.hasDiaperTable === 'Y'} location={display.diaperTableLocation} />
       </div>
     </section>
-    {hasValue(toilet.agencyName) && <DetailRow className="coordinate-inline-agency" label={t('detail.agency')} value={toilet.agencyName} />}
+    {hasValue(display.agencyName) && <DetailRow className="coordinate-inline-agency" label={t('detail.agency')} value={display.agencyName} />}
   </div>
 }
 

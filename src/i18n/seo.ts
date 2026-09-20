@@ -1,5 +1,6 @@
 import type { ToiletDetailResponse } from '../api/toilets.ts'
 import { placeData, SITE_ORIGIN } from '../lib/seo.ts'
+import { localizeToiletDetail, toiletTranslation } from './toiletTranslations.ts'
 
 export const englishHomeMetadata = {
   title: 'Geupddong | Find public restrooms in Korea',
@@ -21,8 +22,8 @@ export function englishHomeData() {
   }
 }
 
-export function englishToiletMetadata(detail: Pick<ToiletDetailResponse, 'name'>) {
-  const name = detail.name.trim()
+export function englishToiletMetadata(detail: Pick<ToiletDetailResponse, 'name' | 'translations'>) {
+  const name = (toiletTranslation(detail, 'en')?.name ?? detail.name).trim()
   return {
     title: name ? `${name} — Restroom in Korea` : 'Restroom locations and facilities in Korea',
     description: name ? `Visiting Korea? Check the location, opening hours and facilities of ${name}. Restroom names and addresses are shown in their original language.`
@@ -32,5 +33,6 @@ export function englishToiletMetadata(detail: Pick<ToiletDetailResponse, 'name'>
 
 export function englishPlaceData(detail: ToiletDetailResponse) {
   // One physical place keeps its stable identity and source name across languages.
-  return { ...placeData(detail), url: `${SITE_ORIGIN}/en/toilet/${detail.id}`, description: englishToiletMetadata(detail).description }
+  const display = localizeToiletDetail(detail, 'en')
+  return { ...placeData(display), url: `${SITE_ORIGIN}/en/toilet/${detail.id}`, description: englishToiletMetadata(detail).description }
 }

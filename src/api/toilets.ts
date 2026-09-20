@@ -1,8 +1,27 @@
 import { createApiUrl } from '../config/api'
 
+export type ToiletTranslationText = {
+  name: string
+  roadAddress: string | null
+  jibunAddress: string | null
+}
+
+export type ToiletTranslations = Record<string, ToiletTranslationText>
+
+export type ToiletMapItemResponse = {
+  id: number
+  name: string
+  toiletType?: string
+  latitude: number
+  longitude: number
+  displayGroupId?: number | null
+  displayGroupName?: string | null
+  translations?: ToiletTranslations
+}
+
 export type ToiletMapSearchResponse = {
   meta: { map_level: number; display_type: 'MARKER' | 'CLUSTER'; total_count: number; result_count: number }
-  toilets: Array<{ id: number; name: string; toiletType?: string; latitude: number; longitude: number; displayGroupId?: number | null; displayGroupName?: string | null }>
+  toilets: ToiletMapItemResponse[]
   clusters: Array<{ latitude: number; longitude: number; count: number }>
 }
 
@@ -43,6 +62,7 @@ export type ToiletDetailResponse = {
   diaperTableLocation: string
   dataBaseDate: string
   dataSource: string
+  translations?: ToiletTranslations
 }
 
 export async function fetchToiletsInBounds(params: { southLat: number; northLat: number; westLng: number; eastLng: number; zoom: number; includeList?: boolean }): Promise<ToiletMapSearchResponse> {

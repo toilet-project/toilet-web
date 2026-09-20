@@ -7,31 +7,33 @@ import { regionLabel } from '../lib/toiletRoute'
 import { visibleCounts, hasValue, formatPhoneNumber, formatInstallationDate, formatFacilityLocation, type CountItem } from '../lib/detailFormatting'
 import { TRANSIENT_NOTICE_MS } from '../lib/uiTiming'
 import { useLocale, useMessages } from '../i18n/context'
+import { localizeToiletDetail } from '../i18n/toiletTranslations'
 
 export function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse }) {
   const t = useMessages()
   const locale = useLocale()
+  const display = localizeToiletDetail(toilet, locale)
   const maleCounts = visibleCounts([
-    { label: t('detail.toilets'), count: toilet.maleToiletCount },
-    { label: t('detail.urinals'), count: toilet.maleUrinalCount },
-    { label: t('detail.accessibleToilets'), count: toilet.maleDisabledToiletCount },
-    { label: t('detail.accessibleUrinals'), count: toilet.maleDisabledUrinalCount },
-    { label: t('detail.childToilets'), count: toilet.maleChildToiletCount },
-    { label: t('detail.childUrinals'), count: toilet.maleChildUrinalCount },
+    { label: t('detail.toilets'), count: display.maleToiletCount },
+    { label: t('detail.urinals'), count: display.maleUrinalCount },
+    { label: t('detail.accessibleToilets'), count: display.maleDisabledToiletCount },
+    { label: t('detail.accessibleUrinals'), count: display.maleDisabledUrinalCount },
+    { label: t('detail.childToilets'), count: display.maleChildToiletCount },
+    { label: t('detail.childUrinals'), count: display.maleChildUrinalCount },
   ])
   const femaleCounts = visibleCounts([
-    { label: t('detail.toilets'), count: toilet.femaleToiletCount },
-    { label: t('detail.accessibleToilets'), count: toilet.femaleDisabledToiletCount },
-    { label: t('detail.childToilets'), count: toilet.femaleChildToiletCount },
+    { label: t('detail.toilets'), count: display.femaleToiletCount },
+    { label: t('detail.accessibleToilets'), count: display.femaleDisabledToiletCount },
+    { label: t('detail.childToilets'), count: display.femaleChildToiletCount },
   ])
-  const address = getDisplayAddress(toilet.roadAddress, toilet.jibunAddress)
+  const address = getDisplayAddress(display.roadAddress, display.jibunAddress)
 
   return (
     <div className="card-details" tabIndex={0} aria-label={t('detail.title')}>
       {address && <DetailRow className="detail-address" label={t('detail.address')} value={address} copyable />}
-      {regionLabel(toilet.region) && <DetailRow label={t('detail.region')} value={regionLabel(toilet.region)} />}
-      {hasValue(toilet.openTimeDetail) && <DetailRow label={t('detail.openingDetails')} value={toilet.openTimeDetail} />}
-      {hasValue(toilet.installationDate) && <DetailRow label={t('detail.installed')} value={formatInstallationDate(toilet.installationDate, locale)} />}
+      {regionLabel(display.region) && <DetailRow label={t('detail.region')} value={regionLabel(display.region)} />}
+      {hasValue(display.openTimeDetail) && <DetailRow label={t('detail.openingDetails')} value={display.openTimeDetail} />}
+      {hasValue(display.installationDate) && <DetailRow label={t('detail.installed')} value={formatInstallationDate(display.installationDate, locale)} />}
       {(maleCounts.length > 0 || femaleCounts.length > 0) && <section className="detail-section">
         <h2>{t('detail.capacity')}</h2>
         <div className="capacity-groups">
@@ -41,13 +43,13 @@ export function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse 
       </section>}
       <section className="detail-section facility-section">
         <h2>{t('detail.safety')}</h2>
-        <FacilityRow label={t('detail.bell')} available={toilet.hasEmergencyBell === 'Y'} location={toilet.emergencyBellLocation} />
-        <FacilityRow label="CCTV" available={toilet.hasCctv === 'Y'} />
-        <FacilityRow label={t('detail.diaper')} available={toilet.hasDiaperTable === 'Y'} location={toilet.diaperTableLocation} />
+        <FacilityRow label={t('detail.bell')} available={display.hasEmergencyBell === 'Y'} location={display.emergencyBellLocation} />
+        <FacilityRow label="CCTV" available={display.hasCctv === 'Y'} />
+        <FacilityRow label={t('detail.diaper')} available={display.hasDiaperTable === 'Y'} location={display.diaperTableLocation} />
       </section>
-      {hasValue(toilet.agencyName) && <DetailRow label={t('detail.agency')} value={toilet.agencyName} />}
-      {hasValue(toilet.phoneNumber) && <DetailRow label={t('detail.phone')} value={formatPhoneNumber(toilet.phoneNumber)} />}
-      {hasValue(toilet.dataBaseDate) && <DetailRow label={t('detail.dataDate')} value={toilet.dataBaseDate} />}
+      {hasValue(display.agencyName) && <DetailRow label={t('detail.agency')} value={display.agencyName} />}
+      {hasValue(display.phoneNumber) && <DetailRow label={t('detail.phone')} value={formatPhoneNumber(display.phoneNumber)} />}
+      {hasValue(display.dataBaseDate) && <DetailRow label={t('detail.dataDate')} value={display.dataBaseDate} />}
     </div>
   )
 }

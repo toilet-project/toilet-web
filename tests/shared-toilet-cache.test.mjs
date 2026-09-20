@@ -37,6 +37,16 @@ test('public detail is reused across callers and extra personal fields never per
   assert.equal(bucket.value(7).data.email,undefined); assert.equal(bucket.value(7).data.accessToken,undefined)
 })
 
+test('public translation fields persist safely while malformed locale entries are discarded',async()=>{
+  const bucket=new FakeR2()
+  const origin={...detail(18),translations:{en:{name:'Public Restroom',roadAddress:'1 Test-ro',jibunAddress:null},
+    '__proto__':{name:'unsafe'},ko:{name:''}},privateTranslationToken:'secret'}
+  await readThroughSharedToiletCache({bucket,toiletId:18,fetchOrigin:async()=>origin,now:()=>1000})
+  assert.deepEqual(bucket.value(18).data.translations,{en:{name:'Public Restroom',roadAddress:'1 Test-ro',jibunAddress:null}})
+  assert.equal(bucket.value(18).data.privateTranslationToken,undefined)
+  assert.equal(Object.hasOwn(bucket.value(18).data.translations,'__proto__'),false)
+})
+
 test('an incompatible object is conditionally replaced from the public origin',async()=>{
   const bucket=new FakeR2()
   await bucket.put(sharedToiletCacheKey(6),JSON.stringify({schema:999,toiletId:6}))

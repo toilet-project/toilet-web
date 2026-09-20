@@ -143,7 +143,7 @@ test('future toilet metrics are placeholders in a 44px row, with a labeled repor
 test('group report action sits beside hours, apart from collapse; metrics and single-card behavior remain', async () => {
   const app = await source('../src/App.tsx')
   const inline = app.slice(app.indexOf('function CoordinateGroupInlineDetails'), app.indexOf('function CompactFacilityStatus'))
-  assert.match(inline, /className="coordinate-opening-row"><p className="open-time">\{formatOpenTime\(toilet, locale\)\}<\/p>\{onReport && <ToiletReportEntry iconOnly onClick=\{onReport\} \/>\}<\/div>\s*<ToiletCommunityRow onReview=\{onReview\}/)
+  assert.match(inline, /className="coordinate-opening-row"><p className="open-time">\{formatOpenTime\(display, locale\)\}<\/p>\{onReport && <ToiletReportEntry iconOnly onClick=\{onReport\} \/>\}<\/div>\s*<ToiletCommunityRow onReview=\{onReview\}/)
   assert.match(inline, /<ToiletReportEntry iconOnly disabled \/>/)
   assert.doesNotMatch(app, /review-group-title-row/)
   assert.equal((inline.match(/<ToiletCommunityRow/g) || []).length, 2)
@@ -165,7 +165,7 @@ test('review summaries follow the review action and divider, before addresses, w
   const detail = await source('../src/components/ToiletDetailContents.tsx')
   const reviews = await source('../src/components/reviews/PublicReviews.tsx')
   const css = await source('../src/components/mobile-navigation.css')
-  const single = app.slice(app.indexOf('<div ref={cardScrollRef} className="card-scroll-content">'), app.indexOf('{selectedCoordinateGroup && ('))
+  const single = app.slice(app.indexOf('<div ref={cardScrollRef} className="card-scroll-content">'), app.indexOf('{displaySelectedCoordinateGroup && ('))
   const inline = app.slice(app.indexOf('function CoordinateGroupInlineDetails'), app.indexOf('function CompactFacilityStatus'))
   const routeScroll = route.slice(route.indexOf('<div className="card-scroll-content">'))
   for (const content of [single, inline, routeScroll]) {

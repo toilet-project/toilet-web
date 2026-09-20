@@ -5,6 +5,7 @@ import { toiletTypeLabel } from '../src/i18n/facilityLabels.ts'
 import { mapSystemNotice, localizeMapLabels } from '../src/i18n/mapLabels.ts'
 import { formatOpenTime, formatInstallationDate, formatFacilityLocation, formatLastUpdatedAt } from '../src/lib/detailFormatting.ts'
 import { message } from '../src/i18n/messages.ts'
+import { localizeToilet, localizeToiletMapSearch } from '../src/i18n/toiletTranslations.ts'
 
 test('only exact structured categories translate; unknown labels and free opening hours stay original', () => {
   assert.equal(toiletTypeLabel('공중화장실', 'en'), 'Public')
@@ -29,6 +30,23 @@ test('system notices have safe English fallbacks without leaking arbitrary serve
   assert.equal(mapSystemNotice('검색 결과가 없습니다.', 'en'), 'No places found.')
   for (const value of ['private-error-value', '__proto__']) assert.doesNotMatch(mapSystemNotice(value, 'en'), /private-error-value|__proto__/)
   assert.equal(mapSystemNotice('검색 결과가 없습니다.', 'ko'), '검색 결과가 없습니다.')
+})
+test('current API translations are selected by locale with field-level Korean fallback', () => {
+  const canonical = {
+    id: 1, name: '서울역 화장실', roadAddress: '서울특별시 중구 한강대로 405', jibunAddress: '서울특별시 중구 봉래동2가',
+    translations: { en: { name: 'Seoul Station Restroom', roadAddress: '405 Hangang-daero, Jung-gu, Seoul', jibunAddress: null } },
+  }
+  const english = localizeToilet(canonical, 'en')
+  assert.equal(english.name, 'Seoul Station Restroom')
+  assert.equal(english.roadAddress, '405 Hangang-daero, Jung-gu, Seoul')
+  assert.equal(english.jibunAddress, canonical.jibunAddress)
+  assert.strictEqual(localizeToilet(canonical, 'ko'), canonical)
+  const untranslated = { ...canonical, translations: {} }
+  assert.strictEqual(localizeToilet(untranslated, 'en'), untranslated)
+
+  const response = { meta: { map_level: 3, display_type: 'MARKER', total_count: 1, result_count: 1 }, toilets: [{ ...canonical, latitude: 37.5, longitude: 127 }], clusters: [] }
+  assert.equal(localizeToiletMapSearch(response, 'en').toilets[0].name, 'Seoul Station Restroom')
+  assert.equal(localizeToiletMapSearch(response, 'ko').toilets[0].name, '서울역 화장실')
 })
 test('map overlays relabel in place and preserve original named groups', () => {
   const nodes = [

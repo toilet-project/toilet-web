@@ -1,0 +1,40 @@
+import type { Locale } from './locale'
+import type { ToiletDetailResponse, ToiletMapItemResponse, ToiletMapSearchResponse, ToiletTranslationText } from '../api/toilets'
+
+type TranslatableToilet = {
+  name: string
+  roadAddress?: string | null
+  jibunAddress?: string | null
+  translations?: Record<string, ToiletTranslationText>
+}
+
+export function toiletTranslation<T extends TranslatableToilet>(toilet: T, locale: Locale | string): ToiletTranslationText | null {
+  if (locale === 'ko') return null
+  const normalized = locale.trim().toLowerCase().replace('_', '-')
+  const translation = toilet.translations?.[normalized] ?? toilet.translations?.[normalized.split('-')[0]]
+  return translation?.name?.trim() ? translation : null
+}
+
+export function localizeToilet<T extends TranslatableToilet>(toilet: T, locale: Locale | string): T {
+  const translation = toiletTranslation(toilet, locale)
+  if (!translation) return toilet
+  return {
+    ...toilet,
+    name: translation.name.trim(),
+    ...('roadAddress' in toilet && translation.roadAddress?.trim() ? { roadAddress: translation.roadAddress.trim() } : {}),
+    ...('jibunAddress' in toilet && translation.jibunAddress?.trim() ? { jibunAddress: translation.jibunAddress.trim() } : {}),
+  }
+}
+
+export function localizeToiletMapItem(toilet: ToiletMapItemResponse, locale: Locale | string): ToiletMapItemResponse {
+  return localizeToilet(toilet, locale)
+}
+
+export function localizeToiletDetail(toilet: ToiletDetailResponse, locale: Locale | string): ToiletDetailResponse {
+  return localizeToilet(toilet, locale)
+}
+
+export function localizeToiletMapSearch(response: ToiletMapSearchResponse, locale: Locale | string): ToiletMapSearchResponse {
+  if (locale === 'ko') return response
+  return { ...response, toilets: response.toilets.map(toilet => localizeToiletMapItem(toilet, locale)) }
+}

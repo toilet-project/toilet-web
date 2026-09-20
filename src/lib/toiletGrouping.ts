@@ -1,4 +1,6 @@
-export type ToiletMapItem = { id: number; name: string; toiletType?: string; latitude: number; longitude: number; displayGroupId?: number | null; displayGroupName?: string | null }
+import type { ToiletMapItemResponse } from '../api/toilets'
+
+export type ToiletMapItem = ToiletMapItemResponse
 export type MapPoint = { id?: number; latitude: number; longitude: number; count: number; name?: string; toiletType?: string; toilets?: ToiletMapItem[]; displayGroupName?: string }
 
 export function coordinateGroupCategory(toilets: ToiletMapItem[]): string {
