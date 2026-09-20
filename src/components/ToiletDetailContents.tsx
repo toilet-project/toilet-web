@@ -59,6 +59,7 @@ function CapacityGroup({ title, items }: { title: string; items: CountItem[] }) 
 
 function FacilityRow({ label, available, location }: { label: string; available: boolean; location?: string }) {
   const t = useMessages()
+  const locale = useLocale()
   if (!available) {
     return <div className="facility-row"><strong>{label}</strong><span className="facility-status is-unavailable">{t('detail.unavailable')}</span><span className="facility-location-placeholder" aria-hidden="true" /></div>
   }
@@ -69,7 +70,7 @@ function FacilityRow({ label, available, location }: { label: string; available:
 
   return <details className="facility-row facility-row-expandable">
     <summary><strong>{label}</strong><span className="facility-status">{t('detail.available')}</span><span className="facility-location-label">{t('detail.location')} <span className="facility-location-arrow" aria-hidden="true" /></span></summary>
-    <p>{t('detail.location')}: {formatFacilityLocation(location ?? '')}</p>
+    <p>{t('detail.location')}: {formatFacilityLocation(location ?? '', locale)}</p>
   </details>
 }
 

@@ -1772,12 +1772,13 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
 
 function CompactFacilityStatus({ label, available, location }: { label: string; available: boolean; location?: string }) {
   const t = useMessages()
+  const locale = useLocale()
   if (!available) return <div className="coordinate-facility"><span>{label}</span><strong className="is-unavailable">{t('detail.unavailable')}</strong></div>
   if (!hasValue(location ?? '')) return <div className="coordinate-facility"><span>{label}</span><strong>{t('detail.available')}</strong></div>
 
   return <details className="coordinate-facility coordinate-facility-with-location">
     <summary><span>{label}</span><strong>{t('detail.available')}</strong><span className="coordinate-facility-location">{t('detail.location')} <i aria-hidden="true" /></span></summary>
-    <p>{formatFacilityLocation(location ?? '')}</p>
+    <p>{formatFacilityLocation(location ?? '', locale)}</p>
   </details>
 }
 

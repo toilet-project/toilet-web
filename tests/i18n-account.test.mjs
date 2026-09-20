@@ -32,6 +32,8 @@ test('account dates remain in Korea time and only fixed errors are translated', 
   assert.match(message('en', 'account.closedPending'), /still pending/)
   assert.match(message('en', 'account.closedErased'), /service database/)
   assert.match(message('en', 'account.retainDetails'), /not retained for recovery/)
+  assert.equal(message('en', 'account.withdraw'), 'Delete account')
+  assert.equal(message('en', 'account.withdrawTitle'), 'Delete your account?')
 })
 
 test('recovery callback returns to a bounded English map route without storing account data', () => {

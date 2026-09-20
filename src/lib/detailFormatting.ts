@@ -33,6 +33,21 @@ export function formatInstallationDate(installationDate: string, locale: Locale 
   return `${matched[1]}년 ${month}월`
 }
 
-export function formatFacilityLocation(location: string) {
-  return location.replace(/\s*\+\s*/g, ' / ')
+const ENGLISH_FACILITY_LOCATION_LABELS: Record<string, string> = {
+  '장애인화장실': 'Accessible',
+  '장애인 화장실': 'Accessible',
+  '남자화장실': 'Men',
+  '남자 화장실': 'Men',
+  '남성화장실': 'Men',
+  '남성 화장실': 'Men',
+  '여자화장실': 'Women',
+  '여자 화장실': 'Women',
+  '여성화장실': 'Women',
+  '여성 화장실': 'Women',
+}
+
+export function formatFacilityLocation(location: string, locale: Locale = 'ko') {
+  const parts = location.split(/\s*(?:\+|\/)\s*/).filter(Boolean)
+  if (locale !== 'en') return parts.join(' / ')
+  return parts.map(part => ENGLISH_FACILITY_LOCATION_LABELS[part] ?? part).join(' / ')
 }

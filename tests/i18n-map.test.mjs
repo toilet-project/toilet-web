@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { toiletTypeLabel } from '../src/i18n/facilityLabels.ts'
 import { mapSystemNotice, localizeMapLabels } from '../src/i18n/mapLabels.ts'
-import { formatOpenTime, formatInstallationDate } from '../src/lib/detailFormatting.ts'
+import { formatOpenTime, formatInstallationDate, formatFacilityLocation } from '../src/lib/detailFormatting.ts'
 import { message } from '../src/i18n/messages.ts'
 
 test('only exact structured categories translate; unknown labels and free opening hours stay original', () => {
@@ -17,6 +17,9 @@ test('only exact structured categories translate; unknown labels and free openin
   assert.equal(formatOpenTime({}, 'en'), 'Opening hours unavailable')
   assert.equal(formatInstallationDate('202609', 'en'), '2026-09')
   assert.equal(formatInstallationDate('202609'), '2026년 9월')
+  assert.equal(formatFacilityLocation('장애인화장실 + 남자화장실 + 여자화장실', 'en'), 'Accessible / Men / Women')
+  assert.equal(formatFacilityLocation('장애인화장실 + 남자화장실 + 여자화장실'), '장애인화장실 / 남자화장실 / 여자화장실')
+  assert.equal(formatFacilityLocation('여자화장실 입구', 'en'), '여자화장실 입구')
 })
 test('system notices have safe English fallbacks without leaking arbitrary server errors', () => {
   assert.equal(mapSystemNotice('검색 결과가 없습니다.', 'en'), 'No places found.')
