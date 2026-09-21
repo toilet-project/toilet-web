@@ -967,12 +967,14 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           name.textContent = point.displayGroupName ?? ''
           content.append(pin, name)
         } else {
-          content.textContent = isCoordinateGroup ? `동일 위치 ${point.count}` : String(point.count)
+          content.textContent = isCoordinateGroup ? `${message(mapLocale.current, 'map.sameLocation')} ${point.count}` : String(point.count)
         }
         content.dataset.mapLabel = isCoordinateGroup ? 'group' : 'cluster'
         content.dataset.mapCount = String(point.count)
         content.dataset.mapName = point.displayGroupName || ''
-        content.setAttribute('aria-label', isCoordinateGroup ? `${point.displayGroupName || '동일 위치'}에 등록된 화장실 ${point.count}곳 목록 보기` : `${point.count}개의 화장실이 있는 구역 확대하기`)
+        content.setAttribute('aria-label', isCoordinateGroup
+          ? message(mapLocale.current, 'map.groupMarker', { name: point.displayGroupName || message(mapLocale.current, 'map.sameLocation'), count: point.count })
+          : message(mapLocale.current, 'map.clusterMarker', { count: point.count }))
         content.addEventListener('click', (event) => {
           if (!suppressMapClickFromMarker(event)) return
           if (isCoordinateGroup) {
@@ -1689,6 +1691,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
                 <div className="coordinate-group-labels">
                   <span className="card-label">{[...new Set(displaySelectedCoordinateGroup.toilets.map(item => toiletTypeLabel(item.toiletType, locale)))].join(' · ')}</span>
                   {displaySelectedCoordinateGroup.displayGroupName && <span className="coordinate-group-admin-badge" title={t('map.adminHint')}>{t('map.admin')}<svg viewBox="0 0 12 12" aria-hidden="true"><path d="m2.5 6.2 2.2 2.2 4.8-4.8" /></svg></span>}
+                  {locale !== 'ko' && (/[가-힣]/.test(displaySelectedCoordinateGroup.displayGroupName ?? '') || displaySelectedCoordinateGroup.toilets.some(item => /[가-힣]/.test(item.name))) && <small className="source-language-badge">{t('detail.originalKorean')}</small>}
                 </div>
                 {distanceToCoordinateGroup && <p className="coordinate-group-distance">{distanceReferenceLabel} <strong>{distanceToCoordinateGroup}</strong></p>}
               </div>
