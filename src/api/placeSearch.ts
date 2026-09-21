@@ -1,4 +1,5 @@
 import type { PlaceSearchResult } from '../lib/placeSearchTypes'
+import type { Locale } from '../i18n/locale'
 
 type EnglishPlaceSearchResponse = {
   results?: Array<{
@@ -12,19 +13,19 @@ type EnglishPlaceSearchResponse = {
   }>
 }
 
-export async function searchEnglishPlaces(keyword: string, signal?: AbortSignal): Promise<PlaceSearchResult[]> {
+export async function searchCloudflarePlaces(keyword: string, locale: Locale, signal?: AbortSignal): Promise<PlaceSearchResult[]> {
   const query = keyword.trim()
   if (query.length < 2) return []
 
   const response = await fetch('/api/place-search', {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ locale: 'en', query }),
+    body: JSON.stringify({ locale, query }),
     cache: 'no-store',
     signal,
   })
 
-  if (!response.ok) throw new Error('English place search failed')
+  if (!response.ok) throw new Error('Place search failed')
   const body = await response.json() as EnglishPlaceSearchResponse
   return (body.results ?? []).filter((place) => (
     place.id

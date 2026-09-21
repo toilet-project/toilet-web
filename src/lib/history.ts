@@ -28,6 +28,6 @@ export function selectHistory<T extends { createdAt: string }>(items: readonly T
 }
 export const historyDateLabel = (value: string, locale: Locale = 'ko') => {
   const time = historyTimestamp(value)
-  return Number.isFinite(time) ? new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short' }).format(time) : '-'
+  return Number.isFinite(time) ? new Intl.DateTimeFormat(locale === 'ko' ? 'ko-KR' : locale, { timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short' }).format(time) : '-'
 }
 export const historyWindowSize = (requested: number, total: number, focusedIndex = -1) => Math.min(total, Math.max(requested, Math.ceil((focusedIndex + 1) / 10) * 10))

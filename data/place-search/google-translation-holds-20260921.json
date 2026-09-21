@@ -1,0 +1,52 @@
+[
+  {
+    "id": "Q625749",
+    "locales": ["zh-CN", "zh-TW", "zh-HK"],
+    "reason": "English Tteok Museum was mistranslated as Teochew Museum"
+  },
+  {
+    "id": "Q625763",
+    "locales": ["ja", "zh-CN", "zh-TW", "zh-HK"],
+    "reason": "Hwangseong Park was mistranslated as a person's name rather than a park"
+  },
+  {
+    "id": "Q5731573",
+    "locales": ["ja"],
+    "reason": "Heojun Museum received incorrect characters for the person's name"
+  },
+  {
+    "id": "Q623545",
+    "locales": ["zh-CN", "zh-TW", "zh-HK"],
+    "reason": "Eunhaesa temple was rendered with the wrong final character"
+  },
+  {
+    "id": "Q624542",
+    "locales": ["zh-CN", "zh-TW", "zh-HK"],
+    "reason": "Gounsa temple lost its temple meaning in transliteration"
+  },
+  {
+    "id": "Q6944291",
+    "locales": ["zh-CN", "zh-TW", "zh-HK"],
+    "reason": "Muwisa temple lost its temple meaning in transliteration"
+  },
+  {
+    "id": "Q11269377",
+    "locales": ["zh-CN", "zh-TW", "zh-HK"],
+    "reason": "Jeondeungsa temple was rendered with a sand character instead of temple"
+  },
+  {
+    "id": "Q7418194",
+    "locales": ["zh-CN", "zh-TW", "zh-HK"],
+    "reason": "Sangwonsa temple lost its temple meaning in transliteration"
+  },
+  {
+    "id": "Q5554834",
+    "locales": ["zh-CN", "zh-TW", "zh-HK"],
+    "reason": "Geumdangsa temple was reduced to a generic hall name"
+  },
+  {
+    "id": "Q625017",
+    "locales": ["zh-CN", "zh-TW", "zh-HK"],
+    "reason": "Seonunsa temple was rendered with a sand character instead of temple"
+  }
+]

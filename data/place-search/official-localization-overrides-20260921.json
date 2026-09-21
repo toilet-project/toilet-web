@@ -1,0 +1,38 @@
+[
+  {
+    "id": "Q20823464",
+    "locale": "ja",
+    "previousName": "西海区庁駅",
+    "name": "ソヘグチョン駅",
+    "aliases": ["ソヘグチョン"],
+    "sourceLanguage": "ja",
+    "sourceUrl": "https://www.ictr.or.kr/main/subway/subwayStation.do?line_no=2&station_no=210"
+  },
+  {
+    "id": "Q20823464",
+    "locale": "zh-CN",
+    "previousName": "西区厅站",
+    "name": "西海区厅站",
+    "aliases": ["西海区厅"],
+    "sourceLanguage": "zh",
+    "sourceUrl": "https://www.ictr.or.kr/main/subway/subwayStation.do?line_no=2&station_no=210"
+  },
+  {
+    "id": "Q20823464",
+    "locale": "zh-TW",
+    "previousName": "西區廳站",
+    "name": "西海區廳站",
+    "aliases": ["西海區廳"],
+    "sourceLanguage": "zh",
+    "sourceUrl": "https://www.ictr.or.kr/main/subway/subwayStation.do?line_no=2&station_no=210"
+  },
+  {
+    "id": "Q20823464",
+    "locale": "zh-HK",
+    "previousName": "西區廳站",
+    "name": "西海區廳站",
+    "aliases": ["西海區廳"],
+    "sourceLanguage": "zh",
+    "sourceUrl": "https://www.ictr.or.kr/main/subway/subwayStation.do?line_no=2&station_no=210"
+  }
+]

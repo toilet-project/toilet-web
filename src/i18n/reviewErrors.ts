@@ -2,6 +2,7 @@ import type { Locale } from './locale.ts'
 import { message } from './messages.ts'
 import { ReviewApiError } from '../lib/reviewApi.ts'
 import { ReviewGateError } from '../lib/reviewLocation.ts'
+import { asianApiReviewError, asianLocationReviewError, asianReviewSessionError } from './asianReviewErrors.ts'
 
 const apiErrors: Record<string, string> = {
   REVIEWS_DISABLED: 'Review posting is not available yet.',
@@ -45,6 +46,12 @@ const locationErrors: Record<string, string> = {
 export function reviewErrorMessage(error: unknown, locale: Locale): string {
   if (!(error instanceof ReviewApiError || error instanceof ReviewGateError)) return message(locale, 'review.loadFailed')
   if (locale === 'ko') return error.message
+  if (locale !== 'en') {
+    if (error instanceof ReviewApiError) return asianApiReviewError(error.code, locale)
+    if (error.code === 'session') return asianReviewSessionError(locale)
+    if (error.code === 'distance') return message(locale, 'review.nearbyRequired')
+    return asianLocationReviewError(error.message, locale)
+  }
   if (error instanceof ReviewApiError) return Object.hasOwn(apiErrors, error.code) ? apiErrors[error.code] : 'Could not complete the review request. Please try again.'
   if (error.code === 'session') return 'Please check your login and try again.'
   if (error.code === 'distance') return message(locale, 'review.nearbyRequired')

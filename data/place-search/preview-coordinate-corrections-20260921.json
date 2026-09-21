@@ -1,0 +1,35 @@
+{
+  "sourceSeedHash": "2a7f0d06ce8ae476413c2e3e91a95d38a22e88de8f7bceb8c31d92114685dfd2",
+  "supersededSourceId": "incheon-transit-official-pages-20260920",
+  "previousCoordinate": { "latitude": 37.60247937382, "longitude": 126.68928560881 },
+  "source": {
+    "name": "인천교통공사 역위치 (2026-02-13)",
+    "url": "https://data.kric.go.kr/rips/M_01_01/detail.do?id=214",
+    "fileSha256": "57660e2c23707e34e47509dde7361af1d3c7917a542b98a079247ea9dbcc3607",
+    "sheet": "Sheet1",
+    "latitudeColumn": "D",
+    "longitudeColumn": "E"
+  },
+  "entries": [
+    { "id": "Q20823454", "name": "검단오류", "line": "인천2호선", "row": 35, "latitude": 37.594905, "longitude": 126.6278076 },
+    { "id": "Q20823455", "name": "왕길", "line": "인천2호선", "row": 36, "latitude": 37.595101, "longitude": 126.642301 },
+    { "id": "Q20823457", "name": "검단사거리", "line": "인천2호선", "row": 37, "latitude": 37.60175, "longitude": 126.656644 },
+    { "id": "Q20823458", "name": "마전", "line": "인천2호선", "row": 38, "latitude": 37.59777, "longitude": 126.667146 },
+    { "id": "Q20823459", "name": "완정", "line": "인천2호선", "row": 39, "latitude": 37.592865, "longitude": 126.67303 },
+    { "id": "Q20823460", "name": "독정", "line": "인천2호선", "row": 40, "latitude": 37.584912, "longitude": 126.675986 },
+    { "id": "Q54257", "name": "검암", "line": "인천2호선", "row": 41, "latitude": 37.5692314, "longitude": 126.6736077 },
+    { "id": "Q20823461", "name": "검바위", "line": "인천2호선", "row": 42, "latitude": 37.560308, "longitude": 126.677672 },
+    { "id": "Q20823463", "name": "아시아드경기장", "line": "인천2호선", "row": 43, "latitude": 37.551304, "longitude": 126.677103 },
+    { "id": "Q20823464", "name": "서구청", "currentName": "서해구청역", "currentNameSource": "https://www.ictr.or.kr/main/subway/subwayStation.do?line_no=2&station_no=210", "line": "인천2호선", "row": 44, "latitude": 37.5440329, "longitude": 126.6769945 },
+    { "id": "Q20823466", "name": "가정중앙시장", "line": "인천2호선", "row": 46, "latitude": 37.5177067, "longitude": 126.6768046 },
+    { "id": "Q20823468", "name": "서부여성회관", "line": "인천2호선", "row": 48, "latitude": 37.500303, "longitude": 126.675857 },
+    { "id": "Q20823470", "name": "인천가좌", "line": "인천2호선", "row": 49, "latitude": 37.490035, "longitude": 126.675237 },
+    { "id": "Q20823471", "name": "가재울", "line": "인천2호선", "row": 50, "latitude": 37.484106, "longitude": 126.683833 },
+    { "id": "Q20823472", "name": "주안국가산단", "line": "인천2호선", "row": 51, "latitude": 37.4737465, "longitude": 126.6817255 },
+    { "id": "Q20823474", "name": "석바위시장", "line": "인천2호선", "row": 54, "latitude": 37.457696, "longitude": 126.692191 },
+    { "id": "Q20823475", "name": "석천사거리", "line": "인천2호선", "row": 56, "latitude": 37.4567915, "longitude": 126.7105065 },
+    { "id": "Q20823477", "name": "모래내시장", "line": "인천2호선", "row": 57, "latitude": 37.4559068, "longitude": 126.7196085 },
+    { "id": "Q20823480", "name": "인천대공원", "line": "인천2호선", "row": 60, "latitude": 37.448498, "longitude": 126.752826 },
+    { "id": "Q69073", "name": "상동", "line": "7호선", "row": 67, "latitude": 37.505814, "longitude": 126.753163 }
+  ]
+}

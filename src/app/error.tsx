@@ -1,5 +1,7 @@
 'use client'
+import { useMessages } from '../i18n/context'
 
 export default function ErrorPage({ reset }: { reset: () => void }) {
-  return <main className="app-error"><strong>화면을 불러오지 못했습니다.</strong><p>잠시 후 다시 시도해 주세요.</p><button type="button" onClick={reset}>다시 시도</button></main>
+  const t = useMessages()
+  return <main className="app-error"><strong>{t('error.load')}</strong><p>{t('error.retryHint')}</p><button type="button" onClick={reset}>{t('error.retry')}</button></main>
 }

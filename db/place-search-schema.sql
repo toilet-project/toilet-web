@@ -45,6 +45,16 @@ CREATE TABLE IF NOT EXISTS place_aliases (
 
 CREATE INDEX IF NOT EXISTS idx_place_aliases_normalized ON place_aliases(locale, alias_normalized);
 
+CREATE TABLE IF NOT EXISTS place_localizations (
+  place_id TEXT NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+  locale TEXT NOT NULL CHECK (locale IN ('ja', 'zh-CN', 'zh-TW', 'zh-HK')),
+  name TEXT NOT NULL,
+  aliases_json TEXT NOT NULL DEFAULT '[]',
+  source_language TEXT NOT NULL,
+  source_revision INTEGER,
+  PRIMARY KEY (place_id, locale)
+);
+
 CREATE TABLE IF NOT EXISTS place_coordinate_candidates (
   place_id TEXT NOT NULL REFERENCES places(id) ON DELETE CASCADE,
   candidate_index INTEGER NOT NULL,
@@ -64,6 +74,17 @@ CREATE VIRTUAL TABLE IF NOT EXISTS place_search_fts USING fts5(
   region_en,
   name_ko,
   aliases_ko,
+  source_dataset UNINDEXED,
+  tokenize = 'unicode61 remove_diacritics 2'
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS place_search_localized_fts USING fts5(
+  place_id UNINDEXED,
+  locale UNINDEXED,
+  name,
+  aliases,
+  name_en,
+  aliases_en,
   source_dataset UNINDEXED,
   tokenize = 'unicode61 remove_diacritics 2'
 );

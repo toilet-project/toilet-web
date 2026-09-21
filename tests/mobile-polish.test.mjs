@@ -203,7 +203,7 @@ test('review summaries follow the review action and divider, before addresses, w
   assert.match(reviews, /<h2>\{t\('public.title'\)\} <span>\{fullReviewCount\}<\/span><\/h2>/)
   assert.match(reviews, /className="public-review-summary-panel"/)
   assert.match(reviews, /const comment = item\.comment\?\.trim\(\)/)
-  assert.match(reviews, /\{comment && <p className="public-review-comment">\{comment\}<\/p>\}/)
+  assert.match(reviews, /\{comment && <p className="public-review-comment">\{locale !== 'ko' && <small className="original-text-tag">\{t\('content.original'\)\}<\/small>\}\{comment\}<\/p>\}/)
   assert.doesNotMatch(reviews, /작성한 내용이 없어요/)
   assert.ok(reviews.indexOf('className="public-review-name"') < reviews.indexOf('className="public-review-rating"'))
   assert.match(css, /\.public-review-name\s*\{[^}]*flex: 0 1 auto/)

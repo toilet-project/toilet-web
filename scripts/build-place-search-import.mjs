@@ -1,31 +1,100 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { asianLocales, mergePlaceLocalizations } from './place-search-localizations.mjs'
+import { mergePreviewCoordinateCorrections, resolveBusanStationCorrections, resolvePreviewCoordinateCorrections } from './place-search-coordinate-corrections.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const args = new Map(process.argv.slice(2).map((value, index, values) => value.startsWith('--') ? [value, values[index + 1]] : null).filter(Boolean))
+const target = args.get('--target') || 'preview'
+if (!['preview', 'production'].includes(target)) throw new Error(`Unknown place search import target: ${target}`)
+if (target === 'production' && args.has('--component')) throw new Error('Production import must include the complete approved dataset')
 const seedPath = resolve(args.get('--seed') || `${root}/data/place-search/place-search-seed-20260920.ndjson`)
-const outputPath = resolve(args.get('--output') || `${root}/.generated/place-search-import.sql`)
+const outputPath = resolve(args.get('--output') || `${root}/.generated/place-search-${target === 'production' ? 'production-' : ''}import.sql`)
+if (target === 'production' && outputPath === resolve(`${root}/.generated/place-search-import.sql`)) {
+  throw new Error('Production import cannot overwrite the preview import')
+}
 const [metadata, ...rows] = (await readFile(seedPath, 'utf8')).trim().split(/\r?\n/).map(line => JSON.parse(line))
-const seed = { ...metadata, records: rows.map(({ type: _type, ...record }) => record) }
+const allRecords = rows.map(({ type: _type, ...record }) => record)
+const correctionConfig = JSON.parse(await readFile(`${root}/data/place-search/preview-coordinate-corrections-20260921.json`, 'utf8'))
+const busanConfig = JSON.parse(await readFile(`${root}/data/place-search/preview-busan-station-corrections-20260921.json`, 'utf8'))
+const corrections = mergePreviewCoordinateCorrections(
+  resolvePreviewCoordinateCorrections(metadata, allRecords, correctionConfig),
+  resolveBusanStationCorrections(metadata, allRecords, busanConfig))
+const componentId = args.get('--component')
+const componentIndex = metadata.componentDatasets?.findIndex(component => component.id === componentId) ?? -1
+if (componentId && componentIndex < 0) throw new Error(`Unknown component dataset: ${componentId}`)
+const component = componentId ? metadata.componentDatasets[componentIndex] : null
+const componentOffset = component ? metadata.componentDatasets.slice(0, componentIndex).reduce((sum, item) => sum + item.count, 0) : 0
+const seed = component
+  ? { ...metadata, datasetId: component.id, sourceHash: component.sourceHash, sourceCount: component.count,
+    records: allRecords.slice(componentOffset, componentOffset + component.count) }
+  : { ...metadata, records: allRecords }
+const curatedAliases = JSON.parse(await readFile(`${root}/data/place-search/curated-search-aliases.json`, 'utf8'))
+const googlePath = `${root}/data/place-search/google-translation-fallbacks-20260921.ndjson`
+const googleText = await readFile(googlePath, 'utf8').catch(error => {
+  if (error.code === 'ENOENT') return null
+  throw error
+})
+const translationHolds = JSON.parse(await readFile(`${root}/data/place-search/google-translation-holds-20260921.json`, 'utf8'))
+const heldPairs = new Set(translationHolds.flatMap(hold => hold.locales.map(locale => `${hold.id}:${locale}`)))
+const officialOverrides = JSON.parse(await readFile(`${root}/data/place-search/official-localization-overrides-20260921.json`, 'utf8'))
+const { metadata: localizationMetadata, rows: localizedNames } = mergePlaceLocalizations(
+  await readFile(`${root}/data/place-search/wikidata-localizations-20260921.ndjson`, 'utf8'),
+  googleText, heldPairs, officialOverrides)
 
 const sql = (value) => value == null ? 'NULL' : `'${String(value).replaceAll("'", "''")}'`
 const number = (value) => Number.isFinite(value) ? String(value) : 'NULL'
 const json = (value) => sql(JSON.stringify(value ?? null))
 const normalize = (value) => String(value ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('en-US').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ')
 
-if (metadata.type !== 'dataset' || rows.some(row => row.type !== 'place') || seed.records.length !== seed.sourceCount) throw new Error('Invalid place search seed')
+if (metadata.type !== 'dataset' || rows.some(row => row.type !== 'place') || allRecords.length !== metadata.sourceCount
+  || (metadata.componentDatasets && metadata.componentDatasets.reduce((sum, item) => sum + item.count, 0) !== allRecords.length)
+  || seed.records.length !== seed.sourceCount) throw new Error('Invalid place search seed')
+if (localizationMetadata.type !== 'dataset' || localizationMetadata.sourceSeedHash !== metadata.sourceHash
+  || localizationMetadata.eligibleCount !== allRecords.filter(place => place.searchScope === 'preview').length
+  || [...localizedNames.values()].some(row => !allRecords.some(place => place.id === row.id && place.searchScope === 'preview')))
+  throw new Error('Invalid place search localizations')
+for (const place of allRecords) {
+  const translated = localizedNames.get(place.id)?.names
+  if (translated && Object.values(translated).some(term => term.sourceLanguage === 'en' && term.sourceEnglish !== place.nameEn)) {
+    throw new Error(`Mismatched English translation source for ${place.id}`)
+  }
+}
+for (const [id, override] of Object.entries(curatedAliases)) {
+  const place = seed.records.find(record => record.id === id)
+  if (!place && component && allRecords.some(record => record.id === id)) continue
+  if (!place || place.searchScope !== 'preview' || place.productionApproved || !Array.isArray(override.en)
+    || override.en.length === 0 || override.en.some(alias => typeof alias !== 'string' || !/^[A-Za-z][A-Za-z\s-]{1,79}$/.test(alias))
+    || typeof override.source !== 'string' || !override.source.startsWith('https://english.seoul.go.kr/')) {
+    throw new Error(`Invalid curated search alias: ${id}`)
+  }
+  place.aliases = { ...place.aliases, en: [...new Set([...(place.aliases?.en ?? []), ...override.en])] }
+  place.curatedAliasSource = override.source
+}
 
 const statements = [
   `INSERT INTO source_datasets (id, schema_version, audited_at, as_of, source_hash, source_count, licenses_json) VALUES (${sql(seed.datasetId)}, ${number(seed.schemaVersion)}, ${sql(seed.auditedAt)}, ${sql(seed.asOf)}, ${sql(seed.sourceHash)}, ${number(seed.sourceCount)}, ${json(seed.sourceLicenses)}) ON CONFLICT(id) DO UPDATE SET schema_version=excluded.schema_version, audited_at=excluded.audited_at, as_of=excluded.as_of, source_hash=excluded.source_hash, source_count=excluded.source_count, licenses_json=excluded.licenses_json, imported_at=CURRENT_TIMESTAMP;`,
   `DELETE FROM place_search_fts WHERE source_dataset = ${sql(seed.datasetId)};`,
+  `DELETE FROM place_search_localized_fts WHERE source_dataset = ${sql(seed.datasetId)};`,
   `DELETE FROM places WHERE source_dataset = ${sql(seed.datasetId)};`,
 ]
 
 for (const place of seed.records) {
+  const correction = corrections.get(place.id)
+  const searchScope = place.searchScope
+  const status = place.status
+  const officialNameCorrections = officialOverrides.filter(override => override.id === place.id)
+    .map(({ locale, name, sourceUrl }) => ({ locale, name, sourceUrl }))
+  const audit = {
+    ...place,
+    ...(correction ? { selectedCoordinate: correction.coordinate, previewCoordinateCorrection: correction.evidence } : {}),
+    ...(officialNameCorrections.length ? { officialLocalizationOverrides: officialNameCorrections } : {}),
+  }
   const regionEn = (place.regions?.values ?? []).map(region => region.nameEn).filter(Boolean).join(', ')
-  const selected = place.selectedCoordinate
-  statements.push(`INSERT INTO places (id, source_dataset, name_ko, name_en, category, place_kind, status, search_scope, production_approved, verification_level, region_en, latitude, longitude, source_url, source_revision, source_modified_at, audit_json) VALUES (${sql(place.id)}, ${sql(seed.datasetId)}, ${sql(place.nameKo)}, ${sql(place.nameEn)}, ${sql(place.category)}, ${sql(place.placeKind)}, ${sql(place.status)}, ${sql(place.searchScope)}, ${place.productionApproved ? 1 : 0}, ${sql(place.verificationLevel)}, ${sql(regionEn)}, ${number(selected?.latitude)}, ${number(selected?.longitude)}, ${sql(place.sourceUrl)}, ${number(place.sourceRevision)}, ${sql(place.sourceModifiedAt)}, ${json(place)});`)
+  const selected = correction?.coordinate ?? place.selectedCoordinate
+  statements.push(`INSERT INTO places (id, source_dataset, name_ko, name_en, category, place_kind, status, search_scope, production_approved, verification_level, region_en, latitude, longitude, source_url, source_revision, source_modified_at, audit_json) VALUES (${sql(place.id)}, ${sql(seed.datasetId)}, ${sql(place.nameKo)}, ${sql(place.nameEn)}, ${sql(place.category)}, ${sql(place.placeKind)}, ${sql(status)}, ${sql(searchScope)}, ${place.productionApproved ? 1 : 0}, ${sql(place.verificationLevel)}, ${sql(regionEn)}, ${number(selected?.latitude)}, ${number(selected?.longitude)}, ${sql(place.sourceUrl)}, ${number(place.sourceRevision)}, ${sql(place.sourceModifiedAt)}, ${json(audit)});`)
 
   for (const locale of ['ko', 'en']) {
     for (const alias of place.aliases?.[locale] ?? []) {
@@ -36,11 +105,46 @@ for (const place of seed.records) {
     statements.push(`INSERT INTO place_coordinate_candidates (place_id, candidate_index, latitude, longitude, rank, eligible, precision_degrees, evidence_json) VALUES (${sql(place.id)}, ${index}, ${number(candidate.latitude)}, ${number(candidate.longitude)}, ${sql(candidate.rank)}, ${candidate.eligible ? 1 : 0}, ${number(candidate.precisionDegrees)}, ${json(candidate)});`)
   })
 
-  if (place.searchScope === 'preview' && selected) {
+  if (searchScope === 'preview' && selected) {
     statements.push(`INSERT INTO place_search_fts (place_id, name_en, aliases_en, region_en, name_ko, aliases_ko, source_dataset) VALUES (${sql(place.id)}, ${sql(place.nameEn)}, ${sql((place.aliases?.en ?? []).join(' '))}, ${sql(regionEn)}, ${sql(place.nameKo)}, ${sql((place.aliases?.ko ?? []).join(' '))}, ${sql(seed.datasetId)});`)
+    const localized = localizedNames.get(place.id)
+    for (const locale of asianLocales) {
+      const term = localized?.names?.[locale]
+      if (term) statements.push(`INSERT INTO place_localizations (place_id, locale, name, aliases_json, source_language, source_revision) VALUES (${sql(place.id)}, ${sql(locale)}, ${sql(term.name)}, ${json(term.aliases)}, ${sql(term.sourceLanguage)}, ${number(term.sourceUrl ? null : localized.revision)});`)
+      statements.push(`INSERT INTO place_search_localized_fts (place_id, locale, name, aliases, name_en, aliases_en, source_dataset) VALUES (${sql(place.id)}, ${sql(locale)}, ${sql(term?.name || place.nameEn)}, ${sql((term?.aliases ?? []).join(' '))}, ${sql(place.nameEn)}, ${sql((place.aliases?.en ?? []).join(' '))}, ${sql(seed.datasetId)});`)
+    }
   }
 }
 
+const previewSql = `${statements.join('\n')}\n`
+let importSql = previewSql
+let approvedCount = 0
+if (target === 'production') {
+  if (!args.get('--approval')) throw new Error('Production import requires an explicit approval manifest')
+  const approval = JSON.parse(await readFile(resolve(args.get('--approval')), 'utf8'))
+  const previewImportSha256 = createHash('sha256').update(previewSql).digest('hex')
+  const eligible = seed.records.filter(place => place.searchScope === 'preview' && place.status === 'usable_preview')
+  const withheld = seed.records.length - eligible.length
+  if (approval.target !== 'production' || approval.approvalScope !== 'search_dataset_only'
+    || approval.selection !== 'all_preview_usable'
+    || approval.sourceSeedHash !== seed.sourceHash || approval.previewImportSha256 !== previewImportSha256
+    || approval.approvedCount !== eligible.length || approval.withheldCount !== withheld
+    || eligible.some(place => !place.selectedCoordinate && !corrections.has(place.id))) {
+    throw new Error('Production approval does not match the exact preview import')
+  }
+  approvedCount = eligible.length
+  const audit = {
+    decisionDate: approval.decisionDate,
+    selection: approval.selection,
+    previewImportSha256,
+    note: 'Search map center only; not a verified entrance coordinate',
+  }
+  importSql += `UPDATE places SET search_scope='production', production_approved=1,
+    audit_json=json_set(audit_json, '$.productionApproval', json(${json(audit)}))
+    WHERE source_dataset=${sql(seed.datasetId)} AND search_scope='preview' AND status='usable_preview';\n`
+}
+
 await mkdir(dirname(outputPath), { recursive: true })
-await writeFile(outputPath, `${statements.join('\n')}\n`)
-console.log(JSON.stringify({ outputPath, statements: statements.length, records: seed.records.length }))
+await writeFile(outputPath, importSql)
+console.log(JSON.stringify({ outputPath, statements: statements.length + (target === 'production' ? 1 : 0),
+  records: seed.records.length, approvedCount }))

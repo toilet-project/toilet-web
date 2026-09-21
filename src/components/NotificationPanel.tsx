@@ -102,7 +102,7 @@ export function NotificationPanel({ onClose, onCountChange, onOpenReport, onSess
         {!isLoading && !error && visible.length === 0 && !feed.hasMore && <div className="notification-empty"><strong>{t('notification.empty')}</strong><p>{t('notification.emptyHint')}</p></div>}
         {visible.map(item => <button key={item.id} type="button" disabled={writing || isLoading} className={`notification-item${item.read ? '' : ' is-unread'}`} onClick={() => void open(item)}>
           <span className={`notification-icon is-${item.type === 'REPORT_APPROVED' ? 'approved' : 'rejected'}`} aria-hidden="true">{item.type === 'REPORT_APPROVED' ? '✓' : '!'}</span>
-          <span className="notification-copy"><strong>{locale === 'en' && item.referenceType === 'TOILET_REPORT' && (item.type === 'REPORT_APPROVED' || item.type === 'REPORT_REJECTED') ? t(item.type === 'REPORT_APPROVED' ? 'notification.approved' : 'notification.rejected') : item.title}</strong><span>{item.message}</span>{locale === 'en' && <small>{t('content.original')}</small>}<time>{historyDateLabel(item.createdAt, locale)}</time></span>
+          <span className="notification-copy"><strong>{locale !== 'ko' && item.referenceType === 'TOILET_REPORT' && (item.type === 'REPORT_APPROVED' || item.type === 'REPORT_REJECTED') ? t(item.type === 'REPORT_APPROVED' ? 'notification.approved' : 'notification.rejected') : item.title}</strong><span>{item.message}</span>{locale !== 'ko' && <small>{t('content.original')}</small>}<time>{historyDateLabel(item.createdAt, locale)}</time></span>
           {!item.read && <i aria-label={t('notification.unread')} />}
         </button>)}
         {isLoading && <p className="notification-state" role="status">{t('notification.loading')}</p>}

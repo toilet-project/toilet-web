@@ -1,5 +1,7 @@
 import type { Locale } from './locale.ts'
 import { message, type MessageKey } from './messages.ts'
+import { localizedPublicPath } from './routes.ts'
+import { pick, policyTitles, t, type PolicyText } from './asianPolicyData.ts'
 
 export function accountDate(value: string, locale: Locale, dateOnly = false): string {
   // The service's zone-less timestamps are Korea time, independent of the visitor's timezone.
@@ -8,8 +10,9 @@ export function accountDate(value: string, locale: Locale, dateOnly = false): st
   const date = new Date(source)
   if (!Number.isFinite(date.getTime())) return '—'
   const options = { timeZone: 'Asia/Seoul' }
-  return dateOnly ? date.toLocaleDateString(locale === 'en' ? 'en-GB' : 'ko-KR', options)
-    : date.toLocaleString(locale === 'en' ? 'en-GB' : 'ko-KR', options)
+  const language = locale === 'en' ? 'en-GB' : locale === 'ko' ? 'ko-KR' : locale
+  return dateOnly ? date.toLocaleDateString(language, options)
+    : date.toLocaleString(language, options)
 }
 
 const errorKeys: Readonly<Record<string, MessageKey>> = {
@@ -30,13 +33,22 @@ const titles: Readonly<Record<string, string>> = {
   SERVICE_TERMS: 'Geupddong Terms of Service', PRIVACY_COLLECTION: 'Collection and Use of Personal Information',
   AGE_14_PLUS: 'Confirmation of Age 14 or Older', PRIVACY_POLICY: 'Privacy Policy', LOCATION_NOTICE: 'Location Information Notice',
 }
+const asianTitles: Readonly<Record<string, PolicyText>> = {
+  SERVICE_TERMS: policyTitles.terms,
+  PRIVACY_COLLECTION: t('個人情報の収集・利用', '个人信息的收集与使用', '個人資料的收集與使用'),
+  AGE_14_PLUS: t('14歳以上であることの確認', '确认年满14周岁', '確認年滿14歲'),
+  PRIVACY_POLICY: policyTitles.privacy,
+  LOCATION_NOTICE: policyTitles.location,
+}
 export function policyTitle(locale: Locale, key: string, original: string) {
-  return locale === 'en' && Object.hasOwn(titles, key) ? titles[key] : original
+  if (locale === 'en' && Object.hasOwn(titles, key)) return titles[key]
+  if (locale !== 'ko' && locale !== 'en' && Object.hasOwn(asianTitles, key)) return pick(asianTitles[key], locale)
+  return original
 }
 
 /** Only the verified current document version is translated. Archives/unknown versions stay exact. */
 export function policyDisplayPath(path: string, locale: Locale, version?: string): string {
-  if (locale !== 'en' || version !== '1.0') return path
+  if (locale === 'ko' || version !== '1.0') return path
   if (!/^\/policies\/(?:terms|privacy|location|all)(?:#(?:age|collection|analytics|profile-photo-overseas|erasure-records|terms|privacy|location))?$/.test(path)) return path
-  return `/en${path}`
+  return localizedPublicPath(path, locale) ?? path
 }

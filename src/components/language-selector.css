@@ -8,7 +8,7 @@
 .language-selector-flag { display: block; flex-shrink: 0; object-fit: cover; border-radius: 3px; box-shadow: 0 0 0 1px #203b3020; }
 .language-selector-menu {
   position: absolute; z-index: 70; inset-block-start: calc(100% + 8px); inset-inline-end: 0;
-  width: 144px; padding: 5px; border: 1px solid #dfebe4; border-radius: 15px; background: #fff;
+  width: min(250px, calc(100vw - 24px)); padding: 5px; border: 1px solid #dfebe4; border-radius: 15px; background: #fff;
   box-shadow: 0 8px 24px #203b301a; animation: language-selector-enter 120ms ease-out;
 }
 .language-selector-menu button {

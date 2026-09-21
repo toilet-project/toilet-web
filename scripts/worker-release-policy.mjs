@@ -27,16 +27,18 @@ export function validateWorkerConfig(config, target, {deploy = false, stage = fa
   assert.equal(config.env, undefined, 'Nested environment overrides are not supported')
   assert.equal(config.limits?.cpu_ms, undefined, 'No automatic Paid-only limit setting')
   if (production) {
-    assert.equal(config.vars?.NAVER_MAP_ENABLED, 'false', 'Production Naver map must remain disabled before approval')
-    assert.equal(config.vars?.PLACE_SEARCH_ENABLED, 'false', 'Production place search must remain disabled before approval')
+    assert.equal(config.vars?.NAVER_MAP_ENABLED, 'true', 'Approved production Naver map must be enabled')
+    assert.equal(config.vars?.PLACE_SEARCH_ENABLED, 'true', 'Approved production place search must be enabled')
     assert.equal(config.vars?.PLACE_SEARCH_SCOPE, 'production')
-    assert.equal(placeSearchD1, undefined, 'Production must not bind the preview place-search database')
+    assert.equal(placeSearchD1?.database_name, 'geupddong-place-search-production')
+    assert.equal(placeSearchD1?.database_id, 'd5c538a0-5655-4acb-aa7f-4bc502c89621', 'Production must bind only the approved place-search database')
+    assert.notEqual(placeSearchD1.database_id, d1?.database_id, 'Place search and tag cache must use separate D1 databases')
     assert.equal(config.workers_dev, false)
     assert.equal(config.preview_urls, false, 'Candidate version URLs must remain disabled')
     assert.deepEqual(config.routes, [], 'Candidate must not claim any domain')
     assert.notEqual(d1?.database_id, 'bbf77cf5-62e9-4c94-a8ec-a45c0e26deed', 'Never share preview tag storage')
     if (deploy) {
-      assert.equal(stage, true, 'Public production deployment is not enabled; only explicit private staging is supported')
+      assert.equal(stage, true, 'Production candidate upload must not change public routes directly')
       assert.match(d1?.database_id || '', /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i)
       assert.notEqual(d1.database_id, '00000000-0000-0000-0000-000000000000', 'Missing D1 ID')
     }

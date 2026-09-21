@@ -5,6 +5,7 @@ const pairs = {
   'consent.signupTitle': ['급똥 가입을 위한 동의가 필요해요', 'Review the terms to join Geupddong'],
   'consent.updateTitle': ['계속 이용하려면 동의가 필요해요', 'Review the terms to continue'],
   'consent.description': ['지도는 동의 없이 볼 수 있어요. 동의 후 제보 기능을 이용할 수 있습니다.', 'You can browse the map without agreeing. Agree to the required terms to submit reports.'],
+  'consent.koreanOriginal': ['아래 약관은 한국어 원문입니다.', 'The terms below are the Korean originals.'],
   'consent.all': ['필수 항목 모두 동의', 'Agree to all required items'],
   'consent.item': ['[필수] {title}', '[Required] {title}'],
   'consent.agreeItem': ['[필수] {title} 동의', 'Agree to {title} (required)'],

@@ -2,6 +2,10 @@ import type { Locale } from './locale.ts'
 import { mapKo, mapEn } from './mapMessages.ts'
 import { activityKo, activityEn } from './activityMessages.ts'
 import { accountKo, accountEn } from './accountMessages.ts'
+import { jaUi, zhCnUi, zhTwUi, zhHkUi } from './asianMessages.ts'
+import { jaActivityExtra, zhCnActivityExtra, zhTwActivityExtra } from './asianActivityExtras.ts'
+import { jaReviewExtra, zhCnReviewExtra, zhTwReviewExtra, zhHkReviewExtra } from './asianReviewExtras.ts'
+import { jaAccountExtra, zhCnAccountExtra, zhTwAccountExtra } from './asianAccountExtras.ts'
 
 // UI text only. Facility names, free-form opening hours and user text stay untouched.
 const ko = {
@@ -16,6 +20,17 @@ const ko = {
   'common.save': '저장',
   'common.loading': '불러오는 중…',
   'common.retry': '다시 불러오기',
+  'common.top': '맨 위로 이동',
+  'error.load': '화면을 불러오지 못했습니다.',
+  'error.retryHint': '잠시 후 다시 시도해 주세요.',
+  'error.retry': '다시 시도',
+  'error.notFound': '페이지를 찾을 수 없습니다.',
+  'update.title': '사이트 업데이트',
+  'update.available': '새 버전이 준비됐어요.',
+  'update.blocked': '현재 작업을 마친 뒤 업데이트해 주세요.',
+  'update.waitMap': '지도 화면이 준비되면 다시 눌러 주세요.',
+  'update.action': '업데이트',
+  'notification.unreadCount': '읽지 않은 알림 {count}개',
   'nav.map': '지도',
   'nav.community': '커뮤니티',
   'nav.notifications': '알림',
@@ -35,6 +50,11 @@ const ko = {
   'map.home': '급똥 지도 홈',
   'map.search': '주소 또는 장소 검색',
   'map.searchShort': '주소·장소 검색',
+  'map.place': '장소',
+  'map.reviewTestMarker': '리뷰 테스트 · 가상',
+  'map.reviewTestAria': '{name} · 실제 시설 아님',
+  'map.reviewTestNotice': '프리뷰 전용 · 운영 데이터에 저장되지 않아요',
+  'map.reviewTestDescription': '실제 시설이 아닌 리뷰 테스트 지점이에요. 로그인과 실제 현재 위치 확인은 그대로 적용돼요.',
   'map.results': '장소 검색 결과',
   'map.searching': '검색 중…',
   'map.noAddress': '주소 정보 없음',
@@ -49,6 +69,7 @@ const ko = {
   'map.straightLine': '(직선거리)',
   'map.referenceHint': '지도를 클릭해 거리 기준점을 옮길 수 있어요.',
   'detail.title': '화장실 상세 정보',
+  'detail.originalKorean': '한국어 내용은 원문',
   'detail.show': '상세 정보 보기',
   'detail.missing': '화장실 정보를 찾을 수 없습니다.',
   'detail.error': '상세 정보를 불러오지 못했습니다.',
@@ -99,6 +120,17 @@ const en = {
   'common.save': 'Save',
   'common.loading': 'Loading…',
   'common.retry': 'Try again',
+  'common.top': 'Back to top',
+  'error.load': 'Could not load this page.',
+  'error.retryHint': 'Please try again shortly.',
+  'error.retry': 'Try again',
+  'error.notFound': 'Page not found.',
+  'update.title': 'Site update',
+  'update.available': 'A new version is ready.',
+  'update.blocked': 'Finish what you are doing before updating.',
+  'update.waitMap': 'Please try again when the map is ready.',
+  'update.action': 'Update',
+  'notification.unreadCount': '{count} unread notifications',
   'nav.map': 'Map',
   'nav.community': 'Community',
   'nav.notifications': 'Notifications',
@@ -118,6 +150,11 @@ const en = {
   'map.home': 'Geupddong map home',
   'map.search': 'Search address or place',
   'map.searchShort': 'Search places',
+  'map.place': 'Place',
+  'map.reviewTestMarker': 'Review test · virtual',
+  'map.reviewTestAria': '{name} · not a real facility',
+  'map.reviewTestNotice': 'Preview only · not saved to production data',
+  'map.reviewTestDescription': 'This is a virtual review test point. Login and real location checks still apply.',
   'map.results': 'Place search results',
   'map.searching': 'Searching…',
   'map.noAddress': 'Address unavailable',
@@ -132,6 +169,7 @@ const en = {
   'map.straightLine': '(straight-line)',
   'map.referenceHint': 'Click the map to change the distance reference point.',
   'detail.title': 'Restroom details',
+  'detail.originalKorean': 'Korean text is original',
   'detail.show': 'Show details',
   'detail.missing': 'Restroom not found.',
   'detail.error': 'Could not load restroom details.',
@@ -167,7 +205,14 @@ const en = {
   'auth.login': 'Log in / Sign up',
 } satisfies Dictionary
 
-export const messages: Readonly<Record<Locale, Dictionary>> = { ko, en }
+const ja = { ...ko, ...jaUi, ...jaActivityExtra, ...jaReviewExtra, ...jaAccountExtra } satisfies Dictionary
+const zhCn = { ...ko, ...zhCnUi, ...zhCnActivityExtra, ...zhCnReviewExtra, ...zhCnAccountExtra } satisfies Dictionary
+const zhTw = { ...ko, ...zhTwUi, ...zhTwActivityExtra, ...zhTwReviewExtra, ...zhTwAccountExtra } satisfies Dictionary
+const zhHk = { ...ko, ...zhHkUi, ...zhTwActivityExtra, ...zhTwReviewExtra, ...zhHkReviewExtra, ...zhTwAccountExtra } satisfies Dictionary
+
+export const messages: Readonly<Record<Locale, Dictionary>> = {
+  ko, en, ja, 'zh-CN': zhCn, 'zh-TW': zhTw, 'zh-HK': zhHk,
+}
 
 export type MessageValues = Readonly<Record<string, string | number>>
 export function message(locale: Locale, key: MessageKey, values: MessageValues = {}): string {

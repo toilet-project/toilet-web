@@ -2,10 +2,13 @@ import type { Locale } from '../i18n/locale'
 import { createKakaoMap, type KakaoMapInstance, type KakaoOverlay } from './kakaoMap'
 import {
   mapLevelFromNaverZoom,
+  naverMapLanguageForLocale,
+  naverMapLanguageNeedsReload,
   naverZoomFromLevel,
   resolveMapProvider,
   type MapProvider,
   type MapProviderPreference,
+  type NaverMapLanguage,
 } from './mapProviderSelection'
 
 export { mapLevelFromNaverZoom, naverZoomFromLevel, resolveMapProvider } from './mapProviderSelection'
@@ -88,6 +91,17 @@ type OverlayOptions = {
 
 let naverSdkPromise: Promise<void> | undefined
 
+export class NaverMapLanguageReloadRequired extends Error {
+  constructor() { super('네이버 지도 언어 변경에는 페이지 새로고침이 필요합니다.') }
+}
+
+export function loadedNaverMapLanguage(): NaverMapLanguage | null {
+  const script = document.querySelector<HTMLScriptElement>('script[data-geupddong-map-provider="naver"]')
+  const language = script?.dataset.geupddongMapLanguage
+    ?? (script ? new URL(script.src).searchParams.get('language') : null)
+  return language === 'ko' || language === 'en' || language === 'ja' || language === 'zh' ? language : null
+}
+
 function kakaoCoordinate(raw: unknown): MapCoordinate {
   const coordinate = raw as { getLat(): number; getLng(): number }
   return { raw, getLat: () => coordinate.getLat(), getLng: () => coordinate.getLng() }
@@ -164,7 +178,8 @@ async function fetchNaverClientId(signal?: AbortSignal) {
   return config.clientId
 }
 
-async function loadNaverSdk(signal?: AbortSignal) {
+async function loadNaverSdk(language: NaverMapLanguage, signal?: AbortSignal) {
+  if (naverMapLanguageNeedsReload(loadedNaverMapLanguage(), language)) throw new NaverMapLanguageReloadRequired()
   if (window.naver?.maps?.Map) return
   if (!naverSdkPromise) {
     naverSdkPromise = fetchNaverClientId(signal).then(clientId => new Promise<void>((resolve, reject) => {
@@ -172,7 +187,8 @@ async function loadNaverSdk(signal?: AbortSignal) {
       const script = existing ?? document.createElement('script')
       if (!existing) {
         script.dataset.geupddongMapProvider = 'naver'
-        script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(clientId)}&language=en`
+        script.dataset.geupddongMapLanguage = language
+        script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(clientId)}&language=${language}`
         script.async = true
         document.head.append(script)
       }
@@ -189,6 +205,7 @@ async function loadNaverSdk(signal?: AbortSignal) {
   }
   await naverSdkPromise
   signal?.throwIfAborted()
+  if (naverMapLanguageNeedsReload(loadedNaverMapLanguage(), language)) throw new NaverMapLanguageReloadRequired()
 }
 
 export async function createMap(
@@ -202,7 +219,7 @@ export async function createMap(
   const provider = resolveMapProvider(locale, preference)
   if (provider === 'kakao') return kakaoAdapter(await createKakaoMap(container, center, level, signal))
 
-  await loadNaverSdk(signal)
+  await loadNaverSdk(naverMapLanguageForLocale(locale), signal)
   const maps = window.naver?.maps
   if (!maps) throw new Error('네이버 지도 SDK를 초기화하지 못했습니다.')
   const raw = new maps.Map(container, {

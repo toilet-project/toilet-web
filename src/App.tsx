@@ -12,6 +12,7 @@ import { LanguageSelector } from './components/LanguageSelector'
 import { toiletTypeLabel } from './i18n/facilityLabels'
 import { mapSystemNotice, localizeMapLabels } from './i18n/mapLabels'
 import { useLocale, useMessages } from './i18n/context'
+import { message } from './i18n/messages'
 import { ENGLISH_UI_ENABLED } from './i18n/feature'
 import { isLanguageOnlyNavigation, localizedPublicPath } from './i18n/routes'
 import type { Locale } from './i18n/locale'
@@ -19,6 +20,7 @@ import { MobileNavigation, MobilePage, type MobileTab, type MobileAccountView } 
 import { AppUpdateNotice } from './components/AppUpdateNotice'
 import { readMapResume, saveMapResume, MAP_RESUME_KEY } from './lib/appUpdate'
 import { MAP_NAVIGATION_EVENT, mapNavigationPath } from './lib/navigationCache'
+import { mapSdkIdentity } from './lib/mapProviderSelection'
 import { AuthExpiredError, getCurrentUser, logout, startSocialLogin, type AuthProfile } from './api/auth'
 import {
   addMapEventListener,
@@ -26,6 +28,7 @@ import {
   createMapCoordinate,
   createMapOverlay,
   destroyMap,
+  NaverMapLanguageReloadRequired,
   preventMapEvent,
   type MapInstance,
   type MapOverlay,
@@ -42,6 +45,7 @@ import { AccountRecoveryDialog } from './components/AccountRecoveryDialog'
 import { fetchUnreadNotificationCount } from './api/notifications'
 import { getDisplayAddress } from './lib/address'
 import { ToiletDetailContents, DetailRow } from './components/ToiletDetailContents'
+import { OriginalSourceBadge } from './components/OriginalSourceBadge'
 import { ToiletCommunityRow, ToiletReportEntry } from './components/ToiletCommunityRow'
 import { REVIEW_DESIGN_PREVIEW, type PreviewReviewSummary, type ReviewEntryState } from './components/reviews/useIntegratedReviewPreview'
 import { REVIEW_API_ENABLED, REVIEW_UI_ENABLED, useReviews } from './components/reviews/useReviews'
@@ -171,6 +175,7 @@ function groupPointsByScreenGrid(map: MapInstance, points: MapPoint[]) {
 
 function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash = '' }: { route: MapRouteData; onNavigate: (id: number | null) => void; onMounted: () => void; onLocaleChange: (locale: Locale, id: number | null) => void; testToiletHash?: string }) {
   const locale = useLocale()
+  const mapRuntimeKey = mapSdkIdentity(locale)
   const t = useMessages()
   const mapLocale = useRef(locale)
   useLayoutEffect(() => {
@@ -276,6 +281,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const [withdrawalNotice, setWithdrawalNotice] = useState<string | null>(null)
   const [isLocating, setIsLocating] = useState(false)
   const [isMobileCardExpanded, setIsMobileCardExpanded] = useState(false)
+  const isMobileCardExpandedRef = useRef(isMobileCardExpanded)
+  useLayoutEffect(() => { isMobileCardExpandedRef.current = isMobileCardExpanded }, [isMobileCardExpanded])
   const [currentLocation, setCurrentLocation] = useState<Coordinates | null>(null)
   const [mapCenter, setMapCenter] = useState<Coordinates>(DAEJEON_CITY_HALL)
   const [distanceSource, setDistanceSource] = useState<DistanceSource>('point')
@@ -830,7 +837,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     const content = document.createElement('button')
     content.type = 'button'
     content.className = `toilet-marker review-test-marker${selectedToilet?.id === testToilet.id ? ' is-selected' : ''}`
-    content.setAttribute('aria-label', `${testToilet.name} · 실제 시설 아님`)
+    content.setAttribute('aria-label', message(locale, 'map.reviewTestAria', { name: testToilet.name }))
     const pin = document.createElement('span')
     pin.className = 'toilet-marker-pin'
     const logo = document.createElement('img')
@@ -840,7 +847,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     pin.append(logo)
     const name = document.createElement('span')
     name.className = 'toilet-marker-name'
-    name.textContent = '리뷰 테스트 · 가상'
+    name.textContent = message(locale, 'map.reviewTestMarker')
     content.append(pin, name)
     content.addEventListener('click', event => {
       if (!suppressMapClickFromMarker(event)) return
@@ -852,7 +859,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     })
     overlay.setMap(map)
     return () => overlay.setMap(null)
-  }, [isMapReady, testToilet, selectToilet, selectedToilet?.id, suppressMapClickFromMarker])
+  }, [isMapReady, testToilet, selectToilet, selectedToilet?.id, suppressMapClickFromMarker, locale])
 
   const openCoordinateGroup = useCallback((point: MapPoint) => {
     if (!point.toilets) return
@@ -960,12 +967,14 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           name.textContent = point.displayGroupName ?? ''
           content.append(pin, name)
         } else {
-          content.textContent = isCoordinateGroup ? `동일 위치 ${point.count}` : String(point.count)
+          content.textContent = isCoordinateGroup ? `${message(mapLocale.current, 'map.sameLocation')} ${point.count}` : String(point.count)
         }
         content.dataset.mapLabel = isCoordinateGroup ? 'group' : 'cluster'
         content.dataset.mapCount = String(point.count)
         content.dataset.mapName = point.displayGroupName || ''
-        content.setAttribute('aria-label', isCoordinateGroup ? `${point.displayGroupName || '동일 위치'}에 등록된 화장실 ${point.count}곳 목록 보기` : `${point.count}개의 화장실이 있는 구역 확대하기`)
+        content.setAttribute('aria-label', isCoordinateGroup
+          ? message(mapLocale.current, 'map.groupMarker', { name: point.displayGroupName || message(mapLocale.current, 'map.sameLocation'), count: point.count })
+          : message(mapLocale.current, 'map.clusterMarker', { count: point.count }))
         content.addEventListener('click', (event) => {
           if (!suppressMapClickFromMarker(event)) return
           if (isCoordinateGroup) {
@@ -989,7 +998,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       const content = document.createElement('button')
       content.className = 'toilet-marker'
       content.type = 'button'
-      const toiletName = point.name ?? '공중화장실'
+      const toiletName = point.name ?? message(mapLocale.current, 'map.unnamed')
       const pin = document.createElement('span')
       pin.className = 'toilet-marker-pin'
       pin.setAttribute('aria-hidden', 'true')
@@ -1273,7 +1282,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         const snapshot = mapSwitchSnapshotRef.current
         const center = snapshot?.center ?? resume?.center ?? toiletCoordinates(initialRouteRef.current.detail) ?? toiletCoordinates(testToilet) ?? DAEJEON_CITY_HALL
         const level = snapshot?.level ?? resume?.level ?? (initialRouteRef.current.detail || testToilet ? 4 : 6)
-        const map = await createMap(container, center, level, locale, controller.signal)
+        const map = await createMap(container, center, level, mapLocale.current, controller.signal)
         if (disposed) return
         mapRef.current = map
         mapSwitchSnapshotRef.current = null
@@ -1326,6 +1335,26 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         if (!disposed && resume?.source === 'current-location') startCurrentLocationWatch()
       } catch (caughtError) {
         if (disposed) return
+        // Browser Back/Forward can bypass the language menu. Recover the same
+        // viewport and detail route before loading the SDK in the new language.
+        if (caughtError instanceof NaverMapLanguageReloadRequired) {
+          const snapshot = mapSwitchSnapshotRef.current
+          const live = liveMapStateRef.current
+          try {
+            saveMapResume(window.sessionStorage, {
+              path: window.location.pathname,
+              center: snapshot?.center ?? resume?.center ?? live.mapCenter,
+              level: snapshot?.level ?? resume?.level ?? 6,
+              reference: snapshot?.reference ?? resume?.reference ?? live.mapCenter,
+              source: snapshot?.source ?? resume?.source ?? live.distanceSource,
+              currentLocation: snapshot ? snapshot.currentLocation : resume?.currentLocation ?? live.currentLocation,
+              expanded: isMobileCardExpandedRef.current,
+              savedAt: Date.now(),
+            })
+          } catch { /* Map navigation still works without session storage. */ }
+          window.location.reload()
+          return
+        }
         setIsLoading(false)
         setIsMapSwitching(false)
         setError(caughtError instanceof Error ? caughtError.message : '지도를 불러오지 못했습니다.')
@@ -1369,7 +1398,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       window.clearTimeout(mapLoadTimerRef.current)
       window.clearTimeout(locationMessageTimerRef.current)
     }
-  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, startCurrentLocationWatch, referenceRequestGate, testToilet, locale])
+  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, startCurrentLocationWatch, referenceRequestGate, testToilet, mapRuntimeKey])
 
   const distanceReference = resolveDistanceReference(distanceSource, mapCenter, currentLocation)
   const displaySelectedToilet = selectedToilet ? localizeToiletMapItem(selectedToilet, locale) : null
@@ -1504,7 +1533,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
               className={activePlaceSearchIndex === index ? 'is-active' : ''}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => moveToSearchPlace(place)}
-            ><strong>{place.name}</strong><span className="place-search-result-detail"><small>{place.category || 'Place'}</small><span>{place.address || t('map.noAddress')}</span></span></button>)}
+            ><strong>{place.name}</strong><span className="place-search-result-detail"><small>{place.category || t('map.place')}</small><span>{place.address || t('map.noAddress')}</span></span></button>)}
           </div>}
         </div>
         {!isDesktop && <div className="mobile-header-actions">
@@ -1606,6 +1635,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         {displayToiletDetail && !toiletCoordinates(displayToiletDetail) && !displaySelectedToilet && !displaySelectedCoordinateGroup && (
           <aside className="place-card initial-route-card" aria-label={t('detail.title')}>
             <button type="button" className="close-button" onClick={closeDetailCard} aria-label={t('common.close')}>×</button>
+            <OriginalSourceBadge toilet={displayToiletDetail} locale={locale} />
             <h1>{displayToiletDetail.name}</h1>
             <p>{t('map.noCoordinates')}</p>
             <p className="open-time">{formatOpenTime(displayToiletDetail, locale)}</p>
@@ -1635,11 +1665,11 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
               {t(isMobileCardExpanded ? 'map.collapse' : 'detail.show')}
             </button>
             <div className="place-card-summary">
-              <span className="card-label">{toiletTypeLabel(displayToiletDetail?.toiletType || displaySelectedToilet.toiletType, locale)}</span>
+              <div className="card-label-row"><span className="card-label">{toiletTypeLabel(displayToiletDetail?.toiletType || displaySelectedToilet.toiletType, locale)}</span><OriginalSourceBadge toilet={displayToiletDetail} locale={locale} /></div>
               {REVIEW_UI_ENABLED ? <div className="review-card-title-row"><h1>{displayToiletDetail?.name || displaySelectedToilet.name}</h1><ToiletReportEntry disabled={!displayToiletDetail || displaySelectedToilet.id === testToilet?.id} onClick={() => { if (displayToiletDetail) openReport({ toilet: displayToiletDetail, latitude: displaySelectedToilet.latitude, longitude: displaySelectedToilet.longitude }) }} /></div> : <h1>{displayToiletDetail?.name || displaySelectedToilet.name}</h1>}
             </div>
             <div ref={cardScrollRef} className="card-scroll-content">
-              {displayToiletDetail ? <p className="open-time">{displayToiletDetail.id === testToilet?.id ? '프리뷰 전용 · 운영 데이터에 저장되지 않아요' : formatOpenTime(displayToiletDetail, locale)}</p> : isDetailLoading && <LoadingOpenTime />}
+              {displayToiletDetail ? <p className="open-time">{displayToiletDetail.id === testToilet?.id ? t('map.reviewTestNotice') : formatOpenTime(displayToiletDetail, locale)}</p> : isDetailLoading && <LoadingOpenTime />}
               {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">{distanceReferenceLabel}</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">{t('map.straightLine')}</span></div>}
               <ToiletCommunityRow pendingReport={!isDesktop && !displayToiletDetail} onReport={isDesktop ? undefined : displayToiletDetail ? () => openReport({ toilet: displayToiletDetail, latitude: displaySelectedToilet.latitude, longitude: displaySelectedToilet.longitude }) : undefined}
                 pendingReview={REVIEW_UI_ENABLED && !displayToiletDetail} onReview={REVIEW_UI_ENABLED && displayToiletDetail ? () => reviewPreview.open(displayToiletDetail) : undefined} reviewEntry={reviewPreview.entryState(displaySelectedToilet.id)} previewSummary={REVIEW_UI_ENABLED ? reviewPreview.summary(displaySelectedToilet.id) : undefined} />
@@ -1648,7 +1678,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
               {detailError && <div><p className="detail-error" role="alert">{t('detail.error')}</p><button type="button" className="detail-retry" onClick={retryDetail}>{t('common.retry')}</button></div>}
               {!displayToiletDetail && isDetailLoading && <DetailLoadingFields />}
               {displayToiletDetail && (displayToiletDetail.id === testToilet?.id
-                ? <div className="card-details"><p>실제 시설이 아닌 리뷰 테스트 지점이에요. 로그인과 실제 현재 위치 확인은 그대로 적용돼요.</p></div>
+                ? <div className="card-details"><p>{t('map.reviewTestDescription')}</p></div>
                 : <ToiletDetailContents toilet={displayToiletDetail} />)}
             </div>
           </aside>
@@ -1661,6 +1691,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
                 <div className="coordinate-group-labels">
                   <span className="card-label">{[...new Set(displaySelectedCoordinateGroup.toilets.map(item => toiletTypeLabel(item.toiletType, locale)))].join(' · ')}</span>
                   {displaySelectedCoordinateGroup.displayGroupName && <span className="coordinate-group-admin-badge" title={t('map.adminHint')}>{t('map.admin')}<svg viewBox="0 0 12 12" aria-hidden="true"><path d="m2.5 6.2 2.2 2.2 4.8-4.8" /></svg></span>}
+                  {locale !== 'ko' && (/[가-힣]/.test(displaySelectedCoordinateGroup.displayGroupName ?? '') || displaySelectedCoordinateGroup.toilets.some(item => /[가-힣]/.test(item.name))) && <small className="source-language-badge">{t('detail.originalKorean')}</small>}
                 </div>
                 {distanceToCoordinateGroup && <p className="coordinate-group-distance">{distanceReferenceLabel} <strong>{distanceToCoordinateGroup}</strong></p>}
               </div>
@@ -1728,7 +1759,7 @@ function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () 
   return <div className="login-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
       <button type="button" className="login-modal-close" onClick={onClose} aria-label={t('auth.close')}>×</button>
-      <span className="brand login-brand" aria-label={locale === 'en' ? 'Geupddong' : '급똥'}><BrandWordmark locale={locale} /></span>
+      <span className="brand login-brand" aria-label={locale === 'ko' ? '급똥' : 'Geupddong'}><BrandWordmark locale={locale} /></span>
       <h1 id="login-modal-title">{title}</h1>
       <p>{description}</p>
       <button type="button" className="social-login google-login" onClick={() => startSocialLogin('google')}>{t('auth.google')}</button>
@@ -1750,6 +1781,7 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
   const address = getDisplayAddress(display.roadAddress, display.jibunAddress)
 
   return <div className="coordinate-inline-details">
+    <OriginalSourceBadge toilet={display} locale={locale} />
     <div className="coordinate-opening-row"><p className="open-time">{formatOpenTime(display, locale)}</p>{onReport && <ToiletReportEntry iconOnly onClick={onReport} />}</div>
     <ToiletCommunityRow onReview={onReview} reviewEntry={reviewEntry} previewSummary={previewSummary} />
     <PublicReviews toiletId={display.id} toiletName={display.name} toiletType={display.toiletType} summary={previewSummary} />

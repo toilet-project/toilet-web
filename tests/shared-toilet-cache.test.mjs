@@ -40,9 +40,19 @@ test('public detail is reused across callers and extra personal fields never per
 test('public translation fields persist safely while malformed locale entries are discarded',async()=>{
   const bucket=new FakeR2()
   const origin={...detail(18),translations:{en:{name:'Public Restroom',roadAddress:'1 Test-ro',jibunAddress:null},
+    ja:{name:'日本語のトイレ',roadAddress:null,jibunAddress:null},
+    'zh-CN':{name:'简体卫生间',roadAddress:'简体地址',jibunAddress:null},
+    'zh-TW':{name:'繁體廁所',roadAddress:null,jibunAddress:null},
+    'zh-HK':{name:'公眾洗手間',roadAddress:null,jibunAddress:null},
     '__proto__':{name:'unsafe'},ko:{name:''}},privateTranslationToken:'secret'}
   await readThroughSharedToiletCache({bucket,toiletId:18,fetchOrigin:async()=>origin,now:()=>1000})
-  assert.deepEqual(bucket.value(18).data.translations,{en:{name:'Public Restroom',roadAddress:'1 Test-ro',jibunAddress:null}})
+  assert.deepEqual(bucket.value(18).data.translations,{
+    en:{name:'Public Restroom',roadAddress:'1 Test-ro',jibunAddress:null},
+    ja:{name:'日本語のトイレ',roadAddress:null,jibunAddress:null},
+    'zh-cn':{name:'简体卫生间',roadAddress:'简体地址',jibunAddress:null},
+    'zh-tw':{name:'繁體廁所',roadAddress:null,jibunAddress:null},
+    'zh-hk':{name:'公眾洗手間',roadAddress:null,jibunAddress:null},
+  })
   assert.equal(bucket.value(18).data.privateTranslationToken,undefined)
   assert.equal(Object.hasOwn(bucket.value(18).data.translations,'__proto__'),false)
 })
