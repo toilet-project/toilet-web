@@ -24,7 +24,8 @@ const publicReviewApiEnabled = reviewApiEnabled || process.env.SITE_INDEXABLE ==
 const config: NextConfig = {
   deploymentId: process.env.NEXT_DEPLOYMENT_ID,
   env: {
-    NEXT_PUBLIC_ENGLISH_UI_ENABLED: process.env.SITE_INDEXABLE === 'false' && process.env.ENGLISH_UI_PREVIEW === 'true' ? 'true' : 'false',
+    NEXT_PUBLIC_ENGLISH_UI_ENABLED: (process.env.SITE_INDEXABLE === 'false' && process.env.ENGLISH_UI_PREVIEW === 'true')
+      || (process.env.SITE_INDEXABLE === 'true' && process.env.ENGLISH_UI_RELEASE === 'true') ? 'true' : 'false',
     NEXT_PUBLIC_APP_VERSION: process.env.NEXT_DEPLOYMENT_ID || 'development',
     // Build-time preview gate, never controlled by query strings or local storage.
     NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW: process.env.SITE_INDEXABLE === 'false' && !reviewApiEnabled ? 'true' : 'false',

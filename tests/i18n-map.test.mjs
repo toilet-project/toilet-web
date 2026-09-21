@@ -151,7 +151,8 @@ test('public review identity is translated only for removed authors; text and an
   assert.match(source, /timeZone: 'Asia\/Seoul'/)
   assert.equal(message('en', 'public.summary', { rating: '4.5', count: 2 }), 'Overall rating 4.5 out of 5, 2 reviews')
 })
-test('CI only enables English UI in unindexed preview builds', () => {
+test('CI enables multilingual UI only for the approved preview and production targets', () => {
   const source = readFileSync(new URL('../.github/workflows/workers-validation.yml', import.meta.url), 'utf8')
   assert.match(source, /ENGLISH_UI_PREVIEW:.*matrix.target == 'preview' && 'true' \|\| 'false'/)
+  assert.match(source, /ENGLISH_UI_RELEASE:.*matrix.target == 'production-candidate' && 'true' \|\| 'false'/)
 })
