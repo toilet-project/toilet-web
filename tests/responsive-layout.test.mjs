@@ -18,3 +18,12 @@ test('report toolbar is outside the scrolling body and user zoom remains allowed
   const layout=await readFile(new URL('../src/app/layout.tsx',import.meta.url),'utf8')
   assert.doesNotMatch(layout,/userScalable:\s*false|maximumScale:\s*1/)
 })
+
+test('location report uses the selected language map instead of always opening Kakao', async()=>{
+  const source=await readFile(new URL('../src/components/ToiletReportModal.tsx',import.meta.url),'utf8')
+  assert.match(source,/createMap\(mapElementRef\.current!, confirmedCoordinates \?\? \{ latitude, longitude \}, 4, locale\)/)
+  assert.match(source,/addMapEventListener\(map, 'idle', syncCenter\)/)
+  assert.match(source,/destroyMap\(map\)/)
+  assert.doesNotMatch(source,/createKakaoMap\(/)
+})
+
