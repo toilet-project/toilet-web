@@ -10,9 +10,9 @@ const wikidata = [
 ].map(JSON.stringify).join('\n')
 const fallback = [
   { type: 'dataset', sourceSeedHash: 'test-seed', provider: 'google-cloud-translation-basic-v2', count: 2 },
-  { type: 'placeTranslationFallback', id: 'Q1', locale: 'zh-CN', name: '补充名', sourceLanguage: 'en',
+  { type: 'placeTranslationFallback', id: 'Q1', locale: 'zh-CN', name: '补充名', englishName: 'Supplement', sourceLanguage: 'en',
     requestedLanguage: 'zh-CN', provider: 'google-cloud-translation-basic-v2' },
-  { type: 'placeTranslationFallback', id: 'Q2', locale: 'ja', name: '翻訳名', sourceLanguage: 'en',
+  { type: 'placeTranslationFallback', id: 'Q2', locale: 'ja', name: '翻訳名', englishName: 'Translation', sourceLanguage: 'en',
     requestedLanguage: 'ja', provider: 'google-cloud-translation-basic-v2' },
 ].map(JSON.stringify).join('\n')
 

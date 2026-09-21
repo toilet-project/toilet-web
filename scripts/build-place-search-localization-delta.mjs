@@ -49,6 +49,8 @@ for (const [index, place] of seedRows.entries()) {
     const newRow = newById.get(place.id)
     const oldTerm = oldRow?.names?.[locale]
     const newTerm = newRow?.names?.[locale]
+    if (newTerm?.sourceLanguage === 'en' && newTerm.sourceEnglish !== place.nameEn)
+      throw new Error(`Mismatched English translation source for ${place.id}`)
     if (indexedTerm(oldTerm) === indexedTerm(newTerm)) continue
     statements.push(`DELETE FROM place_search_localized_fts WHERE place_id = ${sql(place.id)} AND locale = ${sql(locale)};`)
     statements.push(`DELETE FROM place_localizations WHERE place_id = ${sql(place.id)} AND locale = ${sql(locale)};`)

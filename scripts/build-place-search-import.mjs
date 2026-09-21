@@ -39,6 +39,12 @@ if (localizationMetadata.type !== 'dataset' || localizationMetadata.sourceSeedHa
   || localizationMetadata.eligibleCount !== allRecords.filter(place => place.searchScope === 'preview').length
   || [...localizedNames.values()].some(row => !allRecords.some(place => place.id === row.id && place.searchScope === 'preview')))
   throw new Error('Invalid place search localizations')
+for (const place of allRecords) {
+  const translated = localizedNames.get(place.id)?.names
+  if (translated && Object.values(translated).some(term => term.sourceLanguage === 'en' && term.sourceEnglish !== place.nameEn)) {
+    throw new Error(`Mismatched English translation source for ${place.id}`)
+  }
+}
 for (const [id, override] of Object.entries(curatedAliases)) {
   const place = seed.records.find(record => record.id === id)
   if (!place && component && allRecords.some(record => record.id === id)) continue

@@ -18,14 +18,15 @@ export function mergePlaceLocalizations(wikidataText, googleText = null) {
     for (const row of googleRows) {
       const key = `${row.id}:${row.locale}`
       if (row.type !== 'placeTranslationFallback' || !row.id || !asianLocales.includes(row.locale)
-        || !row.name?.trim() || row.sourceLanguage !== 'en' || row.provider !== googleMetadata.provider
+        || !row.name?.trim() || !row.englishName?.trim()
+        || row.sourceLanguage !== 'en' || row.provider !== googleMetadata.provider
         || seen.has(key) || rows.get(row.id)?.names[row.locale]) {
         throw new Error(`Invalid or overriding Google translation fallback: ${key}`)
       }
       seen.add(key)
       const entry = rows.get(row.id) ?? { id: row.id, revision: null, names: {} }
       entry.names[row.locale] = { name: row.name.trim(), aliases: [], sourceLanguage: 'en',
-        resolvedLanguage: row.requestedLanguage }
+        sourceEnglish: row.englishName.trim(), resolvedLanguage: row.requestedLanguage }
       rows.set(row.id, entry)
     }
   }
