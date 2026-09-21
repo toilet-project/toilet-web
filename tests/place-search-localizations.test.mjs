@@ -30,3 +30,11 @@ test('rejects machine translations that overwrite source-authored names', () => 
   lines[1].locale = 'ja'
   assert.throws(() => mergePlaceLocalizations(wikidata, lines.map(JSON.stringify).join('\n')), /overriding/)
 })
+
+test('keeps English fallback for a held or unchanged machine translation', () => {
+  const lines = fallback.split('\n').map(JSON.parse)
+  lines[2].needsReview = true
+  const { rows } = mergePlaceLocalizations(wikidata, lines.map(JSON.stringify).join('\n'), new Set(['Q1:zh-CN']))
+  assert.equal(rows.get('Q1').names['zh-CN'], undefined)
+  assert.equal(rows.get('Q2'), undefined)
+})

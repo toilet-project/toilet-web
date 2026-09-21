@@ -24,8 +24,10 @@ const newGoogle = await readFile(resolve(root, googlePath), 'utf8').catch(error 
   if (error.code === 'ENOENT') return null
   throw error
 })
+const translationHolds = JSON.parse(await readFile(resolve(root, 'data/place-search/google-translation-holds-20260921.json'), 'utf8'))
+const heldPairs = new Set(translationHolds.flatMap(hold => hold.locales.map(locale => `${hold.id}:${locale}`)))
 const old = mergePlaceLocalizations(oldText, gitShow(googlePath))
-const next = mergePlaceLocalizations(newText, newGoogle)
+const next = mergePlaceLocalizations(newText, newGoogle, heldPairs)
 const [seedMetadata, ...seedRows] = (await readFile(resolve(root, 'data/place-search/place-search-seed-20260920.ndjson'), 'utf8'))
   .trim().split(/\r?\n/).map(JSON.parse)
 const curatedAliases = JSON.parse(await readFile(resolve(root, 'data/place-search/curated-search-aliases.json'), 'utf8'))

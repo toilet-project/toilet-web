@@ -24,8 +24,10 @@ const googleText = await readFile(googlePath, 'utf8').catch(error => {
   if (error.code === 'ENOENT') return null
   throw error
 })
+const translationHolds = JSON.parse(await readFile(`${root}/data/place-search/google-translation-holds-20260921.json`, 'utf8'))
+const heldPairs = new Set(translationHolds.flatMap(hold => hold.locales.map(locale => `${hold.id}:${locale}`)))
 const { metadata: localizationMetadata, rows: localizedNames } = mergePlaceLocalizations(
-  await readFile(`${root}/data/place-search/wikidata-localizations-20260921.ndjson`, 'utf8'), googleText)
+  await readFile(`${root}/data/place-search/wikidata-localizations-20260921.ndjson`, 'utf8'), googleText, heldPairs)
 
 const sql = (value) => value == null ? 'NULL' : `'${String(value).replaceAll("'", "''")}'`
 const number = (value) => Number.isFinite(value) ? String(value) : 'NULL'

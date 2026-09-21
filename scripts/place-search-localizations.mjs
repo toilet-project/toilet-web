@@ -1,6 +1,6 @@
 export const asianLocales = ['ja', 'zh-CN', 'zh-TW', 'zh-HK']
 
-export function mergePlaceLocalizations(wikidataText, googleText = null) {
+export function mergePlaceLocalizations(wikidataText, googleText = null, heldPairs = new Set()) {
   const [wikidataMetadata, ...wikidataRows] = wikidataText.trim().split(/\r?\n/).map(JSON.parse)
   if (wikidataMetadata.type !== 'dataset' || !wikidataMetadata.sourceSeedHash) throw new Error('Invalid Wikidata localizations')
   const rows = new Map()
@@ -24,6 +24,7 @@ export function mergePlaceLocalizations(wikidataText, googleText = null) {
         throw new Error(`Invalid or overriding Google translation fallback: ${key}`)
       }
       seen.add(key)
+      if (row.needsReview || heldPairs.has(key)) continue
       const entry = rows.get(row.id) ?? { id: row.id, revision: null, names: {} }
       entry.names[row.locale] = { name: row.name.trim(), aliases: [], sourceLanguage: 'en',
         sourceEnglish: row.englishName.trim(), resolvedLanguage: row.requestedLanguage }
