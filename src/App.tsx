@@ -7,6 +7,7 @@ import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, typ
 import { createDetailCache } from './lib/detailCache'
 import { createCardHandleGesture, createMarkerTapGesture, createReferenceRequestGate, relayoutPreservingCenter } from './lib/mapInteraction'
 import { cardPlacement } from './lib/cardPlacement'
+import { ToiletListItem } from './components/ToiletListItem'
 import { ProfileMenu } from './components/ProfileMenu'
 import { PrimaryNavigation } from './components/PrimaryNavigation'
 import { HeaderIcon } from './components/HeaderIcon'
@@ -40,7 +41,7 @@ import { searchPlaces } from './lib/placeSearch'
 import type { PlaceSearchResult } from './lib/placeSearchTypes'
 import { ToiletReportModal } from './components/ToiletReportModal'
 import { MyReportsPanel } from './components/MyReportsPanel'
-import { NotificationPanel } from './components/NotificationPanel'
+import { NotificationMenu } from './components/NotificationMenu'
 import { PolicyConsentModal } from './components/PolicyConsentModal'
 import { AccountDialog } from './components/AccountDialog'
 import { AccountRecoveryDialog } from './components/AccountRecoveryDialog'
@@ -110,13 +111,6 @@ function scrollCoordinateGroupItem(list: HTMLElement, item: HTMLElement, behavio
   const itemBounds = item.getBoundingClientRect()
   const top = list.scrollTop + itemBounds.top - listBounds.top - 8
   list.scrollTo({ top: Math.max(0, top), behavior })
-}
-
-function toiletTypeTone(toiletType?: string) {
-  const normalizedType = toiletType?.replace(/\s/g, '') ?? ''
-  if (normalizedType.includes('개방')) return 'is-open'
-  if (normalizedType.includes('제보')) return 'is-reported'
-  return 'is-public'
 }
 
 function coordinateGroupFloor(name: string) {
@@ -1568,7 +1562,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           {ENGLISH_UI_ENABLED && <LanguageSelector locale={locale} onSelect={next => onLocaleChange(next, testToilet ? null : selectedToilet?.id ?? expandedCoordinateToilet?.id ?? null)} />}
         </div>}
         {isDesktop && <div className="desktop-header-actions">
-          <button type="button" className="notification-button" onClick={() => { if (authProfile) setIsNotificationsOpen(true); else { setLoginPurpose('general'); setIsLoginDialogOpen(true) } }} aria-label={unreadNotificationCount ? t('map.unread', { count: unreadNotificationCount }) : t('nav.notifications')}><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-2.5 7-2.5 9h17C20.5 15 18 15 18 8ZM10 21h4" /></svg>{unreadNotificationCount > 0 && <strong>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</strong>}</button>
+          <NotificationMenu owner={authProfile?.userId ?? null} open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen} unread={unreadNotificationCount} onLogin={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }} onCountChange={refreshNotificationCount} onSessionExpired={handleSessionExpired} onOpenReport={showReportHistory} />
           {isAuthLoading ? <span className="auth-status">{t('map.checking')}</span> : authProfile ? <ProfileMenu profile={authProfile} onLogout={handleLogout} /> : <button type="button" className="header-account-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}><HeaderIcon name="account" /><span>{t('auth.login')}</span></button>}
           {ENGLISH_UI_ENABLED && <LanguageSelector locale={locale} onSelect={next => onLocaleChange(next, testToilet ? null : selectedToilet?.id ?? expandedCoordinateToilet?.id ?? null)} />}
         </div>}
@@ -1620,36 +1614,25 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
             {!isListZoomLimited && areaToilets.length === 0 && !isLoading && <p className="desktop-area-list-status">{t('map.empty')}</p>}
             {!isListZoomLimited && sortedAreaToiletGroups.map((group) => {
               const representative = representativeToilet(group)
-              const displayName = group.displayGroupName || representative.name
-              const additionalCount = group.count - 1
               const distance = distanceReference ? formatDistance(calculateDistanceInMeters(distanceReference, representative)) : '—'
-              return <button key={`${group.latitude}:${group.longitude}`} type="button" className="desktop-area-list-item" onClick={() => selectMobileAreaToilet(representative)}>
-                <strong><span className="desktop-area-list-name">{displayName || t('map.unnamed')}</span>{additionalCount > 0 && <span className="desktop-area-list-additional">{group.displayGroupName ? t('map.facilities', { count: additionalCount + 1 }) : `+${additionalCount}`}</span>}</strong>
-                <span className={`desktop-area-list-type ${toiletTypeTone(representative.toiletType)}`}>{toiletTypeLabel(representative.toiletType || '공중화장실', locale)}</span>
-                <span className="desktop-area-list-distance">{distance}</span>
-              </button>
+              return <ToiletListItem key={`${group.latitude}:${group.longitude}`} id={representative.id} name={group.displayGroupName || representative.name || ''} type={representative.toiletType} count={group.count} distance={distance}
+                active={selectedToilet?.id === representative.id || selectedCoordinateGroup?.latitude === group.latitude && selectedCoordinateGroup?.longitude === group.longitude}
+                onSelect={() => selectMobileAreaToilet(representative)} />
             })}
           </div>
         </aside>}
         {isMobileAreaListVisible && <aside className="mobile-area-list" aria-label={t('map.list')}>
           <button className="mobile-area-list-handle" type="button" onClick={() => setIsMobileAreaListOpen(false)} aria-label={t('map.closeList')} />
-          {!isListZoomLimited && <div className="mobile-area-list-header"><span>{t('map.name')}</span><span>{t('map.type')}</span><span>{t('map.distance')}</span></div>}
+          {!isListZoomLimited && <div className="mobile-area-list-header"><strong>{t('map.area', { count: result?.meta.total_count.toLocaleString(locale) ?? 0 })}</strong><span>{t(distanceSource === 'current-location' ? 'map.nearest' : 'map.nearestPoint')}</span></div>}
           <div className="mobile-area-list-content">
             {!isListZoomLimited && isMobileAreaListLoading && <p className="mobile-area-list-status">{t('common.loading')}</p>}
             {!isListZoomLimited && !isMobileAreaListLoading && areaToilets.length === 0 && <p className="mobile-area-list-status">{t('map.empty')}</p>}
             {!isListZoomLimited && !isMobileAreaListLoading && sortedAreaToiletGroups.map((group) => {
               const representative = representativeToilet(group)
-              const displayName = group.displayGroupName || representative.name
-              const additionalCount = group.count - 1
               const distance = distanceReference ? formatDistance(calculateDistanceInMeters(distanceReference, representative)) : '—'
-              return <button key={`${group.latitude}:${group.longitude}`} type="button" className="mobile-area-list-item" onClick={() => selectMobileAreaToilet(representative)}>
-                <strong>
-                  <span className="mobile-area-list-name">{displayName || t('map.unnamed')}</span>
-                  {additionalCount > 0 && <span className="mobile-area-list-additional">{group.displayGroupName ? t('map.facilities', { count: additionalCount + 1 }) : `+${additionalCount}`}</span>}
-                </strong>
-                <span className={`mobile-area-list-type ${toiletTypeTone(representative.toiletType)}`}>{toiletTypeLabel(representative.toiletType || '공중화장실', locale)}</span>
-                <span className="mobile-area-list-distance">{distance}</span>
-              </button>
+              return <ToiletListItem key={`${group.latitude}:${group.longitude}`} id={representative.id} name={group.displayGroupName || representative.name || ''} type={representative.toiletType} count={group.count} distance={distance}
+                active={selectedToilet?.id === representative.id || selectedCoordinateGroup?.latitude === group.latitude && selectedCoordinateGroup?.longitude === group.longitude}
+                onSelect={() => selectMobileAreaToilet(representative)} />
             })}
           </div>
         </aside>}
@@ -1756,7 +1739,6 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); showReportHistory() }} />}
         {reviewPreview.modal}
         {authProfile && isDesktop && isMyReportsOpen && <MyReportsPanel key={`reports-${authProfile.userId}`} onSessionExpired={handleSessionExpired} initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
-        {authProfile && isDesktop && isNotificationsOpen && <NotificationPanel key={`inbox-${authProfile.userId}`} unread={unreadNotificationCount} onSessionExpired={handleSessionExpired} onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); showReportHistory(reportId) }} />}
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
         {authProfile?.consentRequired && <PolicyConsentModal isNewRegistration={authProfile.status === 'PENDING_CONSENT'} onComplete={handleConsentComplete} onLogout={handleLogout} />}
         {authProfile && isAccountOpen && <AccountDialog profile={authProfile} onClose={() => setIsAccountOpen(false)} onWithdrawn={handleWithdrawn} />}

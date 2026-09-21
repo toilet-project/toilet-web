@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { getCurrentUser, logout, type AuthProfile } from '../api/auth'
+import { AuthExpiredError, getCurrentUser, logout, type AuthProfile } from '../api/auth'
+import { fetchUnreadNotificationCount } from '../api/notifications'
 import { useLocale, useMessages } from '../i18n/context'
 import { localizedPublicPath } from '../i18n/routes'
 import { LanguageSelector } from './LanguageSelector'
@@ -11,6 +12,7 @@ import { BrandWordmark } from './BrandWordmark'
 import { ProfileMenu } from './ProfileMenu'
 import { PrimaryNavigation } from './PrimaryNavigation'
 import { HeaderIcon } from './HeaderIcon'
+import { NotificationMenu } from './NotificationMenu'
 import { regionText } from './regions/regionText'
 
 function BottomIcon({ name }: { name: 'map' | 'regions' | 'notifications' | 'account' }) {
@@ -26,7 +28,18 @@ export function SiteHeader({ path }: { path: string }) {
   const [profile, setProfile] = useState<AuthProfile | null>(null)
   const [ready, setReady] = useState(false)
   const [search, setSearch] = useState('')
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [unread, setUnread] = useState(0), [notificationVersion, setNotificationVersion] = useState(0)
   useEffect(() => { let active = true; void getCurrentUser().then(value => { if (active) setProfile(value) }).catch(() => undefined).finally(() => { if (active) setReady(true) }); return () => { active = false } }, [])
+  const notificationOwner = profile?.userId
+  useEffect(() => {
+    if (!notificationOwner) return
+    let active = true
+    const refresh = () => void fetchUnreadNotificationCount().then(count => { if (active) setUnread(count) }).catch(reason => { if (active && reason instanceof AuthExpiredError) { setProfile(null); setUnread(0); setNotificationsOpen(false) } })
+    refresh()
+    const interval = window.setInterval(refresh, 60_000)
+    return () => { active = false; window.clearInterval(interval) }
+  }, [notificationOwner, notificationVersion])
   const home = localizedPublicPath('/', locale)!, regions = localizedPublicPath('/regions', locale)!
   const account = localizedPublicPath('/account', locale)!
   return <>
@@ -38,7 +51,7 @@ export function SiteHeader({ path }: { path: string }) {
       </form>
       <PrimaryNavigation className="site-header-links" active={path.startsWith('/regions') ? 'regions' : undefined} />
       <div className="site-header-actions">
-        <Link className="site-header-bell" href={`${account}?view=notifications`} aria-label={r.notifications}><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-2.5 7-2.5 9h17C20.5 15 18 15 18 8ZM10 21h4" /></svg></Link>
+        <NotificationMenu owner={profile?.userId ?? null} open={notificationsOpen} onOpenChange={setNotificationsOpen} unread={profile ? unread : 0} onLogin={() => router.push(account)} onCountChange={() => setNotificationVersion(value => value + 1)} onSessionExpired={() => { setProfile(null); setUnread(0) }} onOpenReport={id => router.push(`${account}?view=reports&report=${id}`)} />
         {ready && (profile ? <ProfileMenu profile={profile} onLogout={() => { void logout().then(() => { setProfile(null); router.push(home) }) }} /> : <Link className="site-header-login" href={account}><HeaderIcon name="account" /><span>{t('auth.login')}</span></Link>)}
         <LanguageSelector locale={locale} onSelect={next => { router.push(localizedPublicPath(path, next) ?? localizedPublicPath('/', next)!) }} />
       </div>

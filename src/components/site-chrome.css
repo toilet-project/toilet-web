@@ -16,13 +16,39 @@
 .notification-button, .site-header-bell { display: grid; flex: 0 0 42px; width: 42px; height: 42px; padding: 0; place-items: center; border: 0; border-radius: 12px; background: transparent; color: #536b5d; }
 .notification-button svg, .site-header-bell svg { width: 23px; height: 23px; stroke-width: 1.7; }
 .notification-button:hover, .site-header-bell:hover { color: #17683a; background: #f0f6f2; }
+.header-notifications { position: relative; }
+.header-notifications .notification-button { position: relative; width: 44px; height: 44px; cursor: pointer; }
+.header-notifications .notification-button[aria-expanded=true] { background: #f0f6f2; color: #26734d; }
+.header-notifications-dot { position: absolute; top: 8px; right: 9px; width: 6px; height: 6px; border-radius: 50%; background: #b77840; box-shadow: 0 0 0 2px #fff; }
+.header-notifications-panel { position: absolute; top: calc(100% + 12px); right: 0; z-index: 60; width: min(348px, calc(100vw - 32px)); overflow: hidden; border: 1px solid #e0e9e3; border-radius: 18px; background: #fff; box-shadow: 0 14px 50px #1b3e2a20; text-align: left; }
+.header-notifications-panel > header { display: flex; align-items: center; gap: 8px; min-height: 60px; padding: 7px 10px 7px 20px; border-bottom: 1px solid #edf1ee; }
+.header-notifications-panel h2 { margin: 0; color: #304d3a; font-size: 16px; font-weight: 600; }
+.header-notifications-panel > header > span { padding: 2px 6px; border-radius: 5px; background: #edf6f0; color: #46805b; font-size: 11px; }
+.header-notifications-panel > header > button { width: 44px; height: 44px; margin-left: auto; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #8a998f; font-size: 24px; cursor: pointer; }
+.header-notifications-list { max-height: min(420px, calc(100dvh - 200px)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.header-notification-item { display: flex; width: 100%; align-items: flex-start; gap: 11px; padding: 16px 18px; border: 0; border-bottom: 1px solid #f0f3f1; background: #fff; color: #5c6f63; font: inherit; text-align: left; cursor: pointer; }
+.header-notification-item.is-unread { background: #f8fbf9; }
+.header-notification-item:hover { background: #f0f6f2; }
+.header-notification-symbol { display: grid; place-items: center; flex: 0 0 28px; height: 28px; border-radius: 9px; background: #e9f3ec; color: #5b8b6b; font-size: 13px; }
+.header-notification-symbol.is-rejected { background: #f7f0e9; color: #a78666; }
+.header-notification-copy { display: grid; flex: 1; min-width: 0; gap: 5px; }
+.header-notification-copy strong { color: #435f4d; font-size: 13px; font-weight: 550; line-height: 1.5; overflow-wrap: anywhere; }
+.header-notification-copy > span { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; color: #85948a; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.header-notification-copy time { color: #9ca99f; font-size: 10px; line-height: 1.5; }
+.header-notification-item > i { flex: 0 0 5px; height: 5px; margin-top: 8px; border-radius: 50%; background: #6b977c; }
+.header-notifications-more { width: 100%; min-height: 44px; padding: 10px; border: 0; background: #fff; color: #6c8976; font: inherit; font-size: 12px; cursor: pointer; }
+.header-notifications-more:hover { background: #f5f9f6; }
+.header-notifications-state { margin: 0; padding: 25px 20px; color: #819088; font-size: 13px; line-height: 1.6; text-align: center; }
+.header-notifications-state p { margin: 0 0 12px; }
+.header-notifications-state button { min-height: 38px; padding: 8px 18px; border: 1px solid #dde9e1; border-radius: 9px; background: #f4f8f5; color: #4a785b; font: inherit; cursor: pointer; }
+.header-notifications button:focus-visible { outline: 2px solid #438263; outline-offset: -3px; }
 .header-account-button, .site-header-login { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 42px; padding: 0 14px; border: 1px solid #e2ebe5; border-radius: 12px; background: #f6f9f7; color: #30553e; font: inherit; font-size: 14px; font-weight: 650; text-decoration: none; white-space: nowrap; cursor: pointer; }
 .header-account-button:hover, .site-header-login:hover { background: #f2f8f4; border-color: #c8dccf; }
 .header-account-button svg, .site-header-login svg { width: 17px; height: 17px; }
 .profile-menu { position: relative; }
-.profile-menu-trigger { display: flex; align-items: center; gap: 9px; max-width: 205px; min-height: 44px; padding: 4px 9px 4px 4px; border: 1px solid transparent; border-radius: 12px; background: transparent; color: #2c4b36; font: inherit; font-size: 14px; font-weight: 650; cursor: pointer; transition: background .18s; }
+.profile-menu-trigger { display: flex; align-items: center; gap: 9px; max-width: 205px; min-height: 44px; padding: 5px 12px 5px 6px; border: 1px solid #dce7df; border-radius: 999px; background: #fff; color: #2c4b36; font: inherit; font-size: 14px; font-weight: 550; cursor: pointer; transition: background .18s; }
 .profile-menu-trigger:hover, .profile-menu-trigger[aria-expanded=true] { background: #f0f6f2; }
-.profile-menu-avatar { display: grid; width: 34px; height: 34px; flex: 0 0 34px; place-items: center; overflow: hidden; border: 2px solid #fff; box-shadow: 0 0 0 1px #dce9e0; border-radius: 50%; background: #e8f3ec; color: #28734a; font-size: 14px; }
+.profile-menu-avatar { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; overflow: hidden; border: 0; box-shadow: none; border-radius: 50%; background: #e8f3ec; color: #28734a; font-size: 14px; }
 .profile-menu-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .profile-menu-name { max-width: 118px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .profile-menu-chevron { flex-shrink: 0; color: #8ca195; transition: transform .18s; }
@@ -61,7 +87,7 @@
   .site-header-search, .has-mobile-navigation .place-search { flex: 1; min-width: 0; width: auto; margin: 0; }
   .site-header-search input, .has-mobile-navigation .place-search-input { height: 40px; padding: 0 12px; border: 1px solid transparent; border-radius: 14px; background: #f2f5f3; font-size: 16px; letter-spacing: -.5px; box-shadow: none; }
   .site-header-search input::placeholder, .has-mobile-navigation .place-search-input::placeholder { color: #7c8780; font-size: 13px; }
-  .primary-navigation, .site-header-bell, .site-header-actions .profile-menu { display: none; }
+  .primary-navigation, .site-header-bell, .site-header-actions .header-notifications, .site-header-actions .profile-menu { display: none; }
   .site-header-actions { gap: 4px; }
   .site-header-login { min-width: 44px; min-height: 44px; padding: 0 6px; border: 0; background: transparent; color: #17683a; font-size: 12px; font-weight: 700; }
   .site-header-login > svg { display: none; }

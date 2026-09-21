@@ -38,7 +38,7 @@ export function RegionAtlas({ locale, provinceCode }: { locale: Locale; province
 
   return <RegionAtlasCanvas key={province?.code ?? 'all'} width={width} height={height} label={province ? t.chooseDistrict : t.chooseProvince} countLabel={t.toilets}
     zoomInLabel={t.zoomIn} zoomOutLabel={t.zoomOut} resetLabel={t.resetView} detailHint={t.zoomDetails}
-    allRegionsLabel={t.allRegions} closeLabel={t.closeSelection} overview={!province}
+    overview={!province}
     areas={regions.map((region, index) => {
       const bounds = regionBounds(region)
       const surface = polygonParts(region.geometry).reduce((sum, rings) => sum + rings.reduce((part, ring, ringIndex) => part + (ringIndex ? -1 : 1) * Math.abs(ring.reduce((area, point, i) => {
