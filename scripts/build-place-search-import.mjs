@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { asianLocales, mergePlaceLocalizations } from './place-search-localizations.mjs'
+import { resolvePreviewSuppressions } from './place-search-suppressions.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const args = new Map(process.argv.slice(2).map((value, index, values) => value.startsWith('--') ? [value, values[index + 1]] : null).filter(Boolean))
@@ -9,6 +10,8 @@ const seedPath = resolve(args.get('--seed') || `${root}/data/place-search/place-
 const outputPath = resolve(args.get('--output') || `${root}/.generated/place-search-import.sql`)
 const [metadata, ...rows] = (await readFile(seedPath, 'utf8')).trim().split(/\r?\n/).map(line => JSON.parse(line))
 const allRecords = rows.map(({ type: _type, ...record }) => record)
+const suppressionConfig = JSON.parse(await readFile(`${root}/data/place-search/preview-suppressions-20260921.json`, 'utf8'))
+const suppressed = resolvePreviewSuppressions(metadata, allRecords, suppressionConfig)
 const componentId = args.get('--component')
 const componentIndex = metadata.componentDatasets?.findIndex(component => component.id === componentId) ?? -1
 if (componentId && componentIndex < 0) throw new Error(`Unknown component dataset: ${componentId}`)
@@ -67,9 +70,13 @@ const statements = [
 ]
 
 for (const place of seed.records) {
+  const suppression = suppressed.get(place.id)
+  const searchScope = suppression ? 'disabled' : place.searchScope
+  const status = suppression ? 'pending_review' : place.status
+  const audit = suppression ? { ...place, searchSuppression: suppression } : place
   const regionEn = (place.regions?.values ?? []).map(region => region.nameEn).filter(Boolean).join(', ')
   const selected = place.selectedCoordinate
-  statements.push(`INSERT INTO places (id, source_dataset, name_ko, name_en, category, place_kind, status, search_scope, production_approved, verification_level, region_en, latitude, longitude, source_url, source_revision, source_modified_at, audit_json) VALUES (${sql(place.id)}, ${sql(seed.datasetId)}, ${sql(place.nameKo)}, ${sql(place.nameEn)}, ${sql(place.category)}, ${sql(place.placeKind)}, ${sql(place.status)}, ${sql(place.searchScope)}, ${place.productionApproved ? 1 : 0}, ${sql(place.verificationLevel)}, ${sql(regionEn)}, ${number(selected?.latitude)}, ${number(selected?.longitude)}, ${sql(place.sourceUrl)}, ${number(place.sourceRevision)}, ${sql(place.sourceModifiedAt)}, ${json(place)});`)
+  statements.push(`INSERT INTO places (id, source_dataset, name_ko, name_en, category, place_kind, status, search_scope, production_approved, verification_level, region_en, latitude, longitude, source_url, source_revision, source_modified_at, audit_json) VALUES (${sql(place.id)}, ${sql(seed.datasetId)}, ${sql(place.nameKo)}, ${sql(place.nameEn)}, ${sql(place.category)}, ${sql(place.placeKind)}, ${sql(status)}, ${sql(searchScope)}, ${place.productionApproved ? 1 : 0}, ${sql(place.verificationLevel)}, ${sql(regionEn)}, ${number(selected?.latitude)}, ${number(selected?.longitude)}, ${sql(place.sourceUrl)}, ${number(place.sourceRevision)}, ${sql(place.sourceModifiedAt)}, ${json(audit)});`)
 
   for (const locale of ['ko', 'en']) {
     for (const alias of place.aliases?.[locale] ?? []) {
@@ -80,7 +87,7 @@ for (const place of seed.records) {
     statements.push(`INSERT INTO place_coordinate_candidates (place_id, candidate_index, latitude, longitude, rank, eligible, precision_degrees, evidence_json) VALUES (${sql(place.id)}, ${index}, ${number(candidate.latitude)}, ${number(candidate.longitude)}, ${sql(candidate.rank)}, ${candidate.eligible ? 1 : 0}, ${number(candidate.precisionDegrees)}, ${json(candidate)});`)
   })
 
-  if (place.searchScope === 'preview' && selected) {
+  if (searchScope === 'preview' && selected) {
     statements.push(`INSERT INTO place_search_fts (place_id, name_en, aliases_en, region_en, name_ko, aliases_ko, source_dataset) VALUES (${sql(place.id)}, ${sql(place.nameEn)}, ${sql((place.aliases?.en ?? []).join(' '))}, ${sql(regionEn)}, ${sql(place.nameKo)}, ${sql((place.aliases?.ko ?? []).join(' '))}, ${sql(seed.datasetId)});`)
     const localized = localizedNames.get(place.id)
     for (const locale of asianLocales) {

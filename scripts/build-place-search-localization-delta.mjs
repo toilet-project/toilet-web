@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { asianLocales, mergePlaceLocalizations } from './place-search-localizations.mjs'
+import { resolvePreviewSuppressions } from './place-search-suppressions.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 const sourcePath = 'data/place-search/wikidata-localizations-20260921.ndjson'
@@ -30,6 +31,8 @@ const old = mergePlaceLocalizations(oldText, gitShow(googlePath))
 const next = mergePlaceLocalizations(newText, newGoogle, heldPairs)
 const [seedMetadata, ...seedRows] = (await readFile(resolve(root, 'data/place-search/place-search-seed-20260920.ndjson'), 'utf8'))
   .trim().split(/\r?\n/).map(JSON.parse)
+const suppressionConfig = JSON.parse(await readFile(resolve(root, 'data/place-search/preview-suppressions-20260921.json'), 'utf8'))
+const suppressed = resolvePreviewSuppressions(seedMetadata, seedRows, suppressionConfig)
 const curatedAliases = JSON.parse(await readFile(resolve(root, 'data/place-search/curated-search-aliases.json'), 'utf8'))
 if (old.metadata.sourceSeedHash !== next.metadata.sourceSeedHash || next.metadata.sourceSeedHash !== seedMetadata.sourceHash
   || old.metadata.eligibleCount !== next.metadata.eligibleCount) throw new Error('Incompatible localization datasets')
@@ -42,7 +45,7 @@ const number = value => Number.isSafeInteger(value) ? String(value) : 'NULL'
 const statements = []
 let changedTerms = 0
 for (const [index, place] of seedRows.entries()) {
-  if (place.searchScope !== 'preview' || !place.selectedCoordinate) continue
+  if (place.searchScope !== 'preview' || !place.selectedCoordinate || suppressed.has(place.id)) continue
   const component = seedMetadata.componentDatasets.find((_, componentIndex) => index < seedMetadata.componentDatasets
     .slice(0, componentIndex + 1).reduce((sum, item) => sum + item.count, 0))
   if (!component) throw new Error(`Missing component for ${place.id}`)
