@@ -87,3 +87,33 @@ test('fails closed when the English search binding is disabled', async () => {
   assert.equal(response.status, 503)
   assert.equal(response.headers.get('cache-control'), 'no-store')
 })
+
+test('fails closed when the search scope is absent or invalid', async () => {
+  for (const scope of [undefined, 'other']) {
+    let prepared = false
+    const response = await placeSearchResponse(new Request('https://example.com/api/place-search', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locale: 'en', query: 'Seoul' }),
+    }), { PLACE_SEARCH_ENABLED: 'true', PLACE_SEARCH_SCOPE: scope,
+      PLACE_SEARCH_D1: { prepare() { prepared = true } } })
+    assert.equal(response.status, 503)
+    assert.equal(prepared, false)
+  }
+})
+
+test('requires approved rows in the production scope for every language', async () => {
+  for (const locale of ['en', 'ja']) {
+    let statement
+    let bindings
+    const response = await placeSearchResponse(new Request('https://example.com/api/place-search', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locale, query: 'Seoul' }),
+    }), { PLACE_SEARCH_ENABLED: 'true', PLACE_SEARCH_SCOPE: 'production',
+      PLACE_SEARCH_D1: { prepare(value) { statement = value; return {
+        bind(...values) { bindings = values; return { async all() { return { results: [] } } } },
+      } } } })
+    assert.equal(response.status, 200)
+    assert.match(statement, /p\.production_approved = 1/)
+    assert.equal(bindings.at(-1), 'production')
+  }
+})

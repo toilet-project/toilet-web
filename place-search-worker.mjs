@@ -58,13 +58,14 @@ export async function placeSearchResponse(request, env) {
   const normalized = localized ? normalizeLocalizedSearchQuery(rawQuery) : normalizeEnglishSearchQuery(rawQuery)
   if (normalized.length < 2) return json({ results: [] })
   if (rawQuery.length > 120 || normalized.length > 80) return json({ error: 'query_too_long' }, 400)
-  if (env.PLACE_SEARCH_ENABLED !== 'true' || !env.PLACE_SEARCH_D1) {
+  if (env.PLACE_SEARCH_ENABLED !== 'true' || !env.PLACE_SEARCH_D1
+    || !['preview', 'production'].includes(env.PLACE_SEARCH_SCOPE)) {
     return json({ error: 'search_unavailable' }, 503)
   }
 
   const ftsQuery = localized ? buildLocalizedFtsQuery(normalized) : buildEnglishFtsQuery(normalized)
   if (!ftsQuery) return json({ results: [] })
-  const scope = env.PLACE_SEARCH_SCOPE === 'production' ? 'production' : 'preview'
+  const scope = env.PLACE_SEARCH_SCOPE
   const prefix = `${normalized}%`
 
   try {
@@ -85,6 +86,7 @@ export async function placeSearchResponse(request, env) {
       WHERE place_search_localized_fts MATCH ?3
         AND place_search_localized_fts.locale = ?4
         AND p.search_scope = ?5
+        AND (p.search_scope != 'production' OR p.production_approved = 1)
         AND p.latitude IS NOT NULL
         AND p.longitude IS NOT NULL
       ORDER BY name_priority ASC, relevance ASC, p.name_en COLLATE NOCASE ASC
@@ -103,6 +105,7 @@ export async function placeSearchResponse(request, env) {
       JOIN places p ON p.id = place_search_fts.place_id
       WHERE place_search_fts MATCH ?3
         AND p.search_scope = ?4
+        AND (p.search_scope != 'production' OR p.production_approved = 1)
         AND p.latitude IS NOT NULL
         AND p.longitude IS NOT NULL
       ORDER BY name_priority ASC, relevance ASC, p.name_en COLLATE NOCASE ASC

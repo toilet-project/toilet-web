@@ -147,6 +147,20 @@ test('generated D1 schema and import are executable and searchable', async () =>
   assert.equal(correctedResult.status, 200)
   assert.ok((await correctedResult.json()).results.some(result => result.id === 'Q20823454'
     && result.latitude === 37.594905 && result.longitude === 126.6278076))
+  database.prepare("UPDATE places SET search_scope='production' WHERE id='Q20415'").run()
+  for (const [locale, query] of [['en', 'Seoul Station'], ['ja', 'ソウル']]) {
+    const request = () => new Request('https://example.com/api/place-search', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locale, query }),
+    })
+    const productionEnv = { PLACE_SEARCH_ENABLED: 'true', PLACE_SEARCH_SCOPE: 'production', PLACE_SEARCH_D1: d1 }
+    const unapproved = await placeSearchResponse(request(), productionEnv)
+    assert.deepEqual((await unapproved.json()).results, [], `${locale} unapproved`)
+    database.prepare("UPDATE places SET production_approved=1 WHERE id='Q20415'").run()
+    const approved = await placeSearchResponse(request(), productionEnv)
+    assert.ok((await approved.json()).results.some(result => result.id === 'Q20415'), `${locale} approved`)
+    database.prepare("UPDATE places SET production_approved=0 WHERE id='Q20415'").run()
+  }
   database.close()
 })
 
