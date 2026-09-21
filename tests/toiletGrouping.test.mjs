@@ -62,3 +62,13 @@ test('administrator display group summary follows the active locale', () => {
   ], 'en')
   assert.equal(group.displayGroupName, 'XXX Cultural Center and 1 more place')
 })
+
+test('additional grouped places use the selected Japanese or Chinese UI language', () => {
+  const facilities = [
+    { id: 41, name: '첫 번째', latitude: 36.4, longitude: 127.3, displayGroupId: 10, displayGroupName: '문화원' },
+    { id: 42, name: '두 번째', latitude: 36.4, longitude: 127.3 },
+  ]
+  for (const [locale, suffix] of [['ja', 'ほか1か所'], ['zh-CN', '另有1处地点'], ['zh-TW', '另有1處地點'], ['zh-HK', '另有1個地點']]) {
+    assert.equal(groupToiletsByCoordinate(facilities, locale)[0].displayGroupName, `문화원 ${suffix}`)
+  }
+})

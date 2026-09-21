@@ -12,6 +12,7 @@ import { LanguageSelector } from './components/LanguageSelector'
 import { toiletTypeLabel } from './i18n/facilityLabels'
 import { mapSystemNotice, localizeMapLabels } from './i18n/mapLabels'
 import { useLocale, useMessages } from './i18n/context'
+import { message } from './i18n/messages'
 import { ENGLISH_UI_ENABLED } from './i18n/feature'
 import { isLanguageOnlyNavigation, localizedPublicPath } from './i18n/routes'
 import type { Locale } from './i18n/locale'
@@ -835,7 +836,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     const content = document.createElement('button')
     content.type = 'button'
     content.className = `toilet-marker review-test-marker${selectedToilet?.id === testToilet.id ? ' is-selected' : ''}`
-    content.setAttribute('aria-label', `${testToilet.name} · 실제 시설 아님`)
+    content.setAttribute('aria-label', message(locale, 'map.reviewTestAria', { name: testToilet.name }))
     const pin = document.createElement('span')
     pin.className = 'toilet-marker-pin'
     const logo = document.createElement('img')
@@ -845,7 +846,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     pin.append(logo)
     const name = document.createElement('span')
     name.className = 'toilet-marker-name'
-    name.textContent = '리뷰 테스트 · 가상'
+    name.textContent = message(locale, 'map.reviewTestMarker')
     content.append(pin, name)
     content.addEventListener('click', event => {
       if (!suppressMapClickFromMarker(event)) return
@@ -857,7 +858,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     })
     overlay.setMap(map)
     return () => overlay.setMap(null)
-  }, [isMapReady, testToilet, selectToilet, selectedToilet?.id, suppressMapClickFromMarker])
+  }, [isMapReady, testToilet, selectToilet, selectedToilet?.id, suppressMapClickFromMarker, locale])
 
   const openCoordinateGroup = useCallback((point: MapPoint) => {
     if (!point.toilets) return
@@ -994,7 +995,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       const content = document.createElement('button')
       content.className = 'toilet-marker'
       content.type = 'button'
-      const toiletName = point.name ?? '공중화장실'
+      const toiletName = point.name ?? message(mapLocale.current, 'map.unnamed')
       const pin = document.createElement('span')
       pin.className = 'toilet-marker-pin'
       pin.setAttribute('aria-hidden', 'true')
@@ -1529,7 +1530,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
               className={activePlaceSearchIndex === index ? 'is-active' : ''}
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => moveToSearchPlace(place)}
-            ><strong>{place.name}</strong><span className="place-search-result-detail"><small>{place.category || 'Place'}</small><span>{place.address || t('map.noAddress')}</span></span></button>)}
+            ><strong>{place.name}</strong><span className="place-search-result-detail"><small>{place.category || t('map.place')}</small><span>{place.address || t('map.noAddress')}</span></span></button>)}
           </div>}
         </div>
         {!isDesktop && <div className="mobile-header-actions">
@@ -1664,7 +1665,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
               {REVIEW_UI_ENABLED ? <div className="review-card-title-row"><h1>{displayToiletDetail?.name || displaySelectedToilet.name}</h1><ToiletReportEntry disabled={!displayToiletDetail || displaySelectedToilet.id === testToilet?.id} onClick={() => { if (displayToiletDetail) openReport({ toilet: displayToiletDetail, latitude: displaySelectedToilet.latitude, longitude: displaySelectedToilet.longitude }) }} /></div> : <h1>{displayToiletDetail?.name || displaySelectedToilet.name}</h1>}
             </div>
             <div ref={cardScrollRef} className="card-scroll-content">
-              {displayToiletDetail ? <p className="open-time">{displayToiletDetail.id === testToilet?.id ? '프리뷰 전용 · 운영 데이터에 저장되지 않아요' : formatOpenTime(displayToiletDetail, locale)}</p> : isDetailLoading && <LoadingOpenTime />}
+              {displayToiletDetail ? <p className="open-time">{displayToiletDetail.id === testToilet?.id ? t('map.reviewTestNotice') : formatOpenTime(displayToiletDetail, locale)}</p> : isDetailLoading && <LoadingOpenTime />}
               {distanceToSelectedToilet && <div className="distance-from-current"><span className="distance-label">{distanceReferenceLabel}</span><strong className="distance-value">{distanceToSelectedToilet}</strong><span className="distance-caption">{t('map.straightLine')}</span></div>}
               <ToiletCommunityRow pendingReport={!isDesktop && !displayToiletDetail} onReport={isDesktop ? undefined : displayToiletDetail ? () => openReport({ toilet: displayToiletDetail, latitude: displaySelectedToilet.latitude, longitude: displaySelectedToilet.longitude }) : undefined}
                 pendingReview={REVIEW_UI_ENABLED && !displayToiletDetail} onReview={REVIEW_UI_ENABLED && displayToiletDetail ? () => reviewPreview.open(displayToiletDetail) : undefined} reviewEntry={reviewPreview.entryState(displaySelectedToilet.id)} previewSummary={REVIEW_UI_ENABLED ? reviewPreview.summary(displaySelectedToilet.id) : undefined} />
@@ -1673,7 +1674,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
               {detailError && <div><p className="detail-error" role="alert">{t('detail.error')}</p><button type="button" className="detail-retry" onClick={retryDetail}>{t('common.retry')}</button></div>}
               {!displayToiletDetail && isDetailLoading && <DetailLoadingFields />}
               {displayToiletDetail && (displayToiletDetail.id === testToilet?.id
-                ? <div className="card-details"><p>실제 시설이 아닌 리뷰 테스트 지점이에요. 로그인과 실제 현재 위치 확인은 그대로 적용돼요.</p></div>
+                ? <div className="card-details"><p>{t('map.reviewTestDescription')}</p></div>
                 : <ToiletDetailContents toilet={displayToiletDetail} />)}
             </div>
           </aside>
@@ -1753,7 +1754,7 @@ function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () 
   return <div className="login-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
       <button type="button" className="login-modal-close" onClick={onClose} aria-label={t('auth.close')}>×</button>
-      <span className="brand login-brand" aria-label={locale === 'en' ? 'Geupddong' : '급똥'}><BrandWordmark locale={locale} /></span>
+      <span className="brand login-brand" aria-label={locale === 'ko' ? '급똥' : 'Geupddong'}><BrandWordmark locale={locale} /></span>
       <h1 id="login-modal-title">{title}</h1>
       <p>{description}</p>
       <button type="button" className="social-login google-login" onClick={() => startSocialLogin('google')}>{t('auth.google')}</button>

@@ -1,4 +1,5 @@
 import type { ToiletMapItemResponse } from '../api/toilets'
+import type { Locale } from '../i18n/locale'
 
 export type ToiletMapItem = ToiletMapItemResponse
 export type MapPoint = { id?: number; latitude: number; longitude: number; count: number; name?: string; toiletType?: string; toilets?: ToiletMapItem[]; displayGroupName?: string }
@@ -7,7 +8,18 @@ export function coordinateGroupCategory(toilets: ToiletMapItem[]): string {
   return [...new Set(toilets.map(toilet => toilet.toiletType?.trim()).filter(Boolean))].join(' · ') || '화장실'
 }
 
-export function groupToiletsByCoordinate(toilets: ToiletMapItem[], locale: string = 'ko'): MapPoint[] {
+function additionalPlaces(count: number, locale: Locale): string {
+  switch (locale) {
+    case 'ko': return `외 ${count}개 장소`
+    case 'en': return `and ${count} more ${count === 1 ? 'place' : 'places'}`
+    case 'ja': return `ほか${count}か所`
+    case 'zh-CN': return `另有${count}处地点`
+    case 'zh-TW': return `另有${count}處地點`
+    case 'zh-HK': return `另有${count}個地點`
+  }
+}
+
+export function groupToiletsByCoordinate(toilets: ToiletMapItem[], locale: Locale = 'ko'): MapPoint[] {
   const groups = new Map<string, ToiletMapItem[]>()
   for (const toilet of toilets) {
     const key = `${toilet.latitude}:${toilet.longitude}`
@@ -27,7 +39,7 @@ export function groupToiletsByCoordinate(toilets: ToiletMapItem[], locale: strin
     const displayGroupNames = [...namedGroups.values()]
     const additionalPlaceCount = Math.max(0, displayGroupNames.length - 1) + ungroupedCount
     const displayGroupName = displayGroupNames.length
-      ? `${displayGroupNames[0]}${additionalPlaceCount ? (locale === 'ko' ? ` 외 ${additionalPlaceCount}개 장소` : ` and ${additionalPlaceCount} more ${additionalPlaceCount === 1 ? 'place' : 'places'}`) : ''}`
+      ? `${displayGroupNames[0]}${additionalPlaceCount ? ` ${additionalPlaces(additionalPlaceCount, locale)}` : ''}`
       : undefined
     return items.length === 1
       ? { ...toilet, displayGroupName: toilet.displayGroupName || undefined, count: 1 }

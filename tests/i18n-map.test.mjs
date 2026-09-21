@@ -46,6 +46,31 @@ test('normalized opening-hour decisions render from the same values in Korean an
   const changed = { ...always, normalizedOpeningHours: { ...always.normalizedOpeningHours, sourceChanged: true } }
   assert.equal(formatOpenTime(changed, 'en'), 'Opening hours under review')
 })
+
+test('Japanese and regional Chinese detail labels use the selected language without translating free-form source fields', () => {
+  const always = { openTime: '24시간 원문', normalizedOpeningHours: {
+    openingPolicy: 'ALWAYS', open24h: true, status: 'PARSED', sourceChanged: false, holidayPolicy: 'OPEN', schedules: [],
+  } }
+  const scheduled = { openTime: '평일 원문', normalizedOpeningHours: {
+    openingPolicy: 'SCHEDULED', open24h: false, status: 'CONFIRMED', sourceChanged: false, holidayPolicy: 'CLOSED',
+    schedules: [1, 2, 3, 4, 5].map(dayOfWeek => ({ dayOfWeek, slotIndex: 0, startTime: '09:00', endTime: '18:00', crossesMidnight: false, closed: false })),
+  } }
+  const expected = {
+    ja: ['24時間利用可 · 祝日も利用可', '平日 09:00–18:00 · 祝日は利用不可', 'バリアフリー / 男性用 / 女性用'],
+    'zh-CN': ['24小时开放 · 节假日开放', '工作日 09:00–18:00 · 节假日不开放', '无障碍 / 男用 / 女用'],
+    'zh-TW': ['24小時開放 · 國定假日開放', '平日 09:00–18:00 · 國定假日不開放', '無障礙 / 男用 / 女用'],
+    'zh-HK': ['24小時開放 · 公眾假期開放', '平日 09:00–18:00 · 公眾假期休息', '無障礙 / 男用 / 女用'],
+  }
+  for (const [locale, [allDay, weekdays, facilities]] of Object.entries(expected)) {
+    assert.equal(formatOpenTime(always, locale), allDay)
+    assert.equal(formatOpenTime(scheduled, locale), weekdays)
+    assert.equal(formatOpenTime({ openTime: '평일 원문' }, locale), '평일 원문')
+    assert.equal(formatFacilityLocation('장애인화장실 + 남자화장실 + 여자화장실', locale), facilities)
+    assert.equal(formatFacilityLocation('여자화장실 입구', locale), '여자화장실 입구')
+    assert.equal(formatInstallationDate('202609', locale), '2026年9月')
+    assert.doesNotMatch(formatLastUpdatedAt(null, locale), /[가-힣]/)
+  }
+})
 test('system notices have safe English fallbacks without leaking arbitrary server errors', () => {
   assert.equal(mapSystemNotice('검색 결과가 없습니다.', 'en'), 'No places found.')
   for (const value of ['private-error-value', '__proto__']) assert.doesNotMatch(mapSystemNotice(value, 'en'), /private-error-value|__proto__/)

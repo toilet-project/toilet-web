@@ -14,9 +14,10 @@ import { ReviewIcon } from './ReviewDialog'
 const SUMMARY_LIMIT = 3
 type PublicReviewSummary = { count: number; rating: string }
 
-export function PublicReviews({ toiletId, toiletName = '화장실', toiletType = '화장실', summary }: { toiletId: number; toiletName?: string; toiletType?: string; summary?: PublicReviewSummary }) {
+export function PublicReviews({ toiletId, toiletName, toiletType, summary }: { toiletId: number; toiletName?: string; toiletType?: string; summary?: PublicReviewSummary }) {
+  const locale = useLocale()
   if (!PUBLIC_REVIEW_API_ENABLED || toiletId <= 0) return null
-  return <PublicReviewList key={toiletId} toiletId={toiletId} toiletName={toiletName} toiletType={toiletType} summary={summary} />
+  return <PublicReviewList key={toiletId} toiletId={toiletId} toiletName={toiletName || toiletTypeLabel(undefined, locale)} toiletType={toiletType || ''} summary={summary} />
 }
 
 export function PublicReviewsLoading() {

@@ -36,7 +36,7 @@ export function AccountRecoveryDialog() {
     catch (reason) { setError(accountError(reason, locale, 'recovery.closeError')); setBusy(false) }
   }
   return <div className="account-backdrop"><section className="account-dialog account-recovery" role="dialog" aria-modal="true" aria-labelledby="recovery-title">
-    <p className="policy-brand" aria-label={locale === 'en' ? 'Geupddong' : '급똥'}><BrandWordmark locale={locale} /></p><h1 id="recovery-title">{t('recovery.title')}</h1>
+    <p className="policy-brand" aria-label={locale === 'ko' ? '급똥' : 'Geupddong'}><BrandWordmark locale={locale} /></p><h1 id="recovery-title">{t('recovery.title')}</h1>
     {finished ? <><p role="status">{finished}</p><AccountErasureNotice /><a href={home}>{t('detail.back')}</a></> : <>
       {status && <p>{t('recovery.verified')}</p>}
       {status && <><p>{t('recovery.intro', { name: status.displayName || t('recovery.previous') })}</p>

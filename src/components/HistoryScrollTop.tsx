@@ -1,8 +1,10 @@
 import { useLayoutEffect, useRef, useState, type RefObject } from 'react'
+import { useMessages } from '../i18n/context'
 
 const SHOW_AFTER_PX = 400
 
 export function HistoryScrollTop({ container }: { container: RefObject<HTMLElement | null> }) {
+  const t = useMessages()
   const button = useRef<HTMLButtonElement>(null), [visible, setVisible] = useState(false)
   useLayoutEffect(() => {
     const scroll = container.current
@@ -21,7 +23,7 @@ export function HistoryScrollTop({ container }: { container: RefObject<HTMLEleme
     window.visualViewport?.addEventListener('resize', update)
     return () => { observer.disconnect(); scroll.removeEventListener('scroll', update); window.removeEventListener('resize', update); window.visualViewport?.removeEventListener('resize', update) }
   }, [container])
-  return <button ref={button} type="button" className={`history-scroll-top${visible ? ' is-visible' : ''}`} aria-label="맨 위로 이동" title="맨 위로 이동" aria-hidden={!visible} disabled={!visible} tabIndex={visible ? 0 : -1} onClick={() => {
+  return <button ref={button} type="button" className={`history-scroll-top${visible ? ' is-visible' : ''}`} aria-label={t('common.top')} title={t('common.top')} aria-hidden={!visible} disabled={!visible} tabIndex={visible ? 0 : -1} onClick={() => {
     const scroll = container.current
     if (!scroll) return
     scroll.querySelector<HTMLElement>('.history-heading h1')?.focus({ preventScroll: true })

@@ -68,6 +68,31 @@ test('review and report failures have actionable English without exposing unknow
   assert.doesNotMatch(reportReadErrorMessage(new Error('private'), 'en'), /private/)
 })
 
+test('review failures, notification titles and accessibility labels stay in Japanese or Chinese', () => {
+  for (const locale of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
+    for (const error of [
+      new ReviewApiError('REVIEW_ALREADY_EXISTS', 'private server error'),
+      new ReviewApiError('REVIEW_EDIT_EXPIRED', 'private server error'),
+      new ReviewApiError('UNKNOWN', 'private server error'),
+      new ReviewGateError('최근 5분 이내 위치를 확인하지 못했어요. 다시 시도해 주세요.'),
+      new ReviewGateError('unknown location error'),
+      new ReviewGateError('unknown session error', 'session'),
+    ]) {
+      const shown = reviewErrorMessage(error, locale)
+      assert.doesNotMatch(shown, /[가-힣]|private server error|unknown location error|unknown session error/)
+      assert.ok(shown.length > 0)
+    }
+    assert.match(reviewErrorMessage(new ReviewApiError('REVIEW_ALREADY_EXISTS', ''), locale), /24/)
+    assert.match(reviewErrorMessage(new ReviewApiError('REVIEW_EDIT_EXPIRED', ''), locale), /7/)
+    assert.match(reviewErrorMessage(new ReviewGateError('최근 5분 이내 위치를 확인하지 못했어요. 다시 시도해 주세요.'), locale), /5/)
+    for (const key of ['common.top', 'notification.unreadCount', 'update.available', 'error.notFound']) {
+      assert.doesNotMatch(message(locale, key, { count: 2 }), /[가-힣]/)
+    }
+  }
+  const notices = readFileSync(new URL('../src/components/NotificationPanel.tsx', import.meta.url), 'utf8')
+  assert.match(notices, /locale !== 'ko' && item.referenceType === 'TOILET_REPORT'/)
+})
+
 test('activity views keep authors, comments, addresses and administrator notes verbatim', () => {
   const read = path => readFileSync(new URL(`../src/${path}`, import.meta.url), 'utf8')
   const mine = read('components/reviews/MyReviewsPanel.tsx'), reports = read('components/MyReportsPanel.tsx'), notices = read('components/NotificationPanel.tsx')
