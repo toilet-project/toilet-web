@@ -1374,10 +1374,12 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const distanceReference = resolveDistanceReference(distanceSource, mapCenter, currentLocation)
   const displaySelectedToilet = selectedToilet ? localizeToiletMapItem(selectedToilet, locale) : null
   const displayToiletDetail = toiletDetail ? localizeToiletDetail(toiletDetail, locale) : null
-  const displaySelectedCoordinateGroup = selectedCoordinateGroup ? {
-    ...selectedCoordinateGroup,
-    toilets: selectedCoordinateGroup.toilets.map(toilet => localizeToiletMapItem(toilet, locale)),
-  } : null
+  const displaySelectedCoordinateGroup = useMemo(() => {
+    if (!selectedCoordinateGroup) return null
+    const toilets = selectedCoordinateGroup.toilets.map(toilet => localizeToiletMapItem(toilet, locale))
+    const [localizedGroup] = groupToiletsByCoordinate(toilets, locale)
+    return { ...selectedCoordinateGroup, toilets, displayGroupName: localizedGroup?.displayGroupName }
+  }, [locale, selectedCoordinateGroup])
   const distanceReferenceLabel = t(distanceSource === 'current-location' ? 'map.fromMe' : 'map.distanceFrom')
   const distanceToSelectedToilet = distanceReference && selectedToilet
     ? formatDistance(calculateDistanceInMeters(distanceReference, selectedToilet))
