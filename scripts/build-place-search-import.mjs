@@ -8,6 +8,7 @@ const seedPath = resolve(args.get('--seed') || `${root}/data/place-search/place-
 const outputPath = resolve(args.get('--output') || `${root}/.generated/place-search-import.sql`)
 const [metadata, ...rows] = (await readFile(seedPath, 'utf8')).trim().split(/\r?\n/).map(line => JSON.parse(line))
 const seed = { ...metadata, records: rows.map(({ type: _type, ...record }) => record) }
+const curatedAliases = JSON.parse(await readFile(`${root}/data/place-search/curated-search-aliases.json`, 'utf8'))
 
 const sql = (value) => value == null ? 'NULL' : `'${String(value).replaceAll("'", "''")}'`
 const number = (value) => Number.isFinite(value) ? String(value) : 'NULL'
@@ -15,6 +16,16 @@ const json = (value) => sql(JSON.stringify(value ?? null))
 const normalize = (value) => String(value ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('en-US').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ')
 
 if (metadata.type !== 'dataset' || rows.some(row => row.type !== 'place') || seed.records.length !== seed.sourceCount) throw new Error('Invalid place search seed')
+for (const [id, override] of Object.entries(curatedAliases)) {
+  const place = seed.records.find(record => record.id === id)
+  if (!place || place.searchScope !== 'preview' || place.productionApproved || !Array.isArray(override.en)
+    || override.en.length === 0 || override.en.some(alias => typeof alias !== 'string' || !/^[A-Za-z][A-Za-z\s-]{1,79}$/.test(alias))
+    || typeof override.source !== 'string' || !override.source.startsWith('https://english.seoul.go.kr/')) {
+    throw new Error(`Invalid curated search alias: ${id}`)
+  }
+  place.aliases = { ...place.aliases, en: [...new Set([...(place.aliases?.en ?? []), ...override.en])] }
+  place.curatedAliasSource = override.source
+}
 
 const statements = [
   `INSERT INTO source_datasets (id, schema_version, audited_at, as_of, source_hash, source_count, licenses_json) VALUES (${sql(seed.datasetId)}, ${number(seed.schemaVersion)}, ${sql(seed.auditedAt)}, ${sql(seed.asOf)}, ${sql(seed.sourceHash)}, ${number(seed.sourceCount)}, ${json(seed.sourceLicenses)}) ON CONFLICT(id) DO UPDATE SET schema_version=excluded.schema_version, audited_at=excluded.audited_at, as_of=excluded.as_of, source_hash=excluded.source_hash, source_count=excluded.source_count, licenses_json=excluded.licenses_json, imported_at=CURRENT_TIMESTAMP;`,

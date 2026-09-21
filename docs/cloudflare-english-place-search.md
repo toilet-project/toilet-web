@@ -25,6 +25,7 @@
 
 - `places`: 한·영 이름, 분류, 검토 상태, 검색 범위, 대표 좌표, 출처와 전체 감사 정보를 보관한다.
 - `place_aliases`: 한·영 별칭을 분리해 보관한다.
+- 원본 표기와 다르지만 공식 자료에서 확인한 영어 별칭은 별도 검토 파일로 관리한다. 현재 `Myeongdong Station`은 [서울시 공식 표기](https://english.seoul.go.kr/real-time-foreign-language-system-begins-pilot-operations-at-myeongdong-station/)에 근거한 명동역 검색 별칭이다. 기존 장소 좌표나 공식 명칭은 바꾸지 않는다.
 - `place_coordinate_candidates`: 복수 좌표 후보와 근거를 보존한다. 대표 좌표를 임의로 평균 내지 않는다.
 - `place_search_fts`: 프리뷰 검색이 허용된 1,019건만 넣는 FTS5 색인이다.
 - 모든 장소에는 내부 대분류와 함께 검색 결과에 표시할 한글·영문 세부 카테고리가 있다. 예: 공항/Airport, 역/Station, 공원/Park, 박물관/Museum, 대학교/University.

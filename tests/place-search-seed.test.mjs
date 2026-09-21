@@ -37,5 +37,14 @@ test('generated D1 schema and import are executable and searchable', async () =>
     LIMIT 5
   `).all('"incheon"* AND "airport"*')
   assert.ok(result.some(place => place.name_en === 'Incheon International Airport'))
+  const myeongdong = database.prepare(`
+    SELECT p.id, p.name_en, p.audit_json
+    FROM place_search_fts
+    JOIN places p ON p.id = place_search_fts.place_id
+    WHERE place_search_fts MATCH ? AND p.search_scope = 'preview'
+    LIMIT 5
+  `).all('"myeongdong"*')
+  assert.ok(myeongdong.some(place => place.id === 'Q626260' && place.name_en === 'Myeong-dong Station'
+    && JSON.parse(place.audit_json).curatedAliasSource.includes('english.seoul.go.kr')))
   database.close()
 })
