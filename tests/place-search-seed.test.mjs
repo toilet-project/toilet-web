@@ -41,7 +41,8 @@ test('generated D1 schema and import are executable and searchable', async () =>
   assert.equal(database.prepare('SELECT count(*) AS count FROM places').get().count, 2000)
   assert.equal(database.prepare('SELECT count(*) AS count FROM place_search_fts').get().count, 1903)
   assert.equal(database.prepare('SELECT count(*) AS count FROM place_search_localized_fts').get().count, 1903 * 4)
-  assert.equal(database.prepare('SELECT count(*) AS count FROM place_localizations').get().count, 1903 * 4 - 7)
+  assert.equal(database.prepare('SELECT count(*) AS count FROM place_localizations').get().count, 1903 * 4 - 33)
+  assert.equal(database.prepare("SELECT count(*) AS count FROM place_localizations WHERE source_language='en'").get().count, 503)
   assert.equal(database.prepare("SELECT count(*) AS count FROM places WHERE search_scope='production'").get().count, 0)
   assert.deepEqual(database.prepare(`SELECT latitude, longitude, count(*) AS count FROM places
     WHERE search_scope = 'preview' GROUP BY latitude, longitude HAVING count(*) > 3`).all(), [])
@@ -86,6 +87,7 @@ test('generated D1 schema and import are executable and searchable', async () =>
   assert.equal(translated.name, '釜山国际金融中心')
   assert.equal(translated.source_language, 'en')
   assert.equal(database.prepare("SELECT count(*) AS count FROM place_localizations WHERE place_id='Q625749' AND locale='zh-CN'").get().count, 0)
+  assert.equal(database.prepare("SELECT count(*) AS count FROM place_localizations WHERE place_id='Q625763'").get().count, 0)
   const d1 = { prepare(statement) { return { bind(...values) { return { async all() {
     return { results: database.prepare(statement).all(...values) }
   } } } } } }

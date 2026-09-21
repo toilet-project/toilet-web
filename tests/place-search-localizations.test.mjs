@@ -37,4 +37,6 @@ test('keeps English fallback for a held or unchanged machine translation', () =>
   const { rows } = mergePlaceLocalizations(wikidata, lines.map(JSON.stringify).join('\n'), new Set(['Q1:zh-CN']))
   assert.equal(rows.get('Q1').names['zh-CN'], undefined)
   assert.equal(rows.get('Q2'), undefined)
+  assert.throws(() => mergePlaceLocalizations(wikidata, fallback, new Set(['Q9:ja'])), /Unknown Google translation hold/)
+  assert.throws(() => mergePlaceLocalizations(wikidata, null, new Set(['Q1:zh-CN'])), /Missing Google translation fallback/)
 })

@@ -1,6 +1,7 @@
 export const asianLocales = ['ja', 'zh-CN', 'zh-TW', 'zh-HK']
 
 export function mergePlaceLocalizations(wikidataText, googleText = null, heldPairs = new Set()) {
+  if (heldPairs.size && !googleText?.trim()) throw new Error('Missing Google translation fallback dataset for holds')
   const [wikidataMetadata, ...wikidataRows] = wikidataText.trim().split(/\r?\n/).map(JSON.parse)
   if (wikidataMetadata.type !== 'dataset' || !wikidataMetadata.sourceSeedHash) throw new Error('Invalid Wikidata localizations')
   const rows = new Map()
@@ -29,6 +30,9 @@ export function mergePlaceLocalizations(wikidataText, googleText = null, heldPai
       entry.names[row.locale] = { name: row.name.trim(), aliases: [], sourceLanguage: 'en',
         sourceEnglish: row.englishName.trim(), resolvedLanguage: row.requestedLanguage }
       rows.set(row.id, entry)
+    }
+    for (const key of heldPairs) {
+      if (!seen.has(key)) throw new Error(`Unknown Google translation hold: ${key}`)
     }
   }
   return { metadata: wikidataMetadata, rows }
