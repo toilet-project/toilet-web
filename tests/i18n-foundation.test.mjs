@@ -53,6 +53,20 @@ test('Asian locale routes keep Chinese regions independent and legal text on its
   assert.notEqual(message('zh-TW', 'metric.paper'), message('zh-HK', 'metric.paper'))
 })
 
+test('Asian fixed UI dictionaries are complete while source and user text remain outside the dictionary', () => {
+  for (const locale of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
+    for (const key of Object.keys(messages.ko)) {
+      assert.doesNotMatch(messages[locale][key], /[가-힣]/, `${locale}:${key}`)
+      assert.notEqual(messages[locale][key], messages.ko[key], `${locale}:${key}`)
+    }
+    for (const [key, invariant] of [['auth.ageNote', '14'], ['review.existingQuestion', '24'], ['review.invalidComment', '200'], ['account.retainChoice', '3']]) {
+      assert.ok(message(locale, key).includes(invariant), `${locale}:${key}`)
+    }
+    assert.match(message(locale, 'review.detachDetails'), /匿名/)
+  }
+  assert.notEqual(message('zh-CN', 'review.paper'), message('zh-HK', 'review.paper'))
+})
+
 test('facility translations select the exact Chinese region and keep missing fields in Korean', () => {
   const toilet = { name: '원문 화장실', roadAddress: '원문 도로명', jibunAddress: '원문 지번',
     translations: {

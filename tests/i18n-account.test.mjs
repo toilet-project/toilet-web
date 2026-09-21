@@ -6,6 +6,7 @@ import { accountDate, accountError, policyDisplayPath, policyTitle } from '../sr
 import { policyTranslationSourceSha256 } from '../src/i18n/policyTranslation.ts'
 import { message } from '../src/i18n/messages.ts'
 import { saveLanguageLoginReturn, consumeLanguageLoginReturn } from '../src/i18n/loginReturn.ts'
+import { policyReturnLocale } from '../src/i18n/policyReturn.ts'
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8').replaceAll('\r\n', '\n')
 
 test('only current verified policy paths are localized; versions and archives never silently upgrade', () => {
@@ -52,6 +53,17 @@ test('Asian signup controls are localized while the legal documents stay on Kore
     assert.match(message(locale, 'consent.item', { title: '서비스 이용약관' }), /서비스 이용약관/)
   }
   assert.notEqual(message('zh-CN', 'consent.koreanOriginal'), message('zh-TW', 'consent.koreanOriginal'))
+})
+
+test('Korean original policy returns to the language of the referring map', () => {
+  const origin = 'https://preview.geupddong.com'
+  for (const [path, locale] of [['/ja', 'ja'], ['/zh-cn/toilet/123', 'zh-CN'], ['/zh-tw', 'zh-TW'], ['/zh-hk', 'zh-HK'], ['/en/policies/terms', 'en'], ['/', 'ko']]) {
+    assert.equal(policyReturnLocale('ko', origin + path, origin), locale)
+  }
+  assert.equal(policyReturnLocale('ja', origin + '/policies/privacy', origin), 'ja')
+  assert.equal(policyReturnLocale('zh-CN', 'https://other.example/ja', origin), 'zh-CN')
+  assert.equal(policyReturnLocale(null, '', origin), 'ko')
+  assert.match(read('src/components/PolicyPage.tsx'), /<PolicyReturnLinks \/>/)
 })
 
 test('recovery callback returns to a bounded English map route without storing account data', () => {

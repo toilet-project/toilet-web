@@ -3,6 +3,9 @@ import { mapKo, mapEn } from './mapMessages.ts'
 import { activityKo, activityEn } from './activityMessages.ts'
 import { accountKo, accountEn } from './accountMessages.ts'
 import { jaUi, zhCnUi, zhTwUi, zhHkUi } from './asianMessages.ts'
+import { jaActivityExtra, zhCnActivityExtra, zhTwActivityExtra } from './asianActivityExtras.ts'
+import { jaReviewExtra, zhCnReviewExtra, zhTwReviewExtra, zhHkReviewExtra } from './asianReviewExtras.ts'
+import { jaAccountExtra, zhCnAccountExtra, zhTwAccountExtra } from './asianAccountExtras.ts'
 
 // UI text only. Facility names, free-form opening hours and user text stay untouched.
 const ko = {
@@ -168,10 +171,10 @@ const en = {
   'auth.login': 'Log in / Sign up',
 } satisfies Dictionary
 
-const ja = { ...ko, ...jaUi } satisfies Dictionary
-const zhCn = { ...ko, ...zhCnUi } satisfies Dictionary
-const zhTw = { ...ko, ...zhTwUi } satisfies Dictionary
-const zhHk = { ...ko, ...zhHkUi } satisfies Dictionary
+const ja = { ...ko, ...jaUi, ...jaActivityExtra, ...jaReviewExtra, ...jaAccountExtra } satisfies Dictionary
+const zhCn = { ...ko, ...zhCnUi, ...zhCnActivityExtra, ...zhCnReviewExtra, ...zhCnAccountExtra } satisfies Dictionary
+const zhTw = { ...ko, ...zhTwUi, ...zhTwActivityExtra, ...zhTwReviewExtra, ...zhTwAccountExtra } satisfies Dictionary
+const zhHk = { ...ko, ...zhHkUi, ...zhTwActivityExtra, ...zhTwReviewExtra, ...zhHkReviewExtra, ...zhTwAccountExtra } satisfies Dictionary
 
 export const messages: Readonly<Record<Locale, Dictionary>> = {
   ko, en, ja, 'zh-CN': zhCn, 'zh-TW': zhTw, 'zh-HK': zhHk,

@@ -1,4 +1,5 @@
 import { LocalizedPolicyFooter } from './LocalizedPolicyFooter'
+import { PolicyReturnLinks } from './PolicyReturnLinks'
 import type { ReactNode } from 'react'
 import { accountPolicyPublication, policyPublicationAttributes } from '../lib/accountPolicyPublication'
 import { profilePhotoPolicyPublication, profilePhotoPolicyPublicationAttributes } from '../lib/profilePhotoPolicyPublication'
@@ -23,8 +24,7 @@ function PolicyLayout({ title, children, embedded = false }: { title: string; ch
   </section>
   return <main className="policy-page">
     <header className="policy-header">
-      <a href="/" className="policy-brand">급똥</a>
-      <a href="/" className="policy-home-link">지도로 돌아가기</a>
+      <PolicyReturnLinks />
     </header>
     <article className="policy-document" {...policyPublicationAttributes(accountPolicyPublication)} {...reviewPolicyPublicationAttributes(reviewPolicyPublication)} {...profilePhotoPolicyPublicationAttributes(profilePhotoPolicyPublication)}>
       <header className="policy-document-header">

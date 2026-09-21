@@ -35,6 +35,14 @@ export function MapShell({ children }: { children: ReactNode }) {
   const routerRef = useRef(router)
   useLayoutEffect(() => { routerRef.current = router }, [router])
   useLayoutEffect(() => {
+    // Direct /ja and /zh-* visits must also restore their map language after
+    // reading the canonical Korean legal documents.
+    const url = new URL(window.location.href)
+    const locale = localeForPath(url.pathname)
+    if (locale === 'ko' && (url.searchParams.has('login') || url.searchParams.has('recovery'))) return
+    try { rememberLocale(window.localStorage, locale) } catch { /* Optional preference. */ }
+  }, [])
+  useLayoutEffect(() => {
     if (!ENGLISH_UI_ENABLED) return
     const url = new URL(window.location.href)
     try {
