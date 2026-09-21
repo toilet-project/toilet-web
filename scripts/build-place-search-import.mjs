@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { asianLocales, mergePlaceLocalizations } from './place-search-localizations.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const args = new Map(process.argv.slice(2).map((value, index, values) => value.startsWith('--') ? [value, values[index + 1]] : null).filter(Boolean))
@@ -18,10 +19,13 @@ const seed = component
     records: allRecords.slice(componentOffset, componentOffset + component.count) }
   : { ...metadata, records: allRecords }
 const curatedAliases = JSON.parse(await readFile(`${root}/data/place-search/curated-search-aliases.json`, 'utf8'))
-const [localizationMetadata, ...localizationRows] = (await readFile(`${root}/data/place-search/wikidata-localizations-20260921.ndjson`, 'utf8'))
-  .trim().split(/\r?\n/).map(JSON.parse)
-const localizedNames = new Map(localizationRows.map(row => [row.id, row]))
-const asianLocales = ['ja', 'zh-CN', 'zh-TW', 'zh-HK']
+const googlePath = `${root}/data/place-search/google-translation-fallbacks-20260921.ndjson`
+const googleText = await readFile(googlePath, 'utf8').catch(error => {
+  if (error.code === 'ENOENT') return null
+  throw error
+})
+const { metadata: localizationMetadata, rows: localizedNames } = mergePlaceLocalizations(
+  await readFile(`${root}/data/place-search/wikidata-localizations-20260921.ndjson`, 'utf8'), googleText)
 
 const sql = (value) => value == null ? 'NULL' : `'${String(value).replaceAll("'", "''")}'`
 const number = (value) => Number.isFinite(value) ? String(value) : 'NULL'
@@ -33,8 +37,8 @@ if (metadata.type !== 'dataset' || rows.some(row => row.type !== 'place') || all
   || seed.records.length !== seed.sourceCount) throw new Error('Invalid place search seed')
 if (localizationMetadata.type !== 'dataset' || localizationMetadata.sourceSeedHash !== metadata.sourceHash
   || localizationMetadata.eligibleCount !== allRecords.filter(place => place.searchScope === 'preview').length
-  || localizationRows.some(row => row.type !== 'placeLocalization' || !allRecords.some(place => place.id === row.id && place.searchScope === 'preview'))
-  || localizedNames.size !== localizationRows.length) throw new Error('Invalid place search localizations')
+  || [...localizedNames.values()].some(row => !allRecords.some(place => place.id === row.id && place.searchScope === 'preview')))
+  throw new Error('Invalid place search localizations')
 for (const [id, override] of Object.entries(curatedAliases)) {
   const place = seed.records.find(record => record.id === id)
   if (!place && component && allRecords.some(record => record.id === id)) continue

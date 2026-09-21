@@ -33,6 +33,7 @@ test('generated D1 schema and import are executable and searchable', async () =>
   assert.equal(database.prepare('SELECT count(*) AS count FROM places').get().count, 2000)
   assert.equal(database.prepare('SELECT count(*) AS count FROM place_search_fts').get().count, 1923)
   assert.equal(database.prepare('SELECT count(*) AS count FROM place_search_localized_fts').get().count, 1923 * 4)
+  assert.equal(database.prepare('SELECT count(*) AS count FROM place_localizations').get().count, 7156)
   assert.equal(database.prepare("SELECT count(*) AS count FROM places WHERE search_scope='production'").get().count, 0)
   const result = database.prepare(`
     SELECT p.name_en
@@ -64,6 +65,9 @@ test('generated D1 schema and import are executable and searchable', async () =>
     `).all(query, locale)
     assert.deepEqual(localized.map(row => ({ place_id: row.place_id, name: row.name })), [{ place_id: 'Q20415', name }])
   }
+  const busan = database.prepare("SELECT name, source_language FROM place_localizations WHERE place_id='Q53118' AND locale='zh-CN'").get()
+  assert.equal(busan.name, '釜山站')
+  assert.equal(busan.source_language, 'zh')
   const d1 = { prepare(statement) { return { bind(...values) { return { async all() {
     return { results: database.prepare(statement).all(...values) }
   } } } } } }

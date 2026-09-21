@@ -13,7 +13,7 @@ for (let offset = 0; offset < ids.length; offset += 50) {
   const batch = ids.slice(offset, offset + 50)
   const url = new URL('https://www.wikidata.org/w/api.php')
   url.search = new URLSearchParams({
-    action: 'wbgetentities', ids: batch.join('|'), props: 'labels|aliases',
+    action: 'wbgetentities', ids: batch.join('|'), props: 'info|labels|aliases',
     languages: [...new Set(Object.values(languageMap).flat())].join('|'), languagefallback: '0', format: 'json',
   }).toString()
   let response
@@ -29,9 +29,15 @@ for (let offset = 0; offset < ids.length; offset += 50) {
     const entity = body.entities[id]
     const names = Object.fromEntries(Object.entries(languageMap).flatMap(([locale, keys]) => {
       // The API synthesizes Chinese regional variants even with languagefallback=0.
-      // Permit an authored script-level label, never a different region's label.
-      const key = keys.find(candidate => entity.labels?.[candidate]?.language === candidate
+      // Permit an authored script-level label and a script conversion of generic zh,
+      // never a different region's label.
+      let key = keys.find(candidate => entity.labels?.[candidate]?.language === candidate
         && !entity.labels[candidate]['source-language'])
+      if (!key && locale !== 'ja') {
+        const scriptKey = keys[1]
+        if (entity.labels?.[scriptKey]?.language === scriptKey
+          && entity.labels[scriptKey]['source-language'] === 'zh') key = scriptKey
+      }
       const name = key ? entity.labels[key].value?.trim() : ''
       const hasLocaleScript = locale === 'ja'
         ? /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}]/u.test(name)
@@ -40,7 +46,7 @@ for (let offset = 0; offset < ids.length; offset += 50) {
       const aliases = [...new Set((entity.aliases?.[key] ?? [])
         .filter(alias => alias.language === key && !alias['source-language'])
         .map(alias => alias.value?.trim()).filter(value => value && value !== name))]
-      return [[locale, { name, aliases, sourceLanguage: key }]]
+      return [[locale, { name, aliases, sourceLanguage: entity.labels[key]['source-language'] || key, resolvedLanguage: key }]]
     }))
     if (Object.keys(names).length) rows.push({ type: 'placeLocalization', id, revision: entity.lastrevid, names })
   }
@@ -51,7 +57,8 @@ for (let offset = 0; offset < ids.length; offset += 50) {
 const counts = Object.fromEntries(Object.keys(languageMap).map(locale => [locale, rows.filter(row => row.names[locale]).length]))
 const header = {
   type: 'dataset', source: 'https://www.wikidata.org/w/api.php', license: 'CC0-1.0',
-  regionalFallback: false, scriptFallback: true, sourceSeedHash: metadata.sourceHash,
+  regionalFallback: false, scriptFallback: true, commonChineseConversion: true,
+  sourceSeedHash: metadata.sourceHash,
   fetchedAt: new Date().toISOString(), eligibleCount: ids.length, counts,
 }
 await writeFile(outputPath, `${[header, ...rows].map(row => JSON.stringify(row)).join('\n')}\n`)
