@@ -70,7 +70,7 @@ export function PolicyDisclosure({ title, meta, contentPath, version, selection 
     <div className="policy-disclosure-row">
       {selection}
       <button type="button" className="policy-disclosure-toggle" aria-expanded={open} aria-controls={id} onClick={() => { setOpen(value => !value); setErrorPath(null) }}>
-        <span className="policy-disclosure-label"><strong>{title}</strong><small>{meta}{locale === 'en' ? ` · ${t(translated ? 'policy.englishCopy' : 'policy.koreanArchive')}` : ''}</small></span>
+        <span className="policy-disclosure-label"><strong>{title}</strong><small>{meta}{locale !== 'ko' ? ` · ${t(translated ? 'policy.englishCopy' : 'policy.koreanArchive')}` : ''}</small></span>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
       </button>
     </div>

@@ -45,6 +45,7 @@ export function PolicyConsentModal({ isNewRegistration, onComplete, onLogout }: 
       <p className="consent-eyebrow">{isNewRegistration ? t('consent.signupStep') : t('consent.update')}</p>
       <h1 id="consent-title">{isNewRegistration ? t('consent.signupTitle') : t('consent.updateTitle')}</h1>
       <p className="consent-description">{t('consent.description')}</p>
+      {locale !== 'ko' && locale !== 'en' && <p className="consent-description" lang={locale}>{t('consent.koreanOriginal')}</p>}
       <label className="consent-all"><input type="checkbox" checked={allChecked} onChange={() => setChecked(allChecked ? new Set() : new Set(required.map((policy) => policy.key)))} /><strong>{t('consent.all')}</strong></label>
       <div className="consent-list">
         {required.map((policy) => <PolicyDisclosure key={`${policy.id}-${policy.version}-${policy.contentPath}`} title={t('consent.item', { title: policyTitle(locale, policy.key, policy.title) })} meta={`v${policy.version} · ${policy.effectiveAt}`} contentPath={policy.contentPath} version={policy.version} selection={<label className="policy-consent-selection"><input type="checkbox" aria-label={t('consent.agreeItem', { title: policyTitle(locale, policy.key, policy.title) })} checked={checked.has(policy.key)} onChange={() => toggle(policy.key)} /></label>} />)}

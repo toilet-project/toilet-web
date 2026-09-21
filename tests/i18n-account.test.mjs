@@ -36,6 +36,24 @@ test('account dates remain in Korea time and only fixed errors are translated', 
   assert.equal(message('en', 'account.withdrawTitle'), 'Delete your account?')
 })
 
+test('Asian signup controls are localized while the legal documents stay on Korean source paths', () => {
+  const keys = [
+    'auth.intro', 'auth.consentNote', 'auth.checking', 'account.profile',
+    'account.nicknameHelp', 'account.nicknameFailed', 'account.settings',
+    'consent.signupTitle', 'consent.description', 'consent.koreanOriginal',
+    'consent.all', 'consent.item', 'consent.agreeItem', 'consent.ageNote',
+    'consent.submit', 'consent.logout', 'consent.loadError', 'consent.saveError',
+    'policy.koreanArchive', 'policy.loading', 'policy.error',
+  ]
+  for (const locale of ['ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
+    for (const key of keys) assert.notEqual(message(locale, key), message('ko', key), `${locale}:${key}`)
+    assert.equal(policyDisplayPath('/policies/terms', locale, '1.0'), '/policies/terms')
+    assert.equal(policyTitle(locale, 'SERVICE_TERMS', '서비스 이용약관'), '서비스 이용약관')
+    assert.match(message(locale, 'consent.item', { title: '서비스 이용약관' }), /서비스 이용약관/)
+  }
+  assert.notEqual(message('zh-CN', 'consent.koreanOriginal'), message('zh-TW', 'consent.koreanOriginal'))
+})
+
 test('recovery callback returns to a bounded English map route without storing account data', () => {
   const values = new Map(), now = Date.now()
   const store = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) }
