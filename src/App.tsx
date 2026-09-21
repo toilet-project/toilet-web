@@ -7,8 +7,10 @@ import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, typ
 import { createDetailCache } from './lib/detailCache'
 import { createCardHandleGesture, createMarkerTapGesture, createReferenceRequestGate, relayoutPreservingCenter } from './lib/mapInteraction'
 import { cardPlacement } from './lib/cardPlacement'
-import Link from 'next/link'
 import { ProfileMenu } from './components/ProfileMenu'
+import { PrimaryNavigation } from './components/PrimaryNavigation'
+import { HeaderIcon } from './components/HeaderIcon'
+import { SiteFooter } from './components/SiteFooter'
 import { LanguageSelector } from './components/LanguageSelector'
 import { toiletTypeLabel } from './i18n/facilityLabels'
 import { mapSystemNotice, localizeMapLabels } from './i18n/mapLabels'
@@ -40,7 +42,6 @@ import { ToiletReportModal } from './components/ToiletReportModal'
 import { MyReportsPanel } from './components/MyReportsPanel'
 import { NotificationPanel } from './components/NotificationPanel'
 import { PolicyConsentModal } from './components/PolicyConsentModal'
-import { PolicyFooter } from './components/PolicyPage'
 import { AccountDialog } from './components/AccountDialog'
 import { AccountRecoveryDialog } from './components/AccountRecoveryDialog'
 import { fetchUnreadNotificationCount } from './api/notifications'
@@ -1544,14 +1545,14 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
             ><strong>{place.name}</strong><span className="place-search-result-detail"><small>{place.category || t('map.place')}</small><span>{place.address || t('map.noAddress')}</span></span></button>)}
           </div>}
         </div>
-        {isDesktop && <nav className="desktop-primary-nav" aria-label={t('nav.main')}><Link href={localizedPublicPath('/', locale)!} aria-current="page">{t('nav.map')}</Link><Link href={localizedPublicPath('/regions', locale)!}>{t('nav.community')}</Link></nav>}
+        {isDesktop && <PrimaryNavigation className="desktop-primary-nav" active="map" />}
         {!isDesktop && <div className="mobile-header-actions">
           {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => setMobileTab('account')}>{t('auth.login')}</button>}
           {ENGLISH_UI_ENABLED && <LanguageSelector locale={locale} onSelect={next => onLocaleChange(next, testToilet ? null : selectedToilet?.id ?? expandedCoordinateToilet?.id ?? null)} />}
         </div>}
         {isDesktop && <div className="desktop-header-actions">
           <button type="button" className="notification-button" onClick={() => { if (authProfile) setIsNotificationsOpen(true); else { setLoginPurpose('general'); setIsLoginDialogOpen(true) } }} aria-label={unreadNotificationCount ? t('map.unread', { count: unreadNotificationCount }) : t('nav.notifications')}><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-2.5 7-2.5 9h17C20.5 15 18 15 18 8ZM10 21h4" /></svg>{unreadNotificationCount > 0 && <strong>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</strong>}</button>
-          {isAuthLoading ? <span className="auth-status">{t('map.checking')}</span> : authProfile ? <ProfileMenu profile={authProfile} onLogout={handleLogout} /> : <button type="button" className="header-account-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}>{t('auth.login')}</button>}
+          {isAuthLoading ? <span className="auth-status">{t('map.checking')}</span> : authProfile ? <ProfileMenu profile={authProfile} onLogout={handleLogout} /> : <button type="button" className="header-account-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}><HeaderIcon name="account" /><span>{t('auth.login')}</span></button>}
           {ENGLISH_UI_ENABLED && <LanguageSelector locale={locale} onSelect={next => onLocaleChange(next, testToilet ? null : selectedToilet?.id ?? expandedCoordinateToilet?.id ?? null)} />}
         </div>}
         </div>
@@ -1750,7 +1751,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         </section></div>}
         {!isAuthLoading && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('recovery') === 'required' && <AccountRecoveryDialog />}
       </section>
-      {isDesktop ? <footer className="site-footer"><p>{t('map.footer')}</p><PolicyFooter /></footer> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { reviewPreview.close(); setMobileAccountView('home'); setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
+      {isDesktop ? <SiteFooter /> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { reviewPreview.close(); setMobileAccountView('home'); setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
     </main>
   )
 }

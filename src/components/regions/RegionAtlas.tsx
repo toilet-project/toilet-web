@@ -1,8 +1,8 @@
-import Link from 'next/link'
-import { allDistricts, districtsIn, getProvince, polygonParts, provinces, regionBounds, regionName, regionPath, type Region } from '../../lib/regions'
+import { districtsIn, getProvince, polygonParts, provinces, regionBounds, regionName, regionPath, type Region } from '../../lib/regions'
 import { localizedPublicPath } from '../../i18n/routes'
 import type { Locale } from '../../i18n/locale'
 import { regionText } from './regionText'
+import { RegionAtlasCanvas } from './RegionAtlasCanvas'
 
 function pathFor(region: Region, project: (point: [number, number]) => [number, number]) {
   return polygonParts(region.geometry).map(rings => rings.map(ring => ring.map((point, index) => {
@@ -33,18 +33,8 @@ export function RegionAtlas({ locale, provinceCode }: { locale: Locale; province
     yOffset + (boundary.north - latitude) * scale,
   ]
 
-  return <div className="region-atlas-wrap">
-    <svg className="region-atlas" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={province ? `${regionName(province, locale)} · ${t.districts}` : t.regions}>
-      <defs><pattern id="atlas-grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#dbe8df" strokeWidth=".6" /></pattern></defs>
-      <rect width={width} height={height} fill="url(#atlas-grid)" />
-      {regions.map(region => {
-        const url = localizedPublicPath(regionPath(province?.code ?? region.code, province ? region.code : undefined), locale)!
-        return <Link href={url} key={region.code} className="region-atlas-area" aria-label={`${regionName(region, locale)} · ${region.count.toLocaleString(locale)} ${t.toilets}`}>
-          <path d={pathFor(region, project)} fillRule="evenodd" strokeLinejoin="round" />
-          <title>{`${regionName(region, locale)} · ${region.count.toLocaleString(locale)}`}</title>
-        </Link>
-      })}
-    </svg>
-    <span className="region-atlas-caption">{province ? `${regions.length} ${t.districts}` : `${provinces.length} ${t.regions} · ${allDistricts().length} ${t.districts}`}</span>
-  </div>
+  return <RegionAtlasCanvas key={province?.code ?? 'all'} width={width} height={height} label={province ? t.chooseDistrict : t.chooseProvince} countLabel={t.toilets} enterLabel={t.open}
+    zoomInLabel={t.zoomIn} zoomOutLabel={t.zoomOut} resetLabel={t.resetView}
+    areas={regions.map(region => ({ code: region.code, name: regionName(region, locale), count: region.count.toLocaleString(locale),
+      href: localizedPublicPath(regionPath(province?.code ?? region.code, province ? region.code : undefined), locale)!, path: pathFor(region, project) }))} />
 }

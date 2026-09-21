@@ -1,127 +1,102 @@
-.region-site-shell { min-height: 100svh; display: flex; flex-direction: column; background: #f7faf7; color: #173527; }
-.site-topbar { position: relative; z-index: 30; background: #fff; border-bottom: 1px solid #e4eee6; }
-.site-topbar-inner { display: flex; align-items: center; gap: 22px; max-width: 1480px; min-height: 76px; margin: auto; padding: 0 26px; }
-.site-header-brand { flex: 0 0 auto; color: #14643b; font-size: 31px; text-decoration: none; }
-.site-header-search { flex: 0 1 440px; min-width: 170px; margin-left: 12px; }
-.site-header-search input { box-sizing: border-box; width: 100%; height: 44px; padding: 0 16px; border: 1px solid #dfe9e2; border-radius: 12px; outline: 0; background: #f6f8f6; color: #213b2b; font: inherit; font-size: 14px; }
-.site-header-search input:focus { border-color: #43a16a; box-shadow: 0 0 0 3px #e0f2e6; }
-.site-header-links { display: flex; flex: 0 0 auto; gap: 3px; align-items: center; }
-.site-header-links a { padding: 10px 12px; border-radius: 10px; color: #5c7162; font-size: 14px; font-weight: 700; text-decoration: none; white-space: nowrap; }
-.site-header-links a:hover, .site-header-links a[aria-current] { color: #116a42; background: #edf7f0; }
-.site-header-space { flex: 1 1 auto; }
-.site-header-actions { display: flex; align-items: center; gap: 13px; flex: 0 0 auto; }
-.site-header-bell { display: grid; width: 38px; height: 38px; place-items: center; color: #2d5440; }
-.site-header-bell:hover { color: #11804d; }
-.site-header-login { padding: 9px 12px; color: #17683a; font-size: 13px; font-weight: 700; text-decoration: none; }
-.profile-menu { position: relative; }
-.profile-menu-trigger { display: flex; align-items: center; gap: 8px; max-width: 180px; min-height: 44px; padding: 4px 7px; border: 0; border-radius: 999px; background: transparent; color: #193a29; font: inherit; font-size: 13px; font-weight: 750; cursor: pointer; }
-.profile-menu-trigger:hover, .profile-menu-trigger[aria-expanded=true] { background: #eff7f1; }
-.profile-menu-avatar { display: grid; width: 32px; height: 32px; flex: 0 0 32px; place-items: center; overflow: hidden; border-radius: 50%; background: #dceee3; color: #146c40; font-size: 14px; }
-.profile-menu-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.profile-menu-name { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.profile-menu-panel { position: absolute; top: calc(100% + 9px); right: 0; z-index: 60; display: grid; width: 190px; padding: 7px; border: 1px solid #dce8de; border-radius: 15px; background: #fff; box-shadow: 0 18px 48px #17352724; }
-.profile-menu-panel a, .profile-menu-panel button { padding: 11px 12px; border: 0; border-radius: 9px; background: transparent; color: #294a36; font: inherit; font-size: 13px; text-align: left; text-decoration: none; cursor: pointer; }
-.profile-menu-panel a:hover, .profile-menu-panel button:hover { background: #eff7f1; }
-.profile-menu-rule { height: 1px; margin: 5px 8px; background: #e6eee7; }
-.site-mobile-nav { display: none; }
-.region-main { width: 100%; max-width: 1480px; margin: 0 auto; padding: 30px 26px 48px; box-sizing: border-box; flex: 1; }
-.region-breadcrumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; color: #8a9e90; font-size: 12px; }
-.region-breadcrumbs a { color: #426b50; text-decoration: none; }
-.region-breadcrumbs a:hover { text-decoration: underline; }
-.region-hero { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin: 0 0 24px; }
-.region-eyebrow { color: #147c4c; font-size: 10px; font-weight: 850; letter-spacing: .17em; }
-.region-hero h1 { margin: 8px 0 10px; color: #102d1c; font-size: clamp(31px, 4vw, 52px); font-weight: 800; letter-spacing: -.07em; line-height: 1.15; }
-.region-hero p { margin: 0; color: #627b69; font-size: 14px; line-height: 1.6; }
-.region-hero-stat { display: grid; justify-items: end; min-width: 160px; padding-bottom: 3px; }
-.region-hero-stat strong { color: #166d42; font-size: 34px; font-weight: 850; font-variant-numeric: tabular-nums; letter-spacing: -.06em; }
-.region-hero-stat span { color: #739080; font-size: 11px; }
-.region-discovery-layout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(330px, .85fr); gap: 20px; align-items: stretch; }
-.region-atlas-card, .region-options-card, .region-district-map-card, .region-toilet-card { min-width: 0; overflow: hidden; border: 1px solid #dce9df; border-radius: 24px; background: #fff; box-shadow: 0 15px 45px #1e653008; }
-.region-card-heading { padding: 23px 26px 16px; }
-.region-card-heading h2 { margin: 7px 0 0; font-size: 21px; letter-spacing: -.04em; }
-.region-card-heading p { margin: 6px 0 0; color: #738b7b; font-size: 12px; }
-.region-atlas-wrap { position: relative; margin: 0 14px 14px; border: 1px solid #ecf2ec; border-radius: 18px; background: #f8fcf8; overflow: hidden; }
-.region-atlas { display: block; width: 100%; max-height: min(73svh, 850px); }
-.region-atlas-area path { fill: #dcece0; stroke: #fff; stroke-width: 2.5; transition: fill .2s, stroke .2s, filter .2s; }
-.region-atlas-area:hover path, .region-atlas-area:focus path { fill: #2e9865; stroke: #0c7244; stroke-width: 3; filter: drop-shadow(0 3px 5px #174c3180); }
+.region-site-shell { min-height: 100svh; display: flex; flex-direction: column; background: #f6f9f7; color: #173527; }
+.region-site-shell.is-region-page { height: 100dvh; min-height: 0; overflow: hidden; }
+.region-main { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; max-width: 1480px; margin: 0 auto; padding: 14px 24px 18px; }
+.region-breadcrumbs { display: flex; flex: 0 0 auto; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 9px; color: #98a99d; font-size: 11px; }
+.region-breadcrumbs a { color: #71927d; text-decoration: none; }
+.region-breadcrumbs a:hover { color: #236442; text-decoration: underline; text-underline-offset: 3px; }
+.region-hero { display: flex; flex: 0 0 auto; justify-content: space-between; align-items: center; gap: 22px; margin: 0 0 14px; }
+.region-eyebrow { color: #50866a; font-size: 10px; font-weight: 700; letter-spacing: .12em; }
+.region-hero h1 { margin: 4px 0 6px; color: #183d28; font-size: 30px; font-weight: 750; letter-spacing: -.05em; line-height: 1.15; }
+.region-hero p { margin: 0; color: #7a9081; font-size: 12px; line-height: 1.5; }
+.region-hero-stat { display: grid; flex: 0 0 auto; justify-items: end; gap: 4px; }
+.region-hero-stat strong { color: #28744b; font-size: 28px; font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+.region-hero-stat span { color: #8b9f91; font-size: 10px; }
+.region-discovery-layout { display: flex; flex: 1; min-height: 0; }
+.region-atlas-card, .region-district-map-card, .region-toilet-card { position: relative; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid #dfeae3; border-radius: 22px; background: #fff; }
+.region-atlas-card { flex: 1; background: #fafdFA; }
+.region-atlas-wrap { position: relative; width: 100%; height: 100%; overflow: hidden; background: radial-gradient(ellipse at 50% 45%, #eef6f0, #fafdfa 70%); }
+.region-atlas { display: block; width: 100%; height: 100%; padding: 12px 20px 34px; touch-action: none; user-select: none; cursor: grab; }
+.region-atlas-wrap.is-dragging .region-atlas, .region-atlas-wrap.is-dragging .region-atlas-area { cursor: grabbing; }
+.region-atlas-controls { position: absolute; top: 16px; right: 16px; z-index: 7; display: grid; padding: 4px; border: 1px solid #dfe9e2; border-radius: 14px; background: #ffffffed; box-shadow: 0 3px 12px #193f2810; }
+.region-atlas-controls button { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: #406d51; font: inherit; font-size: 23px; cursor: pointer; }
+.region-atlas-controls button:hover { background: #edf5ef; }
+.region-atlas-controls button:disabled { color: #bdcec3; cursor: default; }
+.region-atlas-controls button:focus-visible { outline: 2px solid #31845a; outline-offset: -2px; }
+.region-atlas-area { cursor: pointer; }
+.region-atlas-area path { fill: #d3e7da; stroke: #fbfefc; stroke-width: 2.4; transition: fill .16s, stroke .16s; }
+.region-atlas-area:hover path, .region-atlas-area:focus path, .region-atlas-area.is-active path { fill: #31845a; stroke: #fff; stroke-width: 2.8; }
 .region-atlas-area:focus-visible { outline: none; }
-.region-atlas-caption { position: absolute; left: 18px; bottom: 14px; padding: 6px 10px; border-radius: 999px; background: #ffffffd9; color: #58725f; font-size: 10px; font-weight: 700; }
-.region-options-card { display: flex; flex-direction: column; }
-.region-options-list { display: grid; align-content: start; gap: 0; max-height: min(79svh, 910px); padding: 0 16px 15px; overflow: auto; }
-.region-options-list a { display: grid; grid-template-columns: minmax(0, 1fr) auto 16px; gap: 12px; align-items: center; min-height: 58px; padding: 8px 12px; border-bottom: 1px solid #edf2ee; border-radius: 8px; color: #224632; text-decoration: none; }
-.region-options-list a:hover { background: #f1f8f2; }
-.region-options-list a > span:first-child { display: grid; gap: 4px; min-width: 0; }
-.region-options-list strong { font-size: 13px; font-weight: 750; overflow-wrap: anywhere; }
-.region-options-list small { color: #91a496; font-size: 10px; font-weight: 500; }
-.region-options-list a > span:nth-child(2) { color: #1c8050; font-size: 13px; font-weight: 800; white-space: nowrap; }
-.region-options-list b { color: #91b29a; font-size: 15px; font-weight: 500; }
-.region-district-layout { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(340px, .55fr); gap: 20px; }
-.district-map-wrap { position: relative; height: clamp(440px, 65svh, 760px); margin: 0 15px 15px; border: 1px solid #e3ece5; border-radius: 17px; overflow: hidden; background: #f1f7f1; }
+.region-atlas-caption { position: absolute; display: flex; align-items: center; gap: 7px; left: 20px; bottom: 14px; padding: 5px 0; color: #7d9686; font-size: 11px; pointer-events: none; }
+.region-atlas-caption > span { width: 6px; height: 6px; border-radius: 50%; background: #87b599; }
+.region-atlas-tooltip { position: absolute; z-index: 8; min-width: 190px; max-width: 230px; padding: 15px 18px; border: 1px solid #e0ebe4; border-radius: 16px; background: #fffffff5; box-shadow: 0 12px 35px #1b503323; pointer-events: none; }
+.region-atlas-tooltip-name { display: block; color: #365a43; font-size: 13px; font-weight: 650; }
+.region-atlas-tooltip > div { display: flex; align-items: baseline; gap: 7px; margin-top: 5px; }
+.region-atlas-tooltip strong { color: #247447; font-size: 27px; font-weight: 750; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
+.region-atlas-tooltip > div > span { color: #86a08e; font-size: 11px; }
+.region-atlas-tooltip.is-touch { bottom: 46px; left: 16px; right: 16px; max-width: none; pointer-events: auto; }
+.region-atlas-tooltip > a { position: absolute; display: flex; align-items: center; gap: 10px; right: 15px; bottom: 21px; min-height: 40px; padding: 0 13px; border-radius: 12px; background: #287d50; color: white; font-size: 12px; font-weight: 650; text-decoration: none; }
+.region-district-layout { display: grid; flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) minmax(280px, .4fr); gap: 16px; }
+.region-district-map-card, .region-toilet-card { display: flex; flex-direction: column; }
+.region-card-heading { flex: 0 0 auto; padding: 16px 20px 12px; }
+.region-card-heading h2 { margin: 5px 0 0; font-size: 18px; letter-spacing: -.03em; }
+.region-card-heading p { margin: 5px 0 0; color: #819889; font-size: 11px; }
+.district-map-wrap { position: relative; flex: 1; min-height: 0; margin: 0 10px 10px; border: 1px solid #e3ece5; border-radius: 15px; overflow: hidden; background: #f1f7f1; }
 .district-naver-map { width: 100%; height: 100%; }
 .district-map-error { position: absolute; z-index: 4; top: 14px; left: 14px; right: 14px; padding: 10px; border-radius: 10px; background: #fff; color: #895427; font-size: 12px; }
 .district-map-selection { position: absolute; z-index: 5; bottom: 18px; left: 18px; right: 18px; max-height: 48%; overflow: auto; padding: 15px 18px; border: 1px solid #d7e9d9; border-radius: 17px; background: #fff; box-shadow: 0 10px 30px #11362526; }
 .district-map-selection strong { display: block; padding-right: 28px; font-size: 14px; }
 .district-map-selection > div { display: grid; margin-top: 9px; }
 .district-map-selection a { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid #e8f0e9; color: #215a38; font-size: 12px; text-decoration: none; }
-.region-selection-close { position: absolute; top: 9px; right: 12px; border: 0; background: transparent; color: #5a7964; font-size: 22px; cursor: pointer; }
+.region-selection-close { position: absolute; top: 9px; right: 12px; width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: #5a7964; font-size: 22px; cursor: pointer; }
 .region-map-marker { display: flex; flex-direction: column; align-items: center; }
 .region-map-marker .toilet-marker-name { display: none; }
 .region-map-marker:hover .toilet-marker-name, .region-map-marker:focus-visible .toilet-marker-name { display: block; }
-.region-toilet-card { display: flex; flex-direction: column; }
-.region-toilet-list { overflow: auto; max-height: clamp(440px, 65svh, 760px); margin: 0 13px 15px; }
-.region-toilet-row { display: grid; grid-template-columns: 32px minmax(0, 1fr) 20px; align-items: center; gap: 12px; min-height: 58px; padding: 8px 10px; border-bottom: 1px solid #edf1ed; border-radius: 8px; color: #254631; text-decoration: none; }
-.region-toilet-row:hover { background: #f1f8f2; }
-.region-toilet-row strong { display: block; font-size: 13px; line-height: 1.35; }
-.region-toilet-row small { display: block; margin-top: 3px; color: #7b9180; font-size: 10px; }
-.region-toilet-index { color: #77a386; font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.region-empty { padding: 24px; color: #698273; font-size: 13px; }
-.region-source { margin: 22px 2px 0; color: #91a093; font-size: 10px; line-height: 1.6; }
-.region-source a { color: inherit; }
-.region-loading-label { margin: 4px 0 20px; color: #2d7148; font-size: 14px; font-weight: 700; }
-.region-loading-title, .region-loading-grid > div { background: linear-gradient(100deg, #eef5ef 25%, #f8fbf8 50%, #eef5ef 75%); background-size: 200% 100%; animation: region-loading-shimmer 1.2s linear infinite; }
-.region-loading-title { width: min(330px, 65%); height: 46px; margin-bottom: 22px; border-radius: 12px; }
-.region-loading-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(330px, .85fr); gap: 20px; }
-.region-loading-grid > div { min-height: 460px; border-radius: 24px; }
+.region-toilet-list { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; margin: 0 10px 10px; }
+.region-toilet-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) 16px; align-items: center; gap: 10px; min-height: 58px; padding: 9px; border-bottom: 1px solid #edf1ed; border-radius: 9px; color: #365943; text-decoration: none; }
+.region-toilet-row:hover { background: #f1f8f3; }
+.region-toilet-row strong { display: block; font-size: 12px; font-weight: 650; line-height: 1.4; }
+.region-toilet-row small { display: block; margin-top: 3px; color: #8da194; font-size: 10px; }
+.region-toilet-index { color: #8cb29a; font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.region-empty { padding: 20px; color: #698273; font-size: 13px; }
+.region-source { position: absolute; z-index: 9; right: 16px; bottom: 14px; color: #91a496; font-size: 10px; line-height: 1.6; }
+.region-source summary { display: flex; align-items: center; gap: 7px; padding: 5px 9px; border: 1px solid #e3ece6; border-radius: 999px; background: #ffffffd9; list-style: none; cursor: pointer; }
+.region-source summary::-webkit-details-marker { display: none; }
+.region-source p { position: absolute; right: 0; bottom: calc(100% + 7px); width: min(300px, calc(100vw - 60px)); margin: 0; padding: 14px; border: 1px solid #dfe9e2; border-radius: 13px; background: white; box-shadow: 0 8px 30px #244c321a; }
+.region-source a { color: #4a775a; text-decoration: underline; text-underline-offset: 2px; }
+.region-district-map-card > .region-source { top: 21px; bottom: auto; }
+.region-district-map-card > .region-source p { top: calc(100% + 7px); bottom: auto; }
+.region-loading-label { flex: 0 0 auto; margin: 4px 0 20px; color: #4f805f; font-size: 13px; }
+.region-loading-title, .region-loading-grid > div { background: linear-gradient(100deg, #edf4ee 25%, #f8fbf8 50%, #edf4ee 75%); background-size: 200% 100%; animation: region-loading-shimmer 1.2s linear infinite; }
+.region-loading-title { flex: 0 0 36px; width: min(280px, 65%); margin-bottom: 18px; border-radius: 12px; }
+.region-loading-grid { display: flex; flex: 1; min-height: 0; }
+.region-loading-grid > div { flex: 1; border-radius: 22px; }
 @keyframes region-loading-shimmer { to { background-position-x: -200%; } }
-@media (prefers-reduced-motion: reduce) { .region-loading-title, .region-loading-grid > div { animation: none; } }
-.region-footer { display: flex; justify-content: space-between; gap: 20px; max-width: 1480px; width: 100%; margin: auto; padding: 20px 26px; box-sizing: border-box; color: #8ba493; font-size: 11px; }
-.region-footer a { color: inherit; text-decoration: none; }
-@media (max-width: 980px) { .site-topbar-inner { gap: 10px; padding: 0 14px; } .site-header-search { margin-left: 2px; flex-basis: 320px; } .site-header-links a { padding: 9px 7px; } .region-district-layout { grid-template-columns: 1fr; } .region-toilet-list { max-height: 400px; } }
-@media (max-width: 700px) {
-  .region-site-shell { padding-bottom: 62px; }
-  .site-topbar-inner { min-height: 60px; }
-  .site-header-brand { font-size: 25px; }
-  .site-header-search { min-width: 0; flex: 1 1 auto; }
-  .site-header-search input { height: 40px; font-size: 12px; }
-  .site-header-links, .site-header-space, .site-header-bell, .site-header-actions .profile-menu, .site-header-login { display: none; }
-  .site-header-actions { gap: 0; }
-  .site-mobile-nav { position: fixed; z-index: 50; inset: auto 0 0; display: grid; grid-template-columns: repeat(4, 1fr); padding-bottom: env(safe-area-inset-bottom); border-top: 1px solid #e6efe8; background: #fff; }
-  .site-mobile-nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 54px; gap: 2px; color: #718575; font-size: 11px; font-weight: 700; text-decoration: none; }
-  .site-mobile-nav a[aria-current] { color: #147445; }
-  .site-mobile-nav a span { display: grid; width: 24px; height: 24px; place-items: center; }
-  .region-main { padding: 20px 14px 36px; }
-  .region-breadcrumbs { margin-bottom: 16px; }
-  .region-hero { align-items: flex-start; }
-  .region-hero-stat { min-width: auto; }
-  .region-hero-stat strong { font-size: 22px; }
-  .region-hero-stat span { display: none; }
-  .region-hero p { font-size: 12px; }
-  .region-discovery-layout { grid-template-columns: 1fr; gap: 13px; }
-  .region-loading-grid { grid-template-columns: 1fr; gap: 13px; }
-  .region-loading-grid > div { min-height: 220px; border-radius: 17px; }
-  .region-atlas-card, .region-options-card, .region-district-map-card, .region-toilet-card { border-radius: 17px; }
-  .region-card-heading { padding: 18px 17px 12px; }
-  .region-card-heading h2 { font-size: 17px; }
-  .region-atlas-wrap { margin: 0 8px 9px; }
-  .region-atlas { max-height: 63svh; }
-  .region-options-list { max-height: none; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; padding: 0 8px 10px; }
-  .region-options-list a { grid-template-columns: minmax(0, 1fr) auto; min-height: 62px; padding: 9px; border: 1px solid #e8eee8; }
-  .region-options-list a > span:nth-child(2) { font-size: 11px; }
-  .region-options-list a > span:nth-child(2) small, .region-options-list b { display: none; }
-  .district-map-wrap { height: 52svh; min-height: 350px; margin: 0 8px 8px; }
-  .region-toilet-list { max-height: 440px; }
-  .region-footer { padding: 15px; }
+@media (prefers-reduced-motion: reduce) { .region-loading-title, .region-loading-grid > div { animation: none; } .region-atlas-area path { transition: none; } }
+@media (max-width: 800px) { .region-district-layout { grid-template-columns: minmax(0, 1fr) minmax(220px, .55fr); gap: 10px; } }
+@media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (pointer: coarse) {
+  .region-main { padding: 12px 12px 14px; }
+  .region-breadcrumbs { margin-bottom: 9px; font-size: 10px; }
+  .region-hero { gap: 14px; margin-bottom: 13px; }
+  .region-hero h1 { font-size: 25px; }
+  .region-hero p { max-width: 270px; font-size: 11px; }
+  .region-hero-stat strong { font-size: 23px; }
+  .region-hero-stat span { max-width: 86px; font-size: 9px; text-align: right; }
+  .region-atlas-card, .region-district-map-card, .region-toilet-card { border-radius: 17px; }
+  .region-atlas { padding: 10px 4px 38px; }
+  .region-atlas-caption { left: 15px; bottom: 12px; font-size: 10px; }
+  .region-district-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1.5fr) minmax(0, 1fr); gap: 10px; }
+  .region-district-map-card > .region-card-heading { display: none; }
+  .district-map-wrap { margin: 0; border: 0; border-radius: 16px; }
+  .region-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px 8px; }
+  .region-card-heading .region-eyebrow { display: none; }
+  .region-card-heading h2 { margin: 0; font-size: 13px; }
+  .region-card-heading p { margin: 0; white-space: nowrap; }
+  .region-toilet-row { min-height: 49px; }
+  .region-source { right: 12px; bottom: 12px; }
+  .region-district-map-card > .region-source { top: 10px; right: 10px; }
+  .district-map-selection { bottom: 12px; left: 12px; right: 12px; max-height: 65%; padding: 12px 14px; }
 }
+@media (max-height: 540px) { .region-hero p, .region-hero .region-eyebrow { display: none; } .region-hero { margin-bottom: 9px; } .region-hero h1 { margin: 0; font-size: 22px; } .region-breadcrumbs { margin-bottom: 5px; } }
 .account-page-main { width: 100%; max-width: 1360px; flex: 1; margin: auto; padding: 28px 26px 45px; box-sizing: border-box; }
 .account-workspace { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 22px; min-height: 600px; }
 .account-workspace-rail, .account-workspace-content { min-width: 0; border: 1px solid #dce9df; border-radius: 20px; background: #fff; }
