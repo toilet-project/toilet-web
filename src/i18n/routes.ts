@@ -51,9 +51,7 @@ export function localizedPublicPath(input: string, locale: Locale): string | nul
   if (!isLocale(locale)) return null
   const parsed = parseLocalizedPublicPath(input)
   if (!parsed) return null
-  // Only the English legal text is translated. Keep unreviewed policies on the Korean source URL.
-  const target = parsed.path.startsWith('/policies/') && locale !== 'en' ? 'ko' : locale
-  const path = `${prefixes[target]}${parsed.path === '/' && target !== 'ko' ? '' : parsed.path}`
+  const path = `${prefixes[locale]}${parsed.path === '/' && locale !== 'ko' ? '' : parsed.path}`
   return path + parsed.suffix
 }
 

@@ -6,6 +6,7 @@ import { profilePhotoPolicyPublication, profilePhotoPolicyPublicationAttributes 
 import { englishPolicyTitles, type EnglishPolicyKind } from '../i18n/policyTranslation'
 import './policy-disclosure.css'
 import { BrandWordmark } from './BrandWordmark'
+import { koreanPolicySourcePath } from '../i18n/policyReturn'
 const date = (value: string) => new Date(value).toLocaleString('en-GB', { timeZone: 'Asia/Seoul' })
 const publicationNotice = accountPolicyPublication.status === 'draft' ? 'Draft revision for review · Effective date not set'
   : `Revised policy · Announced: ${date(accountPolicyPublication.announcedAt!)} · Effective: ${date(accountPolicyPublication.effectiveAt!)} (Korea time)`
@@ -24,11 +25,11 @@ function EnglishPolicyLayout({ kind, embedded, children }: { kind: EnglishPolicy
       {...policyPublicationAttributes(accountPolicyPublication)} {...reviewPolicyPublicationAttributes(reviewPolicyPublication)} {...profilePhotoPolicyPublicationAttributes(profilePhotoPolicyPublication)}>
       <header className="policy-document-header">
         <p className="policy-eyebrow">Geupddong policies</p><h1>{title}</h1><p className="policy-effective">{publicationNotice}</p>
-        <a className="policy-history-link" href="/policy-history/2026-09-01.html">Previous policy (Korean) <span>1 September 2026</span></a>
+        <a className="policy-history-link" href="/policy-history/2026-09-01.html?return=en">Previous policy (Korean) <span>1 September 2026</span></a>
       </header>
       <aside className="policy-translation-note" aria-label="About this translation">
         <p>This English preview translation helps you read the Korean original. It does not change the agreement conditions, policy versions or effective dates.</p>
-        <a href={`/policies/${kind}`} lang="ko">한국어 원문 보기</a>
+        <a href={koreanPolicySourcePath(`/policies/${kind}`, 'en')} lang="ko">한국어 원문 보기</a>
       </aside>
       {accountPolicyPublication.status === 'published' && <section className="policy-change-notice" aria-label="Account policy changes">
         <h2>Changes to account deletion and recovery</h2>

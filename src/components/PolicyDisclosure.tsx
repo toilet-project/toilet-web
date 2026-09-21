@@ -1,13 +1,14 @@
 import { useLocale, useMessages } from '../i18n/context'
 import { createElement, useEffect, useId, useState, type ReactNode } from 'react'
 import { policyDisplayPath } from '../i18n/accountLabels'
+import { koreanPolicySourcePath } from '../i18n/policyReturn'
 import './policy-disclosure.css'
 
 // Render the document linked by the API, including archived versions. Never substitute
 // today's terms for an older agreement or inject fetched HTML/scripts into the app.
 function policyUrl(path: string) {
   const url = new URL(path, window.location.origin)
-  if (url.origin !== window.location.origin || url.username || url.password || url.search || !/^\/(?:(?:en\/)?policies\/(?:terms|privacy|location|all)|policy-history\/\d{4}-\d{2}-\d{2}(?:\.html)?)$/.test(url.pathname)) throw new Error('지원하지 않는 약관 주소입니다.')
+  if (url.origin !== window.location.origin || url.username || url.password || url.search || !/^\/(?:(?:(?:en|ja|zh-cn|zh-tw|zh-hk)\/)?policies\/(?:terms|privacy|location|all)|policy-history\/\d{4}-\d{2}-\d{2}(?:\.html)?)$/.test(url.pathname)) throw new Error('지원하지 않는 약관 주소입니다.')
   return url
 }
 
@@ -39,7 +40,7 @@ function documentContent(html: string, url: URL): ReactNode {
 export function PolicyDisclosure({ title, meta, contentPath, version, selection }: { title: string; meta: string; contentPath: string; version?: string; selection?: ReactNode }) {
   const t = useMessages(), locale = useLocale()
   const displayPath = policyDisplayPath(contentPath, locale, version)
-  const translated = displayPath.startsWith('/en/policies/')
+  const translated = displayPath !== contentPath
   const id = useId()
   const [open, setOpen] = useState(false)
   const [loaded, setLoaded] = useState<{ path: string; content: ReactNode } | null>(null)
@@ -75,8 +76,8 @@ export function PolicyDisclosure({ title, meta, contentPath, version, selection 
       </button>
     </div>
     {open && <div id={id} className="policy-disclosure-content" role="region" aria-label={title} lang={locale}>
-      {translated && <p className="policy-translation-note">{t('policy.englishNote')} <a href={contentPath} target="_blank" rel="noreferrer">{t('policy.viewOriginal')}</a></p>}
-      {content ? <div lang={translated ? 'en' : 'ko'}>{content}</div> : error ? <p role="alert">{t('policy.error')} <button type="button" onClick={() => { setErrorPath(null); setAttempt(value => value + 1) }}>{t('common.retry')}</button></p> : <p role="status">{t('policy.loading')}</p>}
+      {translated && <p className="policy-translation-note">{t('policy.englishNote')} <a href={koreanPolicySourcePath(contentPath, locale)} target="_blank" rel="noreferrer">{t('policy.viewOriginal')}</a></p>}
+      {content ? <div lang={translated ? locale : 'ko'}>{content}</div> : error ? <p role="alert">{t('policy.error')} <button type="button" onClick={() => { setErrorPath(null); setAttempt(value => value + 1) }}>{t('common.retry')}</button></p> : <p role="status">{t('policy.loading')}</p>}
     </div>}
   </div>
 }

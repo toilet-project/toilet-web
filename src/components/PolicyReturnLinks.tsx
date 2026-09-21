@@ -9,7 +9,8 @@ import { policyReturnLocale } from '../i18n/policyReturn'
 function getMapPath() {
   let preferred: Locale | null = null
   try { preferred = readLocalePreference(window.localStorage) } catch { /* Private browsing can deny storage. */ }
-  const locale = policyReturnLocale(preferred, document.referrer, window.location.origin)
+  const locale = policyReturnLocale(preferred, document.referrer, window.location.origin,
+    new URLSearchParams(window.location.search).get('return'))
   return localizedPublicPath('/', locale) ?? '/'
 }
 

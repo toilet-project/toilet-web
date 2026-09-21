@@ -37,7 +37,7 @@ test('language conversion preserves existing query/hash without inventing locati
   assert.equal(localizedPublicPath('/en?query=%EA%B3%B5%EC%9B%90', 'ko'), '/?query=%EA%B3%B5%EC%9B%90')
 })
 
-test('Asian locale routes keep Chinese regions independent and legal text on its Korean source URL', () => {
+test('Asian locale routes keep Chinese regions and translated policy pages independent', () => {
   for (const [locale, prefix] of [['ja', '/ja'], ['zh-CN', '/zh-cn'], ['zh-TW', '/zh-tw'], ['zh-HK', '/zh-hk']]) {
     assert.equal(localizedPublicPath('/', locale), prefix)
     assert.equal(localizedPublicPath('/toilet/123?q=x#card', locale), `${prefix}/toilet/123?q=x#card`)
@@ -45,7 +45,8 @@ test('Asian locale routes keep Chinese regions independent and legal text on its
     assert.equal(localeForPath(`${prefix}/toilet/123`), locale)
     assert.equal(localizedPublicPath(`${prefix}/toilet/123`, 'ko'), '/toilet/123')
     assert.equal(isLanguageOnlyNavigation('/toilet/123', `${prefix}/toilet/123`), true)
-    assert.equal(localizedPublicPath('/policies/terms', locale), '/policies/terms')
+    assert.equal(localizedPublicPath('/policies/terms', locale), `${prefix}/policies/terms`)
+    assert.equal(localizedPublicPath(`${prefix}/policies/privacy#analytics`, locale), `${prefix}/policies/privacy#analytics`)
     assert.equal(sanitizeAnalyticsPagePath(`${prefix}/toilet/123?secret=x`), '/toilet/:id')
   }
   for (const path of ['/zh', '/zh-CN', '/zh-cn-extra', '/ja-extra', '/zh-hk/../toilet/1']) assert.equal(parseLocalizedPublicPath(path), null)
