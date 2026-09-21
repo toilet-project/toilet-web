@@ -1,9 +1,12 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import type { ToiletDetailResponse } from '../api/toilets'
 import { getDisplayAddress } from '../lib/address'
 import { regionLabel } from '../lib/toiletRoute'
+import { districtAt, getProvince, regionName, regionPath } from '../lib/regions'
+import { localizedPublicPath } from '../i18n/routes'
 import { visibleCounts, hasValue, formatOpenTime, formatPhoneNumber, formatInstallationDate, formatFacilityLocation, type CountItem } from '../lib/detailFormatting'
 import { TRANSIENT_NOTICE_MS } from '../lib/uiTiming'
 import { useLocale, useMessages } from '../i18n/context'
@@ -27,11 +30,15 @@ export function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse 
     { label: t('detail.childToilets'), count: display.femaleChildToiletCount },
   ])
   const address = getDisplayAddress(display.roadAddress, display.jibunAddress)
+  const district = display.longitude != null && display.latitude != null ? districtAt(display.longitude, display.latitude) : null
+  const province = district ? getProvince(district.provinceCode) : null
+  const linkedRegion = district && province ? `${regionName(province, locale)} ${regionName(district, locale)}` : null
 
   return (
     <div className="card-details" tabIndex={0} aria-label={t('detail.title')}>
       {address && <DetailRow className="detail-address" label={t('detail.address')} value={address} copyable />}
-      {regionLabel(display.region) && <DetailRow label={t('detail.region')} value={regionLabel(display.region)} />}
+      {linkedRegion && district ? <div className="detail-row detail-region-link"><dt>{t('detail.region')}</dt><dd><Link href={localizedPublicPath(regionPath(district.provinceCode, district.code), locale)!}>{linkedRegion}<span aria-hidden="true">↗</span></Link></dd></div>
+        : regionLabel(display.region) && <DetailRow label={t('detail.region')} value={regionLabel(display.region)} />}
       <DetailRow label={t('detail.openingDetails')} value={formatOpenTime(display, locale)} />
       {hasValue(display.installationDate) && <DetailRow label={t('detail.installed')} value={formatInstallationDate(display.installationDate, locale)} />}
       {(maleCounts.length > 0 || femaleCounts.length > 0) && <section className="detail-section">

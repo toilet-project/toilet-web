@@ -7,7 +7,8 @@ import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, typ
 import { createDetailCache } from './lib/detailCache'
 import { createCardHandleGesture, createMarkerTapGesture, createReferenceRequestGate, relayoutPreservingCenter } from './lib/mapInteraction'
 import { cardPlacement } from './lib/cardPlacement'
-import { DesktopHeaderMenu } from './components/DesktopHeaderMenu'
+import Link from 'next/link'
+import { ProfileMenu } from './components/ProfileMenu'
 import { LanguageSelector } from './components/LanguageSelector'
 import { toiletTypeLabel } from './i18n/facilityLabels'
 import { mapSystemNotice, localizeMapLabels } from './i18n/mapLabels'
@@ -304,6 +305,13 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const [isPlaceSearching, setIsPlaceSearching] = useState(false)
   const [activePlaceSearchIndex, setActivePlaceSearchIndex] = useState(-1)
   const [isPlaceSearchFocused, setIsPlaceSearchFocused] = useState(false)
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search).get('q')?.trim()
+    if (query && query.length >= 2 && query.length <= 100) {
+      setPlaceSearchKeyword(query)
+      setIsPlaceSearchFocused(true)
+    }
+  }, [])
   const [isMobileAreaListOpen, setIsMobileAreaListOpen] = useState(false)
   const isMobileAreaListVisible = isMobileAreaListOpen && !route.detail
   const [mobileAreaToilets, setMobileAreaToilets] = useState<ToiletMapItem[] | null>(null)
@@ -1536,19 +1544,15 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
             ><strong>{place.name}</strong><span className="place-search-result-detail"><small>{place.category || t('map.place')}</small><span>{place.address || t('map.noAddress')}</span></span></button>)}
           </div>}
         </div>
+        {isDesktop && <nav className="desktop-primary-nav" aria-label={t('nav.main')}><Link href={localizedPublicPath('/', locale)!} aria-current="page">{t('nav.map')}</Link><Link href={localizedPublicPath('/regions', locale)!}>{t('nav.community')}</Link></nav>}
         {!isDesktop && <div className="mobile-header-actions">
-          {ENGLISH_UI_ENABLED ? <LanguageSelector locale={locale} onSelect={next => onLocaleChange(next, testToilet ? null : selectedToilet?.id ?? expandedCoordinateToilet?.id ?? null)} /> : <>
-          {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => setMobileTab('account')}>로그인</button>}
-          <DesktopHeaderMenu compact authenticated={Boolean(authProfile)} onReports={openMyReports} onAccount={() => { reviewPreview.close(); setMobileTab('account'); setMobileAccountView('home') }} onLogout={handleLogout} />
-          </>}
+          {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => setMobileTab('account')}>{t('auth.login')}</button>}
+          {ENGLISH_UI_ENABLED && <LanguageSelector locale={locale} onSelect={next => onLocaleChange(next, testToilet ? null : selectedToilet?.id ?? expandedCoordinateToilet?.id ?? null)} />}
         </div>}
         {isDesktop && <div className="desktop-header-actions">
-          {isAuthLoading ? <span className="auth-status">{t('map.checking')}</span> : authProfile ? <>
-            <button type="button" className="notification-button" onClick={() => setIsNotificationsOpen(true)} aria-label={unreadNotificationCount ? t('map.unread', { count: unreadNotificationCount }) : t('nav.notifications')}><span aria-hidden="true" />{unreadNotificationCount > 0 && <strong>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</strong>}</button>
-            <button type="button" className="header-account-button" onClick={() => setIsAccountOpen(true)}>{t('auth.account')}</button>
-          </> : <button type="button" className="header-account-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}>{t('auth.login')}</button>}
+          <button type="button" className="notification-button" onClick={() => { if (authProfile) setIsNotificationsOpen(true); else { setLoginPurpose('general'); setIsLoginDialogOpen(true) } }} aria-label={unreadNotificationCount ? t('map.unread', { count: unreadNotificationCount }) : t('nav.notifications')}><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-2.5 7-2.5 9h17C20.5 15 18 15 18 8ZM10 21h4" /></svg>{unreadNotificationCount > 0 && <strong>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</strong>}</button>
+          {isAuthLoading ? <span className="auth-status">{t('map.checking')}</span> : authProfile ? <ProfileMenu profile={authProfile} onLogout={handleLogout} /> : <button type="button" className="header-account-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}>{t('auth.login')}</button>}
           {ENGLISH_UI_ENABLED && <LanguageSelector locale={locale} onSelect={next => onLocaleChange(next, testToilet ? null : selectedToilet?.id ?? expandedCoordinateToilet?.id ?? null)} />}
-          <DesktopHeaderMenu authenticated={Boolean(authProfile)} onReviews={REVIEW_UI_ENABLED ? reviewPreview.openMine : undefined} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} />
         </div>}
         </div>
       </header>

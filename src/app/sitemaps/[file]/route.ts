@@ -1,5 +1,9 @@
 import { MAX_SHARD, sitemapXml } from '../../../lib/seo'
+import { facilitySlug } from '../../../lib/regionToiletPath'
+import toiletRegions from '../../../../data/regions/toilet-district.json'
 import { getSitemapIds, sitemapUnavailable, xmlResponse } from '../../../server/sitemaps'
+
+const regions: Record<string, string[]> = toiletRegions
 
 export async function GET(_request: Request, context: { params: Promise<{ file: string }> }) {
   const { file } = await context.params
@@ -9,6 +13,9 @@ export async function GET(_request: Request, context: { params: Promise<{ file: 
   try {
     const ids = await getSitemapIds(shard)
     if (!ids.length) return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } })
-    return xmlResponse(sitemapXml(ids.map(id => `/toilet/${id}`)))
+    return xmlResponse(sitemapXml(ids.map(id => {
+      const region = regions[id]
+      return region?.length === 2 ? `/regions/${region[0].slice(0, 2)}/${region[0]}/toilet/${id}-${facilitySlug(region[1])}` : `/toilet/${id}`
+    })))
   } catch { return sitemapUnavailable() }
 }

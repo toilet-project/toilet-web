@@ -1,6 +1,7 @@
 import type { ToiletDetailResponse } from '../api/toilets.ts'
 import { getDisplayAddress } from './address.ts'
-import { regionLabel, toiletCoordinates, toiletPath } from './toiletRoute.ts'
+import { regionLabel, toiletCoordinates } from './toiletRoute.ts'
+import { regionToiletPath } from './regionToiletPath.ts'
 
 export const SITE_ORIGIN = 'https://geupddong.com'
 export const SITEMAP_SIZE = 10_000
@@ -23,8 +24,8 @@ export function placeData(detail: ToiletDetailResponse) {
   const region = detail.region
   return {
     '@context': 'https://schema.org', '@type': 'Place',
-    '@id': `${SITE_ORIGIN}${toiletPath(detail.id)}#place`,
-    url: `${SITE_ORIGIN}${toiletPath(detail.id)}`, name: detail.name,
+    '@id': `${SITE_ORIGIN}${regionToiletPath(detail)}#place`,
+    url: `${SITE_ORIGIN}${regionToiletPath(detail)}`, name: detail.name,
     ...(address ? { address: { '@type': 'PostalAddress', streetAddress: address, addressCountry: 'KR',
       ...(region?.sidoName ? { addressRegion: region.sidoName } : {}),
       ...(region?.sigunguName ? { addressLocality: region.sigunguName } : {}),

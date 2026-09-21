@@ -1,6 +1,6 @@
 import { isLocale, SUPPORTED_LOCALES, type Locale } from './locale.ts'
 
-const PUBLIC_PATH = /^\/(?:toilet\/[1-9]\d*|policies\/(?:all|terms|privacy|location))?$/
+const PUBLIC_PATH = /^\/(?:toilet\/[1-9]\d*|regions(?:\/[0-9]{2}(?:\/[0-9]{5}(?:\/toilet\/[1-9]\d*-[a-z0-9]+(?:-[a-z0-9]+)*)?)?)?|account|policies\/(?:all|terms|privacy|location))?$/
 
 export function localeForPath(path: string | null): Locale {
   return localePrefix(path ?? '').locale
@@ -20,7 +20,7 @@ function localePrefix(path: string): { locale: Locale; prefix: string } {
 
 export function isMapPath(path: string): boolean {
   const parsed = parseLocalizedPublicPath(path)
-  return Boolean(parsed && !parsed.suffix && (parsed.path === '/' || parsed.path.startsWith('/toilet/')))
+  return Boolean(parsed && !parsed.suffix && (parsed.path === '/' || parsed.path.startsWith('/toilet/') || /\/toilet\/[1-9]\d*-/.test(parsed.path)))
 }
 
 export function isLanguageOnlyNavigation(previous: string, next: string): boolean {
