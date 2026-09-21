@@ -6,6 +6,10 @@ import { useRouter } from 'next/navigation'
 import { MapRouteContext, type MapRouteData } from './mapRouteContext'
 import { toiletPath } from '../lib/toiletRoute'
 import { getReviewTestHash, subscribeReviewTestHash } from '../lib/reviewTestToilet'
+import { localeForPath, localizedPublicPath } from '../i18n/routes'
+import { rememberLocale, type Locale } from '../i18n/locale'
+import { consumeLanguageLoginReturn } from '../i18n/loginReturn'
+import { ENGLISH_UI_ENABLED } from '../i18n/feature'
 
 const noServerTestHash = () => ''
 
@@ -27,6 +31,15 @@ export function MapShell({ children }: { children: ReactNode }) {
   const router = useRouter()
   const routerRef = useRef(router)
   useLayoutEffect(() => { routerRef.current = router }, [router])
+  useLayoutEffect(() => {
+    if (!ENGLISH_UI_ENABLED) return
+    const url = new URL(window.location.href)
+    try {
+      const target = consumeLanguageLoginReturn(window.sessionStorage, url.searchParams.get('login')
+        ?? (url.searchParams.get('recovery') === 'required' ? 'recovery' : null))
+      if (target && target !== url.pathname) routerRef.current.replace(target + url.search, { scroll: false })
+    } catch { /* Normal login completion must remain usable without storage. */ }
+  }, [])
   const [route, setRoute] = useState<MapRouteData | null>(null)
   const [mounted, setMounted] = useState(false)
   const register = useCallback((next: MapRouteData) => {
@@ -35,12 +48,18 @@ export function MapShell({ children }: { children: ReactNode }) {
   }, [])
   const onMounted = useCallback(() => setMounted(true), [])
   const navigate = useCallback((id: number | null) => {
-    const path = id === null ? '/' : toiletPath(id)
+    const path = localizedPublicPath(id === null ? '/' : toiletPath(id), localeForPath(window.location.pathname))!
     // Also cancels an in-flight detail navigation when the user closes before it resolves.
     routerRef.current.push(path + getReviewTestHash(), { scroll: false })
   }, [])
+  const changeLocale = useCallback((locale: Locale, id: number | null) => {
+    const path = localizedPublicPath(id === null ? '/' : toiletPath(id), locale)
+    if (!path) return
+    try { rememberLocale(window.localStorage, locale) } catch { /* Preference storage is optional. */ }
+    routerRef.current.push(path + window.location.search + window.location.hash, { scroll: false })
+  }, [])
   return <MapRouteContext.Provider value={{ mounted, register }}>
-    <MapErrorBoundary>{route && <MapApp key={testToiletHash} testToiletHash={testToiletHash} route={route} onNavigate={navigate} onMounted={onMounted} />}</MapErrorBoundary>
+    <MapErrorBoundary>{route && <MapApp key={testToiletHash} testToiletHash={testToiletHash} route={route} onNavigate={navigate} onLocaleChange={changeLocale} onMounted={onMounted} />}</MapErrorBoundary>
     {children}
   </MapRouteContext.Provider>
 }

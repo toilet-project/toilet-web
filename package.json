@@ -21,7 +21,8 @@
     "cache:prewarm": "node scripts/prewarm-toilet-pages.mjs",
     "cache:refresh-shared": "node scripts/refresh-shared-toilet-data.mjs",
     "cache:cleanup": "node scripts/cleanup-incremental-cache.mjs",
-    "test": "node --experimental-strip-types --test tests/*.test.mjs"
+    "search:build-import": "node scripts/build-place-search-import.mjs",
+    "test": "node scripts/build-place-search-import.mjs && node --experimental-strip-types --test tests/*.test.mjs"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "1.20.6",

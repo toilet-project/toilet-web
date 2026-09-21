@@ -1,3 +1,6 @@
+import type { Locale } from '../i18n/locale.ts'
+import { message } from '../i18n/messages.ts'
+
 export type HistoryPeriod = '7' | '30' | 'all' | 'custom'
 export type HistoryRange = { period: HistoryPeriod; from: string; to: string }
 const DAY = 86_400_000
@@ -7,10 +10,10 @@ const validDay = (value: string) => Number.isFinite(dayStart(value)) && historyT
 export function historyRange(period: Exclude<HistoryPeriod, 'custom'> = '7', today = historyToday()): HistoryRange {
   return { period, from: historyToday(dayStart(today) - (period === '30' ? 29 : 6) * DAY), to: today }
 }
-export function historyRangeProblem(from: string, to: string, today = historyToday()) {
-  if (!validDay(from) || !validDay(to)) return '시작일과 종료일을 선택해 주세요.'
-  if (from > to) return '종료일은 시작일 이후로 선택해 주세요.'
-  if (to > today) return '오늘까지의 날짜를 선택할 수 있어요.'
+export function historyRangeProblem(from: string, to: string, today = historyToday(), locale: Locale = 'ko') {
+  if (!validDay(from) || !validDay(to)) return message(locale, 'history.missingDates')
+  if (from > to) return message(locale, 'history.invalidOrder')
+  if (to > today) return message(locale, 'history.future')
   return null
 }
 /** API LocalDateTime is Korea time; ISO timestamps retain their explicit offset. */
@@ -23,8 +26,8 @@ export function selectHistory<T extends { createdAt: string }>(items: readonly T
   return items.filter(item => { const time = historyTimestamp(item.createdAt); return Number.isFinite(time) && time >= start && time < end })
     .sort((a, b) => historyTimestamp(b.createdAt) - historyTimestamp(a.createdAt))
 }
-export const historyDateLabel = (value: string) => {
+export const historyDateLabel = (value: string, locale: Locale = 'ko') => {
   const time = historyTimestamp(value)
-  return Number.isFinite(time) ? new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short' }).format(time) : '-'
+  return Number.isFinite(time) ? new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'ko-KR', { timeZone: 'Asia/Seoul', dateStyle: 'medium', timeStyle: 'short' }).format(time) : '-'
 }
 export const historyWindowSize = (requested: number, total: number, focusedIndex = -1) => Math.min(total, Math.max(requested, Math.ceil((focusedIndex + 1) / 10) * 10))

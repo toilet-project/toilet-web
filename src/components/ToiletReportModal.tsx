@@ -1,3 +1,4 @@
+import { useLocale, useMessages } from '../i18n/context'
 import { useEffect, useRef, useState } from 'react'
 import { createToiletReport } from '../api/reports'
 import type { ToiletDetailResponse } from '../api/toilets'
@@ -5,11 +6,13 @@ import { createKakaoMap, reverseGeocodeKakaoCoordinates, type KakaoMapInstance }
 import { getDisplayAddress } from '../lib/address'
 import { attachReportViewport } from '../lib/reportViewport'
 import { trackEvent } from '../lib/analytics'
+import { formatOpenTime } from '../lib/detailFormatting'
 
 type ReportType = 'choice' | 'location' | 'locationConfirm' | 'openTime' | 'complete'
 type Coordinates = { latitude: number; longitude: number }
 
 export function ToiletReportModal({ toilet, latitude, longitude, onClose, onViewMyReports }: { toilet: ToiletDetailResponse; latitude: number; longitude: number; onClose: () => void; onViewMyReports: () => void }) {
+  const locale = useLocale(), t = useMessages()
   const [step, setStep] = useState<ReportType>('choice')
   const [coordinates, setCoordinates] = useState<Coordinates>({ latitude, longitude })
   // 지도 이동 중에는 재생성하지 않고, 확인 단계로 전환할 때만 중심을 확정한다.
@@ -88,17 +91,17 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
 
   const openLocationConfirmation = () => {
     setError(null)
-    if (!reason.trim()) { setError('제보 사유를 입력해 주세요.'); return }
-    if (!roadAddress) { setError('표시된 주소를 확인해 주세요.'); return }
+    if (!reason.trim()) { setError(t('report.reasonRequired')); return }
+    if (!roadAddress) { setError(t('report.checkAddress')); return }
     setConfirmedCoordinates(coordinates)
     setStep('locationConfirm')
   }
 
   const submit = async () => {
     setError(null)
-    if (!reason.trim()) { setError('제보 사유를 입력해 주세요.'); return }
-    if (step === 'locationConfirm' && !roadAddress) { setError('표시된 주소를 확인해 주세요.'); return }
-    if (step === 'openTime' && !openTime.trim()) { setError('변경할 개방 시간을 입력해 주세요.'); return }
+    if (!reason.trim()) { setError(t('report.reasonRequired')); return }
+    if (step === 'locationConfirm' && !roadAddress) { setError(t('report.checkAddress')); return }
+    if (step === 'openTime' && !openTime.trim()) { setError(t('report.hoursRequired')); return }
 
     setIsSubmitting(true)
     const reportKind = step === 'locationConfirm' ? 'coordinate' : 'open_time'
@@ -110,57 +113,57 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
       setStep('complete')
     } catch (submissionError) {
       trackEvent('report_submit', { report_kind: reportKind, success: false })
-      setError(submissionError instanceof Error ? submissionError.message : '제보를 접수하지 못했습니다.')
+      setError(locale === 'ko' && submissionError instanceof Error ? submissionError.message : submissionError instanceof Error && submissionError.message === '제보하려면 먼저 로그인해 주세요.' ? t('auth.required') : t('report.submitFailed'))
     } finally { setIsSubmitting(false) }
   }
 
   return <div ref={backdropRef} className="report-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section className="report-modal" role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
       <header className="report-modal-toolbar">
-        {step !== 'choice' && step !== 'complete' && <button type="button" className="report-back" onClick={() => setStep(step === 'locationConfirm' ? 'location' : 'choice')} aria-label={step === 'locationConfirm' ? '위치 수정 화면으로' : '이전 화면으로'}>‹</button>}
-        <span className="report-modal-step-title">{{choice:'정보 제보',location:'위치 제보',locationConfirm:'위치 제보 확인',openTime:'개방 시간 제보',complete:'접수 완료'}[step]}</span>
-        <button type="button" className="report-modal-close" onClick={onClose} aria-label="제보 닫기">×</button>
+        {step !== 'choice' && step !== 'complete' && <button type="button" className="report-back" onClick={() => setStep(step === 'locationConfirm' ? 'location' : 'choice')} aria-label={t('common.back')}>‹</button>}
+        <span className="report-modal-step-title">{t(({ choice: 'report.title', location: 'report.location', locationConfirm: 'report.confirmLocation', openTime: 'report.hours', complete: 'report.received' } as const)[step])}</span>
+        <button type="button" className="report-modal-close" onClick={onClose} aria-label={t('report.close')}>×</button>
       </header>
       <div ref={contentRef} className="report-modal-content">
       {step === 'choice' && <>
-        <h1 id="report-modal-title">어떤 정보를 알려주실 건가요?</h1>
-        <p className="report-target"><span>제보 대상</span><strong>{toilet.name}</strong></p>
-        <p className="report-modal-description">관리자가 확인한 뒤 서비스 정보에 반영합니다.</p>
+        <h1 id="report-modal-title">{t('report.question')}</h1>
+        <p className="report-target"><span>{t('report.target')}</span><strong>{toilet.name}</strong></p>
+        <p className="report-modal-description">{t('report.reviewHint')}</p>
         <div className="report-type-options">
-          <button type="button" onClick={() => setStep('location')}><strong>위치 제보</strong><span>지도에서 실제 위치를 지정하고 주소를 확인해요.</span></button>
-          <button type="button" onClick={() => setStep('openTime')}><strong>개방 시간 제보</strong><span>변경된 운영 시간을 알려주세요.</span></button>
+          <button type="button" onClick={() => setStep('location')}><strong>{t('report.location')}</strong><span>{t('report.locationHint')}</span></button>
+          <button type="button" onClick={() => setStep('openTime')}><strong>{t('report.hours')}</strong><span>{t('report.hoursHint')}</span></button>
         </div>
       </>}
       {step === 'location' && <>
-        <h1 id="report-modal-title">지도를 움직여 핀을 맞춰 주세요</h1>
-        <p className="report-target"><span>제보 대상</span><strong>{toilet.name}</strong></p>
-        <div className="report-map-wrap"><div ref={mapElementRef} className="report-map" /><span className="report-map-pin" aria-label="제안 위치" />{mapLevel > 3 && <span className="report-map-zoom-guide">정확한 위치는 지도를 조금 더 확대해 맞춰 주세요</span>}</div>
-        <div className="report-address-box"><span>주소</span><strong>{isAddressLoading ? '주소를 확인하는 중…' : roadAddress || '주소를 찾지 못했습니다.'}</strong></div>
-        <label className="report-field"><span>제보 사유</span><textarea value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} placeholder="예: 실제 화장실은 건물 동쪽 출입구 옆에 있습니다." /></label>
+        <h1 id="report-modal-title">{t('report.moveMap')}</h1>
+        <p className="report-target"><span>{t('report.target')}</span><strong>{toilet.name}</strong></p>
+        <div className="report-map-wrap"><div ref={mapElementRef} className="report-map" /><span className="report-map-pin" aria-label={t('report.proposedLocation')} />{mapLevel > 3 && <span className="report-map-zoom-guide">{t('report.zoomHint')}</span>}</div>
+        <div className="report-address-box"><span>{t('detail.address')}</span><strong>{isAddressLoading ? t('report.addressLoading') : roadAddress || t('report.noAddress')}</strong></div>
+        <label className="report-field"><span>{t('report.reason')}</span><textarea value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} placeholder={t('report.locationExample')} /></label>
         {error && <p className="report-error" role="alert">{error}</p>}
-        <button type="button" className="report-submit" disabled={isAddressLoading} onClick={openLocationConfirmation}>위치 제보 접수</button>
+        <button type="button" className="report-submit" disabled={isAddressLoading} onClick={openLocationConfirmation}>{t('report.submitLocation')}</button>
       </>}
       {step === 'locationConfirm' && <>
-        <h1 id="report-modal-title">이 위치와 주소가 맞습니까?</h1>
-        <p className="report-modal-description">핀을 맞춘 위치를 마지막으로 확인해 주세요.</p>
-        <div className="report-map-wrap report-confirm-map"><div ref={mapElementRef} className="report-map" /><span className="report-map-pin" aria-label="제안 위치" /></div>
+        <h1 id="report-modal-title">{t('report.confirmQuestion')}</h1>
+        <p className="report-modal-description">{t('report.confirmHint')}</p>
+        <div className="report-map-wrap report-confirm-map"><div ref={mapElementRef} className="report-map" /><span className="report-map-pin" aria-label={t('report.proposedLocation')} /></div>
         <div className="report-confirm-summary">
-          <div><span>제보 화장실</span><strong>{toilet.name}</strong></div>
-          <div><span>주소</span><strong>{roadAddress}</strong></div>
+          <div><span>{t('report.target')}</span><strong>{toilet.name}</strong></div>
+          <div><span>{t('detail.address')}</span><strong>{roadAddress}</strong></div>
         </div>
         {error && <p className="report-error" role="alert">{error}</p>}
-        <div className="report-confirm-actions"><button type="button" className="report-edit-button" onClick={() => setStep('location')}>수정하기</button><button type="button" className="report-submit" disabled={isSubmitting} onClick={() => void submit()}>{isSubmitting ? '접수 중…' : '맞아요, 접수하기'}</button></div>
+        <div className="report-confirm-actions"><button type="button" className="report-edit-button" onClick={() => setStep('location')}>{t('common.edit')}</button><button type="button" className="report-submit" disabled={isSubmitting} onClick={() => void submit()}>{t(isSubmitting ? 'report.submitting' : 'report.confirmSubmit')}</button></div>
       </>}
       {step === 'openTime' && <>
-        <h1 id="report-modal-title">변경된 개방 시간을 알려주세요</h1>
-        <p className="report-target"><span>제보 대상</span><strong>{toilet.name}</strong></p>
-        <p className="report-modal-description">현재 등록된 시간: <strong>{toilet.openTime || '정보 없음'}</strong></p>
-        <label className="report-field"><span>변경할 개방 시간</span><input value={openTime} maxLength={50} onChange={(event) => setOpenTime(event.target.value)} placeholder="예: 09:00 ~ 18:00" /></label>
-        <label className="report-field"><span>제보 사유</span><textarea value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} placeholder="예: 현장 안내문 기준으로 변경되었습니다." /></label>
+        <h1 id="report-modal-title">{t('report.hoursHeading')}</h1>
+        <p className="report-target"><span>{t('report.target')}</span><strong>{toilet.name}</strong></p>
+        <p className="report-modal-description">{t('report.currentHours')} <strong>{formatOpenTime(toilet, locale)}</strong></p>
+        <label className="report-field"><span>{t('report.updatedHours')}</span><input value={openTime} maxLength={50} onChange={(event) => setOpenTime(event.target.value)} placeholder={t('report.hoursExample')} /></label>
+        <label className="report-field"><span>{t('report.reason')}</span><textarea value={reason} maxLength={500} onChange={(event) => setReason(event.target.value)} placeholder={t('report.reasonExample')} /></label>
         {error && <p className="report-error" role="alert">{error}</p>}
-        <button type="button" className="report-submit" disabled={isSubmitting} onClick={() => void submit()}>{isSubmitting ? '접수 중…' : '개방 시간 제보 접수'}</button>
+        <button type="button" className="report-submit" disabled={isSubmitting} onClick={() => void submit()}>{t(isSubmitting ? 'report.submitting' : 'report.submitHours')}</button>
       </>}
-      {step === 'complete' && <div className="report-complete"><span aria-hidden="true">✓</span><h1 id="report-modal-title">제보를 접수했어요</h1><p>처리 상태는 내 제보에서 언제든 확인할 수 있어요.</p><div className="report-complete-actions"><button type="button" className="report-edit-button" onClick={onClose}>지도 돌아가기</button><button type="button" className="report-submit" onClick={onViewMyReports}>내 제보 보기</button></div></div>}
+      {step === 'complete' && <div className="report-complete"><span aria-hidden="true">✓</span><h1 id="report-modal-title">{t('report.complete')}</h1><p>{t('report.completeHint')}</p><div className="report-complete-actions"><button type="button" className="report-edit-button" onClick={onClose}>{t('detail.back')}</button><button type="button" className="report-submit" onClick={onViewMyReports}>{t('report.viewMine')}</button></div></div>}
       </div>
     </section>
   </div>

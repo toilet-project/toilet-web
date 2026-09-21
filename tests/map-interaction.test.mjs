@@ -64,7 +64,7 @@ test('all marker paths let original down/move gestures reach the SDK and only su
   const css = await readFile(new URL('../src/components/mobile-navigation.css', import.meta.url), 'utf8')
   assert.doesNotMatch(app, /addEventListener\('(touchstart|pointerdown|mousedown)', suppressMapClickFromMarker/)
   assert.equal((app.match(/clickable: false/g) || []).length, 4)
-  assert.match(app, /window.kakao.maps.event.preventMap\(\)/)
+  assert.match(app, /preventMapEvent\(mapRef.current\)/)
   assert.match(css, /\.toilet-marker, \.coordinate-group-marker, \.cluster-marker, \.mobile-card-handle \{ touch-action: manipulation; \}/)
   assert.match(app, /const request = referenceRequestGate.begin\(\)/)
   assert.match(app, /\(\{ coords \}\) => \{\s+if \(!isCurrent\(\)\) return/)

@@ -1,4 +1,5 @@
 'use client'
+import { useMessages } from '../i18n/context'
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { clampCropOffset, clampPhotoZoom, createCropGeometry, MAX_PHOTO_ZOOM, MIN_PHOTO_ZOOM, PROFILE_PHOTO_CROP_SIZE, type CropOffset } from '../lib/profilePhotoCrop'
@@ -26,6 +27,7 @@ export function ProfilePhotoCropDialog({ file, onClose, onApply }: {
   onClose: () => void
   onApply: (cropped: Blob) => Promise<boolean>
 }) {
+  const t = useMessages()
   const [image, setImage] = useState<HTMLImageElement | null>(null)
   const [stageSize, setStageSize] = useState(0)
   const [zoom, setZoom] = useState(MIN_PHOTO_ZOOM)
@@ -50,10 +52,10 @@ export function ProfilePhotoCropDialog({ file, onClose, onApply }: {
     const next = new Image()
     next.decoding = 'async'
     next.onload = () => { setImage(next); setZoom(MIN_PHOTO_ZOOM); setOffset({ x: 0, y: 0 }); setError('') }
-    next.onerror = () => setError('사진을 불러오지 못했어요. 다른 사진을 선택해 주세요.')
+    next.onerror = () => setError(t('photo.loadError'))
     next.src = url
     return () => URL.revokeObjectURL(url)
-  }, [file])
+  }, [file, t])
 
   useEffect(() => {
     if (!stage.current) return
@@ -78,13 +80,13 @@ export function ProfilePhotoCropDialog({ file, onClose, onApply }: {
     target.width = Math.max(1, Math.round(stageSize * pixelRatio))
     target.height = target.width
     const context = target.getContext('2d')
-    if (!context) { setError('사진 편집 화면을 준비하지 못했어요.'); return }
+    if (!context) { setError(t('photo.editorError')); return }
     const geometry = createCropGeometry(image.naturalWidth, image.naturalHeight, stageSize, zoom, offset)
     context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
     context.clearRect(0, 0, stageSize, stageSize)
     context.imageSmoothingEnabled = true; context.imageSmoothingQuality = 'high'
     context.drawImage(image, geometry.drawX, geometry.drawY, geometry.drawWidth, geometry.drawHeight)
-  }, [image, offset, stageSize, zoom])
+  }, [image, offset, stageSize, zoom, t])
 
   useEffect(() => {
     if (image && stageSize > 0) applyTransform(zoomRef.current, offsetRef.current)
@@ -139,33 +141,33 @@ export function ProfilePhotoCropDialog({ file, onClose, onApply }: {
       context.drawImage(image, geometry.sourceX, geometry.sourceY, geometry.sourceSize, geometry.sourceSize, 0, 0, output.width, output.height)
       const blob = await encodeCrop(output)
       if (await onApply(blob)) onClose()
-      else setError('사진을 저장하지 못했어요. 연결을 확인한 뒤 다시 시도해 주세요.')
-    } catch { setError('사진을 자르지 못했어요. 다른 사진으로 다시 시도해 주세요.') }
+      else setError(t('photo.saveError'))
+    } catch { setError(t('photo.cropError')) }
     finally { setExporting(false) }
   }
 
   return createPortal(<div className="photo-crop-backdrop" onPointerDown={event => { if (!exporting && event.target === event.currentTarget) onClose() }}>
-    <section ref={dialog} className="photo-crop-dialog" role="dialog" aria-modal="true" aria-label="프로필 사진 편집" aria-describedby="photo-crop-help" tabIndex={-1}>
+    <section ref={dialog} className="photo-crop-dialog" role="dialog" aria-modal="true" aria-label={t('photo.edit')} aria-describedby="photo-crop-help" tabIndex={-1}>
       <header>
-        <button type="button" onClick={onClose} disabled={exporting}>취소</button>
-        <button type="button" className="photo-crop-reset-icon" aria-label="사진 위치 초기화" title="사진 위치 초기화" disabled={!image || exporting} onClick={() => applyTransform(MIN_PHOTO_ZOOM, { x: 0, y: 0 })}>
+        <button type="button" onClick={onClose} disabled={exporting}>{t('common.cancel')}</button>
+        <button type="button" className="photo-crop-reset-icon" aria-label={t('photo.reset')} title={t('photo.reset')} disabled={!image || exporting} onClick={() => applyTransform(MIN_PHOTO_ZOOM, { x: 0, y: 0 })}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.34 5.66M20 4v7h-7" /></svg>
         </button>
       </header>
       <div ref={stage} className="photo-crop-stage" onPointerDown={startGesture} onPointerMove={moveGesture} onPointerUp={endGesture} onPointerCancel={endGesture}>
-        <canvas ref={canvas} role="img" aria-label="선택한 프로필 사진의 잘라낼 영역 미리보기" />
+        <canvas ref={canvas} role="img" aria-label={t('photo.preview')} />
         <div className="photo-crop-grid" aria-hidden="true"><i /><i /><i /><i /></div>
         <div className="photo-crop-avatar-guide" aria-hidden="true" />
-        {!image && !error && <p role="status">사진을 불러오는 중…</p>}
+        {!image && !error && <p role="status">{t('photo.loading')}</p>}
       </div>
-      <p id="photo-crop-help">사진을 움직이거나 확대해 표시할 영역을 맞춰 주세요.</p>
+      <p id="photo-crop-help">{t('photo.help')}</p>
       <div className="photo-crop-zoom">
-        <button type="button" aria-label="사진 축소" disabled={!image || exporting || zoom <= MIN_PHOTO_ZOOM} onClick={() => applyTransform(zoom - .1, offset)}>−</button>
-        <input id="profile-photo-zoom" type="range" aria-label="사진 확대" min={MIN_PHOTO_ZOOM} max={MAX_PHOTO_ZOOM} step="0.01" value={zoom} disabled={!image || exporting} onChange={event => applyTransform(Number(event.target.value), offsetRef.current)} />
-        <button type="button" aria-label="사진 확대" disabled={!image || exporting || zoom >= MAX_PHOTO_ZOOM} onClick={() => applyTransform(zoom + .1, offset)}>＋</button>
+        <button type="button" aria-label={t('photo.zoomOut')} disabled={!image || exporting || zoom <= MIN_PHOTO_ZOOM} onClick={() => applyTransform(zoom - .1, offset)}>−</button>
+        <input id="profile-photo-zoom" type="range" aria-label={t('photo.zoomIn')} min={MIN_PHOTO_ZOOM} max={MAX_PHOTO_ZOOM} step="0.01" value={zoom} disabled={!image || exporting} onChange={event => applyTransform(Number(event.target.value), offsetRef.current)} />
+        <button type="button" aria-label={t('photo.zoomIn')} disabled={!image || exporting || zoom >= MAX_PHOTO_ZOOM} onClick={() => applyTransform(zoom + .1, offset)}>＋</button>
       </div>
       {error && <p className="photo-crop-error" role="alert">{error}</p>}
-      <button type="button" className="photo-crop-apply" onClick={() => void save()} disabled={!image || exporting}>{exporting ? '저장 중…' : '적용하기'}</button>
+      <button type="button" className="photo-crop-apply" onClick={() => void save()} disabled={!image || exporting}>{exporting ? t('common.saving') : t('photo.apply')}</button>
     </section>
   </div>, document.body)
 }

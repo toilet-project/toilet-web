@@ -20,7 +20,8 @@ export type AnalyticsParameters = Record<string, string | number | boolean | und
 export type AnalyticsAcquisition = { referrerHost?: string; utmSource?: string; utmMedium?: string }
 
 export function sanitizeAnalyticsPagePath(pathname: string) {
-  const raw = pathname.split(/[?#]/, 1)[0] || '/'
+  // Keep the strict page allowlist; language adds no identifier to analytics.
+  const raw = pathname.split(/[?#]/, 1)[0].replace(/^\/en(?=\/|$)/, '') || '/'
   const path = raw.length > 1 ? raw.replace(/\/+$/, '') : raw
   if (path === '/') return '/'
   if (/^\/toilet\/\d+$/.test(path) || path === '/toilet/:id') return '/toilet/:id'

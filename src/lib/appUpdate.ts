@@ -1,3 +1,4 @@
+import { isMapPath } from '../i18n/routes.ts'
 export const MAP_RESUME_KEY = 'geupddong.update-map-resume.v1'
 export const UPDATE_CHECK_INTERVAL = 5 * 60_000
 export const RESUME_TTL = 5 * 60_000
@@ -21,7 +22,7 @@ export function parseMapResume(raw: string | null, path: string, now = Date.now(
   try {
     if (!raw || raw.length > 1500) return null
     const v = JSON.parse(raw) as MapResume
-    if (!v || v.path !== path || !/^\/(?:toilet\/[1-9]\d*)?$/.test(v.path)
+    if (!v || typeof v.path !== 'string' || v.path !== path || !isMapPath(v.path)
       || !Number.isFinite(v.savedAt) || now < v.savedAt || now - v.savedAt > RESUME_TTL
       || !point(v.center) || !point(v.reference) || !Number.isInteger(v.level) || v.level < 1 || v.level > 14
       || !['point', 'current-location'].includes(v.source) || typeof v.expanded !== 'boolean'

@@ -1,10 +1,12 @@
 'use client'
 
+import { useLocale, useMessages } from '../../i18n/context'
+import { reviewErrorMessage } from '../../i18n/reviewErrors'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { ReviewDialog, ReviewIcon, ReviewModal, type ReviewEligibility } from './ReviewDialog'
 import { canManageReview, recentToiletReview, type Review, type ReviewInput } from '../../lib/review'
 import { requireReviewLocation, ReviewGateError, REVIEW_LOCATION_MAX_AGE_MS, type ReviewPoint } from '../../lib/reviewLocation'
-import { isMobileReviewDevice, MOBILE_REVIEW_ONLY_MESSAGE } from '../../lib/reviewDevice'
+import { isMobileReviewDevice } from '../../lib/reviewDevice'
 
 import { MyReviewsPanel } from './MyReviewsPanel'
 
@@ -21,6 +23,7 @@ export type MineNavigation = { embedded: boolean; onOpen: () => void; onClose: (
 
 /** Real session/GPS eligibility, but reviews remain preview-only memory data. */
 export function useIntegratedReviewPreview(owner: string | null, access: Access, mineNavigation?: MineNavigation) {
+  const locale = useLocale(), t = useMessages()
   const [reviews, setReviews] = useState<LocatedReview[]>([])
   const [target, setTarget] = useState<Target | null>(null)
   const [editing, setEditing] = useState<LocatedReview | null>(null)
@@ -35,7 +38,7 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
   const [entry, setEntry] = useState<Entry | null>(null)
   const entryRef = useRef<Entry | null>(null)
   const updateEntry = (value: Entry | null) => { entryRef.current = value; setEntry(value) }
-  const [eligibility, setEligibility] = useState<ReviewEligibility>({ status: 'checking', message: '현재 위치와 로그인을 확인하고 있어요.' })
+  const [eligibility, setEligibility] = useState<ReviewEligibility>({ status: 'checking', message: t('review.checkingAccess') })
   const request = useRef(0)
   useEffect(() => () => { request.current++ }, [])
   const ownerRef = useRef(owner)
@@ -66,7 +69,7 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
     let locationDone = false, sessionDone = false, failed = false
     const progress = () => {
       if (token !== request.current || failed) return
-      const message = !locationDone && !sessionDone ? '현재 위치·로그인 확인 중' : !locationDone ? '현재 위치 확인 중' : '로그인 상태 확인 중'
+      const message = t(!locationDone && !sessionDone ? 'review.checkingAccess' : !locationDone ? 'review.checkingLocation' : 'auth.checking')
       if (fromCard) updateEntry({ id: next.id, status: 'checking', message })
       else setEligibility({ status: 'checking', message })
     }
@@ -84,7 +87,7 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
       failed = true
       if (token !== request.current) return
       request.current++ // A failed check must not surface the other late completion.
-      const message = error instanceof ReviewGateError ? error.message : '위치를 확인하지 못했어요. 다시 시도해 주세요.'
+      const message = reviewErrorMessage(error, locale)
       if (fromCard) {
         updateEntry({ id: next.id, status: error instanceof ReviewGateError && error.code === 'distance' ? 'notice' : 'retry', message })
       } else setEligibility({ status: 'blocked', message })
@@ -94,7 +97,7 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
     if (!REVIEW_DESIGN_PREVIEW) return
     if (!owner) { access.requireLogin(); return }
     if (!isMobileReviewDevice()) {
-      updateEntry({ id: next.id, status: 'notice', message: MOBILE_REVIEW_ONLY_MESSAGE })
+      updateEntry({ id: next.id, status: 'notice', message: t('review.mobileRequired') })
       return
     }
     if (entryRef.current?.id === next.id && entryRef.current.status === 'checking') return
@@ -119,7 +122,7 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
     const token = ++request.current
     updateEntry(null)
     setMineFocus(value => ({ id: focusedReviewId, visit: value.visit + 1 }))
-    setMessage(focusedReviewId ? '작성한 리뷰 내역이 있습니다. 기존 리뷰를 확인하거나 수정해 주세요.' : '')
+    setMessage(focusedReviewId ? t('review.existingHint') : '')
     setMine(true); setMineError(''); setTarget(null); setEditing(null); setSaved(false); setExistingPrompt(null)
     mineNavigation?.onOpen()
     setChecking(true)
@@ -127,7 +130,7 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
       await session(token)
       if (token !== request.current) return
       setMine(true); setTarget(null); setSaved(false)
-    } catch (error) { if (token === request.current) setMineError(error instanceof ReviewGateError ? error.message : '로그인을 확인해 주세요.') }
+    } catch (error) { if (token === request.current) setMineError(reviewErrorMessage(error, locale)) }
     finally { if (token === request.current) setChecking(false) }
   }
   const close = () => { request.current++; updateEntry(null); setChecking(false); setTarget(null); setEditing(null); setMine(false); setSaved(false); setExistingPrompt(null); setMessage('') }
@@ -184,11 +187,11 @@ export function useIntegratedReviewPreview(owner: string | null, access: Access,
       if (!canManageReview(item) || ownerRef.current !== owner) return
       // Explicit unlink of this one review only; never change the profile or other authors.
       setReviews(items => items.map(review => review.id === item.id ? { ...review, authorRemoved: true } : review))
-      setMessage('작성자 정보만 지웠어요. 글과 평가는 남고, 내 리뷰에서는 제외됐어요.')
+      setMessage(t('review.detached'))
     }} />
   const modal = !REVIEW_DESIGN_PREVIEW ? null : target ? <ReviewDialog key={`${owner}:${editing?.id ?? target.id}`} toiletName={target.name} initial={editing ?? undefined} onClose={closeOverlay} onSave={save} eligibility={editing ? undefined : eligibility} onRetryEligibility={editing ? undefined : () => { void checkEligibility(target, true) }} />
-    : saved ? <ReviewModal title="리뷰를 저장했어요" onClose={closeOverlay} footer={<div className="rv-two-actions"><button className="rv-secondary" onClick={closeOverlay}>{mine ? '목록으로 돌아가기' : '지도로 돌아가기'}</button><button className="rv-primary" onClick={openMine}>내 리뷰 보기</button></div>}><div className="rv-complete"><span><ReviewIcon name="check" size={32} /></span><h1>이용 경험을 남겼어요</h1><p>선택한 화장실 카드에 체험 평가가 반영됐어요.</p><small>프리뷰 메모리 저장 · 실제 DB에 저장되지 않아요.</small></div></ReviewModal>
-    : existingPrompt ? <ReviewModal title="작성한 리뷰가 있어요" onClose={dismissExisting} footer={<div className="rv-two-actions"><button className="rv-secondary" onClick={dismissExisting}>뒤로 가기</button><button className="rv-primary" onClick={viewExisting}>내 리뷰 보기</button></div>}><div className="rv-complete"><h1>{existingPrompt.toiletName}</h1><p>이 화장실에 오늘 작성한 리뷰가 있어요. 기존 리뷰를 확인할까요?</p></div></ReviewModal>
-    : mine && !mineNavigation?.embedded ? <ReviewModal title="내 리뷰" onClose={close}>{mineContent}</ReviewModal> : null
+    : saved ? <ReviewModal title={t('review.saved')} onClose={closeOverlay} footer={<div className="rv-two-actions"><button className="rv-secondary" onClick={closeOverlay}>{t(mine ? 'review.backList' : 'detail.back')}</button><button className="rv-primary" onClick={openMine}>{t('review.viewMine')}</button></div>}><div className="rv-complete"><span><ReviewIcon name="check" size={32} /></span><h1>{t('review.savedTitle')}</h1><p>{t('review.previewSaved')}</p><small>{t('review.previewMemory')}</small></div></ReviewModal>
+    : existingPrompt ? <ReviewModal title={t('review.existingTitle')} onClose={dismissExisting} footer={<div className="rv-two-actions"><button className="rv-secondary" onClick={dismissExisting}>{t('common.back')}</button><button className="rv-primary" onClick={viewExisting}>{t('review.viewMine')}</button></div>}><div className="rv-complete"><h1>{existingPrompt.toiletName}</h1><p>{t('review.existingQuestion')}</p></div></ReviewModal>
+    : mine && !mineNavigation?.embedded ? <ReviewModal title={t('nav.myReviews')} onClose={close}>{mineContent}</ReviewModal> : null
   return { open, openMine, close, summary, entryState: (id: number) => entry?.id === id ? entry : undefined, modal, page: REVIEW_DESIGN_PREVIEW && mine && mineNavigation?.embedded ? mineContent : null, active: Boolean(target || mine || saved || existingPrompt || checking || entry?.status === 'checking') }
 }

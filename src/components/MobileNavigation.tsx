@@ -8,6 +8,10 @@ import { NotificationPanel } from './NotificationPanel'
 import { HistoryScrollTop } from './HistoryScrollTop'
 import { AccountDialog } from './AccountDialog'
 import { TRANSIENT_NOTICE_MS } from '../lib/uiTiming'
+import { useMessages, useLocale } from '../i18n/context'
+import { accountError } from '../i18n/accountLabels'
+import { localizedPublicPath } from '../i18n/routes'
+import { BrandWordmark } from './BrandWordmark'
 
 export type MobileTab = 'map' | 'notifications' | 'account'
 export type MobileAccountView = 'home' | 'reports' | 'reviews' | 'settings'
@@ -25,6 +29,8 @@ function Icon({ name }: { name: IconName }) {
 }
 
 export function MobileNavigation({ tab, onChange, unread }: { tab: MobileTab; onChange: (tab: MobileTab) => void; unread: number }) {
+  const t = useMessages()
+  const locale = useLocale()
   const [communityNotice, setCommunityNotice] = useState(false)
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => () => { if (noticeTimer.current) clearTimeout(noticeTimer.current) }, [])
@@ -40,30 +46,33 @@ export function MobileNavigation({ tab, onChange, unread }: { tab: MobileTab; on
     setCommunityNotice(true)
     noticeTimer.current = setTimeout(() => { setCommunityNotice(false); noticeTimer.current = null }, TRANSIENT_NOTICE_MS)
   }
-  return <nav className="mobile-navigation" aria-label="하단 내비게이션">
-    <button type="button" aria-current={tab === 'map' ? 'page' : undefined} onClick={() => onChange('map')}><span className="mobile-nav-icon"><Icon name="map" /></span><span>지도</span></button>
-    <button type="button" onClick={showCommunityNotice}><span className="mobile-nav-icon"><Icon name="community" /></span><span>커뮤니티</span></button>
-    <button type="button" aria-current={tab === 'notifications' ? 'page' : undefined} onClick={() => onChange('notifications')}><span className="mobile-nav-icon"><Icon name="notifications" /></span><span>알림</span>{unread > 0 && <b aria-label={`읽지 않은 알림 ${unread}개`}>{unread > 99 ? '99+' : unread}</b>}</button>
-    <button type="button" aria-current={tab === 'account' ? 'page' : undefined} onClick={() => onChange('account')}><span className="mobile-nav-icon"><Icon name="account" /></span><span>내 페이지</span></button>
-    <div className="mobile-community-notice" role="status" aria-live="polite" aria-atomic="true">{communityNotice ? '준비 중이에요' : ''}</div>
+  return <nav className="mobile-navigation" aria-label={t('nav.main')}>
+    <button type="button" aria-current={tab === 'map' ? 'page' : undefined} onClick={() => onChange('map')}><span className="mobile-nav-icon"><Icon name="map" /></span><span>{t('nav.map')}</span></button>
+    <button type="button" onClick={showCommunityNotice}><span className="mobile-nav-icon"><Icon name="community" /></span><span>{t('nav.community')}</span></button>
+    <button type="button" aria-current={tab === 'notifications' ? 'page' : undefined} onClick={() => onChange('notifications')}><span className="mobile-nav-icon"><Icon name="notifications" /></span><span>{t('nav.notifications')}</span>{unread > 0 && <b aria-label={locale === 'en' ? `${unread} unread notifications` : `읽지 않은 알림 ${unread}개`}>{unread > 99 ? '99+' : unread}</b>}</button>
+    <button type="button" aria-current={tab === 'account' ? 'page' : undefined} onClick={() => onChange('account')}><span className="mobile-nav-icon"><Icon name="account" /></span><span>{t('nav.account')}</span></button>
+    <div className="mobile-community-notice" role="status" aria-live="polite" aria-atomic="true">{communityNotice ? t('nav.comingSoon') : ''}</div>
   </nav>
 }
 
 function PolicyLinks() {
-  return <nav className="mobile-policy-links" aria-label="서비스 안내"><a href="/policies/all">이용약관</a><a href="mailto:privacy@geupddong.com">문의</a></nav>
+  const t = useMessages(), locale = useLocale()
+  return <nav className="mobile-policy-links" aria-label={t('policy.links')}><a href={localizedPublicPath('/policies/all', locale)!}>{t('policy.terms')}</a><a href="mailto:privacy@geupddong.com">{t('policy.contact')}</a></nav>
 }
 
 function LoginLanding({ onLogin }: { onLogin: (provider: 'google' | 'kakao') => void }) {
+  const t = useMessages(), locale = useLocale()
   return <div className="mobile-login-landing">
-    <span className="brand">급똥</span><h1>로그인 · 간편가입</h1>
-    <p>구글·카카오로 간편하게 로그인하세요.</p>
-    <button className="social-login google-login" type="button" onClick={() => onLogin('google')}><svg width="20" height="20" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.91c1.7-1.57 2.69-3.88 2.69-6.62Z" /><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.26c-.8.54-1.84.86-3.05.86-2.34 0-4.33-1.58-5.04-3.71H.95v2.33A9 9 0 0 0 9 18Z" /><path fill="#FBBC05" d="M3.96 10.71a5.4 5.4 0 0 1 0-3.42V4.96H.95a9 9 0 0 0 0 8.08Z" /><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58A8.62 8.62 0 0 0 9 0 9 9 0 0 0 .95 4.96l3.01 2.33A5.4 5.4 0 0 1 9 3.58Z" /></svg><span>Google로 계속하기</span></button>
-    <button className="social-login kakao-login" type="button" onClick={() => onLogin('kakao')}><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3C6.5 3 2 6.5 2 10.8c0 2.8 1.9 5.2 4.8 6.6L6 21l4.2-2.6 1.8.2c5.5 0 10-3.5 10-7.8S17.5 3 12 3Z" /></svg><span>Kakao로 계속하기</span></button>
-    <p className="mobile-signup-note">첫 가입 시 필수 약관 동의가 필요해요.</p><PolicyLinks />
+    <span className="brand" aria-label={locale === 'en' ? 'Geupddong' : '급똥'}><BrandWordmark locale={locale} /></span><h1>{t('auth.title')}</h1>
+    <p>{t('auth.intro')}</p>
+    <button className="social-login google-login" type="button" onClick={() => onLogin('google')}><svg width="20" height="20" viewBox="0 0 18 18" aria-hidden="true"><path fill="#4285F4" d="M17.64 9.2c0-.63-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.91c1.7-1.57 2.69-3.88 2.69-6.62Z" /><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.26c-.8.54-1.84.86-3.05.86-2.34 0-4.33-1.58-5.04-3.71H.95v2.33A9 9 0 0 0 9 18Z" /><path fill="#FBBC05" d="M3.96 10.71a5.4 5.4 0 0 1 0-3.42V4.96H.95a9 9 0 0 0 0 8.08Z" /><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58A8.62 8.62 0 0 0 9 0 9 9 0 0 0 .95 4.96l3.01 2.33A5.4 5.4 0 0 1 9 3.58Z" /></svg><span>{t('auth.google')}</span></button>
+    <button className="social-login kakao-login" type="button" onClick={() => onLogin('kakao')}><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 3C6.5 3 2 6.5 2 10.8c0 2.8 1.9 5.2 4.8 6.6L6 21l4.2-2.6 1.8.2c5.5 0 10-3.5 10-7.8S17.5 3 12 3Z" /></svg><span>{t('auth.kakao')}</span></button>
+    <p className="mobile-signup-note">{t('auth.consentNote')}</p><PolicyLinks />
   </div>
 }
 
 function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthProfile; onProfile: (profile: AuthProfile) => void; onSessionExpired: () => void }) {
+  const t = useMessages(), locale = useLocale()
   const [editing, setEditing] = useState(false)
   const photo = useProfilePhoto(profile.userId, onSessionExpired, profile.profilePhoto ?? undefined)
   const [nickname, setNickname] = useState(profile.displayName || '')
@@ -79,20 +88,20 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
     try {
       const result = await updateNickname(nickname)
       if (!active.current) return
-      onProfile({ ...profile, displayName: result.displayName }); setEditing(false); setMessage('닉네임을 변경했어요.')
-    } catch (reason) { if (!active.current) return; if (reason instanceof AuthExpiredError) onSessionExpired(); else setMessage(reason instanceof Error ? reason.message : '닉네임을 저장하지 못했어요.') }
+      onProfile({ ...profile, displayName: result.displayName }); setEditing(false); setMessage(t('account.nicknameSaved'))
+    } catch (reason) { if (!active.current) return; if (reason instanceof AuthExpiredError) onSessionExpired(); else setMessage(accountError(reason, locale, 'account.nicknameFailed')) }
     finally { if (active.current) setSaving(false) }
   }
-  return <section className="mobile-profile-card" aria-label="내 프로필">
-    <div className="mobile-avatar-wrap"><div className="mobile-avatar"><OwnPhoto state={photo.state} fallback={<span role="img" aria-label="기본 프로필 이미지"><Icon name="account" /></span>} /></div>
+  return <section className="mobile-profile-card" aria-label={t('account.profile')}>
+    <div className="mobile-avatar-wrap"><div className="mobile-avatar"><OwnPhoto state={photo.state} fallback={<span role="img" aria-label={t('account.defaultPhoto')}><Icon name="account" /></span>} /></div>
       {PROFILE_PHOTO_ENABLED && <PhotoActions state={photo.state} loadError={photo.error} onRetry={photo.retry} onSaved={savePhoto} onExpired={onSessionExpired} onOpen={() => { setEditing(false); setMessage('') }} onNotice={setMessage} />}
     </div>
-    <div className="mobile-profile-copy"><span>내 프로필</span><h2>{profile.displayName || '급똥 사용자'}</h2><button type="button" className="mobile-profile-settings" onClick={() => { setNickname(profile.displayName || ''); setMessage(''); setEditing(value => !value) }}>프로필 수정</button></div>
+    <div className="mobile-profile-copy"><span>{t('account.profile')}</span><h2>{profile.displayName || t('account.defaultName')}</h2><button type="button" className="mobile-profile-settings" onClick={() => { setNickname(profile.displayName || ''); setMessage(''); setEditing(value => !value) }}>{t('account.editProfile')}</button></div>
     {editing && <form className="mobile-profile-form" onSubmit={event => void submit(event)}>
-      <label htmlFor="mobile-nickname">닉네임</label><input id="mobile-nickname" value={nickname} onChange={event => setNickname(event.target.value)} minLength={2} maxLength={30} required autoComplete="nickname" />
-      <small>2~30자 · 다른 사용자와 같은 닉네임도 사용할 수 있어요.</small>
-      {PROFILE_PHOTO_ENABLED && (photo.error ? <div role="status">{photo.error}<button type="button" onClick={photo.retry}>다시 불러오기</button></div> : photo.state ? <PhotoVisibilityPreference state={photo.state} onSaved={savePhoto} onExpired={onSessionExpired} /> : <p role="status">사진 설정을 불러오는 중…</p>)}
-      <div><button type="button" disabled={saving} onClick={() => setEditing(false)}>취소</button><button type="submit" disabled={saving || nickname.trim().length < 2}>{saving ? '저장 중…' : '저장하기'}</button></div>
+      <label htmlFor="mobile-nickname">{t('account.nickname')}</label><input id="mobile-nickname" value={nickname} onChange={event => setNickname(event.target.value)} minLength={2} maxLength={30} required autoComplete="nickname" />
+      <small>{t('account.nicknameHelp')}</small>
+      {PROFILE_PHOTO_ENABLED && (photo.error ? <div role="status">{photo.error}<button type="button" onClick={photo.retry}>{t('common.retry')}</button></div> : photo.state ? <PhotoVisibilityPreference state={photo.state} onSaved={savePhoto} onExpired={onSessionExpired} /> : <p role="status">{t('account.photoLoading')}</p>)}
+      <div><button type="button" disabled={saving} onClick={() => setEditing(false)}>{t('common.cancel')}</button><button type="submit" disabled={saving || nickname.trim().length < 2}>{saving ? t('common.saving') : t('common.save')}</button></div>
     </form>}
     {message && <p role="status">{message}</p>}
   </section>
@@ -107,19 +116,20 @@ export function MobilePage({ tab, profile, loading, unread, onProfile, onReports
   onReviews?: () => void;
   accountView?: MobileAccountView; onBackAccount: () => void; reviewPage?: ReactNode; focusedReportId?: number | null;
 }) {
+  const t = useMessages()
   const page = useRef<HTMLElement>(null)
   useLayoutEffect(() => { if (page.current) page.current.scrollTop = 0 }, [tab, accountView])
   const historyPage = tab === 'account' && accountView !== 'home'
-  return <section ref={page} className={`mobile-page${historyPage ? ' is-history-page' : ''}`} aria-label={tab === 'account' ? '내 페이지' : '알림 페이지'}>
-    {loading ? <p className="mobile-page-loading" role="status">불러오는 중…</p> : !profile ? <LoginLanding onLogin={provider => { beforeLogin(tab); startSocialLogin(provider) }} />
+  return <section ref={page} className={`mobile-page${historyPage ? ' is-history-page' : ''}`} aria-label={t(tab === 'account' ? 'nav.account' : 'nav.notifications')}>
+    {loading ? <p className="mobile-page-loading" role="status">{t('common.loading')}</p> : !profile ? <LoginLanding onLogin={provider => { beforeLogin(tab); startSocialLogin(provider) }} />
       : tab === 'account' && accountView === 'reports' ? <MyReportsPanel key={`account-reports-${profile.userId}-${focusedReportId ?? 'list'}`} embedded onSessionExpired={onSessionExpired} initialExpandedId={focusedReportId} onClose={onBackAccount} onBack={onBackAccount} />
       : tab === 'account' && accountView === 'reviews' && onReviews ? reviewPage
       : tab === 'account' && accountView === 'settings' ? <AccountDialog key={profile.userId} embedded profile={profile} onClose={onBackAccount} onWithdrawn={onWithdrawn} />
       : tab === 'account' ? <>
-      <header className="mobile-page-heading"><h1>내 페이지</h1></header>
+      <header className="mobile-page-heading"><h1>{t('nav.account')}</h1></header>
       <ProfileCard key={profile.userId} profile={profile} onProfile={onProfile} onSessionExpired={onSessionExpired} />
-      <div className="mobile-account-links">{onReviews && <button type="button" onClick={onReviews}><Icon name="community" /><span>내 리뷰</span><span aria-hidden="true">›</span></button>}<button type="button" onClick={onReports}><Icon name="community" /><span>내 제보</span><span aria-hidden="true">›</span></button><button type="button" onClick={onAccount}><Icon name="settings" /><span>계정 관리 · 동의 내역</span><span aria-hidden="true">›</span></button></div>
-      <div className="mobile-account-support"><PolicyLinks /><button type="button" className="mobile-logout" onClick={onLogout}>로그아웃</button></div>
+      <div className="mobile-account-links">{onReviews && <button type="button" onClick={onReviews}><Icon name="community" /><span>{t('nav.myReviews')}</span><span aria-hidden="true">›</span></button>}<button type="button" onClick={onReports}><Icon name="community" /><span>{t('nav.myReports')}</span><span aria-hidden="true">›</span></button><button type="button" onClick={onAccount}><Icon name="settings" /><span>{t('account.settings')}</span><span aria-hidden="true">›</span></button></div>
+      <div className="mobile-account-support"><PolicyLinks /><button type="button" className="mobile-logout" onClick={onLogout}>{t('auth.logout')}</button></div>
     </> : <NotificationPanel key={profile.userId} embedded unread={unread} onSessionExpired={onSessionExpired} onCountChange={onCountChange} onOpenReport={onOpenReport} onClose={() => {}} />}
     {historyPage && !loading && profile && <HistoryScrollTop key={`${accountView}-${profile.userId}`} container={page} />}
   </section>

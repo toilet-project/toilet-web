@@ -21,11 +21,16 @@ export function validateWorkerConfig(config, target, {deploy = false, stage = fa
     assert.equal(config.vars?.SHARED_TOILET_CACHE_NEGATIVE_SECONDS, '300', 'Production negative cache must stay short')
   }
   const d1 = config.d1_databases?.find(row => row.binding === 'NEXT_TAG_CACHE_D1')
+  const placeSearchD1 = config.d1_databases?.find(row => row.binding === 'PLACE_SEARCH_D1')
   assert.equal(d1?.database_name, `geupddong-next-${suffix}-tags`)
   assert.equal(config.route, undefined, 'Unexpected singular route')
   assert.equal(config.env, undefined, 'Nested environment overrides are not supported')
   assert.equal(config.limits?.cpu_ms, undefined, 'No automatic Paid-only limit setting')
   if (production) {
+    assert.equal(config.vars?.NAVER_MAP_ENABLED, 'false', 'Production Naver map must remain disabled before approval')
+    assert.equal(config.vars?.PLACE_SEARCH_ENABLED, 'false', 'Production place search must remain disabled before approval')
+    assert.equal(config.vars?.PLACE_SEARCH_SCOPE, 'production')
+    assert.equal(placeSearchD1, undefined, 'Production must not bind the preview place-search database')
     assert.equal(config.workers_dev, false)
     assert.equal(config.preview_urls, false, 'Candidate version URLs must remain disabled')
     assert.deepEqual(config.routes, [], 'Candidate must not claim any domain')
@@ -36,6 +41,12 @@ export function validateWorkerConfig(config, target, {deploy = false, stage = fa
       assert.notEqual(d1.database_id, '00000000-0000-0000-0000-000000000000', 'Missing D1 ID')
     }
   } else {
+    assert.equal(config.vars?.NAVER_MAP_ENABLED, 'true')
+    assert.equal(config.vars?.PLACE_SEARCH_ENABLED, 'true')
+    assert.equal(config.vars?.PLACE_SEARCH_SCOPE, 'preview')
+    assert.equal(placeSearchD1?.database_name, 'geupddong-place-search-preview')
+    assert.match(placeSearchD1?.database_id || '', /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i)
+    assert.notEqual(placeSearchD1?.database_id, d1?.database_id, 'Place search and tag cache must use separate D1 databases')
     assert.deepEqual(config.routes, [{pattern:'preview.geupddong.com', custom_domain:true}])
     assert.match(d1?.database_id || '', /^[a-f0-9-]{36}$/i, 'Missing D1 ID')
     assert.notEqual(d1.database_id, '00000000-0000-0000-0000-000000000000', 'Missing D1 ID')

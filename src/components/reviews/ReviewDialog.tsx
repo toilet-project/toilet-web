@@ -1,4 +1,6 @@
 'use client'
+import { useLocale, useMessages } from '../../i18n/context'
+import { reviewErrorMessage } from '../../i18n/reviewErrors'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useDialogFocus } from '../../lib/useDialogFocus'
 import { attachReportViewport } from '../../lib/reportViewport'
@@ -22,6 +24,7 @@ export function ReviewIcon({ name, size = 22, className }: { name: 'star' | 'rev
 }
 
 export function ReviewModal({ title, onClose, onBack, children, footer }: { title: string; onClose: () => void; onBack?: () => void; children: ReactNode; footer?: ReactNode }) {
+  const t = useMessages()
   const dialog = useDialogFocus(true, onClose)
   const backdrop = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -32,7 +35,7 @@ export function ReviewModal({ title, onClose, onBack, children, footer }: { titl
   }, [])
   return <div className="rv-backdrop" ref={backdrop} onMouseDown={e => { if (e.target === e.currentTarget) onClose() }}>
     <section className="rv-dialog" ref={dialog} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
-      <header className="rv-toolbar">{onBack ? <button type="button" className="rv-icon-button" onClick={onBack} aria-label="뒤로가기"><ReviewIcon name="back" /></button> : <span className="rv-toolbar-mark"><ReviewIcon name="review" size={19} /></span>}<strong>{title}</strong><button type="button" className="rv-icon-button" aria-label="닫기" onClick={onClose}><ReviewIcon name="close" /></button></header>
+      <header className="rv-toolbar">{onBack ? <button type="button" className="rv-icon-button" onClick={onBack} aria-label={t('common.back')}><ReviewIcon name="back" /></button> : <span className="rv-toolbar-mark"><ReviewIcon name="review" size={19} /></span>}<strong>{title}</strong><button type="button" className="rv-icon-button" aria-label={t('common.close')} onClick={onClose}><ReviewIcon name="close" /></button></header>
       <div className="rv-dialog-body">{children}</div>
       {footer && <footer className="rv-dialog-footer">{footer}</footer>}
     </section>
@@ -40,14 +43,16 @@ export function ReviewModal({ title, onClose, onBack, children, footer }: { titl
 }
 
 function Stars({ label, value, onChange }: { label: string; value: number; onChange: (value: number) => void }) {
-  return <fieldset className="rv-stars-field"><legend>{label}<span className="rv-required">필수</span></legend><div className="rv-rating-line"><div className="rv-stars">
-    {[1,2,3,4,5].map(n => <label key={n} className={n <= value ? 'is-filled' : ''}><input type="radio" name={label} value={n} checked={value === n} onChange={() => onChange(n)} aria-label={`${label} ${n}점`} /><ReviewIcon name="star" size={34} /></label>)}
+  const t = useMessages()
+  return <fieldset className="rv-stars-field"><legend>{label}<span className="rv-required">{t('common.required')}</span></legend><div className="rv-rating-line"><div className="rv-stars">
+    {[1,2,3,4,5].map(n => <label key={n} className={n <= value ? 'is-filled' : ''}><input type="radio" name={label} value={n} checked={value === n} onChange={() => onChange(n)} aria-label={t('review.starLabel', { label, score: n })} /><ReviewIcon name="star" size={34} /></label>)}
   </div><output aria-live="polite" aria-label={`${label} ${value} / 5`}>{value} <small>/ 5</small></output></div></fieldset>
 }
 
 export type ReviewEligibility = { status: 'checking' | 'ready' | 'blocked'; message: string }
 
 export function ReviewDialog({ toiletName, initial, onClose, onSave, eligibility, onRetryEligibility }: { toiletName: string; initial?: ReviewInput; onClose: () => void; onSave: (value: ReviewInput) => Promise<void>; eligibility?: ReviewEligibility; onRetryEligibility?: () => void }) {
+  const locale = useLocale(), t = useMessages()
   const [value, setValue] = useState<ReviewInput>(initial ?? blankReview)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
@@ -60,28 +65,28 @@ export function ReviewDialog({ toiletName, initial, onClose, onSave, eligibility
   const close = () => { if (busy.current) return; if (dirty) setDiscard(true); else onClose() }
   const submit = async () => {
     if (busy.current || (eligibility && eligibility.status !== 'ready')) return
-    const problem=validateReview(value)
+    const problem=validateReview(value, locale)
     if (problem) { setError(problem); return }
     busy.current=true; setSaving(true); setError('')
     try { await onSave({...value, comment:value.comment.trim()}) }
-    catch (error) { if (active.current) setError(error instanceof ReviewGateError || error instanceof ReviewApiError ? error.message : '저장하지 못했어요. 입력 내용은 유지되니 다시 시도해 주세요.') }
+    catch (error) { if (active.current) setError(error instanceof ReviewGateError || error instanceof ReviewApiError ? reviewErrorMessage(error, locale) : t('review.saveFailed')) }
     finally { busy.current=false; if (active.current) setSaving(false) }
   }
   const eligibilityPending = eligibility && eligibility.status !== 'ready'
   const retry = () => { setError(''); onRetryEligibility?.() }
-  return <ReviewModal title={discard ? '작성을 그만둘까요?' : initial ? '리뷰 수정' : '리뷰 쓰기'} onClose={close} onBack={discard ? () => setDiscard(false) : close} footer={discard ? <div className="rv-two-actions"><button className="rv-secondary" onClick={() => setDiscard(false)}>계속 작성</button><button className="rv-primary" onClick={onClose}>그만두기</button></div> : <>{eligibilityPending ? <div className={`rv-eligibility is-${eligibility.status}`} role={eligibility.status === 'blocked' ? 'alert' : 'status'}><span title={eligibility.message}>{eligibility.message}</span>{onRetryEligibility && <button className="rv-location-refresh" type="button" onClick={retry} disabled={eligibility.status === 'checking'} aria-label="위치 새로고침" title="위치 새로고침"><ReviewIcon name="refresh" size={18} /></button>}</div> : error ? <div role="alert" className="rv-error rv-save-error"><span>{error}</span>{onRetryEligibility && <button className="rv-location-refresh" type="button" onClick={retry} aria-label="위치 새로고침" title="위치 새로고침"><ReviewIcon name="refresh" size={18} /></button>}</div> : <span className="rv-footer-hint">별점 두 개와 화장지 유무만 선택하면 돼요</span>}<button className="rv-primary rv-full" disabled={saving || Boolean(eligibilityPending)} onClick={() => void submit()}>{saving ? '저장 중…' : initial ? '수정한 내용 저장' : '리뷰 남기기'}<ReviewIcon name="check" size={18} /></button></>}>
-    {discard ? <p className="rv-discard-copy">아직 저장하지 않은 내용은 사라져요.</p> : <>
-      <div className="rv-target"><span>이용한 화장실</span><h1>{toiletName}</h1></div>
+  return <ReviewModal title={t(discard ? 'review.discardTitle' : initial ? 'review.edit' : 'review.write')} onClose={close} onBack={discard ? () => setDiscard(false) : close} footer={discard ? <div className="rv-two-actions"><button className="rv-secondary" onClick={() => setDiscard(false)}>{t('review.continue')}</button><button className="rv-primary" onClick={onClose}>{t('review.discard')}</button></div> : <>{eligibilityPending ? <div className={`rv-eligibility is-${eligibility.status}`} role={eligibility.status === 'blocked' ? 'alert' : 'status'}><span title={eligibility.message}>{eligibility.message}</span>{onRetryEligibility && <button className="rv-location-refresh" type="button" onClick={retry} disabled={eligibility.status === 'checking'} aria-label={t('review.refreshLocation')} title={t('review.refreshLocation')}><ReviewIcon name="refresh" size={18} /></button>}</div> : error ? <div role="alert" className="rv-error rv-save-error"><span>{error}</span>{onRetryEligibility && <button className="rv-location-refresh" type="button" onClick={retry} aria-label={t('review.refreshLocation')} title={t('review.refreshLocation')}><ReviewIcon name="refresh" size={18} /></button>}</div> : <span className="rv-footer-hint">{t('review.footerHint')}</span>}<button className="rv-primary rv-full" disabled={saving || Boolean(eligibilityPending)} onClick={() => void submit()}>{t(saving ? 'common.saving' : initial ? 'review.saveEdit' : 'review.submit')}<ReviewIcon name="check" size={18} /></button></>}>
+    {discard ? <p className="rv-discard-copy">{t('review.discardHint')}</p> : <>
+      <div className="rv-target"><span>{t('review.target')}</span><h1>{toiletName}</h1></div>
       <div className="rv-required-fields">
-        <Stars label="만족도" value={value.satisfaction} onChange={n=>change('satisfaction',n)} />
-        <Stars label="청결도" value={value.cleanliness} onChange={n=>change('cleanliness',n)} />
-        <fieldset className="rv-paper-field"><legend>화장지가 있었나요?<span className="rv-required">필수</span></legend><div className="rv-segment two">
-          {[true,false].map(paper=><button type="button" key={String(paper)} data-paper={paper ? 'available' : 'missing'} aria-pressed={value.paper===paper} onClick={()=>change('paper',paper)}><ReviewIcon name="paper" size={20}/>{paper?'있었어요':'없었어요'}</button>)}
+        <Stars label={t('review.satisfaction')} value={value.satisfaction} onChange={n=>change('satisfaction',n)} />
+        <Stars label={t('review.cleanliness')} value={value.cleanliness} onChange={n=>change('cleanliness',n)} />
+        <fieldset className="rv-paper-field"><legend>{t('review.paperQuestion')}<span className="rv-required">{t('common.required')}</span></legend><div className="rv-segment two">
+          {[true,false].map(paper=><button type="button" key={String(paper)} data-paper={paper ? 'available' : 'missing'} aria-pressed={value.paper===paper} onClick={()=>change('paper',paper)}><ReviewIcon name="paper" size={20}/>{t(paper ? 'review.paperYes' : 'review.paperNo')}</button>)}
         </div></fieldset>
       </div>
-      <fieldset className="rv-wait-field"><legend>대기시간<span className="rv-optional">기본 0분</span></legend><div className="rv-wait"><div className="rv-wait-heading"><label htmlFor="review-wait">얼마나 기다렸나요?</label><strong>{waitLabel(value.waitMinutes)}</strong></div><div className="rv-wait-control"><input id="review-wait" type="range" aria-label="대기시간" min="0" max="60" step="10" value={value.waitMinutes} aria-valuetext={waitLabel(value.waitMinutes)} onChange={e=>change('waitMinutes',Number(e.target.value))}/><div className="rv-wait-ticks">{[0,10,20,30,40,50,60].map(minutes=><button type="button" key={minutes} aria-label={`대기 ${waitLabel(minutes)}`} aria-pressed={value.waitMinutes===minutes} onClick={()=>change('waitMinutes',minutes)}><i aria-hidden="true"/>{minutes===60?'60+':minutes}</button>)}</div></div></div></fieldset>
-      <div className="rv-comment"><label htmlFor="review-comment">한 줄 더 남겨주세요<span className="rv-optional">선택</span></label><textarea id="review-comment" rows={2} value={value.comment} onChange={e=>change('comment',Array.from(e.target.value).slice(0,200).join(''))} placeholder="예: 깨끗하고 휴지도 넉넉했어요." aria-describedby="review-comment-help"/><div className="rv-comment-foot"><span id="review-comment-help">이름·연락처 등 개인정보는 적지 말아 주세요.</span><output>{reviewLength(value.comment)} / 200</output></div></div>
-      <p className="rv-retention-note">작성 후 7일 동안 수정할 수 있어요. 작성자 정보를 지워도 리뷰 내용과 평가는 남아요.</p>
+      <fieldset className="rv-wait-field"><legend>{t('review.wait')}<span className="rv-optional">{t('review.defaultWait')}</span></legend><div className="rv-wait"><div className="rv-wait-heading"><label htmlFor="review-wait">{t('review.waitQuestion')}</label><strong>{waitLabel(value.waitMinutes, locale)}</strong></div><div className="rv-wait-control"><input id="review-wait" type="range" aria-label={t('review.wait')} min="0" max="60" step="10" value={value.waitMinutes} aria-valuetext={waitLabel(value.waitMinutes, locale)} onChange={e=>change('waitMinutes',Number(e.target.value))}/><div className="rv-wait-ticks">{[0,10,20,30,40,50,60].map(minutes=><button type="button" key={minutes} aria-label={`${t('review.wait')}: ${waitLabel(minutes, locale)}`} aria-pressed={value.waitMinutes===minutes} onClick={()=>change('waitMinutes',minutes)}><i aria-hidden="true"/>{minutes===60?'60+':minutes}</button>)}</div></div></div></fieldset>
+      <div className="rv-comment"><label htmlFor="review-comment">{t('review.commentLabel')}<span className="rv-optional">{t('common.optional')}</span></label><textarea id="review-comment" rows={2} value={value.comment} onChange={e=>change('comment',Array.from(e.target.value).slice(0,200).join(''))} placeholder={t('review.commentExample')} aria-describedby="review-comment-help"/><div className="rv-comment-foot"><span id="review-comment-help">{t('review.personalInfoHint')}</span><output>{reviewLength(value.comment)} / 200</output></div></div>
+      <p className="rv-retention-note">{t('review.retentionHint')}</p>
     </>}
   </ReviewModal>
 }

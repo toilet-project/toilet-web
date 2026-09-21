@@ -51,6 +51,23 @@ function coordinate(value: unknown) {
   if (!Number.isFinite(parsed)) throw new Error('Invalid toilet coordinate')
   return parsed
 }
+function translationMap(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  const translations: NonNullable<ToiletDetailResponse['translations']> = {}
+  for (const [rawLocale, rawText] of Object.entries(value as Record<string, unknown>)) {
+    const locale = rawLocale.trim().toLowerCase().replace('_', '-')
+    if (!/^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/.test(locale) || locale.length > 12
+      || !rawText || typeof rawText !== 'object' || Array.isArray(rawText)) continue
+    const text = rawText as Record<string, unknown>
+    if (typeof text.name !== 'string' || !text.name.trim()) continue
+    translations[locale] = {
+      name: text.name.trim(),
+      roadAddress: text.roadAddress == null ? null : String(text.roadAddress),
+      jibunAddress: text.jibunAddress == null ? null : String(text.jibunAddress),
+    }
+  }
+  return Object.keys(translations).length ? translations : undefined
+}
 
 // Copy only the public detail contract. Extra origin fields can never leak into shared R2.
 export function sanitizePublicToiletDetail(value: unknown, expectedId: number): ToiletDetailResponse {
@@ -78,7 +95,7 @@ export function sanitizePublicToiletDetail(value: unknown, expectedId: number): 
     hasEmergencyBell: optionalString(input.hasEmergencyBell), emergencyBellLocation: optionalString(input.emergencyBellLocation),
     hasCctv: optionalString(input.hasCctv), hasDiaperTable: optionalString(input.hasDiaperTable),
     diaperTableLocation: optionalString(input.diaperTableLocation), dataBaseDate: optionalString(input.dataBaseDate),
-    dataSource: optionalString(input.dataSource),
+    dataSource: optionalString(input.dataSource), translations: translationMap(input.translations),
   }
 }
 

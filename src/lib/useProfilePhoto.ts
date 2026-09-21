@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
+import { useMessages } from '../i18n/context'
 import { createApiUrl } from '../config/api'
 import { fetchSessionRead } from '../api/session'
 import { decodePhoto, PROFILE_PHOTO_ENABLED, type PhotoState } from './profilePhoto'
 export function useProfilePhoto(owner: string, onExpired: () => void, initialState?: PhotoState) {
+  const t = useMessages()
   const [state, setState] = useState<PhotoState | null>(initialState ?? null)
   const [error, setError] = useState('')
   const [revision, reload] = useState(0)
@@ -19,9 +21,9 @@ export function useProfilePhoto(owner: string, onExpired: () => void, initialSta
         if (!response.ok) throw new Error('PHOTO_UNAVAILABLE')
         const next = decodePhoto(await response.json())
         if (active) { setState(next); setError('') }
-      } catch { if (active) setError('사진 설정을 불러오지 못했어요.') }
+      } catch { if (active) setError(t('photo.settingsError')) }
     })()
     return () => { active = false }
-  }, [owner, revision, initialState])
+  }, [owner, revision, initialState, t])
   return { state, error, retry: () => reload(n => n + 1), update: setState }
 }

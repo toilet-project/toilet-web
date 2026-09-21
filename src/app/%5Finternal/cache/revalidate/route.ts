@@ -2,6 +2,7 @@ import { revalidatePath, revalidateTag } from 'next/cache'
 import { authenticateRevalidation, RevalidationError } from '../../../../server/cacheRevalidation'
 import { persistWorkerInvalidation } from '../../../../server/workerInvalidation'
 import { persistSharedToiletInvalidation } from '../../../../server/sharedToiletCache'
+import { localizedToiletPaths } from '../../../../i18n/routes'
 
 export const runtime = 'nodejs'
 const headers = { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow' }
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
     ])
     for (const id of ids) {
       revalidateTag(`toilet:${id}`, { expire: 0 })
-      revalidatePath(`/toilet/${id}`)
+      for (const path of localizedToiletPaths(id)) revalidatePath(path)
     }
     if (catalogChanged) {
       revalidateTag('toilet-catalog', { expire: 0 })

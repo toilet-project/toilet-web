@@ -1,9 +1,48 @@
 import { createApiUrl } from '../config/api'
 
+export type ToiletTranslationText = {
+  name: string
+  roadAddress: string | null
+  jibunAddress: string | null
+}
+
+export type ToiletTranslations = Record<string, ToiletTranslationText>
+
+export type ToiletMapItemResponse = {
+  id: number
+  name: string
+  toiletType?: string
+  latitude: number
+  longitude: number
+  displayGroupId?: number | null
+  displayGroupName?: string | null
+  displayGroupTranslations?: Record<string, string>
+  translations?: ToiletTranslations
+}
+
 export type ToiletMapSearchResponse = {
   meta: { map_level: number; display_type: 'MARKER' | 'CLUSTER'; total_count: number; result_count: number }
-  toilets: Array<{ id: number; name: string; toiletType?: string; latitude: number; longitude: number; displayGroupId?: number | null; displayGroupName?: string | null }>
+  toilets: ToiletMapItemResponse[]
   clusters: Array<{ latitude: number; longitude: number; count: number }>
+}
+
+export type NormalizedOpeningHours = {
+  openingPolicy: 'ALWAYS' | 'SCHEDULED' | 'IRREGULAR' | 'CLOSED' | 'UNKNOWN' | string
+  open24h: boolean | null
+  status: 'PARSED' | 'REVIEW_REQUIRED' | 'CONFIRMED' | string
+  confidence: number | null
+  parserVersion: string
+  holidayPolicy: 'OPEN' | 'CLOSED' | 'UNKNOWN' | string
+  manualOverride: boolean
+  sourceChanged: boolean
+  schedules: Array<{
+    dayOfWeek: number
+    slotIndex: number
+    startTime: string | null
+    endTime: string | null
+    crossesMidnight: boolean
+    closed: boolean
+  }>
 }
 
 export type ToiletDetailResponse = {
@@ -35,6 +74,7 @@ export type ToiletDetailResponse = {
   phoneNumber: string
   openTime: string
   openTimeDetail: string
+  normalizedOpeningHours?: NormalizedOpeningHours | null
   installationDate: string
   hasEmergencyBell: string
   emergencyBellLocation: string
@@ -43,6 +83,7 @@ export type ToiletDetailResponse = {
   diaperTableLocation: string
   dataBaseDate: string
   dataSource: string
+  translations?: ToiletTranslations
 }
 
 export async function fetchToiletsInBounds(params: { southLat: number; northLat: number; westLng: number; eastLng: number; zoom: number; includeList?: boolean }): Promise<ToiletMapSearchResponse> {

@@ -29,7 +29,7 @@ test('expired session clears private details and retains only a navigation inten
 test('notification writes guard unmount and never silently open detail on failure', () => {
   const panel=source('components/NotificationPanel.tsx')
   assert.match(panel, /if \(!mounted.current\) return/)
-  assert.match(panel, /failure\(reason, '읽음 처리하지 못했어요[^\n]+\n\s+return/)
+  assert.match(panel, /failure\(reason, t\('notification.readFailed'\)\)[^\n]*\n\s+return/)
   assert.match(panel, /disabled=\{writing \|\| isLoading\}/)
   assert.match(panel, /onClick=\{retry\}/)
 })
