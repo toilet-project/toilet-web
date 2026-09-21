@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { asianLocales, mergePlaceLocalizations } from './place-search-localizations.mjs'
-import { resolvePreviewCoordinateCorrections } from './place-search-coordinate-corrections.mjs'
+import { mergePreviewCoordinateCorrections, resolveBusanStationCorrections, resolvePreviewCoordinateCorrections } from './place-search-coordinate-corrections.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const args = new Map(process.argv.slice(2).map((value, index, values) => value.startsWith('--') ? [value, values[index + 1]] : null).filter(Boolean))
@@ -11,7 +11,10 @@ const outputPath = resolve(args.get('--output') || `${root}/.generated/place-sea
 const [metadata, ...rows] = (await readFile(seedPath, 'utf8')).trim().split(/\r?\n/).map(line => JSON.parse(line))
 const allRecords = rows.map(({ type: _type, ...record }) => record)
 const correctionConfig = JSON.parse(await readFile(`${root}/data/place-search/preview-coordinate-corrections-20260921.json`, 'utf8'))
-const corrections = resolvePreviewCoordinateCorrections(metadata, allRecords, correctionConfig)
+const busanConfig = JSON.parse(await readFile(`${root}/data/place-search/preview-busan-station-corrections-20260921.json`, 'utf8'))
+const corrections = mergePreviewCoordinateCorrections(
+  resolvePreviewCoordinateCorrections(metadata, allRecords, correctionConfig),
+  resolveBusanStationCorrections(metadata, allRecords, busanConfig))
 const componentId = args.get('--component')
 const componentIndex = metadata.componentDatasets?.findIndex(component => component.id === componentId) ?? -1
 if (componentId && componentIndex < 0) throw new Error(`Unknown component dataset: ${componentId}`)

@@ -5,13 +5,15 @@ import { DatabaseSync } from 'node:sqlite'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { placeSearchResponse } from '../place-search-worker.mjs'
-import { resolvePreviewCoordinateCorrections } from '../scripts/place-search-coordinate-corrections.mjs'
+import { mergePreviewCoordinateCorrections, resolveBusanStationCorrections, resolvePreviewCoordinateCorrections } from '../scripts/place-search-coordinate-corrections.mjs'
 
 const root = new URL('../', import.meta.url)
 const [metadata, ...rows] = (await readFile(new URL('data/place-search/place-search-seed-20260920.ndjson', root), 'utf8')).trim().split(/\r?\n/).map(line => JSON.parse(line))
 const seed = { ...metadata, records: rows.map(({ type: _type, ...record }) => record) }
 const correctionConfig = JSON.parse(await readFile(new URL('data/place-search/preview-coordinate-corrections-20260921.json', root), 'utf8'))
 const corrections = resolvePreviewCoordinateCorrections(metadata, seed.records, correctionConfig)
+const busanConfig = JSON.parse(await readFile(new URL('data/place-search/preview-busan-station-corrections-20260921.json', root), 'utf8'))
+const busanCorrections = resolveBusanStationCorrections(metadata, seed.records, busanConfig)
 
 test('keeps all audited records while exposing only preview-usable places', () => {
   assert.equal(seed.records.length, 2000)
@@ -30,6 +32,13 @@ test('keeps all audited records while exposing only preview-usable places', () =
   assert.ok(corrections.has('Q20823454'))
   assert.ok(corrections.has('Q69073'))
   assert.equal(corrections.get('Q20823464').evidence.matchedSourceName, '서구청')
+  assert.equal(busanCorrections.size, 2)
+  assert.deepEqual(busanCorrections.get('Q705078').coordinate.latitude, 35.213333)
+  assert.equal(busanCorrections.get('Q705078').evidence.sourceRow, 108)
+  assert.throws(() => resolveBusanStationCorrections(metadata, seed.records,
+    { ...busanConfig, entries: busanConfig.entries.map(entry => entry.id === 'Q705078'
+      ? { ...entry, stationCode: '406' } : entry) }), /Invalid Busan station correction target/)
+  assert.throws(() => mergePreviewCoordinateCorrections(corrections, corrections), /Duplicate preview coordinate correction/)
   assert.throws(() => resolvePreviewCoordinateCorrections(metadata, seed.records,
     { ...correctionConfig, sourceSeedHash: 'stale' }), /Invalid preview coordinate correction source/)
   assert.throws(() => resolvePreviewCoordinateCorrections(metadata, seed.records,
@@ -56,6 +65,13 @@ test('generated D1 schema and import are executable and searchable', async () =>
   assert.equal(correctedStation.latitude, 37.594905)
   assert.equal(correctedStation.longitude, 126.6278076)
   assert.equal(JSON.parse(correctedStation.audit_json).previewCoordinateCorrection.sourceRow, 35)
+  const seodong = database.prepare("SELECT latitude, longitude, audit_json FROM places WHERE id='Q705078'").get()
+  assert.equal(seodong.latitude, 35.213333)
+  assert.equal(seodong.longitude, 129.107683)
+  assert.equal(JSON.parse(seodong.audit_json).previewCoordinateCorrection.sourceRow, 108)
+  const myeongjang = database.prepare("SELECT latitude, longitude FROM places WHERE id='Q705398'").get()
+  assert.equal(myeongjang.latitude, 35.205143)
+  assert.equal(myeongjang.longitude, 129.101517)
   const renamedStationAudit = JSON.parse(database.prepare("SELECT audit_json FROM places WHERE id='Q20823464'").get().audit_json)
   assert.equal(renamedStationAudit.officialLocalizationOverrides.length, 4)
   assert.equal(database.prepare("SELECT name FROM place_localizations WHERE place_id='Q20823464' AND locale='ja'").get().name,
@@ -154,7 +170,7 @@ test('component imports add the second dataset without replacing the first', asy
   database.close()
 })
 
-test('coordinate delta restores only the 20 suppressed preview stations and is repeatable', async () => {
+test('coordinate delta restores the 20 suppressed stations and corrects the two Busan stations repeatably', async () => {
   execFileSync(process.execPath, [fileURLToPath(new URL('scripts/build-place-search-coordinate-correction-delta.mjs', root))])
   const database = new DatabaseSync(':memory:')
   database.exec(await readFile(new URL('db/place-search-schema.sql', root), 'utf8'))
@@ -167,6 +183,10 @@ test('coordinate delta restores only the 20 suppressed preview stations and is r
     database.prepare('DELETE FROM place_search_localized_fts WHERE place_id=?').run(id)
     database.prepare('DELETE FROM place_localizations WHERE place_id=?').run(id)
   }
+  for (const [id, correction] of busanCorrections) {
+    const previous = correction.evidence.previousCoordinate
+    database.prepare('UPDATE places SET latitude=?, longitude=? WHERE id=?').run(previous.latitude, previous.longitude, id)
+  }
   assert.equal(database.prepare("SELECT count(*) AS count FROM places WHERE search_scope='disabled'").get().count, 97)
   const delta = await readFile(new URL('.generated/place-search-coordinate-correction-delta.sql', root), 'utf8')
   database.exec(delta)
@@ -178,5 +198,8 @@ test('coordinate delta restores only the 20 suppressed preview stations and is r
   const renamedStation = database.prepare("SELECT latitude, longitude FROM places WHERE id='Q20823464'").get()
   assert.equal(renamedStation.latitude, 37.5440329)
   assert.equal(renamedStation.longitude, 126.6769945)
+  const seodong = database.prepare("SELECT latitude, longitude FROM places WHERE id='Q705078'").get()
+  assert.equal(seodong.latitude, 35.213333)
+  assert.equal(seodong.longitude, 129.107683)
   database.close()
 })

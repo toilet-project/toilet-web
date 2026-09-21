@@ -1,13 +1,16 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { asianLocales, mergePlaceLocalizations } from './place-search-localizations.mjs'
-import { resolvePreviewCoordinateCorrections } from './place-search-coordinate-corrections.mjs'
+import { mergePreviewCoordinateCorrections, resolveBusanStationCorrections, resolvePreviewCoordinateCorrections } from './place-search-coordinate-corrections.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 const [metadata, ...records] = (await readFile(resolve(root, 'data/place-search/place-search-seed-20260920.ndjson'), 'utf8'))
   .trim().split(/\r?\n/).map(JSON.parse)
 const config = JSON.parse(await readFile(resolve(root, 'data/place-search/preview-coordinate-corrections-20260921.json'), 'utf8'))
-const corrections = resolvePreviewCoordinateCorrections(metadata, records, config)
+const busanConfig = JSON.parse(await readFile(resolve(root, 'data/place-search/preview-busan-station-corrections-20260921.json'), 'utf8'))
+const corrections = mergePreviewCoordinateCorrections(
+  resolvePreviewCoordinateCorrections(metadata, records, config),
+  resolveBusanStationCorrections(metadata, records, busanConfig))
 const curatedAliases = JSON.parse(await readFile(resolve(root, 'data/place-search/curated-search-aliases.json'), 'utf8'))
 const googleText = await readFile(resolve(root, 'data/place-search/google-translation-fallbacks-20260921.ndjson'), 'utf8')
 const holds = JSON.parse(await readFile(resolve(root, 'data/place-search/google-translation-holds-20260921.json'), 'utf8'))
@@ -33,8 +36,9 @@ for (const [index, place] of records.entries()) {
   const audit = { ...place, selectedCoordinate: correction.coordinate,
     previewCoordinateCorrection: correction.evidence,
     ...(officialNameCorrections.length ? { officialLocalizationOverrides: officialNameCorrections } : {}) }
-  const guard = `id = ${sql(place.id)} AND search_scope = 'preview' AND abs(latitude - ${latitude}) < 0.00000001 AND abs(longitude - ${longitude}) < 0.00000001`
-  statements.push(`UPDATE places SET latitude = ${latitude}, longitude = ${longitude}, status = 'usable_preview', search_scope = 'preview', audit_json = ${json(audit)} WHERE id = ${sql(place.id)} AND search_scope = 'disabled' AND status = 'pending_review' AND abs(latitude - ${config.previousCoordinate.latitude}) < 0.00000001 AND abs(longitude - ${config.previousCoordinate.longitude}) < 0.00000001;`)
+  const previous = correction.evidence.previousCoordinate
+  const guard = `id = ${sql(place.id)} AND search_scope = 'preview' AND production_approved = 0 AND abs(latitude - ${latitude}) < 0.00000001 AND abs(longitude - ${longitude}) < 0.00000001`
+  statements.push(`UPDATE places SET latitude = ${latitude}, longitude = ${longitude}, status = 'usable_preview', search_scope = 'preview', audit_json = ${json(audit)} WHERE id = ${sql(place.id)} AND production_approved = 0 AND ((search_scope = 'disabled' AND status = 'pending_review') OR (search_scope = 'preview' AND status = 'usable_preview')) AND abs(latitude - ${previous.latitude}) < 0.00000001 AND abs(longitude - ${previous.longitude}) < 0.00000001;`)
   statements.push(`UPDATE places SET audit_json = ${json(audit)} WHERE ${guard};`)
   for (const table of ['place_search_fts', 'place_search_localized_fts', 'place_localizations']) {
     statements.push(`DELETE FROM ${table} WHERE place_id = ${sql(place.id)} AND EXISTS (SELECT 1 FROM places WHERE ${guard});`)

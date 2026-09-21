@@ -73,3 +73,53 @@ export function resolvePreviewCoordinateCorrections(metadata, records, config) {
   }
   return corrections
 }
+
+export function resolveBusanStationCorrections(metadata, records, config) {
+  if (config?.sourceSeedHash !== metadata.sourceHash || config.entries?.length !== 2
+    || config.source?.url !== 'https://www.data.go.kr/data/15043686/fileData.do'
+    || !/^[a-f0-9]{64}$/.test(config.source?.fileSha256 ?? '')
+    || config.source.latitudeColumn !== 'J' || config.source.longitudeColumn !== 'K') {
+    throw new Error('Invalid Busan station correction source')
+  }
+  const byId = new Map(records.map(place => [place.id, place]))
+  const expected = new Map([
+    ['Q705398', { name: '명장역', stationCode: '406', row: 107 }],
+    ['Q705078', { name: '서동역', stationCode: '407', row: 108 }],
+  ])
+  const corrections = new Map()
+  for (const entry of config.entries) {
+    const place = byId.get(entry.id)
+    const match = expected.get(entry.id)
+    const coordinate = { latitude: entry.latitude, longitude: entry.longitude,
+      precisionDegrees: 0.000001, role: 'official_station_location_not_entrance' }
+    const previous = place?.selectedCoordinate
+    const distance = previous ? distanceMetres(coordinate, previous) : Infinity
+    if (!match || corrections.has(entry.id) || !place || place.nameKo !== match.name
+      || entry.name !== match.name || entry.stationCode !== match.stationCode || entry.row !== match.row
+      || place.categoryCode !== 'station' || place.searchScope !== 'preview' || place.productionApproved
+      || !Number.isFinite(entry.latitude) || !Number.isFinite(entry.longitude)
+      || entry.latitude < 35 || entry.latitude > 36 || entry.longitude < 129 || entry.longitude > 130
+      || distance > 1500 || distance < 1) {
+      throw new Error(`Invalid Busan station correction target: ${entry.id}`)
+    }
+    corrections.set(entry.id, { coordinate, evidence: {
+      sourceName: config.source.name, sourceUrl: config.source.url,
+      sourceFileSha256: config.source.fileSha256, sourceRow: entry.row,
+      sourceStationCode: entry.stationCode, matchedSourceName: entry.name,
+      previousCoordinate: previous, previousDistanceM: Math.round(distance),
+    } })
+  }
+  if (corrections.size !== expected.size) throw new Error('Missing Busan station correction target')
+  return corrections
+}
+
+export function mergePreviewCoordinateCorrections(...groups) {
+  const merged = new Map()
+  for (const group of groups) {
+    for (const [id, correction] of group) {
+      if (merged.has(id)) throw new Error(`Duplicate preview coordinate correction: ${id}`)
+      merged.set(id, correction)
+    }
+  }
+  return merged
+}

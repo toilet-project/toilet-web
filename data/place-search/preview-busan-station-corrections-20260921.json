@@ -1,0 +1,14 @@
+{
+  "sourceSeedHash": "2a7f0d06ce8ae476413c2e3e91a95d38a22e88de8f7bceb8c31d92114685dfd2",
+  "source": {
+    "name": "부산교통공사_도시철도역사정보_20210226",
+    "url": "https://www.data.go.kr/data/15043686/fileData.do",
+    "fileSha256": "611d0dab158dbc0b5a44081f979c4f5bbd888b66e94e2df7f0f0e23da63d6b89",
+    "latitudeColumn": "J",
+    "longitudeColumn": "K"
+  },
+  "entries": [
+    { "id": "Q705398", "name": "명장역", "stationCode": "406", "row": 107, "latitude": 35.205143, "longitude": 129.101517 },
+    { "id": "Q705078", "name": "서동역", "stationCode": "407", "row": 108, "latitude": 35.213333, "longitude": 129.107683 }
+  ]
+}
