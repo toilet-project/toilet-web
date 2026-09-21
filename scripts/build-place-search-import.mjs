@@ -7,7 +7,16 @@ const args = new Map(process.argv.slice(2).map((value, index, values) => value.s
 const seedPath = resolve(args.get('--seed') || `${root}/data/place-search/place-search-seed-20260920.ndjson`)
 const outputPath = resolve(args.get('--output') || `${root}/.generated/place-search-import.sql`)
 const [metadata, ...rows] = (await readFile(seedPath, 'utf8')).trim().split(/\r?\n/).map(line => JSON.parse(line))
-const seed = { ...metadata, records: rows.map(({ type: _type, ...record }) => record) }
+const allRecords = rows.map(({ type: _type, ...record }) => record)
+const componentId = args.get('--component')
+const componentIndex = metadata.componentDatasets?.findIndex(component => component.id === componentId) ?? -1
+if (componentId && componentIndex < 0) throw new Error(`Unknown component dataset: ${componentId}`)
+const component = componentId ? metadata.componentDatasets[componentIndex] : null
+const componentOffset = component ? metadata.componentDatasets.slice(0, componentIndex).reduce((sum, item) => sum + item.count, 0) : 0
+const seed = component
+  ? { ...metadata, datasetId: component.id, sourceHash: component.sourceHash, sourceCount: component.count,
+    records: allRecords.slice(componentOffset, componentOffset + component.count) }
+  : { ...metadata, records: allRecords }
 const curatedAliases = JSON.parse(await readFile(`${root}/data/place-search/curated-search-aliases.json`, 'utf8'))
 
 const sql = (value) => value == null ? 'NULL' : `'${String(value).replaceAll("'", "''")}'`
@@ -15,9 +24,12 @@ const number = (value) => Number.isFinite(value) ? String(value) : 'NULL'
 const json = (value) => sql(JSON.stringify(value ?? null))
 const normalize = (value) => String(value ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('en-US').replace(/[^\p{L}\p{N}]+/gu, ' ').trim().replace(/\s+/g, ' ')
 
-if (metadata.type !== 'dataset' || rows.some(row => row.type !== 'place') || seed.records.length !== seed.sourceCount) throw new Error('Invalid place search seed')
+if (metadata.type !== 'dataset' || rows.some(row => row.type !== 'place') || allRecords.length !== metadata.sourceCount
+  || (metadata.componentDatasets && metadata.componentDatasets.reduce((sum, item) => sum + item.count, 0) !== allRecords.length)
+  || seed.records.length !== seed.sourceCount) throw new Error('Invalid place search seed')
 for (const [id, override] of Object.entries(curatedAliases)) {
   const place = seed.records.find(record => record.id === id)
+  if (!place && component && allRecords.some(record => record.id === id)) continue
   if (!place || place.searchScope !== 'preview' || place.productionApproved || !Array.isArray(override.en)
     || override.en.length === 0 || override.en.some(alias => typeof alias !== 'string' || !/^[A-Za-z][A-Za-z\s-]{1,79}$/.test(alias))
     || typeof override.source !== 'string' || !override.source.startsWith('https://english.seoul.go.kr/')) {

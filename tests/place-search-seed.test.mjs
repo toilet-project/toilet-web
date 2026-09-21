@@ -2,6 +2,8 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { DatabaseSync } from 'node:sqlite'
+import { execFileSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 
 const root = new URL('../', import.meta.url)
 const [metadata, ...rows] = (await readFile(new URL('data/place-search/place-search-seed-20260920.ndjson', root), 'utf8')).trim().split(/\r?\n/).map(line => JSON.parse(line))
@@ -46,5 +48,24 @@ test('generated D1 schema and import are executable and searchable', async () =>
   `).all('"myeongdong"*')
   assert.ok(myeongdong.some(place => place.id === 'Q626260' && place.name_en === 'Myeong-dong Station'
     && JSON.parse(place.audit_json).curatedAliasSource.includes('english.seoul.go.kr')))
+  database.close()
+})
+
+test('component imports add the second dataset without replacing the first', async () => {
+  const base = 'wikidata-place-seed-20260920'
+  const extension = 'wikidata-place-extension-20260920'
+  for (const id of [base, extension]) {
+    execFileSync(process.execPath, [fileURLToPath(new URL('scripts/build-place-search-import.mjs', root)),
+      '--component', id, '--output', fileURLToPath(new URL(`.generated/${id}-import.sql`, root))])
+  }
+  const database = new DatabaseSync(':memory:')
+  database.exec(await readFile(new URL('db/place-search-schema.sql', root), 'utf8'))
+  database.exec(await readFile(new URL(`.generated/${base}-import.sql`, root), 'utf8'))
+  const original = database.prepare('SELECT source_hash, imported_at FROM source_datasets WHERE id = ?').get(base)
+  database.exec(await readFile(new URL(`.generated/${extension}-import.sql`, root), 'utf8'))
+  assert.deepEqual(database.prepare('SELECT source_hash, imported_at FROM source_datasets WHERE id = ?').get(base), original)
+  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM places').get().count, 2000)
+  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM place_search_fts').get().count, 1019)
+  assert.equal(database.prepare('SELECT COUNT(*) AS count FROM places WHERE production_approved = 1').get().count, 0)
   database.close()
 })
