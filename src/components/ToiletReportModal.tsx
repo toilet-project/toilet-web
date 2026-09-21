@@ -2,7 +2,8 @@ import { useLocale, useMessages } from '../i18n/context'
 import { useEffect, useRef, useState } from 'react'
 import { createToiletReport } from '../api/reports'
 import type { ToiletDetailResponse } from '../api/toilets'
-import { createKakaoMap, reverseGeocodeKakaoCoordinates, type KakaoMapInstance } from '../lib/kakaoMap'
+import { reverseGeocodeKakaoCoordinates } from '../lib/kakaoMap'
+import { addMapEventListener, createMap, destroyMap } from '../lib/mapProvider'
 import { getDisplayAddress } from '../lib/address'
 import { attachReportViewport } from '../lib/reportViewport'
 import { trackEvent } from '../lib/analytics'
@@ -25,7 +26,6 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
   const [error, setError] = useState<string | null>(null)
   const [mapLevel, setMapLevel] = useState(4)
   const mapElementRef = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<KakaoMapInstance | null>(null)
   const geocodeRequestRef = useRef(0)
   const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const backdropRef = useRef<HTMLDivElement>(null)
@@ -41,6 +41,7 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
     if ((step !== 'location' && step !== 'locationConfirm') || !mapElementRef.current) return
     let disposed = false
     let resizeObserver: ResizeObserver | undefined
+    let disposeMap: (() => void) | undefined
 
     const updateAddress = async (next: Coordinates) => {
       const requestId = ++geocodeRequestRef.current
@@ -56,38 +57,43 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
     }
 
     void (async () => {
-      const map = await createKakaoMap(mapElementRef.current!, confirmedCoordinates ?? { latitude, longitude }, 4)
-      if (disposed) return
-      mapRef.current = map
-      resizeObserver = new ResizeObserver(() => map.relayout())
-      resizeObserver.observe(mapElementRef.current!)
-      if (step === 'locationConfirm') {
-        map.setDraggable(false)
-        map.setZoomable(false)
-        return
+      try {
+        const map = await createMap(mapElementRef.current!, confirmedCoordinates ?? { latitude, longitude }, 4, locale)
+        if (disposed) { destroyMap(map); return }
+        const removeListeners: Array<() => void> = []
+        disposeMap = () => { removeListeners.forEach(remove => remove()); destroyMap(map) }
+        resizeObserver = new ResizeObserver(() => map.relayout())
+        resizeObserver.observe(mapElementRef.current!)
+        if (step === 'locationConfirm') {
+          map.setDraggable(false)
+          map.setZoomable(false)
+          return
+        }
+        const syncCenter = () => {
+          if (disposed) return
+          const center = map.getCenter()
+          const next = { latitude: center.getLat(), longitude: center.getLng() }
+          setCoordinates(next)
+          if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current)
+          geocodeTimerRef.current = setTimeout(() => { void updateAddress(next) }, 280)
+        }
+        const syncLevel = () => { if (!disposed) setMapLevel(map.getLevel()) }
+        removeListeners.push(addMapEventListener(map, 'idle', syncCenter))
+        removeListeners.push(addMapEventListener(map, 'zoom_changed', syncLevel))
+        syncLevel()
+        syncCenter()
+      } catch {
+        if (!disposed) setError(t('error.load'))
       }
-      const syncCenter = () => {
-        if (disposed) return
-        const center = map.getCenter()
-        const next = { latitude: center.getLat(), longitude: center.getLng() }
-        setCoordinates(next)
-        if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current)
-        geocodeTimerRef.current = setTimeout(() => { void updateAddress(next) }, 280)
-      }
-      const syncLevel = () => { if (!disposed) setMapLevel(map.getLevel()) }
-      window.kakao.maps.event.addListener(map, 'idle', syncCenter)
-      window.kakao.maps.event.addListener(map, 'zoom_changed', syncLevel)
-      syncLevel()
-      syncCenter()
     })()
 
     return () => {
       disposed = true
       resizeObserver?.disconnect()
       if (geocodeTimerRef.current) clearTimeout(geocodeTimerRef.current)
-      mapRef.current = null
+      disposeMap?.()
     }
-  }, [step, latitude, longitude, confirmedCoordinates])
+  }, [step, latitude, longitude, confirmedCoordinates, locale, t])
 
   const openLocationConfirmation = () => {
     setError(null)
@@ -168,3 +174,4 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
     </section>
   </div>
 }
+
