@@ -40,3 +40,15 @@ test('keeps English fallback for a held or unchanged machine translation', () =>
   assert.throws(() => mergePlaceLocalizations(wikidata, fallback, new Set(['Q9:ja'])), /Unknown Google translation hold/)
   assert.throws(() => mergePlaceLocalizations(wikidata, null, new Set(['Q1:zh-CN'])), /Missing Google translation fallback/)
 })
+
+test('official current station names replace only the reviewed stale localization', () => {
+  const override = { id: 'Q1', locale: 'ja', previousName: '既存名', name: 'ソヘグチョン駅',
+    aliases: ['ソヘグチョン'], sourceLanguage: 'ja',
+    sourceUrl: 'https://www.ictr.or.kr/main/subway/subwayStation.do?line_no=2&station_no=210' }
+  const { rows } = mergePlaceLocalizations(wikidata, fallback, new Set(), [override])
+  assert.equal(rows.get('Q1').names.ja.name, 'ソヘグチョン駅')
+  assert.deepEqual(rows.get('Q1').names.ja.aliases, ['ソヘグチョン'])
+  assert.equal(rows.get('Q1').names['zh-CN'].name, '补充名')
+  assert.throws(() => mergePlaceLocalizations(wikidata, fallback, new Set(),
+    [{ ...override, previousName: '다른 이름' }]), /Invalid official localization override/)
+})

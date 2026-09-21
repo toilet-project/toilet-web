@@ -1,6 +1,6 @@
 export const asianLocales = ['ja', 'zh-CN', 'zh-TW', 'zh-HK']
 
-export function mergePlaceLocalizations(wikidataText, googleText = null, heldPairs = new Set()) {
+export function mergePlaceLocalizations(wikidataText, googleText = null, heldPairs = new Set(), officialOverrides = []) {
   if (heldPairs.size && !googleText?.trim()) throw new Error('Missing Google translation fallback dataset for holds')
   const [wikidataMetadata, ...wikidataRows] = wikidataText.trim().split(/\r?\n/).map(JSON.parse)
   if (wikidataMetadata.type !== 'dataset' || !wikidataMetadata.sourceSeedHash) throw new Error('Invalid Wikidata localizations')
@@ -33,6 +33,25 @@ export function mergePlaceLocalizations(wikidataText, googleText = null, heldPai
     }
     for (const key of heldPairs) {
       if (!seen.has(key)) throw new Error(`Unknown Google translation hold: ${key}`)
+    }
+  }
+  const overridden = new Set()
+  for (const override of officialOverrides) {
+    const key = `${override.id}:${override.locale}`
+    const entry = rows.get(override.id)
+    const previous = entry?.names?.[override.locale]
+    if (overridden.has(key) || !asianLocales.includes(override.locale)
+      || !previous || previous.name !== override.previousName
+      || typeof override.name !== 'string' || !override.name.trim()
+      || !Array.isArray(override.aliases) || override.aliases.some(alias => typeof alias !== 'string' || !alias.trim())
+      || !['ja', 'zh'].includes(override.sourceLanguage)
+      || !override.sourceUrl?.startsWith('https://www.ictr.or.kr/')) {
+      throw new Error(`Invalid official localization override: ${key}`)
+    }
+    overridden.add(key)
+    entry.names[override.locale] = {
+      name: override.name.trim(), aliases: override.aliases.map(alias => alias.trim()),
+      sourceLanguage: override.sourceLanguage, sourceUrl: override.sourceUrl,
     }
   }
   return { metadata: wikidataMetadata, rows }

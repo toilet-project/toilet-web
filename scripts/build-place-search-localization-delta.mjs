@@ -2,7 +2,6 @@ import { execFileSync } from 'node:child_process'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { asianLocales, mergePlaceLocalizations } from './place-search-localizations.mjs'
-import { resolvePreviewSuppressions } from './place-search-suppressions.mjs'
 
 const root = resolve(import.meta.dirname, '..')
 const sourcePath = 'data/place-search/wikidata-localizations-20260921.ndjson'
@@ -27,12 +26,11 @@ const newGoogle = await readFile(resolve(root, googlePath), 'utf8').catch(error 
 })
 const translationHolds = JSON.parse(await readFile(resolve(root, 'data/place-search/google-translation-holds-20260921.json'), 'utf8'))
 const heldPairs = new Set(translationHolds.flatMap(hold => hold.locales.map(locale => `${hold.id}:${locale}`)))
+const officialOverrides = JSON.parse(await readFile(resolve(root, 'data/place-search/official-localization-overrides-20260921.json'), 'utf8'))
 const old = mergePlaceLocalizations(oldText, gitShow(googlePath))
-const next = mergePlaceLocalizations(newText, newGoogle, heldPairs)
+const next = mergePlaceLocalizations(newText, newGoogle, heldPairs, officialOverrides)
 const [seedMetadata, ...seedRows] = (await readFile(resolve(root, 'data/place-search/place-search-seed-20260920.ndjson'), 'utf8'))
   .trim().split(/\r?\n/).map(JSON.parse)
-const suppressionConfig = JSON.parse(await readFile(resolve(root, 'data/place-search/preview-suppressions-20260921.json'), 'utf8'))
-const suppressed = resolvePreviewSuppressions(seedMetadata, seedRows, suppressionConfig)
 const curatedAliases = JSON.parse(await readFile(resolve(root, 'data/place-search/curated-search-aliases.json'), 'utf8'))
 if (old.metadata.sourceSeedHash !== next.metadata.sourceSeedHash || next.metadata.sourceSeedHash !== seedMetadata.sourceHash
   || old.metadata.eligibleCount !== next.metadata.eligibleCount) throw new Error('Incompatible localization datasets')
@@ -45,7 +43,7 @@ const number = value => Number.isSafeInteger(value) ? String(value) : 'NULL'
 const statements = []
 let changedTerms = 0
 for (const [index, place] of seedRows.entries()) {
-  if (place.searchScope !== 'preview' || !place.selectedCoordinate || suppressed.has(place.id)) continue
+  if (place.searchScope !== 'preview' || !place.selectedCoordinate) continue
   const component = seedMetadata.componentDatasets.find((_, componentIndex) => index < seedMetadata.componentDatasets
     .slice(0, componentIndex + 1).reduce((sum, item) => sum + item.count, 0))
   if (!component) throw new Error(`Missing component for ${place.id}`)
@@ -59,7 +57,7 @@ for (const [index, place] of seedRows.entries()) {
     if (indexedTerm(oldTerm) === indexedTerm(newTerm)) continue
     statements.push(`DELETE FROM place_search_localized_fts WHERE place_id = ${sql(place.id)} AND locale = ${sql(locale)};`)
     statements.push(`DELETE FROM place_localizations WHERE place_id = ${sql(place.id)} AND locale = ${sql(locale)};`)
-    if (newTerm) statements.push(`INSERT INTO place_localizations (place_id, locale, name, aliases_json, source_language, source_revision) VALUES (${sql(place.id)}, ${sql(locale)}, ${sql(newTerm.name)}, ${sql(JSON.stringify(newTerm.aliases))}, ${sql(newTerm.sourceLanguage)}, ${number(newRow.revision)});`)
+    if (newTerm) statements.push(`INSERT INTO place_localizations (place_id, locale, name, aliases_json, source_language, source_revision) VALUES (${sql(place.id)}, ${sql(locale)}, ${sql(newTerm.name)}, ${sql(JSON.stringify(newTerm.aliases))}, ${sql(newTerm.sourceLanguage)}, ${number(newTerm.sourceUrl ? null : newRow.revision)});`)
     const aliasesEn = [...new Set([...(place.aliases?.en ?? []), ...(curatedAliases[place.id]?.en ?? [])])]
     statements.push(`INSERT INTO place_search_localized_fts (place_id, locale, name, aliases, name_en, aliases_en, source_dataset) VALUES (${sql(place.id)}, ${sql(locale)}, ${sql(newTerm?.name || place.nameEn)}, ${sql((newTerm?.aliases ?? []).join(' '))}, ${sql(place.nameEn)}, ${sql(aliasesEn.join(' '))}, ${sql(component.id)});`)
     changedTerms++

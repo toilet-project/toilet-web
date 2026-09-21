@@ -2,7 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { asianLocales, mergePlaceLocalizations } from './place-search-localizations.mjs'
-import { resolvePreviewSuppressions } from './place-search-suppressions.mjs'
+import { resolvePreviewCoordinateCorrections } from './place-search-coordinate-corrections.mjs'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const args = new Map(process.argv.slice(2).map((value, index, values) => value.startsWith('--') ? [value, values[index + 1]] : null).filter(Boolean))
@@ -10,8 +10,8 @@ const seedPath = resolve(args.get('--seed') || `${root}/data/place-search/place-
 const outputPath = resolve(args.get('--output') || `${root}/.generated/place-search-import.sql`)
 const [metadata, ...rows] = (await readFile(seedPath, 'utf8')).trim().split(/\r?\n/).map(line => JSON.parse(line))
 const allRecords = rows.map(({ type: _type, ...record }) => record)
-const suppressionConfig = JSON.parse(await readFile(`${root}/data/place-search/preview-suppressions-20260921.json`, 'utf8'))
-const suppressed = resolvePreviewSuppressions(metadata, allRecords, suppressionConfig)
+const correctionConfig = JSON.parse(await readFile(`${root}/data/place-search/preview-coordinate-corrections-20260921.json`, 'utf8'))
+const corrections = resolvePreviewCoordinateCorrections(metadata, allRecords, correctionConfig)
 const componentId = args.get('--component')
 const componentIndex = metadata.componentDatasets?.findIndex(component => component.id === componentId) ?? -1
 if (componentId && componentIndex < 0) throw new Error(`Unknown component dataset: ${componentId}`)
@@ -29,8 +29,10 @@ const googleText = await readFile(googlePath, 'utf8').catch(error => {
 })
 const translationHolds = JSON.parse(await readFile(`${root}/data/place-search/google-translation-holds-20260921.json`, 'utf8'))
 const heldPairs = new Set(translationHolds.flatMap(hold => hold.locales.map(locale => `${hold.id}:${locale}`)))
+const officialOverrides = JSON.parse(await readFile(`${root}/data/place-search/official-localization-overrides-20260921.json`, 'utf8'))
 const { metadata: localizationMetadata, rows: localizedNames } = mergePlaceLocalizations(
-  await readFile(`${root}/data/place-search/wikidata-localizations-20260921.ndjson`, 'utf8'), googleText, heldPairs)
+  await readFile(`${root}/data/place-search/wikidata-localizations-20260921.ndjson`, 'utf8'),
+  googleText, heldPairs, officialOverrides)
 
 const sql = (value) => value == null ? 'NULL' : `'${String(value).replaceAll("'", "''")}'`
 const number = (value) => Number.isFinite(value) ? String(value) : 'NULL'
@@ -70,12 +72,18 @@ const statements = [
 ]
 
 for (const place of seed.records) {
-  const suppression = suppressed.get(place.id)
-  const searchScope = suppression ? 'disabled' : place.searchScope
-  const status = suppression ? 'pending_review' : place.status
-  const audit = suppression ? { ...place, searchSuppression: suppression } : place
+  const correction = corrections.get(place.id)
+  const searchScope = place.searchScope
+  const status = place.status
+  const officialNameCorrections = officialOverrides.filter(override => override.id === place.id)
+    .map(({ locale, name, sourceUrl }) => ({ locale, name, sourceUrl }))
+  const audit = {
+    ...place,
+    ...(correction ? { selectedCoordinate: correction.coordinate, previewCoordinateCorrection: correction.evidence } : {}),
+    ...(officialNameCorrections.length ? { officialLocalizationOverrides: officialNameCorrections } : {}),
+  }
   const regionEn = (place.regions?.values ?? []).map(region => region.nameEn).filter(Boolean).join(', ')
-  const selected = place.selectedCoordinate
+  const selected = correction?.coordinate ?? place.selectedCoordinate
   statements.push(`INSERT INTO places (id, source_dataset, name_ko, name_en, category, place_kind, status, search_scope, production_approved, verification_level, region_en, latitude, longitude, source_url, source_revision, source_modified_at, audit_json) VALUES (${sql(place.id)}, ${sql(seed.datasetId)}, ${sql(place.nameKo)}, ${sql(place.nameEn)}, ${sql(place.category)}, ${sql(place.placeKind)}, ${sql(status)}, ${sql(searchScope)}, ${place.productionApproved ? 1 : 0}, ${sql(place.verificationLevel)}, ${sql(regionEn)}, ${number(selected?.latitude)}, ${number(selected?.longitude)}, ${sql(place.sourceUrl)}, ${number(place.sourceRevision)}, ${sql(place.sourceModifiedAt)}, ${json(audit)});`)
 
   for (const locale of ['ko', 'en']) {
@@ -92,7 +100,7 @@ for (const place of seed.records) {
     const localized = localizedNames.get(place.id)
     for (const locale of asianLocales) {
       const term = localized?.names?.[locale]
-      if (term) statements.push(`INSERT INTO place_localizations (place_id, locale, name, aliases_json, source_language, source_revision) VALUES (${sql(place.id)}, ${sql(locale)}, ${sql(term.name)}, ${json(term.aliases)}, ${sql(term.sourceLanguage)}, ${number(localized.revision)});`)
+      if (term) statements.push(`INSERT INTO place_localizations (place_id, locale, name, aliases_json, source_language, source_revision) VALUES (${sql(place.id)}, ${sql(locale)}, ${sql(term.name)}, ${json(term.aliases)}, ${sql(term.sourceLanguage)}, ${number(term.sourceUrl ? null : localized.revision)});`)
       statements.push(`INSERT INTO place_search_localized_fts (place_id, locale, name, aliases, name_en, aliases_en, source_dataset) VALUES (${sql(place.id)}, ${sql(locale)}, ${sql(term?.name || place.nameEn)}, ${sql((term?.aliases ?? []).join(' '))}, ${sql(place.nameEn)}, ${sql((place.aliases?.en ?? []).join(' '))}, ${sql(seed.datasetId)});`)
     }
   }
