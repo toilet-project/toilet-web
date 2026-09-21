@@ -12,10 +12,10 @@
 .region-hero-stat strong { color: #28744b; font-size: 28px; font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
 .region-hero-stat span { color: #8b9f91; font-size: 10px; }
 .region-discovery-layout { display: flex; flex: 1; min-height: 0; }
-.region-atlas-card, .region-district-map-card, .region-toilet-card { position: relative; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid #dfeae3; border-radius: 22px; background: #fff; }
+.region-atlas-card, .region-district-map-card { position: relative; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid #dfeae3; border-radius: 22px; background: #fff; }
 .region-atlas-card { flex: 1; background: #fafdFA; }
 .region-atlas-wrap { position: relative; width: 100%; height: 100%; overflow: hidden; background: radial-gradient(ellipse at 50% 45%, #eef6f0, #fafdfa 70%); }
-.region-atlas { display: block; width: 100%; height: 100%; padding: 12px 20px 34px; touch-action: none; user-select: none; cursor: grab; }
+.region-atlas { display: block; width: 100%; height: 100%; padding: 0; touch-action: none; user-select: none; cursor: grab; }
 .region-atlas-wrap.is-dragging .region-atlas, .region-atlas-wrap.is-dragging .region-atlas-area { cursor: grabbing; }
 .region-atlas-controls { position: absolute; top: 16px; right: 16px; z-index: 7; display: grid; padding: 4px; border: 1px solid #dfe9e2; border-radius: 14px; background: #ffffffed; box-shadow: 0 3px 12px #193f2810; }
 .region-atlas-controls button { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: #406d51; font: inherit; font-size: 23px; cursor: pointer; }
@@ -23,9 +23,18 @@
 .region-atlas-controls button:disabled { color: #bdcec3; cursor: default; }
 .region-atlas-controls button:focus-visible { outline: 2px solid #31845a; outline-offset: -2px; }
 .region-atlas-area { cursor: pointer; }
-.region-atlas-area path { fill: #d3e7da; stroke: #fbfefc; stroke-width: 2.4; transition: fill .16s, stroke .16s; }
+.region-atlas-area path { fill: var(--region-color, #c5dfd0); stroke: #fff; stroke-width: 1.8; transition: fill .16s, stroke .16s; }
 .region-atlas-area:hover path, .region-atlas-area:focus path, .region-atlas-area.is-active path { fill: #31845a; stroke: #fff; stroke-width: 2.8; }
 .region-atlas-area:focus-visible { outline: none; }
+.region-atlas-labels { pointer-events: none; }
+.region-atlas-leader path { fill: none; stroke: #607f72; stroke-width: 1; stroke-linecap: round; }
+.region-atlas-leader circle { fill: #486f5d; stroke: #fff; stroke-width: 1; }
+.region-atlas-label { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 100%; height: 100%; padding: 2px 5px; border: 1px solid transparent; border-radius: 8px; color: #253f33; text-align: center; text-decoration: none; pointer-events: auto; cursor: pointer; text-shadow: 0 1px 3px #ffffffc9, 0 0 5px #ffffffa8; }
+.region-atlas-label strong { font-size: 12px; font-weight: 750; line-height: 1.2; white-space: nowrap; }
+.region-atlas-label > span { color: #416555; font-size: 10px; font-weight: 650; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.region-atlas-label.is-callout { border-color: #dce6df; background: #fffffff0; box-shadow: 0 2px 6px #25473709; }
+.region-atlas-label.is-callout::before { position: absolute; top: 7px; left: 0; width: 3px; height: 22px; background: var(--region-color); border-radius: 4px; content: ''; }
+.region-atlas-label:hover, .region-atlas-label.is-active { background: #fff; border-color: #5b9271; color: #145e39; }
 .region-atlas-caption { position: absolute; display: flex; align-items: center; gap: 7px; left: 20px; bottom: 14px; padding: 5px 0; color: #7d9686; font-size: 11px; pointer-events: none; }
 .region-atlas-caption > span { width: 6px; height: 6px; border-radius: 50%; background: #87b599; }
 .region-atlas-tooltip { position: absolute; z-index: 8; min-width: 190px; max-width: 230px; padding: 15px 18px; border: 1px solid #e0ebe4; border-radius: 16px; background: #fffffff5; box-shadow: 0 12px 35px #1b503323; pointer-events: none; }
@@ -33,10 +42,8 @@
 .region-atlas-tooltip > div { display: flex; align-items: baseline; gap: 7px; margin-top: 5px; }
 .region-atlas-tooltip strong { color: #247447; font-size: 27px; font-weight: 750; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
 .region-atlas-tooltip > div > span { color: #86a08e; font-size: 11px; }
-.region-atlas-tooltip.is-touch { bottom: 46px; left: 16px; right: 16px; max-width: none; pointer-events: auto; }
-.region-atlas-tooltip > a { position: absolute; display: flex; align-items: center; gap: 10px; right: 15px; bottom: 21px; min-height: 40px; padding: 0 13px; border-radius: 12px; background: #287d50; color: white; font-size: 12px; font-weight: 650; text-decoration: none; }
-.region-district-layout { display: grid; flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr) minmax(280px, .4fr); gap: 16px; }
-.region-district-map-card, .region-toilet-card { display: flex; flex-direction: column; }
+.region-district-layout { display: grid; flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.region-district-map-card { display: flex; flex-direction: column; }
 .region-card-heading { flex: 0 0 auto; padding: 16px 20px 12px; }
 .region-card-heading h2 { margin: 5px 0 0; font-size: 18px; letter-spacing: -.03em; }
 .region-card-heading p { margin: 5px 0 0; color: #819889; font-size: 11px; }
@@ -49,14 +56,11 @@
 .district-map-selection a { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid #e8f0e9; color: #215a38; font-size: 12px; text-decoration: none; }
 .region-selection-close { position: absolute; top: 9px; right: 12px; width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: #5a7964; font-size: 22px; cursor: pointer; }
 .region-map-marker { display: flex; flex-direction: column; align-items: center; }
+.region-map-cluster { display: grid; place-items: center; min-width: 46px; height: 46px; padding: 0 10px; border: 4px solid #ffffffb8; border-radius: 50%; background: #267b53; background-clip: padding-box; color: #fff; box-shadow: 0 3px 12px #184b332e; font: inherit; font-size: 14px; font-weight: 750; cursor: pointer; }
+.region-map-cluster:hover, .region-map-cluster:focus-visible { background-color: #155b3a; outline: 3px solid #75b29180; }
+.region-marker-count { position: absolute; top: -5px; right: -8px; min-width: 18px; padding: 2px 4px; border: 1px solid white; border-radius: 10px; background: #1c6745; color: #fff; font-size: 10px; font-weight: 700; }
 .region-map-marker .toilet-marker-name { display: none; }
 .region-map-marker:hover .toilet-marker-name, .region-map-marker:focus-visible .toilet-marker-name { display: block; }
-.region-toilet-list { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; margin: 0 10px 10px; }
-.region-toilet-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) 16px; align-items: center; gap: 10px; min-height: 58px; padding: 9px; border-bottom: 1px solid #edf1ed; border-radius: 9px; color: #365943; text-decoration: none; }
-.region-toilet-row:hover { background: #f1f8f3; }
-.region-toilet-row strong { display: block; font-size: 12px; font-weight: 650; line-height: 1.4; }
-.region-toilet-row small { display: block; margin-top: 3px; color: #8da194; font-size: 10px; }
-.region-toilet-index { color: #8cb29a; font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .region-empty { padding: 20px; color: #698273; font-size: 13px; }
 .region-source { position: absolute; z-index: 9; right: 16px; bottom: 14px; color: #91a496; font-size: 10px; line-height: 1.6; }
 .region-source summary { display: flex; align-items: center; gap: 7px; padding: 5px 9px; border: 1px solid #e3ece6; border-radius: 999px; background: #ffffffd9; list-style: none; cursor: pointer; }
@@ -72,7 +76,6 @@
 .region-loading-grid > div { flex: 1; border-radius: 22px; }
 @keyframes region-loading-shimmer { to { background-position-x: -200%; } }
 @media (prefers-reduced-motion: reduce) { .region-loading-title, .region-loading-grid > div { animation: none; } .region-atlas-area path { transition: none; } }
-@media (max-width: 800px) { .region-district-layout { grid-template-columns: minmax(0, 1fr) minmax(220px, .55fr); gap: 10px; } }
 @media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (pointer: coarse) {
   .region-main { padding: 12px 12px 14px; }
   .region-breadcrumbs { margin-bottom: 9px; font-size: 10px; }
@@ -81,47 +84,61 @@
   .region-hero p { max-width: 270px; font-size: 11px; }
   .region-hero-stat strong { font-size: 23px; }
   .region-hero-stat span { max-width: 86px; font-size: 9px; text-align: right; }
-  .region-atlas-card, .region-district-map-card, .region-toilet-card { border-radius: 17px; }
-  .region-atlas { padding: 10px 4px 38px; }
+  .region-atlas-card, .region-district-map-card { border-radius: 17px; }
+  .region-atlas { padding: 0; }
+  .region-atlas-controls { display: none; }
   .region-atlas-caption { left: 15px; bottom: 12px; font-size: 10px; }
-  .region-district-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1.5fr) minmax(0, 1fr); gap: 10px; }
+  .region-district-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 10px; }
   .region-district-map-card > .region-card-heading { display: none; }
   .district-map-wrap { margin: 0; border: 0; border-radius: 16px; }
   .region-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px 8px; }
   .region-card-heading .region-eyebrow { display: none; }
   .region-card-heading h2 { margin: 0; font-size: 13px; }
   .region-card-heading p { margin: 0; white-space: nowrap; }
-  .region-toilet-row { min-height: 49px; }
   .region-source { right: 12px; bottom: 12px; }
   .region-district-map-card > .region-source { top: 10px; right: 10px; }
   .district-map-selection { bottom: 12px; left: 12px; right: 12px; max-height: 65%; padding: 12px 14px; }
 }
 @media (max-height: 540px) { .region-hero p, .region-hero .region-eyebrow { display: none; } .region-hero { margin-bottom: 9px; } .region-hero h1 { margin: 0; font-size: 22px; } .region-breadcrumbs { margin-bottom: 5px; } }
-.account-page-main { width: 100%; max-width: 1360px; flex: 1; margin: auto; padding: 28px 26px 45px; box-sizing: border-box; }
-.account-workspace { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 22px; min-height: 600px; }
-.account-workspace-rail, .account-workspace-content { min-width: 0; border: 1px solid #dce9df; border-radius: 20px; background: #fff; }
-.account-workspace-rail { display: flex; flex-direction: column; gap: 3px; align-self: start; padding: 17px; }
-.account-workspace-profile { display: grid; gap: 4px; justify-items: start; padding: 18px 12px 22px; }
-.account-workspace-avatar { display: grid; width: 58px; height: 58px; margin-bottom: 10px; place-items: center; overflow: hidden; border-radius: 50%; background: #dceee3; color: #166e43; font-size: 25px; font-weight: 800; }
+.region-site-shell.is-account-page { height: 100dvh; min-height: 0; overflow: hidden; }
+.account-page-main { width: 100%; max-width: 1480px; flex: 1; min-height: 0; margin: 0 auto; padding: 24px; }
+.account-workspace { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 28px; height: 100%; min-height: 0; align-items: start; }
+.account-workspace-rail { display: flex; flex-direction: column; gap: 5px; min-width: 0; padding: 16px 12px; border: 1px solid #e0e9e3; border-radius: 20px; background: #fff; }
+.account-workspace-profile { display: grid; gap: 7px; justify-items: center; margin: 0 6px 18px; padding: 12px 0 26px; border-bottom: 1px solid #edf1ee; text-align: center; }
+.account-workspace-avatar { display: grid; width: 64px; height: 64px; margin-bottom: 6px; place-items: center; overflow: hidden; border: 4px solid #fff; border-radius: 50%; background: #e0eee5; box-shadow: 0 0 0 1px #e0e9e3; color: #27704b; font-size: 26px; font-weight: 750; }
 .account-workspace-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.account-workspace-profile strong { font-size: 17px; }
-.account-workspace-profile small { color: #83968a; font-size: 11px; overflow-wrap: anywhere; }
-.account-workspace-rail > a, .account-workspace-rail > button { padding: 12px 13px; border: 0; border-radius: 10px; background: transparent; color: #4d6a55; font: inherit; font-size: 13px; font-weight: 650; text-align: left; text-decoration: none; cursor: pointer; }
-.account-workspace-rail > a:hover, .account-workspace-rail > a[aria-current] { color: #146a41; background: #eff7f1; }
-.account-workspace-rail > button { margin-top: 15px; color: #829488; }
-.account-workspace-content { min-height: 650px; padding: 24px 28px; }
-.account-workspace-hero { padding: 12px 8px 26px; border-bottom: 1px solid #e7efe8; }
-.account-workspace-hero span { color: #187847; font-size: 10px; font-weight: 800; letter-spacing: .2em; }
-.account-workspace-hero h1 { margin: 9px 0; font-size: 32px; letter-spacing: -.06em; }
-.account-workspace-hero p { margin: 0; color: #769080; font-size: 13px; }
-.account-workspace-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; padding-top: 25px; }
-.account-workspace-cards a { display: flex; justify-content: space-between; align-items: center; min-height: 95px; padding: 18px; border: 1px solid #e0ede4; border-radius: 14px; color: #27513a; font-size: 14px; text-decoration: none; }
-.account-workspace-cards a:hover { background: #f1f8f3; }
-.account-workspace-content .history-list, .account-workspace-content .my-reports-embedded { position: static; display: block; width: 100%; height: auto; margin: 0; padding: 0; background: transparent; }
-.account-workspace-content .my-reports-panel, .account-workspace-content .account-embedded { max-width: none; width: 100%; }
+.account-workspace-profile strong { color: #274a35; font-size: 18px; }
+.account-workspace-profile small { max-width: 100%; color: #87968c; font-size: 11px; overflow-wrap: anywhere; }
+.account-workspace-rail > a, .account-workspace-rail > button { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 12px 15px; border: 0; border-radius: 12px; background: transparent; color: #6c8173; font: inherit; font-size: 14px; font-weight: 650; text-align: left; text-decoration: none; cursor: pointer; }
+.account-workspace-rail > a svg, .account-workspace-rail > button svg { width: 19px; height: 19px; flex-shrink: 0; }
+.account-workspace-rail > a:hover, .account-workspace-rail > a[aria-current] { color: #166b43; background: #edf6f0; }
+.account-workspace-rail > a[aria-current]::after { width: 5px; height: 5px; margin-left: auto; border-radius: 50%; background: #287f53; content: ''; }
+.account-workspace-rail > button { margin-top: 16px; color: #987e72; font-size: 12px; font-weight: 500; }
+.account-workspace-content { --history-page-gutter: 34px; min-width: 0; min-height: 0; height: 100%; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 30px 34px; border: 1px solid #e0e9e3; border-radius: 20px; background: #fff; box-shadow: 0 4px 18px #24433203; }
+.account-workspace-content .history-list { position: static; display: block; width: 100%; height: auto; margin: 0; padding: 0; background: transparent; }
+.account-workspace-content .my-reports-panel, .account-workspace-content .notification-panel, .account-workspace-content .account-embedded { width: 100%; max-width: none; max-height: none; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; overflow: visible; }
+.account-workspace-content .history-heading { margin-bottom: 24px; padding-bottom: 22px; border-bottom: 1px solid #e7eee9; }
+.account-workspace-content .history-heading h1 { font-size: 26px; font-weight: 750; }
+.account-workspace-content .history-close { display: none; }
+.account-workspace-content .history-periods { max-width: 520px; }
+.account-workspace-content .history-filter-shell.has-floating-calendar .history-date-popover { left: calc(var(--history-calendar-left) + var(--history-page-gutter)); width: min(520px, calc(var(--history-calendar-width) - 2 * var(--history-page-gutter))); padding: 16px; border: 1px solid #dfe9e2; border-radius: 16px; box-shadow: 0 12px 30px #244b3221; }
+.account-workspace-content .history-range-caption { font-size: 12px; }
+.account-workspace-content .my-reports-filters { flex-wrap: wrap; margin-top: 18px; }
+.account-workspace-content .my-reports-content, .account-workspace-content .notification-list { overflow: visible; }
+.account-workspace-content .my-report-summary { grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px 18px; min-height: 88px; }
+.account-workspace-content .my-report-summary > strong { grid-column: 1; grid-row: 1; font-size: 16px; }
+.account-workspace-content .my-report-type { grid-column: 1; grid-row: 2; color: #829389; font-size: 12px; }
+.account-workspace-content .my-report-status { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 11px; }
+.account-workspace-content .my-report-summary time { grid-column: 3; grid-row: 1 / span 2; align-self: center; font-size: 11px; }
+.account-workspace-content .my-report-detail { padding: 20px 24px; }
+.account-workspace-content .account-profile-details { grid-template-columns: 1fr 1fr; gap: 24px; padding: 22px 24px; }
+.account-workspace-content .account-profile-details > div { display: grid; gap: 10px; border: 0; }
+.account-workspace-content .account-profile-details dd { margin: 0; font-size: 16px; overflow-wrap: anywhere; }
+.account-workspace-content .account-agreements-inline { margin-top: 30px; }
 .account-workspace-status { padding: 40px; color: #718476; text-align: center; }
 .account-login { max-width: 400px; margin: 80px auto; padding: 30px; border: 1px solid #dce9df; border-radius: 20px; background: #fff; }
 .account-login h1 { font-size: 24px; }
 .account-login p { color: #748c7a; font-size: 13px; }
 .account-login button { display: block; width: 100%; min-height: 46px; margin: 10px 0; border: 1px solid #cfe2d3; border-radius: 10px; background: #f4f8f5; color: #22593b; font: inherit; font-weight: 700; cursor: pointer; }
-@media (max-width: 700px) { .account-page-main { padding: 14px 10px 30px; } .account-workspace { display: block; } .account-workspace-rail { display: none; } .account-workspace-content { min-height: calc(100svh - 170px); padding: 18px 16px; border-radius: 16px; } .account-workspace-cards { grid-template-columns: 1fr; gap: 8px; } .account-workspace-cards a { min-height: 65px; } }
+@media (min-width: 641px) and (max-width: 1000px) { .account-workspace { grid-template-columns: 190px minmax(0, 1fr); gap: 16px; } .account-workspace-content { padding: 24px; } .account-workspace-content .my-report-summary time { grid-column: 1; grid-row: 3; } .account-workspace-content .account-profile-details { grid-template-columns: 1fr; } }
+@media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (pointer: coarse) { .account-workspace { visibility: hidden; } }

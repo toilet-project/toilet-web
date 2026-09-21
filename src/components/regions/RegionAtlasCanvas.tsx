@@ -1,17 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState, type PointerEvent, type FocusEvent } from 'react'
-import Link from 'next/link'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type FocusEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { constrainAtlas, initialAtlasViewport, zoomAtlas, type AtlasPoint, type AtlasViewport } from '../../lib/regionAtlasViewport'
+import { placeAtlasLabels } from '../../lib/atlasLabelLayout'
 
-type Area = { code: string; name: string; count: string; href: string; path: string }
-type Selection = { area: Area; x: number; y: number; touch: boolean }
+type Area = { code: string; name: string; shortName: string; count: string; href: string; path: string; anchor: [number, number]; color: string; labelPriority: number }
+type Selection = { area: Area; x: number; y: number }
 type Pointer = AtlasPoint & { clientX: number; clientY: number }
 
-export function RegionAtlasCanvas({ areas, width, height, label, countLabel, enterLabel, zoomInLabel, zoomOutLabel, resetLabel }: {
-  areas: Area[]; width: number; height: number; label: string; countLabel: string; enterLabel: string
-  zoomInLabel: string; zoomOutLabel: string; resetLabel: string
+export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoomInLabel, zoomOutLabel, resetLabel, detailHint }: {
+  areas: Area[]; width: number; height: number; label: string; countLabel: string
+  zoomInLabel: string; zoomOutLabel: string; resetLabel: string; detailHint: string
 }) {
   const root = useRef<HTMLDivElement>(null)
   const svg = useRef<SVGSVGElement>(null)
@@ -23,6 +23,20 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, ent
   const [view, setView] = useState(initialAtlasViewport)
   const [isDragging, setIsDragging] = useState(false)
   const [selection, setSelection] = useState<Selection | null>(null)
+  const [size, setSize] = useState({ width, height })
+  useEffect(() => {
+    if (!svg.current) return
+    const observer = new ResizeObserver(([entry]) => setSize({ width: entry.contentRect.width, height: entry.contentRect.height }))
+    observer.observe(svg.current)
+    return () => observer.disconnect()
+  }, [])
+  const fit = Math.min(size.width / width, size.height / height) || 1
+  const offset = { x: (size.width - width * fit) / 2, y: (size.height - height * fit) / 2 }
+  const labels = useMemo(() => placeAtlasLabels([...areas].sort((a, b) => b.labelPriority - a.labelPriority).map(area => ({ code: area.code,
+    x: (area.anchor[0] * view.scale + view.x) * fit + offset.x,
+    y: (area.anchor[1] * view.scale + view.y) * fit + offset.y,
+    width: Math.max(48, Math.min(164, [...area.shortName].reduce((sum, letter) => sum + (letter.codePointAt(0)! > 127 ? 12 : 7), 0) + 16)),
+  })).filter(p => p.x >= 0 && p.x <= size.width && p.y >= 0 && p.y <= size.height).slice(0, areas.length > 32 ? Math.max(16, Math.floor(size.width * size.height / 12000)) : areas.length), size.width, size.height), [areas, view, fit, offset.x, offset.y, size])
   const changeView = useCallback((next: AtlasViewport) => {
     viewRef.current = next
     setView(next)
@@ -48,10 +62,10 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, ent
     return () => element.removeEventListener('wheel', wheel)
   }, [width, height, changeView])
   function zoom(factor: number) { changeView(zoomAtlas(viewRef.current, viewRef.current.scale * factor, { x: width / 2, y: height / 2 }, width, height)) }
-  function position(area: Area, clientX: number, clientY: number, touch = false) {
+  function position(area: Area, clientX: number, clientY: number) {
     const bounds = root.current?.getBoundingClientRect()
     if (!bounds) return
-    setSelection({ area, touch, x: Math.max(12, Math.min(clientX - bounds.left + 18, bounds.width - 218)), y: Math.max(12, Math.min(clientY - bounds.top - 24, bounds.height - 116)) })
+    setSelection({ area, x: Math.max(12, Math.min(clientX - bounds.left + 18, bounds.width - 218)), y: Math.max(12, Math.min(clientY - bounds.top - 24, bounds.height - 116)) })
   }
   function hover(event: PointerEvent<Element>, area: Area) {
     if (event.pointerType !== 'touch' && pointers.current.size === 0) position(area, event.clientX, event.clientY)
@@ -99,27 +113,39 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, ent
       onClickCapture={event => { if (dragged.current && event.detail !== 0) { event.preventDefault(); event.stopPropagation() } }}
       onKeyDown={event => { if (event.key === '+' || event.key === '=') { event.preventDefault(); zoom(1.5) } else if (event.key === '-') { event.preventDefault(); zoom(1 / 1.5) } else if (event.key === '0') { event.preventDefault(); changeView(initialAtlasViewport) } }}>
       <g transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
-        {areas.map(area => <a key={area.code} href={area.href} className={`region-atlas-area${selection?.area.code === area.code ? ' is-active' : ''}`} aria-label={`${area.name} · ${area.count} ${countLabel}`}
+        {areas.map(area => <a key={area.code} href={area.href} style={{ '--region-color': area.color } as CSSProperties} className={`region-atlas-area${selection?.area.code === area.code ? ' is-active' : ''}`} aria-label={`${area.name} · ${area.count} ${countLabel}`}
           onPointerMove={event => hover(event, area)} onPointerEnter={event => hover(event, area)} onFocus={event => focus(event, area)}
           onClick={event => {
             if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
             event.preventDefault()
-            if (pointerType.current === 'touch' && selection?.area.code !== area.code) position(area, event.clientX, event.clientY, true)
-            else router.push(area.href)
+            router.push(area.href)
           }}>
           <path d={area.path} fillRule="evenodd" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         </a>)}
       </g>
+      <g className="region-atlas-labels" transform={`translate(${-offset.x / fit} ${-offset.y / fit}) scale(${1 / fit})`}>
+        {labels.filter(item => item.callout).map(item => <g key={item.code} className="region-atlas-leader" aria-hidden="true">
+          <path d={`M${item.x},${item.y} L${item.left + item.width / 2},${item.top + item.height / 2}`} />
+          <circle cx={item.x} cy={item.y} r="2.5" />
+        </g>)}
+        {labels.map(item => { const area = areas.find(area => area.code === item.code)!; return <foreignObject key={area.code} x={item.left} y={item.top} width={item.width} height={item.height}>
+          <a href={area.href} className={`region-atlas-label${item.callout ? ' is-callout' : ''}${selection?.area.code === area.code ? ' is-active' : ''}`} style={{ '--region-color': area.color } as CSSProperties}
+            aria-label={`${area.name} · ${area.count} ${countLabel}`} title={`${area.name} · ${area.count} ${countLabel}`} tabIndex={-1}
+            onPointerEnter={event => hover(event, area)}
+            onClick={event => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); router.push(area.href) } }}>
+            <strong>{area.shortName}</strong><span>{area.count}</span>
+          </a>
+        </foreignObject> })}
+      </g>
     </svg>
-    {selection && <div className={`region-atlas-tooltip${selection.touch ? ' is-touch' : ''}`} style={selection.touch ? undefined : { left: selection.x, top: selection.y }} role="status">
+    {selection && <div className="region-atlas-tooltip" style={{ left: selection.x, top: selection.y }} role="status">
       <span className="region-atlas-tooltip-name">{selection.area.name}</span><div><strong>{selection.area.count}</strong><span>{countLabel}</span></div>
-      {selection.touch && <Link href={selection.area.href}>{enterLabel}<span aria-hidden="true">↗</span></Link>}
     </div>}
     <div className="region-atlas-controls">
       <button type="button" onClick={() => zoom(1.5)} disabled={view.scale >= 8} aria-label={zoomInLabel} title={zoomInLabel}><span aria-hidden="true">+</span></button>
       <button type="button" onClick={() => zoom(1 / 1.5)} disabled={view.scale <= 1} aria-label={zoomOutLabel} title={zoomOutLabel}><span aria-hidden="true">−</span></button>
       <button type="button" onClick={() => changeView(initialAtlasViewport)} aria-label={resetLabel} title={resetLabel}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" /></svg></button>
     </div>
-    <span className="region-atlas-caption"><span aria-hidden="true" />{label}</span>
+    <span className="region-atlas-caption"><span aria-hidden="true" />{areas.length > 32 ? detailHint : label}</span>
   </div>
 }

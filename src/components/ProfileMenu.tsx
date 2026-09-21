@@ -28,7 +28,7 @@ export function ProfileMenu({ profile, onLogout }: { profile: AuthProfile; onLog
       <svg className="profile-menu-chevron" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m5 7 5 5 5-5" /></svg>
     </button>
     {open && <div className="profile-menu-panel" role="menu">
-      <div className="profile-menu-heading"><span>{t('nav.account')}</span><strong>{profile.displayName || t('account.defaultName')}</strong></div>
+      <div className="profile-menu-heading"><strong>{profile.displayName || t('account.defaultName')}</strong></div>
       <Link role="menuitem" href={account('reviews')} onClick={() => setOpen(false)}><HeaderIcon name="reviews" /><span>{t('nav.myReviews')}</span><i aria-hidden="true">›</i></Link>
       <Link role="menuitem" href={account('reports')} onClick={() => setOpen(false)}><HeaderIcon name="reports" /><span>{t('nav.myReports')}</span><i aria-hidden="true">›</i></Link>
       <Link role="menuitem" href={account('settings')} onClick={() => setOpen(false)}><HeaderIcon name="account" /><span>{t('auth.account')}</span><i aria-hidden="true">›</i></Link>

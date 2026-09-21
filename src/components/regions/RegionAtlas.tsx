@@ -3,6 +3,7 @@ import { localizedPublicPath } from '../../i18n/routes'
 import type { Locale } from '../../i18n/locale'
 import { regionText } from './regionText'
 import { RegionAtlasCanvas } from './RegionAtlasCanvas'
+import { regionColors, regionLabelAnchor } from '../../lib/regionAtlasLabels'
 
 function pathFor(region: Region, project: (point: [number, number]) => [number, number]) {
   return polygonParts(region.geometry).map(rings => rings.map(ring => ring.map((point, index) => {
@@ -21,10 +22,12 @@ export function RegionAtlas({ locale, provinceCode }: { locale: Locale; province
   const t = regionText(locale)
   const province = provinceCode ? getProvince(provinceCode) : null
   const regions = province ? districtsIn(province.code) : provinces
+  const colors = regionColors(regions)
   const boundary = extent(regions)
-  const width = 760, height = province ? 560 : 800, pad = 32
+  const width = 760, pad = 32
   const xSpan = (boundary.east - boundary.west) * Math.cos(37 * Math.PI / 180)
   const ySpan = boundary.north - boundary.south
+  const height = province ? Math.round(width * ySpan / xSpan) : 800
   const scale = Math.min((width - 2 * pad) / xSpan, (height - 2 * pad) / ySpan)
   const drawnWidth = xSpan * scale, drawnHeight = ySpan * scale
   const xOffset = (width - drawnWidth) / 2, yOffset = (height - drawnHeight) / 2
@@ -33,8 +36,8 @@ export function RegionAtlas({ locale, provinceCode }: { locale: Locale; province
     yOffset + (boundary.north - latitude) * scale,
   ]
 
-  return <RegionAtlasCanvas key={province?.code ?? 'all'} width={width} height={height} label={province ? t.chooseDistrict : t.chooseProvince} countLabel={t.toilets} enterLabel={t.open}
-    zoomInLabel={t.zoomIn} zoomOutLabel={t.zoomOut} resetLabel={t.resetView}
-    areas={regions.map(region => ({ code: region.code, name: regionName(region, locale), count: region.count.toLocaleString(locale),
+  return <RegionAtlasCanvas key={province?.code ?? 'all'} width={width} height={height} label={province ? t.chooseDistrict : t.chooseProvince} countLabel={t.toilets}
+    zoomInLabel={t.zoomIn} zoomOutLabel={t.zoomOut} resetLabel={t.resetView} detailHint={t.zoomDetails}
+    areas={regions.map((region, index) => ({ code: region.code, name: regionName(region, locale), shortName: locale === 'ko' && !province ? region.name.replace(/특별자치도|특별자치시|특별시|광역시|도$/gu, '') : regionName(region, locale), count: region.count.toLocaleString(locale), anchor: project(regionLabelAnchor(region)), color: colors[index], labelPriority: polygonParts(region.geometry).reduce((sum, rings) => sum + Math.abs(rings[0].reduce((area, point, i, ring) => { const next = ring[(i + 1) % ring.length]; return area + point[0] * next[1] - next[0] * point[1] }, 0)), 0),
       href: localizedPublicPath(regionPath(province?.code ?? region.code, province ? region.code : undefined), locale)!, path: pathFor(region, project) }))} />
 }

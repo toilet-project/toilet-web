@@ -331,8 +331,16 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
   const [isAccountOpen, setIsAccountOpen] = useState(false)
-  const [mobileTab, setMobileTab] = useState<MobileTab>('map')
-  const [mobileAccountView, setMobileAccountView] = useState<MobileAccountView>('home')
+  const [incomingMobileView] = useState(() => {
+    if (typeof window === 'undefined' || window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) return null
+    const query = new URLSearchParams(window.location.search)
+    const tab = query.get('tab')
+    if (tab !== 'account' && tab !== 'notifications') return null
+    const view = query.get('view')
+    return { tab, view: tab === 'account' && (view === 'settings' || view === 'reports') ? view : 'home' } as const
+  })
+  const [mobileTab, setMobileTab] = useState<MobileTab>(incomingMobileView?.tab ?? 'map')
+  const [mobileAccountView, setMobileAccountView] = useState<MobileAccountView>(incomingMobileView?.view ?? 'home')
   useEffect(() => {
     if (isDesktop || mobileTab === 'map' || mobileAccountView === 'reviews') return
     const screen = mobileTab === 'notifications' ? 'notifications'
@@ -398,6 +406,15 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       return Boolean(profile && profile.userId === authProfile?.userId && profile.status === 'ACTIVE' && !profile.consentRequired)
     },
   }, { embedded: !isDesktop, toiletId: expandedCoordinateToilet?.id ?? selectedToilet?.id, contextKey: `${selectedToilet?.id}:${expandedCoordinateToilet?.id}:${mobileTab}:${testToiletHash}`, onOpen: () => { if (!isDesktop) { setMobileTab('account'); setMobileAccountView('reviews') } }, onClose: () => setMobileAccountView('home') })
+  const openedIncomingReview = useRef(false)
+  useEffect(() => {
+    if (isAuthLoading || !authProfile || openedIncomingReview.current || window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) return
+    const query = new URLSearchParams(window.location.search)
+    if (query.get('tab') === 'account' && query.get('view') === 'reviews' && REVIEW_UI_ENABLED) {
+      openedIncomingReview.current = true
+      void reviewPreview.openMine()
+    }
+  }, [isAuthLoading, authProfile, reviewPreview])
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(DESKTOP_LAYOUT_QUERY)

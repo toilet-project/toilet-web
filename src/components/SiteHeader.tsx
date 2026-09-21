@@ -46,8 +46,8 @@ export function SiteHeader({ path }: { path: string }) {
     <nav className="mobile-navigation site-mobile-nav" aria-label={t('nav.main')}>
       <Link href={home} aria-current={path === '/' ? 'page' : undefined}><span className="mobile-nav-icon"><BottomIcon name="map" /></span><span>{t('nav.map')}</span></Link>
       <Link href={regions} aria-current={path.startsWith('/regions') ? 'page' : undefined}><span className="mobile-nav-icon"><BottomIcon name="regions" /></span><span>{t('nav.community')}</span></Link>
-      <Link href={`${account}?view=notifications`}><span className="mobile-nav-icon"><BottomIcon name="notifications" /></span><span>{t('nav.notifications')}</span></Link>
-      <Link href={account} aria-current={path === '/account' ? 'page' : undefined}><span className="mobile-nav-icon"><BottomIcon name="account" /></span><span>{t('nav.account')}</span></Link>
+      <Link href={`${home}?tab=notifications`}><span className="mobile-nav-icon"><BottomIcon name="notifications" /></span><span>{t('nav.notifications')}</span></Link>
+      <Link href={`${home}?tab=account`} aria-current={path === '/account' ? 'page' : undefined}><span className="mobile-nav-icon"><BottomIcon name="account" /></span><span>{t('nav.account')}</span></Link>
     </nav>
   </>
 }

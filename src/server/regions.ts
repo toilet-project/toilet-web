@@ -9,7 +9,7 @@ export async function getDistrictToilets(provinceCode: string, districtCode: str
   const region = getDistrict(provinceCode, districtCode)
   if (!region) return []
   const { south, north, west, east } = regionBounds(region)
-  const query = new URLSearchParams({ southLat: String(south), northLat: String(north), westLng: String(west), eastLng: String(east), zoom: '8', includeList: 'true' })
+  const query = new URLSearchParams({ southLat: String(south), northLat: String(north), westLng: String(west), eastLng: String(east), zoom: '8' })
   const response = await fetch(`${API_ORIGIN}/api/v1/toilets?${query}`, { next: { revalidate: 3600 }, signal: AbortSignal.timeout(20000) })
   if (!response.ok) throw new Error(`Region toilets: HTTP ${response.status}`)
   const result = await response.json() as ToiletMapSearchResponse
