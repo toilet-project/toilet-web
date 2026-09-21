@@ -177,7 +177,7 @@ function PublicReviewRow({ item, expanded }: { item: StoredReview; expanded: boo
       <span className="public-review-rating" aria-label={t('public.average', { rating: average })}><ReviewIcon name="star" size={14} /><strong>{average}</strong></span>
       <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString(locale === 'ko' ? 'ko-KR' : locale, { timeZone: 'Asia/Seoul' })}</time>
     </div>
-    {comment && <p className="public-review-comment">{comment}</p>}
+    {comment && <p className="public-review-comment">{locale !== 'ko' && <small className="original-text-tag">{t('content.original')}</small>}{comment}</p>}
   </article>
 }
 

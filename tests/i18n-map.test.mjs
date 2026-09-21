@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { toiletTypeLabel } from '../src/i18n/facilityLabels.ts'
 import { mapSystemNotice, localizeMapLabels } from '../src/i18n/mapLabels.ts'
-import { formatOpenTime, formatInstallationDate, formatFacilityLocation, formatLastUpdatedAt } from '../src/lib/detailFormatting.ts'
+import { formatOpenTime, formatInstallationDate, formatFacilityLocation, formatLastUpdatedAt, hasVisibleKoreanOriginal } from '../src/lib/detailFormatting.ts'
 import { message } from '../src/i18n/messages.ts'
 import { localizeToilet, localizeToiletMapItem, localizeToiletMapSearch } from '../src/i18n/toiletTranslations.ts'
 
@@ -71,6 +71,22 @@ test('Japanese and regional Chinese detail labels use the selected language with
     assert.doesNotMatch(formatLastUpdatedAt(null, locale), /[가-힣]/)
   }
 })
+test('Korean source notice reflects only Korean text still visible after field-level translations', () => {
+  const translated = {
+    name: 'Seoul Station Restroom', roadAddress: '405 Hangang-daero, Seoul', jibunAddress: '',
+    agencyName: '', openTime: '', openTimeDetail: '', hasEmergencyBell: 'N', emergencyBellLocation: '',
+    hasDiaperTable: 'N', diaperTableLocation: '', region: null,
+  }
+  assert.equal(hasVisibleKoreanOriginal(translated, 'ko'), false)
+  assert.equal(hasVisibleKoreanOriginal(translated, 'ja'), false)
+  assert.equal(hasVisibleKoreanOriginal({ ...translated, openTime: '정시', openTimeDetail: '09:00~18:00' }, 'ja'), true)
+  assert.equal(hasVisibleKoreanOriginal({ ...translated, agencyName: '서울특별시' }, 'zh-CN'), true)
+  assert.equal(hasVisibleKoreanOriginal({ ...translated, region: { sidoName: '서울특별시', sigunguName: '중구' } }, 'zh-TW'), true)
+  assert.equal(hasVisibleKoreanOriginal({ ...translated, emergencyBellLocation: '안내실', hasEmergencyBell: 'Y' }, 'zh-HK'), true)
+  const korean = { ...translated, name: '서울역 화장실', translations: { ja: { name: 'ソウル駅トイレ', roadAddress: null, jibunAddress: null } } }
+  assert.equal(hasVisibleKoreanOriginal(korean, 'ja'), false)
+  assert.equal(korean.name, '서울역 화장실')
+})
 test('system notices have safe English fallbacks without leaking arbitrary server errors', () => {
   assert.equal(mapSystemNotice('검색 결과가 없습니다.', 'en'), 'No places found.')
   for (const value of ['private-error-value', '__proto__']) assert.doesNotMatch(mapSystemNotice(value, 'en'), /private-error-value|__proto__/)
@@ -131,7 +147,7 @@ test('map overlays relabel in place and preserve original named groups', () => {
 test('public review identity is translated only for removed authors; text and anonymous nicknames stay original', () => {
   const source = readFileSync(new URL('../src/components/reviews/PublicReviews.tsx', import.meta.url), 'utf8')
   assert.match(source, /item.authorRemoved \? t\('public.anonymous'\) : item.authorDisplayName/)
-  assert.match(source, /className="public-review-comment">\{comment\}/)
+  assert.match(source, /className="public-review-comment">\{locale !== 'ko' && <small className="original-text-tag">\{t\('content.original'\)\}<\/small>\}\{comment\}/)
   assert.match(source, /timeZone: 'Asia\/Seoul'/)
   assert.equal(message('en', 'public.summary', { rating: '4.5', count: 2 }), 'Overall rating 4.5 out of 5, 2 reviews')
 })

@@ -103,6 +103,7 @@ export function MyReportsPanel({ onClose, onSessionExpired, initialExpandedId = 
         {!isLoading && !error && visibleReports.length === 0 && <div className="my-reports-empty history-empty"><strong>{t('report.empty')}</strong><p>{t('report.emptyHint')}</p></div>}
         {!isLoading && !error && visibleReports.map((report) => {
           const expanded = expandedId === report.id
+          const originalTag = locale !== 'ko' ? <small className="original-text-tag">{t('content.original')}</small> : null
           return <article key={report.id} ref={report.id === initialExpandedId ? focusedReportRef : undefined} className={`my-report-item is-${report.status.toLowerCase()}${report.id === initialExpandedId ? ' is-focused' : ''}`}>
             <button type="button" className="my-report-summary" aria-expanded={expanded} onClick={() => setExpandedId(expanded ? null : report.id)}>
               <span className="my-report-type">{t(reportTypeLabel(report.reportType))}</span>
@@ -113,13 +114,13 @@ export function MyReportsPanel({ onClose, onSessionExpired, initialExpandedId = 
             </button>
             {expanded && <div className="my-report-detail">
               <dl>
-                {report.reportType === 'COORDINATE_CORRECTION' && <div><dt>{t('report.address')}</dt><dd>{getDisplayAddress(report.roadAddress, report.jibunAddress) || t('map.noAddress')}</dd></div>}
-                {report.reportType === 'OPEN_TIME_CORRECTION' && <div><dt>{t('report.openTime')}</dt><dd>{report.openTime || t('common.noInfo')}</dd></div>}
-                <div><dt>{t('report.reason')}</dt><dd>{report.reason}</dd></div>
+                {report.reportType === 'COORDINATE_CORRECTION' && <div><dt>{t('report.address')}</dt><dd>{getDisplayAddress(report.roadAddress, report.jibunAddress) && originalTag}{getDisplayAddress(report.roadAddress, report.jibunAddress) || t('map.noAddress')}</dd></div>}
+                {report.reportType === 'OPEN_TIME_CORRECTION' && <div><dt>{t('report.openTime')}</dt><dd>{report.openTime && originalTag}{report.openTime || t('common.noInfo')}</dd></div>}
+                <div><dt>{t('report.reason')}</dt><dd>{report.reason && originalTag}{report.reason}</dd></div>
                 {report.reviewedAt && <div><dt>{t('report.reviewedAt')}</dt><dd>{formatDate(report.reviewedAt)}</dd></div>}
               </dl>
               {report.status === 'PENDING' && <p className="my-report-review-note is-pending">{t('report.reviewing')}</p>}
-              {report.status !== 'PENDING' && <div className="my-report-review-note"><span>{t('report.note')}</span><p>{report.reviewNote?.trim() || t('report.noNote')}</p></div>}
+              {report.status !== 'PENDING' && <div className="my-report-review-note"><span>{t('report.note')}</span><p>{report.reviewNote?.trim() && originalTag}{report.reviewNote?.trim() || t('report.noNote')}</p></div>}
             </div>}
           </article>
         })}

@@ -1,5 +1,8 @@
 import type { Locale } from '../i18n/locale'
 import type { NormalizedOpeningHours, ToiletDetailResponse } from '../api/toilets'
+import { localizeToiletDetail } from '../i18n/toiletTranslations.ts'
+import { getDisplayAddress } from './address.ts'
+import { regionLabel } from './toiletRoute.ts'
 
 export type CountItem = { label: string; count: number }
 
@@ -126,4 +129,20 @@ export function formatFacilityLocation(location: string, locale: Locale = 'ko') 
     const kind = Object.hasOwn(FACILITY_LOCATION_TYPES, part) ? FACILITY_LOCATION_TYPES[part as keyof typeof FACILITY_LOCATION_TYPES] : null
     return kind ? facilityLocationLabels[locale][kind] : part
   }).join(' / ')
+}
+
+// A translation for one field must not conceal Korean source text in another visible field.
+export function hasVisibleKoreanOriginal(toilet: ToiletDetailResponse, locale: Locale) {
+  if (locale === 'ko') return false
+  const display = localizeToiletDetail(toilet, locale)
+  const visible = [
+    display.name,
+    getDisplayAddress(display.roadAddress, display.jibunAddress),
+    regionLabel(display.region),
+    formatOpenTime(display, locale),
+    display.agencyName,
+    display.hasEmergencyBell === 'Y' ? formatFacilityLocation(display.emergencyBellLocation, locale) : '',
+    display.hasDiaperTable === 'Y' ? formatFacilityLocation(display.diaperTableLocation, locale) : '',
+  ]
+  return visible.some(value => /[가-힣]/.test(value ?? ''))
 }

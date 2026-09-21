@@ -148,6 +148,13 @@
 .mobile-card-handle { display: none; }
 .summary-address { display: none; }
 .card-label { display: block; margin-bottom: 6px; color: #27804a; font-size: 12px; font-weight: 700; }
+.card-label-row { display: flex; min-width: 0; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin-bottom: 6px; }
+.card-label-row .card-label { margin-bottom: 0; }
+.source-language-badge, .original-text-tag { display: inline-flex; align-items: center; width: fit-content; max-width: 100%; padding: 2px 6px; border: 1px solid #e2e9e3; border-radius: 999px; background: #f7faf8; color: #6b786e; font-size: 10px; font-weight: 650; line-height: 1.25; white-space: nowrap; }
+.source-language-badge { margin-bottom: 6px; }
+.card-label-row .source-language-badge { margin-bottom: 0; }
+.coordinate-inline-details > .source-language-badge { margin-top: 8px; margin-bottom: 0; }
+.original-text-tag { margin-right: 5px; vertical-align: baseline; }
 .open-time { margin: 8px 0 0; color: #526157; font-size: 14px; font-weight: 600; line-height: 1.5; }
 .distance-from-current { display: none; }
 .close-button { position: absolute; right: 10px; top: 8px; border: 0; background: transparent; color: #556158; font-size: 24px; cursor: pointer; }

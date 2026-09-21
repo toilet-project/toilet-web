@@ -45,6 +45,7 @@ import { AccountRecoveryDialog } from './components/AccountRecoveryDialog'
 import { fetchUnreadNotificationCount } from './api/notifications'
 import { getDisplayAddress } from './lib/address'
 import { ToiletDetailContents, DetailRow } from './components/ToiletDetailContents'
+import { OriginalSourceBadge } from './components/OriginalSourceBadge'
 import { ToiletCommunityRow, ToiletReportEntry } from './components/ToiletCommunityRow'
 import { REVIEW_DESIGN_PREVIEW, type PreviewReviewSummary, type ReviewEntryState } from './components/reviews/useIntegratedReviewPreview'
 import { REVIEW_API_ENABLED, REVIEW_UI_ENABLED, useReviews } from './components/reviews/useReviews'
@@ -1632,6 +1633,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         {displayToiletDetail && !toiletCoordinates(displayToiletDetail) && !displaySelectedToilet && !displaySelectedCoordinateGroup && (
           <aside className="place-card initial-route-card" aria-label={t('detail.title')}>
             <button type="button" className="close-button" onClick={closeDetailCard} aria-label={t('common.close')}>×</button>
+            <OriginalSourceBadge toilet={displayToiletDetail} locale={locale} />
             <h1>{displayToiletDetail.name}</h1>
             <p>{t('map.noCoordinates')}</p>
             <p className="open-time">{formatOpenTime(displayToiletDetail, locale)}</p>
@@ -1661,7 +1663,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
               {t(isMobileCardExpanded ? 'map.collapse' : 'detail.show')}
             </button>
             <div className="place-card-summary">
-              <span className="card-label">{toiletTypeLabel(displayToiletDetail?.toiletType || displaySelectedToilet.toiletType, locale)}</span>
+              <div className="card-label-row"><span className="card-label">{toiletTypeLabel(displayToiletDetail?.toiletType || displaySelectedToilet.toiletType, locale)}</span><OriginalSourceBadge toilet={displayToiletDetail} locale={locale} /></div>
               {REVIEW_UI_ENABLED ? <div className="review-card-title-row"><h1>{displayToiletDetail?.name || displaySelectedToilet.name}</h1><ToiletReportEntry disabled={!displayToiletDetail || displaySelectedToilet.id === testToilet?.id} onClick={() => { if (displayToiletDetail) openReport({ toilet: displayToiletDetail, latitude: displaySelectedToilet.latitude, longitude: displaySelectedToilet.longitude }) }} /></div> : <h1>{displayToiletDetail?.name || displaySelectedToilet.name}</h1>}
             </div>
             <div ref={cardScrollRef} className="card-scroll-content">
@@ -1776,6 +1778,7 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
   const address = getDisplayAddress(display.roadAddress, display.jibunAddress)
 
   return <div className="coordinate-inline-details">
+    <OriginalSourceBadge toilet={display} locale={locale} />
     <div className="coordinate-opening-row"><p className="open-time">{formatOpenTime(display, locale)}</p>{onReport && <ToiletReportEntry iconOnly onClick={onReport} />}</div>
     <ToiletCommunityRow onReview={onReview} reviewEntry={reviewEntry} previewSummary={previewSummary} />
     <PublicReviews toiletId={display.id} toiletName={display.name} toiletType={display.toiletType} summary={previewSummary} />

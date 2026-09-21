@@ -98,7 +98,7 @@ test('activity views keep authors, comments, addresses and administrator notes v
   const mine = read('components/reviews/MyReviewsPanel.tsx'), reports = read('components/MyReportsPanel.tsx'), notices = read('components/NotificationPanel.tsx')
   for (const source of [mine, reports, notices]) assert.doesNotMatch(source, /translate\(|translation.googleapis/)
   assert.match(mine, /item.comment \|\| t\('review.noComment'\)/)
-  assert.match(reports, /<dd>\{report.reason\}<\/dd>/)
+  assert.match(reports, /<dd>\{report.reason && originalTag\}\{report.reason\}<\/dd>/)
   assert.match(reports, /report.reviewNote\?\.trim\(\)/)
   assert.match(notices, /<span>\{item.message\}<\/span>/)
   assert.match(notices, /item.referenceType === 'TOILET_REPORT'/)
