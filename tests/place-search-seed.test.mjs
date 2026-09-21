@@ -33,7 +33,7 @@ test('generated D1 schema and import are executable and searchable', async () =>
   assert.equal(database.prepare('SELECT count(*) AS count FROM places').get().count, 2000)
   assert.equal(database.prepare('SELECT count(*) AS count FROM place_search_fts').get().count, 1923)
   assert.equal(database.prepare('SELECT count(*) AS count FROM place_search_localized_fts').get().count, 1923 * 4)
-  assert.equal(database.prepare('SELECT count(*) AS count FROM place_localizations').get().count, 7156)
+  assert.equal(database.prepare('SELECT count(*) AS count FROM place_localizations').get().count, 1923 * 4)
   assert.equal(database.prepare("SELECT count(*) AS count FROM places WHERE search_scope='production'").get().count, 0)
   const result = database.prepare(`
     SELECT p.name_en
@@ -68,6 +68,9 @@ test('generated D1 schema and import are executable and searchable', async () =>
   const busan = database.prepare("SELECT name, source_language FROM place_localizations WHERE place_id='Q53118' AND locale='zh-CN'").get()
   assert.equal(busan.name, '釜山站')
   assert.equal(busan.source_language, 'zh')
+  const translated = database.prepare("SELECT name, source_language FROM place_localizations WHERE place_id='Q15464762' AND locale='zh-CN'").get()
+  assert.equal(translated.name, '釜山国际金融中心')
+  assert.equal(translated.source_language, 'en')
   const d1 = { prepare(statement) { return { bind(...values) { return { async all() {
     return { results: database.prepare(statement).all(...values) }
   } } } } } }
@@ -84,6 +87,12 @@ test('generated D1 schema and import are executable and searchable', async () =>
     assert.equal(response.status, 200, locale)
     assert.ok((await response.json()).results.some(result => result.id === 'Q20415' && result.name === name), locale)
   }
+  const machineResult = await placeSearchResponse(new Request('https://example.com/api/place-search', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ locale: 'zh-CN', query: '釜山国际' }),
+  }), { PLACE_SEARCH_ENABLED: 'true', PLACE_SEARCH_SCOPE: 'preview', PLACE_SEARCH_D1: d1 })
+  assert.equal(machineResult.status, 200)
+  assert.ok((await machineResult.json()).results.some(result => result.id === 'Q15464762' && result.name === '釜山国际金融中心'))
   database.close()
 })
 
