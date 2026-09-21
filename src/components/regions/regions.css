@@ -14,8 +14,8 @@
 .region-hero-stat span { color: #8b9f91; font-size: 10px; }
 .region-discovery-layout { display: flex; flex: 1; min-height: 0; }
 .region-atlas-card, .region-district-map-card { position: relative; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid #dfeae3; border-radius: 22px; background: #fff; }
-.region-atlas-card { flex: 1; background: #edf3f5; }
-.region-atlas-wrap { position: relative; width: 100%; height: 100%; overflow: hidden; background: #edf3f5; }
+.region-atlas-card { flex: 1; background: #fff; }
+.region-atlas-wrap { position: relative; width: 100%; height: 100%; overflow: hidden; background: #fff; }
 .region-atlas { display: block; width: 100%; height: 100%; padding: 0; touch-action: none; user-select: none; cursor: grab; }
 .region-atlas-wrap.is-dragging .region-atlas, .region-atlas-wrap.is-dragging .region-atlas-area { cursor: grabbing; }
 .region-atlas-controls { position: absolute; bottom: 62px; right: 16px; z-index: 7; display: grid; padding: 4px; border: 1px solid #e4ece7; border-radius: 14px; background: #ffffffed; }
@@ -50,7 +50,7 @@
 .region-atlas-picker-list strong { font-size: 15px; line-height: 1.35; overflow-wrap: anywhere; }
 .region-atlas-picker-list a > span { flex: 0 0 auto; color: #708076; font-size: 13px; font-variant-numeric: tabular-nums; }
 .region-atlas-picker-list a:hover, .region-atlas-picker-list a:focus-visible { color: #23704b; background: #f5f9f6; }
-.region-atlas-caption { position: absolute; display: flex; align-items: center; gap: 7px; left: 20px; bottom: 14px; padding: 5px 0; color: #7d9686; font-size: 11px; pointer-events: none; }
+.region-atlas-caption { position: absolute; display: flex; align-items: center; gap: 7px; left: 20px; bottom: 14px; padding: 5px 0; color: #688571; font-size: 15px; line-height: 1.5; pointer-events: none; }
 .region-atlas-tooltip { position: absolute; z-index: 8; min-width: 190px; max-width: 230px; padding: 15px 18px; border: 1px solid #e0ebe4; border-radius: 16px; background: #fffffff5; box-shadow: 0 12px 35px #1b503323; pointer-events: none; }
 .region-atlas-tooltip-name { display: block; color: #365a43; font-size: 14px; font-weight: 400; }
 .region-atlas-tooltip > div { display: flex; align-items: baseline; gap: 7px; margin-top: 5px; }
@@ -64,11 +64,24 @@
 .district-map-wrap { position: relative; flex: 1; min-height: 0; margin: 0 10px 10px; border: 1px solid #e3ece5; border-radius: 15px; overflow: hidden; background: #f1f7f1; }
 .district-naver-map { width: 100%; height: 100%; }
 .district-map-error { position: absolute; z-index: 4; top: 14px; left: 14px; right: 14px; padding: 10px; border-radius: 10px; background: #fff; color: #895427; font-size: 12px; }
-.district-map-selection { position: absolute; z-index: 5; bottom: 18px; left: 18px; right: 18px; max-height: 48%; overflow: auto; padding: 15px 18px; border: 1px solid #d7e9d9; border-radius: 17px; background: #fff; box-shadow: 0 10px 30px #11362526; }
-.district-map-selection strong { display: block; padding-right: 28px; font-size: 14px; }
-.district-map-selection > div { display: grid; margin-top: 9px; }
-.district-map-selection a { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid #e8f0e9; color: #215a38; font-size: 12px; text-decoration: none; }
-.region-selection-close { position: absolute; top: 9px; right: 12px; width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: #5a7964; font-size: 22px; cursor: pointer; }
+.district-map-selection { position: absolute; z-index: 5; top: 16px; left: 16px; display: flex; flex-direction: column; width: min(370px, calc(100% - 32px)); max-height: calc(100% - 32px); overflow: hidden; padding: 20px; border: 1px solid #d7e9d9; border-radius: 17px; background: #fff; box-shadow: 0 10px 30px #11362526; }
+.district-selection-heading { flex: 0 0 auto; padding-right: 30px; }
+.district-selection-heading h2 { margin: 4px 0 0; color: #1d2b21; font-size: 20px; line-height: 1.4; overflow-wrap: anywhere; }
+.district-selection-content, .district-selection-facilities { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.district-selection-hours { margin: 12px 0; color: #558067; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.district-selection-hours.is-loading { color: #87988c; }
+.district-selection-content .card-details { max-height: none; overflow: visible; }
+.district-selection-content .detail-row dd { min-width: 0; }
+.district-selection-link { display: flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 10px; min-height: 44px; margin-top: 14px; padding: 10px 14px; border-radius: 10px; background: #edf5ef; color: #236442; font-size: 14px; text-decoration: none; }
+.district-selection-link:hover { background: #e0eee4; }
+.district-selection-facilities { margin-top: 12px; }
+.district-selection-facilities > button { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; min-height: 54px; padding: 12px 0; border: 0; border-top: 1px solid #e8f0e9; background: transparent; color: #284e37; font: inherit; text-align: left; cursor: pointer; }
+.district-selection-facilities strong { font-size: 15px; line-height: 1.4; }
+.district-selection-facilities > button > span { flex: 0 0 auto; color: #60856c; font-size: 12px; }
+.district-selection-back { min-height: 36px; margin: -6px 0 4px; padding: 0; border: 0; background: transparent; color: #648672; font: inherit; font-size: 13px; cursor: pointer; }
+.district-selection-error { color: #895427; font-size: 13px; }
+.district-selection-error button { min-height: 36px; padding: 6px 12px; border: 1px solid #d7e9d9; border-radius: 8px; background: #fff; color: #236442; font: inherit; cursor: pointer; }
+.region-selection-close { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #5a7964; font-size: 24px; line-height: 1; cursor: pointer; }
 .region-map-marker { display: flex; flex-direction: column; align-items: center; }
 .region-map-cluster { display: grid; place-items: center; min-width: 46px; height: 46px; padding: 0 10px; border: 4px solid #ffffffb8; border-radius: 50%; background: #267b53; background-clip: padding-box; color: #fff; box-shadow: 0 3px 12px #184b332e; font: inherit; font-size: 14px; font-weight: 750; cursor: pointer; }
 .region-map-cluster:hover, .region-map-cluster:focus-visible { background-color: #155b3a; outline: 3px solid #75b29180; }
@@ -105,7 +118,7 @@
   .region-atlas-picker-panel { width: calc(100vw - 52px); }
   .region-atlas-picker-list { grid-template-columns: 1fr; }
   .region-atlas-picker-heading button { width: 44px; height: 44px; }
-  .region-atlas-caption { left: 15px; bottom: 12px; font-size: 10px; }
+  .region-atlas-caption, .region-source { display: none; }
   .region-district-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 10px; }
   .region-district-map-card > .region-card-heading { display: none; }
   .district-map-wrap { margin: 0; border: 0; border-radius: 16px; }
@@ -115,7 +128,9 @@
   .region-card-heading p { margin: 0; white-space: nowrap; }
   .region-source { right: 12px; bottom: 12px; }
   .region-district-map-card > .region-source { top: 10px; right: 10px; }
-  .district-map-selection { bottom: 12px; left: 12px; right: 12px; max-height: 65%; padding: 12px 14px; }
+  .district-map-selection { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; max-height: 65%; padding: 16px; }
+  .district-selection-heading h2 { font-size: 18px; }
+  .district-selection-link { margin-top: 6px; }
 }
 @media (max-height: 540px) { .region-hero p, .region-hero .region-eyebrow { display: none; } .region-hero { margin-bottom: 9px; } .region-hero h1 { margin: 0; font-size: 22px; } .region-breadcrumbs { margin-bottom: 5px; } }
 .region-site-shell.is-account-page { height: 100dvh; min-height: 0; overflow: hidden; }

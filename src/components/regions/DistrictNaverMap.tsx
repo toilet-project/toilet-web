@@ -1,17 +1,15 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Link from 'next/link'
 import type { ToiletMapItemResponse } from '../../api/toilets'
 import type { Locale } from '../../i18n/locale'
 import { localizeToiletMapItem } from '../../i18n/toiletTranslations'
 import { groupToiletsByCoordinate } from '../../lib/toiletGrouping'
 import type { MapOverlay } from '../../lib/mapProvider'
 import { regionBounds, polygonParts, type Region } from '../../lib/regions'
-import { localizedPublicPath } from '../../i18n/routes'
-import { regionToiletPath } from '../../lib/regionToiletPath'
 import { clusterRegionPoints } from '../../lib/regionMapClusters'
 import { regionText } from './regionText'
+import { DistrictToiletSelection } from './DistrictToiletSelection'
 
 type NaverPolygon = { setMap(map: unknown | null): void }
 type NaverMaps = {
@@ -42,7 +40,7 @@ export function DistrictNaverMap({ district, toilets, locale, failed = false }: 
       const polygon = new maps.Polygon({
         map: map.raw,
         paths: polygonParts(district.geometry).flatMap(rings => rings.map(ring => ring.map(([lng, lat]) => new maps.LatLng(lat, lng)))),
-        strokeColor: '#08734b', strokeWeight: 2, strokeOpacity: .95, fillColor: '#56a47b', fillOpacity: .14, clickable: false,
+        strokeColor: '#08734b', strokeWeight: 2, strokeOpacity: .95, fillColor: '#56a47b', fillOpacity: 0, clickable: false,
       })
       const overlays: MapOverlay[] = []
       const localized = toilets.map(toilet => localizeToiletMapItem(toilet, locale))
@@ -97,7 +95,8 @@ export function DistrictNaverMap({ district, toilets, locale, failed = false }: 
           }
           content.addEventListener('click', event => {
             event.stopPropagation()
-            setSelected(point.toilets ?? localized.filter(toilet => toilet.id === point.id))
+            const ids = new Set((point.toilets ?? [point]).map(toilet => toilet.id))
+            setSelected(toilets.filter(toilet => ids.has(toilet.id)))
           })
           const overlay = createMapOverlay(map, { position: createMapCoordinate(map, point.latitude, point.longitude), content, yAnchor: 1, zIndex: 2 })
           overlay.setMap(map)
@@ -122,10 +121,6 @@ export function DistrictNaverMap({ district, toilets, locale, failed = false }: 
     <div className="district-naver-map" ref={container} role="region" aria-label={`${district.name} · ${t.locationMap}`} />
     {(error || failed) && <p className="district-map-error" role="alert">{error ? t.mapError : t.error}</p>}
     {!error && !failed && toilets.length === 0 && <p className="district-map-error" role="status">{t.empty}</p>}
-    {selected.length > 0 && <div className="district-map-selection">
-      <button type="button" className="region-selection-close" onClick={() => setSelected([])} aria-label={t.closeSelection}>×</button>
-      <strong>{selected.length === 1 ? selected[0].displayGroupName || selected[0].name : `${selected.length.toLocaleString(locale)} ${t.toilets}`}</strong>
-      <div>{selected.map(toilet => <Link key={toilet.id} href={localizedPublicPath(regionToiletPath(toilets.find(item => item.id === toilet.id) ?? toilet), locale)!}>{toilet.name}<span>↗</span></Link>)}</div>
-    </div>}
+    {selected.length > 0 && <DistrictToiletSelection key={selected.map(toilet => toilet.id).join(':')} toilets={selected} locale={locale} onClose={() => setSelected([])} />}
   </div>
 }

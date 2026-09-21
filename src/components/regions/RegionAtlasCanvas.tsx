@@ -147,7 +147,11 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoo
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
     if (pointers.current.size === 0) setIsDragging(false)
   }
-  return <div ref={root} className={`region-atlas-wrap${isDragging ? ' is-dragging' : ''}`} style={{ '--atlas-height': `${size.height}px` } as CSSProperties} onPointerLeave={event => { if (event.pointerType !== 'touch') setSelection(null) }} onKeyDownCapture={event => { pointerType.current = 'keyboard'; if (event.key === 'Escape' && pickerOpen) { event.preventDefault(); closePicker() } }} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) { setSelection(null); closePicker(false) } }}>
+  return <div ref={root} className={`region-atlas-wrap${isDragging ? ' is-dragging' : ''}`} style={{ '--atlas-height': `${size.height}px` } as CSSProperties} onPointerLeave={event => { if (event.pointerType !== 'touch') setSelection(null) }} onKeyDownCapture={event => { pointerType.current = 'keyboard'; if (event.key === 'Escape' && pickerOpen) { event.preventDefault(); closePicker() } }} onBlur={event => {
+    // Touch browsers can blur the summary with no next focus target before the
+    // link receives its click. Only close on an actual focus move outside.
+    if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget)) { setSelection(null); closePicker(false) }
+  }}>
     <svg ref={svg} className="region-atlas" viewBox={`0 0 ${width} ${height}`} role="group" aria-label={label}
       onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerEnd} onPointerCancel={pointerEnd}
       onLostPointerCapture={event => { if (event.target === event.currentTarget) { pointers.current.delete(event.pointerId); if (pointers.current.size === 0) setIsDragging(false) } }}
@@ -183,7 +187,7 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoo
       <summary aria-controls={pickerId} aria-expanded={pickerOpen}>{allRegionsLabel}<span>{areas.length}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
       <section id={pickerId} className="region-atlas-picker-panel" aria-label={allRegionsLabel}>
         <div className="region-atlas-picker-heading"><strong>{label}</strong><button type="button" onClick={() => closePicker()} aria-label={closeLabel}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></div>
-        <div className="region-atlas-picker-list">{areas.map(area => <Link key={area.code} href={area.href} prefetch={false} onClick={() => closePicker(false)} onFocus={event => focus(event, area)} onPointerEnter={event => hover(event, area)}>
+        <div className="region-atlas-picker-list">{areas.map(area => <Link key={area.code} href={area.href} prefetch={false} onNavigate={() => closePicker(false)}>
           <strong>{area.name}</strong><span aria-label={`${area.count} ${countLabel}`}>{area.count}</span>
         </Link>)}</div>
       </section>
