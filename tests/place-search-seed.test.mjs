@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
-import { readFile } from 'node:fs/promises'
+import { mkdtemp, readFile, rmdir, unlink, writeFile } from 'node:fs/promises'
 import test from 'node:test'
 import { DatabaseSync } from 'node:sqlite'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { placeSearchResponse } from '../place-search-worker.mjs'
 import { mergePreviewCoordinateCorrections, resolveBusanStationCorrections, resolvePreviewCoordinateCorrections } from '../scripts/place-search-coordinate-corrections.mjs'
 
@@ -181,6 +183,52 @@ test('component imports add the second dataset without replacing the first', asy
   assert.equal(database.prepare('SELECT COUNT(*) AS count FROM place_search_fts').get().count, 1923)
   assert.equal(database.prepare('SELECT COUNT(*) AS count FROM place_search_localized_fts').get().count, 1923 * 4)
   assert.equal(database.prepare('SELECT COUNT(*) AS count FROM places WHERE production_approved = 1').get().count, 0)
+  database.close()
+})
+
+test('production import promotes only the exactly approved 1,923 searchable candidates', async () => {
+  const builder = fileURLToPath(new URL('scripts/build-place-search-import.mjs', root))
+  const approval = fileURLToPath(new URL('data/place-search/production-candidate-approval-20260922.json', root))
+  const missingApproval = spawnSync(process.execPath, [builder, '--target', 'production'], { encoding: 'utf8' })
+  assert.notEqual(missingApproval.status, 0)
+  assert.match(missingApproval.stderr, /Production import requires an explicit approval manifest/)
+  const scratch = await mkdtemp(join(tmpdir(), 'geupddong-place-approval-'))
+  const changedApproval = join(scratch, 'approval.json')
+  try {
+    const original = JSON.parse(await readFile(approval, 'utf8'))
+    await writeFile(changedApproval, JSON.stringify({ ...original, approvedCount: original.approvedCount - 1 }))
+    const mismatch = spawnSync(process.execPath,
+      [builder, '--target', 'production', '--approval', changedApproval], { encoding: 'utf8' })
+    assert.notEqual(mismatch.status, 0)
+    assert.match(mismatch.stderr, /Production approval does not match the exact preview import/)
+  } finally {
+    await unlink(changedApproval)
+    await rmdir(scratch)
+  }
+  execFileSync(process.execPath, [builder, '--target', 'production', '--approval', approval])
+  const database = new DatabaseSync(':memory:')
+  database.exec(await readFile(new URL('db/place-search-schema.sql', root), 'utf8'))
+  database.exec(await readFile(new URL('.generated/place-search-production-import.sql', root), 'utf8'))
+  assert.deepEqual(database.prepare(`SELECT search_scope, production_approved, count(*) AS count
+    FROM places GROUP BY search_scope, production_approved ORDER BY search_scope`).all().map(row => ({ ...row })), [
+    { search_scope: 'disabled', production_approved: 0, count: 77 },
+    { search_scope: 'production', production_approved: 1, count: 1923 },
+  ])
+  assert.equal(database.prepare('SELECT count(*) AS count FROM place_search_fts').get().count, 1923)
+  assert.equal(database.prepare('SELECT count(*) AS count FROM place_search_localized_fts').get().count, 1923 * 4)
+  const approvalAudit = JSON.parse(database.prepare("SELECT audit_json FROM places WHERE id='Q20415'").get().audit_json)
+  assert.equal(approvalAudit.productionApproval.selection, 'all_preview_usable')
+  assert.equal(approvalAudit.productionApproval.note.includes('not a verified entrance coordinate'), true)
+  const d1 = { prepare(statement) { return { bind(...values) { return { async all() {
+    return { results: database.prepare(statement).all(...values) }
+  } } } } } }
+  for (const [locale, query] of [['en', 'Seoul Station'], ['ja', 'ソウル']]) {
+    const response = await placeSearchResponse(new Request('https://example.com/api/place-search', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ locale, query }),
+    }), { PLACE_SEARCH_ENABLED: 'true', PLACE_SEARCH_SCOPE: 'production', PLACE_SEARCH_D1: d1 })
+    assert.equal(response.status, 200)
+    assert.ok((await response.json()).results.some(result => result.id === 'Q20415'), locale)
+  }
   database.close()
 })
 

@@ -1,0 +1,11 @@
+{
+  "target": "production",
+  "approvalScope": "search_dataset_only",
+  "selection": "all_preview_usable",
+  "decisionDate": "2026-09-22",
+  "sourceSeedHash": "2a7f0d06ce8ae476413c2e3e91a95d38a22e88de8f7bceb8c31d92114685dfd2",
+  "previewImportSha256": "b19579d46feea7a56f6ce53cb4fef957135c9d4d90ed64703bee0a11d229b1a5",
+  "approvedCount": 1923,
+  "withheldCount": 77,
+  "note": "Current searchable preview candidates selected for a separate production search dataset after coarse coordinate checks. This does not approve binding, feature activation, or deployment."
+}

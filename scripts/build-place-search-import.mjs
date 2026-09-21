@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { asianLocales, mergePlaceLocalizations } from './place-search-localizations.mjs'
@@ -6,8 +7,14 @@ import { mergePreviewCoordinateCorrections, resolveBusanStationCorrections, reso
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const args = new Map(process.argv.slice(2).map((value, index, values) => value.startsWith('--') ? [value, values[index + 1]] : null).filter(Boolean))
+const target = args.get('--target') || 'preview'
+if (!['preview', 'production'].includes(target)) throw new Error(`Unknown place search import target: ${target}`)
+if (target === 'production' && args.has('--component')) throw new Error('Production import must include the complete approved dataset')
 const seedPath = resolve(args.get('--seed') || `${root}/data/place-search/place-search-seed-20260920.ndjson`)
-const outputPath = resolve(args.get('--output') || `${root}/.generated/place-search-import.sql`)
+const outputPath = resolve(args.get('--output') || `${root}/.generated/place-search-${target === 'production' ? 'production-' : ''}import.sql`)
+if (target === 'production' && outputPath === resolve(`${root}/.generated/place-search-import.sql`)) {
+  throw new Error('Production import cannot overwrite the preview import')
+}
 const [metadata, ...rows] = (await readFile(seedPath, 'utf8')).trim().split(/\r?\n/).map(line => JSON.parse(line))
 const allRecords = rows.map(({ type: _type, ...record }) => record)
 const correctionConfig = JSON.parse(await readFile(`${root}/data/place-search/preview-coordinate-corrections-20260921.json`, 'utf8'))
@@ -109,6 +116,35 @@ for (const place of seed.records) {
   }
 }
 
+const previewSql = `${statements.join('\n')}\n`
+let importSql = previewSql
+let approvedCount = 0
+if (target === 'production') {
+  if (!args.get('--approval')) throw new Error('Production import requires an explicit approval manifest')
+  const approval = JSON.parse(await readFile(resolve(args.get('--approval')), 'utf8'))
+  const previewImportSha256 = createHash('sha256').update(previewSql).digest('hex')
+  const eligible = seed.records.filter(place => place.searchScope === 'preview' && place.status === 'usable_preview')
+  const withheld = seed.records.length - eligible.length
+  if (approval.target !== 'production' || approval.approvalScope !== 'search_dataset_only'
+    || approval.selection !== 'all_preview_usable'
+    || approval.sourceSeedHash !== seed.sourceHash || approval.previewImportSha256 !== previewImportSha256
+    || approval.approvedCount !== eligible.length || approval.withheldCount !== withheld
+    || eligible.some(place => !place.selectedCoordinate && !corrections.has(place.id))) {
+    throw new Error('Production approval does not match the exact preview import')
+  }
+  approvedCount = eligible.length
+  const audit = {
+    decisionDate: approval.decisionDate,
+    selection: approval.selection,
+    previewImportSha256,
+    note: 'Search map center only; not a verified entrance coordinate',
+  }
+  importSql += `UPDATE places SET search_scope='production', production_approved=1,
+    audit_json=json_set(audit_json, '$.productionApproval', json(${json(audit)}))
+    WHERE source_dataset=${sql(seed.datasetId)} AND search_scope='preview' AND status='usable_preview';\n`
+}
+
 await mkdir(dirname(outputPath), { recursive: true })
-await writeFile(outputPath, `${statements.join('\n')}\n`)
-console.log(JSON.stringify({ outputPath, statements: statements.length, records: seed.records.length }))
+await writeFile(outputPath, importSql)
+console.log(JSON.stringify({ outputPath, statements: statements.length + (target === 'production' ? 1 : 0),
+  records: seed.records.length, approvedCount }))
