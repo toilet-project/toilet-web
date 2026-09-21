@@ -5,7 +5,7 @@ import { toiletTypeLabel } from '../src/i18n/facilityLabels.ts'
 import { mapSystemNotice, localizeMapLabels } from '../src/i18n/mapLabels.ts'
 import { formatOpenTime, formatInstallationDate, formatFacilityLocation, formatLastUpdatedAt } from '../src/lib/detailFormatting.ts'
 import { message } from '../src/i18n/messages.ts'
-import { localizeToilet, localizeToiletMapSearch } from '../src/i18n/toiletTranslations.ts'
+import { localizeToilet, localizeToiletMapItem, localizeToiletMapSearch } from '../src/i18n/toiletTranslations.ts'
 
 test('only exact structured categories translate and unreviewed opening hours do not pretend to be translated', () => {
   assert.equal(toiletTypeLabel('공중화장실', 'en'), 'Public')
@@ -67,6 +67,19 @@ test('current API translations are selected by locale with field-level Korean fa
   const response = { meta: { map_level: 3, display_type: 'MARKER', total_count: 1, result_count: 1 }, toilets: [{ ...canonical, latitude: 37.5, longitude: 127 }], clusters: [] }
   assert.equal(localizeToiletMapSearch(response, 'en').toilets[0].name, 'Seoul Station Restroom')
   assert.equal(localizeToiletMapSearch(response, 'ko').toilets[0].name, '서울역 화장실')
+})
+test('administrator display-group names use a locale translation with Korean fallback', () => {
+  const translated = localizeToiletMapItem({
+    id: 11, name: '문화원 1층', latitude: 37, longitude: 127,
+    displayGroupId: 7, displayGroupName: '우리문화원', displayGroupTranslations: { en: 'Woori Cultural Center' },
+  }, 'en')
+  assert.equal(translated.displayGroupName, 'Woori Cultural Center')
+
+  const fallback = localizeToiletMapItem({
+    id: 12, name: '문화원 2층', latitude: 37, longitude: 127,
+    displayGroupId: 7, displayGroupName: '우리문화원',
+  }, 'en')
+  assert.equal(fallback.displayGroupName, '우리문화원')
 })
 test('map overlays relabel in place and preserve original named groups', () => {
   const nodes = [

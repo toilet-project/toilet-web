@@ -53,3 +53,12 @@ test('administrator display group label accounts for ungrouped toilets at the sa
   ])
   assert.equal(group.displayGroupName, 'XXX문화원 외 1개 장소')
 })
+
+test('administrator display group summary follows the active locale', () => {
+  const [group] = groupToiletsByCoordinate([
+    { id: 31, name: 'Center 1F', latitude: 36.4, longitude: 127.3, displayGroupId: 10, displayGroupName: 'XXX Cultural Center' },
+    { id: 32, name: 'Center 2F', latitude: 36.4, longitude: 127.3, displayGroupId: 10, displayGroupName: 'XXX Cultural Center' },
+    { id: 33, name: 'Library', latitude: 36.4, longitude: 127.3 },
+  ], 'en')
+  assert.equal(group.displayGroupName, 'XXX Cultural Center and 1 more place')
+})

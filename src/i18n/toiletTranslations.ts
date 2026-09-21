@@ -27,7 +27,12 @@ export function localizeToilet<T extends TranslatableToilet>(toilet: T, locale: 
 }
 
 export function localizeToiletMapItem(toilet: ToiletMapItemResponse, locale: Locale | string): ToiletMapItemResponse {
-  return localizeToilet(toilet, locale)
+  const localized = localizeToilet(toilet, locale)
+  if (locale === 'ko') return localized
+  const normalized = locale.trim().toLowerCase().replace('_', '-')
+  const displayGroupName = toilet.displayGroupTranslations?.[normalized]
+    ?? toilet.displayGroupTranslations?.[normalized.split('-')[0]]
+  return displayGroupName?.trim() ? { ...localized, displayGroupName: displayGroupName.trim() } : localized
 }
 
 export function localizeToiletDetail(toilet: ToiletDetailResponse, locale: Locale | string): ToiletDetailResponse {

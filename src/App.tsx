@@ -930,7 +930,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
 
     const points: MapPoint[] = displayResponse.meta.display_type === 'CLUSTER'
       ? displayResponse.clusters
-      : groupToiletsByCoordinate(displayResponse.toilets)
+      : groupToiletsByCoordinate(displayResponse.toilets, mapLocale.current)
     const displayPoints = map.getLevel() >= 5 || displayResponse.meta.display_type === 'CLUSTER'
       ? groupPointsByScreenGrid(map, points)
       : points
@@ -1392,7 +1392,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       .map(toilet => localizeToiletMapItem(toilet, locale)),
     [isListZoomLimited, locale, mobileAreaToilets, result?.toilets],
   )
-  const groupedAreaToilets = useMemo(() => groupToiletsByCoordinate(areaToilets), [areaToilets])
+  const groupedAreaToilets = useMemo(() => groupToiletsByCoordinate(areaToilets, locale), [areaToilets, locale])
   const sortedAreaToiletGroups = distanceReference
     ? [...groupedAreaToilets].sort((left, right) => calculateDistanceInMeters(distanceReference, left) - calculateDistanceInMeters(distanceReference, right))
     : groupedAreaToilets

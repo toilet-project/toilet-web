@@ -16,6 +16,7 @@ export type ToiletMapItemResponse = {
   longitude: number
   displayGroupId?: number | null
   displayGroupName?: string | null
+  displayGroupTranslations?: Record<string, string>
   translations?: ToiletTranslations
 }
 
