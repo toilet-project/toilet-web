@@ -47,11 +47,11 @@ export function HistoryDatePicker({ id, initialFrom, initialTo, onApply, onClose
     </div>
     <div className="history-calendar">
       <div className="history-calendar-toolbar">
-        <strong id={captionId} aria-live="polite">{locale === 'en' ? new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', year: 'numeric', month: 'long' }).format(new Date(`${month}-01T00:00:00Z`)) : `${Number(month.slice(0, 4))}년 ${Number(month.slice(5))}월`}</strong>
+        <strong id={captionId} aria-live="polite">{locale !== 'ko' ? new Intl.DateTimeFormat(locale, { timeZone: 'UTC', year: 'numeric', month: 'long' }).format(new Date(`${month}-01T00:00:00Z`)) : `${Number(month.slice(0, 4))}년 ${Number(month.slice(5))}월`}</strong>
         <div><button type="button" aria-label={t('history.previousMonth')} disabled={month <= '1900-01'} onClick={() => setMonth(calendarShiftMonth(`${month}-01`, -1))}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14 7-5 5 5 5" /></svg></button><button type="button" aria-label={t('history.nextMonth')} disabled={month >= today.slice(0, 7)} onClick={() => setMonth(calendarShiftMonth(`${month}-01`, 1))}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 7 5 5-5 5" /></svg></button></div>
       </div>
       <div role="grid" aria-labelledby={captionId} ref={grid} className="history-calendar-grid">
-        <div role="row" className="history-calendar-weekdays">{(locale === 'en' ? ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] : ['일', '월', '화', '수', '목', '금', '토']).map(day => <span role="columnheader" key={day}>{day}</span>)}</div>
+        <div role="row" className="history-calendar-weekdays">{(locale === 'en' ? ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] : locale === 'ja' ? ['日', '月', '火', '水', '木', '金', '土'] : locale.startsWith('zh-') ? ['日', '一', '二', '三', '四', '五', '六'] : ['일', '월', '화', '수', '목', '금', '토']).map(day => <span role="columnheader" key={day}>{day}</span>)}</div>
         {Array.from({ length: cells.length / 7 }, (_, week) => <div role="row" key={week}>{cells.slice(week * 7, week * 7 + 7).map((day, column) => <div role="gridcell" key={day ?? `blank-${column}`} aria-selected={day ? day === from || day === to : undefined} className={day ? `${day >= from && day <= to ? 'is-in-range' : ''}${day === from ? ' is-range-start' : ''}${day === to ? ' is-range-end' : ''}` : undefined}>
           {day && <button type="button" data-day={day} aria-label={calendarDayLabel(day, locale)} aria-current={day === today ? 'date' : undefined} disabled={day > today} tabIndex={day === tabDay ? 0 : -1} onFocus={() => setFocusDay(day)} onKeyDown={event => navigate(event, day)} onClick={() => select(day)}>{Number(day.slice(8))}</button>}
         </div>)}</div>)}

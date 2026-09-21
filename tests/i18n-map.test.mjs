@@ -64,6 +64,15 @@ test('current API translations are selected by locale with field-level Korean fa
   const untranslated = { ...canonical, translations: {} }
   assert.strictEqual(localizeToilet(untranslated, 'en'), untranslated)
 
+  const regional = { ...canonical, translations: {
+    zh: { name: 'Generic Chinese - must not leak' },
+    'zh-CN': { name: '简体名称' }, 'zh-TW': { name: '繁體名稱' },
+  } }
+  assert.equal(localizeToilet(regional, 'zh-CN').name, '简体名称')
+  assert.equal(localizeToilet(regional, 'zh-TW').name, '繁體名稱')
+  assert.strictEqual(localizeToilet(regional, 'zh-HK'), regional)
+  assert.strictEqual(localizeToilet({ ...canonical, translations: { zh: regional.translations.zh } }, 'zh-CN').name, canonical.name)
+
   const response = { meta: { map_level: 3, display_type: 'MARKER', total_count: 1, result_count: 1 }, toilets: [{ ...canonical, latitude: 37.5, longitude: 127 }], clusters: [] }
   assert.equal(localizeToiletMapSearch(response, 'en').toilets[0].name, 'Seoul Station Restroom')
   assert.equal(localizeToiletMapSearch(response, 'ko').toilets[0].name, '서울역 화장실')

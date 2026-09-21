@@ -8,8 +8,9 @@ export function accountDate(value: string, locale: Locale, dateOnly = false): st
   const date = new Date(source)
   if (!Number.isFinite(date.getTime())) return '—'
   const options = { timeZone: 'Asia/Seoul' }
-  return dateOnly ? date.toLocaleDateString(locale === 'en' ? 'en-GB' : 'ko-KR', options)
-    : date.toLocaleString(locale === 'en' ? 'en-GB' : 'ko-KR', options)
+  const language = locale === 'en' ? 'en-GB' : locale === 'ko' ? 'ko-KR' : locale
+  return dateOnly ? date.toLocaleDateString(language, options)
+    : date.toLocaleString(language, options)
 }
 
 const errorKeys: Readonly<Record<string, MessageKey>> = {

@@ -1,9 +1,21 @@
-import { isLocale, type Locale } from './locale.ts'
+import { isLocale, SUPPORTED_LOCALES, type Locale } from './locale.ts'
 
 const PUBLIC_PATH = /^\/(?:toilet\/[1-9]\d*|policies\/(?:all|terms|privacy|location))?$/
 
 export function localeForPath(path: string | null): Locale {
-  return path === '/en' || path?.startsWith('/en/') ? 'en' : 'ko'
+  return localePrefix(path ?? '').locale
+}
+
+const prefixes: Readonly<Record<Locale, string>> = {
+  ko: '', en: '/en', ja: '/ja', 'zh-CN': '/zh-cn', 'zh-TW': '/zh-tw', 'zh-HK': '/zh-hk',
+}
+
+function localePrefix(path: string): { locale: Locale; prefix: string } {
+  for (const locale of SUPPORTED_LOCALES) {
+    const prefix = prefixes[locale]
+    if (prefix && (path === prefix || path.startsWith(`${prefix}/`))) return { locale, prefix }
+  }
+  return { locale: 'ko', prefix: '' }
 }
 
 export function isMapPath(path: string): boolean {
@@ -27,8 +39,8 @@ export function parseLocalizedPublicPath(input: string): { locale: Locale; path:
   // Do not interpret encoded separators, aliases or traversal as a supported route.
   if (rawPath.includes('%') || rawPath.includes('//')) return null
   const normalized = rawPath.length > 1 ? rawPath.replace(/\/$/, '') : rawPath
-  const locale = normalized === '/en' || normalized.startsWith('/en/') ? 'en' : 'ko'
-  const path = locale === 'en' ? normalized.slice(3) || '/' : normalized
+  const { locale, prefix } = localePrefix(normalized)
+  const path = prefix ? normalized.slice(prefix.length) || '/' : normalized
   if (!PUBLIC_PATH.test(path)) return null
   if (path.startsWith('/toilet/') && !Number.isSafeInteger(Number(path.slice(8)))) return null
   return { locale, path, suffix }
@@ -39,12 +51,14 @@ export function localizedPublicPath(input: string, locale: Locale): string | nul
   if (!isLocale(locale)) return null
   const parsed = parseLocalizedPublicPath(input)
   if (!parsed) return null
-  const path = locale === 'en' ? `/en${parsed.path === '/' ? '' : parsed.path}` : parsed.path
+  // Only the English legal text is translated. Keep unreviewed policies on the Korean source URL.
+  const target = parsed.path.startsWith('/policies/') && locale !== 'en' ? 'ko' : locale
+  const path = `${prefixes[target]}${parsed.path === '/' && target !== 'ko' ? '' : parsed.path}`
   return path + parsed.suffix
 }
 
-/** Use when wiring revalidation: a facility mutation affects both public language variants. */
-export function localizedToiletPaths(id: number): readonly [string, string] {
+/** A facility mutation affects every public language variant, even before translations exist. */
+export function localizedToiletPaths(id: number): readonly string[] {
   if (!Number.isSafeInteger(id) || id < 1) throw new Error('Invalid toilet ID')
-  return [`/toilet/${id}`, `/en/toilet/${id}`]
+  return SUPPORTED_LOCALES.map(locale => `${prefixes[locale]}/toilet/${id}`)
 }

@@ -5,7 +5,7 @@ const date = (value: string) => new Date(`${value}T00:00:00Z`)
 const iso = (value: Date) => value.toISOString().slice(0, 10)
 export const calendarDayLabel = (value: string, locale: Locale = 'ko') => {
   const [year, month, day] = value.split('-').map(Number)
-  if (locale === 'en') return new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', dateStyle: 'long' }).format(date(value))
+  if (locale !== 'ko') return new Intl.DateTimeFormat(locale, { timeZone: 'UTC', dateStyle: 'long' }).format(date(value))
   return `${year}년 ${month}월 ${day}일`
 }
 export const calendarShiftDay = (value: string, days: number) => iso(new Date(date(value).getTime() + days * DAY))

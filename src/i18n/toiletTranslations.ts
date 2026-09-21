@@ -11,7 +11,9 @@ type TranslatableToilet = {
 export function toiletTranslation<T extends TranslatableToilet>(toilet: T, locale: Locale | string): ToiletTranslationText | null {
   if (locale === 'ko') return null
   const normalized = locale.trim().toLowerCase().replace('_', '-')
-  const translation = toilet.translations?.[normalized] ?? toilet.translations?.[normalized.split('-')[0]]
+  const entry = Object.entries(toilet.translations ?? {}).find(([key]) => key.toLowerCase().replace('_', '-') === normalized)
+  // Chinese regions require an exact match; never substitute another region's text.
+  const translation = entry?.[1] ?? (normalized.startsWith('zh-') ? undefined : toilet.translations?.[normalized.split('-')[0]])
   return translation?.name?.trim() ? translation : null
 }
 
@@ -30,8 +32,9 @@ export function localizeToiletMapItem(toilet: ToiletMapItemResponse, locale: Loc
   const localized = localizeToilet(toilet, locale)
   if (locale === 'ko') return localized
   const normalized = locale.trim().toLowerCase().replace('_', '-')
-  const displayGroupName = toilet.displayGroupTranslations?.[normalized]
-    ?? toilet.displayGroupTranslations?.[normalized.split('-')[0]]
+  const groupEntry = Object.entries(toilet.displayGroupTranslations ?? {}).find(([key]) => key.toLowerCase().replace('_', '-') === normalized)
+  const displayGroupName = groupEntry?.[1]
+    ?? (normalized.startsWith('zh-') ? undefined : toilet.displayGroupTranslations?.[normalized.split('-')[0]])
   return displayGroupName?.trim() ? { ...localized, displayGroupName: displayGroupName.trim() } : localized
 }
 

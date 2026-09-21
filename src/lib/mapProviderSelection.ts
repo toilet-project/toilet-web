@@ -7,6 +7,8 @@ const NAVER_LOGICAL_LEVEL_OFFSET = 21
 
 export function resolveMapProvider(locale: Locale, preference: MapProviderPreference = 'auto'): MapProvider {
   if (preference !== 'auto') return preference
+  // The preview Naver SDK is currently loaded with English labels. Do not claim
+  // region-specific map labels for new locales until SDK switching is verified.
   return locale === 'en' ? 'naver' : 'kakao'
 }
 

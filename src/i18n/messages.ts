@@ -2,6 +2,7 @@ import type { Locale } from './locale.ts'
 import { mapKo, mapEn } from './mapMessages.ts'
 import { activityKo, activityEn } from './activityMessages.ts'
 import { accountKo, accountEn } from './accountMessages.ts'
+import { jaUi, zhCnUi, zhTwUi, zhHkUi } from './asianMessages.ts'
 
 // UI text only. Facility names, free-form opening hours and user text stay untouched.
 const ko = {
@@ -167,7 +168,14 @@ const en = {
   'auth.login': 'Log in / Sign up',
 } satisfies Dictionary
 
-export const messages: Readonly<Record<Locale, Dictionary>> = { ko, en }
+const ja = { ...ko, ...jaUi } satisfies Dictionary
+const zhCn = { ...ko, ...zhCnUi } satisfies Dictionary
+const zhTw = { ...ko, ...zhTwUi } satisfies Dictionary
+const zhHk = { ...ko, ...zhHkUi } satisfies Dictionary
+
+export const messages: Readonly<Record<Locale, Dictionary>> = {
+  ko, en, ja, 'zh-CN': zhCn, 'zh-TW': zhTw, 'zh-HK': zhHk,
+}
 
 export type MessageValues = Readonly<Record<string, string | number>>
 export function message(locale: Locale, key: MessageKey, values: MessageValues = {}): string {

@@ -8,7 +8,7 @@ type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
 export function saveLanguageLoginReturn(storage: Store, path: string, now = Date.now()) {
   try {
     storage.removeItem(LANGUAGE_LOGIN_RETURN_KEY)
-    if (!isMapPath(path) || localeForPath(path) !== 'en') return
+    if (!isMapPath(path) || localeForPath(path) === 'ko') return
     storage.setItem(LANGUAGE_LOGIN_RETURN_KEY, JSON.stringify({ path, savedAt: now }))
   } catch { /* Login works without storage. */ }
 }
@@ -20,7 +20,7 @@ export function consumeLanguageLoginReturn(storage: Store, loginResult: string |
     storage.removeItem(LANGUAGE_LOGIN_RETURN_KEY)
     if (!raw || raw.length > 256) return null
     const record = JSON.parse(raw)
-    if (!record || typeof record.path !== 'string' || !isMapPath(record.path) || localeForPath(record.path) !== 'en'
+    if (!record || typeof record.path !== 'string' || !isMapPath(record.path) || localeForPath(record.path) === 'ko'
       || !Number.isFinite(record.savedAt) || record.savedAt > now || now - record.savedAt > MAX_AGE) return null
     return record.path
   } catch { return null }

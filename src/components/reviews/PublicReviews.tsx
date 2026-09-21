@@ -174,7 +174,7 @@ function PublicReviewRow({ item, expanded }: { item: StoredReview; expanded: boo
       <span className="public-review-avatar"><PhotoImage enabled path={item.authorRemoved || !item.authorPhotoVersion ? null : publicPhotoPath(item.authorPhotoVersion)} fallback={<span role="img" aria-label={t('public.avatar')}>👤</span>} /></span>
       <strong className="public-review-name">{item.authorRemoved ? t('public.anonymous') : item.authorDisplayName}</strong>
       <span className="public-review-rating" aria-label={t('public.average', { rating: average })}><ReviewIcon name="star" size={14} /><strong>{average}</strong></span>
-      <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString(locale === 'en' ? 'en-US' : 'ko-KR', { timeZone: 'Asia/Seoul' })}</time>
+      <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString(locale === 'ko' ? 'ko-KR' : locale, { timeZone: 'Asia/Seoul' })}</time>
     </div>
     {comment && <p className="public-review-comment">{comment}</p>}
   </article>
