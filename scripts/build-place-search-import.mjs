@@ -18,6 +18,10 @@ const seed = component
     records: allRecords.slice(componentOffset, componentOffset + component.count) }
   : { ...metadata, records: allRecords }
 const curatedAliases = JSON.parse(await readFile(`${root}/data/place-search/curated-search-aliases.json`, 'utf8'))
+const [localizationMetadata, ...localizationRows] = (await readFile(`${root}/data/place-search/wikidata-localizations-20260921.ndjson`, 'utf8'))
+  .trim().split(/\r?\n/).map(JSON.parse)
+const localizedNames = new Map(localizationRows.map(row => [row.id, row]))
+const asianLocales = ['ja', 'zh-CN', 'zh-TW', 'zh-HK']
 
 const sql = (value) => value == null ? 'NULL' : `'${String(value).replaceAll("'", "''")}'`
 const number = (value) => Number.isFinite(value) ? String(value) : 'NULL'
@@ -27,6 +31,10 @@ const normalize = (value) => String(value ?? '').normalize('NFKD').replace(/[\u0
 if (metadata.type !== 'dataset' || rows.some(row => row.type !== 'place') || allRecords.length !== metadata.sourceCount
   || (metadata.componentDatasets && metadata.componentDatasets.reduce((sum, item) => sum + item.count, 0) !== allRecords.length)
   || seed.records.length !== seed.sourceCount) throw new Error('Invalid place search seed')
+if (localizationMetadata.type !== 'dataset' || localizationMetadata.sourceSeedHash !== metadata.sourceHash
+  || localizationMetadata.eligibleCount !== allRecords.filter(place => place.searchScope === 'preview').length
+  || localizationRows.some(row => row.type !== 'placeLocalization' || !allRecords.some(place => place.id === row.id && place.searchScope === 'preview'))
+  || localizedNames.size !== localizationRows.length) throw new Error('Invalid place search localizations')
 for (const [id, override] of Object.entries(curatedAliases)) {
   const place = seed.records.find(record => record.id === id)
   if (!place && component && allRecords.some(record => record.id === id)) continue
@@ -42,6 +50,7 @@ for (const [id, override] of Object.entries(curatedAliases)) {
 const statements = [
   `INSERT INTO source_datasets (id, schema_version, audited_at, as_of, source_hash, source_count, licenses_json) VALUES (${sql(seed.datasetId)}, ${number(seed.schemaVersion)}, ${sql(seed.auditedAt)}, ${sql(seed.asOf)}, ${sql(seed.sourceHash)}, ${number(seed.sourceCount)}, ${json(seed.sourceLicenses)}) ON CONFLICT(id) DO UPDATE SET schema_version=excluded.schema_version, audited_at=excluded.audited_at, as_of=excluded.as_of, source_hash=excluded.source_hash, source_count=excluded.source_count, licenses_json=excluded.licenses_json, imported_at=CURRENT_TIMESTAMP;`,
   `DELETE FROM place_search_fts WHERE source_dataset = ${sql(seed.datasetId)};`,
+  `DELETE FROM place_search_localized_fts WHERE source_dataset = ${sql(seed.datasetId)};`,
   `DELETE FROM places WHERE source_dataset = ${sql(seed.datasetId)};`,
 ]
 
@@ -61,6 +70,12 @@ for (const place of seed.records) {
 
   if (place.searchScope === 'preview' && selected) {
     statements.push(`INSERT INTO place_search_fts (place_id, name_en, aliases_en, region_en, name_ko, aliases_ko, source_dataset) VALUES (${sql(place.id)}, ${sql(place.nameEn)}, ${sql((place.aliases?.en ?? []).join(' '))}, ${sql(regionEn)}, ${sql(place.nameKo)}, ${sql((place.aliases?.ko ?? []).join(' '))}, ${sql(seed.datasetId)});`)
+    const localized = localizedNames.get(place.id)
+    for (const locale of asianLocales) {
+      const term = localized?.names?.[locale]
+      if (term) statements.push(`INSERT INTO place_localizations (place_id, locale, name, aliases_json, source_language, source_revision) VALUES (${sql(place.id)}, ${sql(locale)}, ${sql(term.name)}, ${json(term.aliases)}, ${sql(term.sourceLanguage)}, ${number(localized.revision)});`)
+      statements.push(`INSERT INTO place_search_localized_fts (place_id, locale, name, aliases, name_en, aliases_en, source_dataset) VALUES (${sql(place.id)}, ${sql(locale)}, ${sql(term?.name || place.nameEn)}, ${sql((term?.aliases ?? []).join(' '))}, ${sql(place.nameEn)}, ${sql((place.aliases?.en ?? []).join(' '))}, ${sql(seed.datasetId)});`)
+    }
   }
 }
 
