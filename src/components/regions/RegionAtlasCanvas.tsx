@@ -6,14 +6,15 @@ import { useRouter } from 'next/navigation'
 import { constrainAtlas, initialAtlasViewport, zoomAtlas, type AtlasPoint, type AtlasViewport } from '../../lib/regionAtlasViewport'
 import { placeAtlasLabels } from '../../lib/atlasLabelLayout'
 
-type Area = { code: string; name: string; count: string; href: string; path: string; anchor: [number, number]; color: string; surface: number; regionWidth: number }
+type Area = { code: string; name: string; mapName: string; emphasized: boolean; count: string; href: string; path: string; anchor: [number, number]; alternatives: [number, number][]; color: string; surface: number; regionWidth: number }
 type Selection = { area: Area; x: number; y: number }
 type Pointer = AtlasPoint & { clientX: number; clientY: number }
 
-export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoomInLabel, zoomOutLabel, resetLabel, detailHint, allRegionsLabel, closeLabel }: {
+export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoomInLabel, zoomOutLabel, resetLabel, detailHint, allRegionsLabel, closeLabel, overview }: {
   areas: Area[]; width: number; height: number; label: string; countLabel: string
   zoomInLabel: string; zoomOutLabel: string; resetLabel: string; detailHint: string
   allRegionsLabel: string; closeLabel: string
+  overview: boolean
 }) {
   const root = useRef<HTMLDivElement>(null)
   const picker = useRef<HTMLDetailsElement>(null)
@@ -30,6 +31,7 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoo
   const [pickerOpen, setPickerOpen] = useState(false)
   const [nameWidths, setNameWidths] = useState<Record<string, number>>({})
   const [size, setSize] = useState({ width, height })
+  const labelSize = overview ? 17 : 15
   useEffect(() => {
     if (!svg.current) return
     const observer = new ResizeObserver(([entry]) => setSize({ width: entry.contentRect.width, height: entry.contentRect.height }))
@@ -41,13 +43,13 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoo
     function measure() {
       const context = document.createElement('canvas').getContext('2d')
       if (!context || !root.current || cancelled) return
-      context.font = `400 15px ${getComputedStyle(root.current).fontFamily}`
-      setNameWidths(Object.fromEntries(areas.map(area => [area.code, Math.ceil(context.measureText(area.name).width) + 12])))
+      context.font = `400 ${labelSize}px ${getComputedStyle(root.current).fontFamily}`
+      setNameWidths(Object.fromEntries(areas.map(area => [area.code, Math.ceil(context.measureText(area.mapName).width) + 8])))
     }
     void document.fonts.ready.then(measure)
     document.fonts.addEventListener('loadingdone', measure)
     return () => { cancelled = true; document.fonts.removeEventListener('loadingdone', measure) }
-  }, [areas])
+  }, [areas, labelSize])
   useEffect(() => {
     if (!pickerOpen) return
     function outside(event: globalThis.PointerEvent) {
@@ -67,14 +69,16 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoo
   const fit = Math.min(size.width / width, size.height / height) || 1
   const offset = { x: (size.width - width * fit) / 2, y: (size.height - height * fit) / 2 }
   const showCounts = view.scale >= 1.5
-  const labels = useMemo(() => placeAtlasLabels([...areas].sort((a, b) => b.surface - a.surface).map(area => ({ code: area.code,
+  const labels = useMemo(() => placeAtlasLabels([...areas].sort((a, b) => overview ? a.surface - b.surface : b.surface - a.surface).map(area => ({ code: area.code,
     x: (area.anchor[0] * view.scale + view.x) * fit + offset.x,
     y: (area.anchor[1] * view.scale + view.y) * fit + offset.y,
-    width: Math.max(44, nameWidths[area.code] ?? [...area.name].reduce((sum, letter) => sum + (letter.codePointAt(0)! > 127 ? 15 : 8), 12)),
-    height: showCounts ? 39 : 25,
+    width: Math.max(32, nameWidths[area.code] ?? [...area.mapName].reduce((sum, letter) => sum + (letter.codePointAt(0)! > 127 ? labelSize : labelSize * .55), 8)),
+    height: showCounts ? 41 : overview ? 23 : 25,
+    priority: area.emphasized ? 1 : 0,
+    alternatives: area.alternatives.map(([x, y]) => ({ x: (x * view.scale + view.x) * fit + offset.x, y: (y * view.scale + view.y) * fit + offset.y })),
     availableArea: area.surface * (view.scale * fit) ** 2,
     regionWidth: area.regionWidth * view.scale * fit,
-  })), size.width, size.height), [areas, view, fit, offset.x, offset.y, size, nameWidths, showCounts])
+  })), size.width, size.height, !overview), [areas, view, fit, offset.x, offset.y, size, nameWidths, showCounts, overview, labelSize])
   const changeView = useCallback((next: AtlasViewport) => {
     viewRef.current = next
     setView(next)
@@ -151,7 +155,7 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoo
       onClickCapture={event => { if (dragged.current && event.detail !== 0) { event.preventDefault(); event.stopPropagation() } }}
       onKeyDown={event => { if (event.key === '+' || event.key === '=') { event.preventDefault(); zoom(1.5) } else if (event.key === '-') { event.preventDefault(); zoom(1 / 1.5) } else if (event.key === '0') { event.preventDefault(); changeView(initialAtlasViewport) } }}>
       <g transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
-        {areas.map(area => <a key={area.code} href={area.href} style={{ '--region-color': area.color } as CSSProperties} className={`region-atlas-area${selection?.area.code === area.code ? ' is-active' : ''}`} aria-label={`${area.name} · ${area.count} ${countLabel}`}
+        {areas.map(area => <a key={area.code} href={area.href} style={{ '--region-color': area.color } as CSSProperties} className={`region-atlas-area${area.emphasized ? ' is-emphasized' : ''}${selection?.area.code === area.code ? ' is-active' : ''}`} aria-label={`${area.name} · ${area.count} ${countLabel}`}
           onPointerMove={event => hover(event, area)} onPointerEnter={event => hover(event, area)} onFocus={event => focus(event, area)}
           onClick={event => {
             if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
@@ -163,11 +167,11 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoo
       </g>
       <g className="region-atlas-labels" transform={`translate(${-offset.x / fit} ${-offset.y / fit}) scale(${1 / fit})`}>
         {labels.map(item => { const area = areas.find(area => area.code === item.code)!; return <foreignObject key={area.code} x={item.left} y={item.top} width={item.width} height={item.height}>
-          <a href={area.href} className={`region-atlas-label${selection?.area.code === area.code ? ' is-active' : ''}`}
+          <a href={area.href} className={`region-atlas-label${area.emphasized ? ' is-emphasized' : ''}${selection?.area.code === area.code ? ' is-active' : ''}`} style={{ '--atlas-label-size': `${labelSize}px` } as CSSProperties}
             aria-label={`${area.name} · ${area.count} ${countLabel}`} title={`${area.name} · ${area.count} ${countLabel}`} tabIndex={-1}
             onPointerEnter={event => hover(event, area)}
             onClick={event => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); router.push(area.href) } }}>
-            <strong>{area.name}</strong>{showCounts && <span>{area.count}</span>}
+            <strong>{area.mapName}</strong>{showCounts && <span>{area.count}</span>}
           </a>
         </foreignObject> })}
       </g>

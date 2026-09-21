@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { provinces, districtsIn, regionContains } from '../src/lib/regions.ts'
-import { regionLabelAnchor, regionColors } from '../src/lib/regionAtlasLabels.ts'
+import { regionLabelAnchor, regionLabelOptions, regionColors, provinceMapNames } from '../src/lib/regionAtlasLabels.ts'
 import { placeAtlasLabels } from '../src/lib/atlasLabelLayout.ts'
 import { clusterRegionPoints } from '../src/lib/regionMapClusters.ts'
 
@@ -9,6 +9,9 @@ test('labels point inside the actual administrative land mass, including island 
   for (const region of [...provinces, ...districtsIn('11')]) {
     const [longitude, latitude] = regionLabelAnchor(region)
     assert.ok(regionContains(region, longitude, latitude), region.name)
+    if (region.code.length === 2) for (const point of regionLabelOptions(region, [longitude, latitude])) {
+      assert.ok(regionContains(region, point[0], point[1]), `${region.name} alternate label stays in its region`)
+    }
   }
 })
 
@@ -35,6 +38,19 @@ test('zoom reveals small regions and long localized names only when they fit', (
   assert.equal(placeAtlasLabels([input], 366, 570).length, 0)
   assert.equal(placeAtlasLabels([{ ...input, availableArea: 1400 * 4, regionWidth: 190 }], 366, 570).length, 1)
   assert.equal(placeAtlasLabels([{ ...input, x: 20, availableArea: 5600, regionWidth: 190 }], 366, 570).length, 0)
+})
+
+test('the nationwide overview prioritizes Seoul without suppressing it for a small land area', () => {
+  const region = { code: '41', x: 165, y: 200, width: 38, height: 27, availableArea: 4000, regionWidth: 100 }
+  const seoul = { ...region, code: '11', x: 160, availableArea: 90, regionWidth: 16, priority: 1 }
+  const labels = placeAtlasLabels([region, seoul], 366, 570, false)
+  assert.deepEqual(labels.map(label => label.code), ['11'])
+  assert.equal(labels[0].left + labels[0].width / 2, seoul.x)
+  assert.equal(placeAtlasLabels([seoul], 366, 570).length, 0, 'district mode still requires space inside the region')
+  const relocated = placeAtlasLabels([{ ...region, alternatives: [{ x: 210, y: 235 }] }, seoul], 366, 570, false)
+  assert.deepEqual(relocated.map(label => label.code), ['11', '41'])
+  assert.equal(relocated[1].x, 210)
+  assert.ok(provinces.every(province => provinceMapNames[province.code]), 'all existing regions, including Ulsan, retain labels')
 })
 
 test('clusters count underlying facilities, keep membership and exclude off-screen points', () => {

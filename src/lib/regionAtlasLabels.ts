@@ -1,4 +1,11 @@
-import { polygonParts, type Region, type Position } from './regions.ts'
+import { polygonParts, regionContains, type Region, type Position } from './regions.ts'
+
+// Compact labels are only used on the Korean nationwide map, not in region titles or lists.
+export const provinceMapNames: Record<string, string> = {
+  '11': '서울', '26': '부산', '27': '대구', '28': '인천', '12': '전남',
+  '30': '대전', '31': '울산', '36': '세종', '41': '경기', '51': '강원',
+  '43': '충북', '44': '충남', '47': '경북', '48': '경남', '50': '제주', '52': '전북',
+}
 
 // Find an interior point on the largest land mass, away from its coastline.
 export function regionLabelAnchor(region: Region): Position {
@@ -29,6 +36,26 @@ export function regionLabelAnchor(region: Region): Position {
     box = { west: best[0] - dx, east: best[0] + dx, south: best[1] - dy, north: best[1] + dy }
   }
   return best
+}
+
+export function regionLabelOptions(region: Region, anchor: Position): Position[] {
+  const area = (part: Position[][]) => Math.abs(part[0].reduce((sum, p, i, ring) => {
+    const q = ring[(i + 1) % ring.length]
+    return sum + p[0] * q[1] - q[0] * p[1]
+  }, 0))
+  // Include major islands (e.g. Incheon's islands), while keeping every option on real land.
+  const parts = [...polygonParts(region.geometry)].sort((a, b) => area(b) - area(a)).slice(0, 3)
+  const candidates: Position[] = []
+  for (const part of parts) {
+    const xs = part[0].map(p => p[0]), ys = part[0].map(p => p[1])
+    const west = Math.min(...xs), east = Math.max(...xs), south = Math.min(...ys), north = Math.max(...ys)
+    const land = { ...region, geometry: { type: 'Polygon' as const, coordinates: part } }
+    for (let x = 1; x < 10; x++) for (let y = 1; y < 10; y++) {
+      const point: Position = [west + (east - west) * x / 10, south + (north - south) * y / 10]
+      if (regionContains(land, point[0], point[1])) candidates.push(point)
+    }
+  }
+  return candidates.sort((a, b) => Math.hypot(a[0] - anchor[0], a[1] - anchor[1]) - Math.hypot(b[0] - anchor[0], b[1] - anchor[1]))
 }
 
 export const atlasColors = ['#e2ece5', '#edf2ed', '#d8e7de', '#cddfd3']
