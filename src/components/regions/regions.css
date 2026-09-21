@@ -1,44 +1,56 @@
 .region-site-shell { min-height: 100svh; display: flex; flex-direction: column; background: #f6f9f7; color: #173527; }
 .region-site-shell.is-region-page { height: 100dvh; min-height: 0; overflow: hidden; }
-.region-main { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; max-width: 1480px; margin: 0 auto; padding: 14px 24px 18px; }
+.region-main { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; max-width: 1480px; margin: 0 auto; padding: 14px 24px 18px; font-family: 'Jua', Pretendard, sans-serif; font-weight: 400; }
+.region-main :is(h1, h2, strong, button) { font-weight: 400; }
 .region-breadcrumbs { display: flex; flex: 0 0 auto; align-items: center; flex-wrap: wrap; gap: 8px; margin: 0 0 9px; color: #98a99d; font-size: 11px; }
 .region-breadcrumbs a { color: #71927d; text-decoration: none; }
 .region-breadcrumbs a:hover { color: #236442; text-decoration: underline; text-underline-offset: 3px; }
 .region-hero { display: flex; flex: 0 0 auto; justify-content: space-between; align-items: center; gap: 22px; margin: 0 0 14px; }
-.region-eyebrow { color: #50866a; font-size: 10px; font-weight: 700; letter-spacing: .12em; }
-.region-hero h1 { margin: 4px 0 6px; color: #183d28; font-size: 30px; font-weight: 750; letter-spacing: -.05em; line-height: 1.15; }
+.region-eyebrow { color: #50866a; font-size: 11px; font-weight: 400; letter-spacing: .07em; }
+.region-hero h1 { margin: 4px 0 6px; color: #304337; font-size: 30px; font-weight: 400; letter-spacing: -.02em; line-height: 1.15; }
 .region-hero p { margin: 0; color: #7a9081; font-size: 12px; line-height: 1.5; }
 .region-hero-stat { display: grid; flex: 0 0 auto; justify-items: end; gap: 4px; }
-.region-hero-stat strong { color: #28744b; font-size: 28px; font-weight: 750; font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+.region-hero-stat strong { color: #2d6d50; font-size: 28px; font-weight: 400; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .region-hero-stat span { color: #8b9f91; font-size: 10px; }
 .region-discovery-layout { display: flex; flex: 1; min-height: 0; }
 .region-atlas-card, .region-district-map-card { position: relative; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid #dfeae3; border-radius: 22px; background: #fff; }
-.region-atlas-card { flex: 1; background: #fafdFA; }
-.region-atlas-wrap { position: relative; width: 100%; height: 100%; overflow: hidden; background: radial-gradient(ellipse at 50% 45%, #eef6f0, #fafdfa 70%); }
+.region-atlas-card { flex: 1; background: #fff; }
+.region-atlas-wrap { position: relative; width: 100%; height: 100%; overflow: hidden; background: #fff; }
 .region-atlas { display: block; width: 100%; height: 100%; padding: 0; touch-action: none; user-select: none; cursor: grab; }
 .region-atlas-wrap.is-dragging .region-atlas, .region-atlas-wrap.is-dragging .region-atlas-area { cursor: grabbing; }
-.region-atlas-controls { position: absolute; top: 16px; right: 16px; z-index: 7; display: grid; padding: 4px; border: 1px solid #dfe9e2; border-radius: 14px; background: #ffffffed; box-shadow: 0 3px 12px #193f2810; }
+.region-atlas-controls { position: absolute; bottom: 62px; right: 16px; z-index: 7; display: grid; padding: 4px; border: 1px solid #e4ece7; border-radius: 14px; background: #ffffffed; }
 .region-atlas-controls button { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: #406d51; font: inherit; font-size: 23px; cursor: pointer; }
 .region-atlas-controls button:hover { background: #edf5ef; }
 .region-atlas-controls button:disabled { color: #bdcec3; cursor: default; }
 .region-atlas-controls button:focus-visible { outline: 2px solid #31845a; outline-offset: -2px; }
 .region-atlas-area { cursor: pointer; }
-.region-atlas-area path { fill: var(--region-color, #c5dfd0); stroke: #fff; stroke-width: 1.8; transition: fill .16s, stroke .16s; }
-.region-atlas-area:hover path, .region-atlas-area:focus path, .region-atlas-area.is-active path { fill: #31845a; stroke: #fff; stroke-width: 2.8; }
+.region-atlas-area path { fill: var(--region-color, #e2ece5); stroke: #fff; stroke-width: 1.25; transition: fill .16s; }
+.region-atlas-area:hover path, .region-atlas-area:focus path, .region-atlas-area.is-active path { fill: #bcd8c7; stroke: #fff; }
 .region-atlas-area:focus-visible { outline: none; }
 .region-atlas-labels { pointer-events: none; }
-.region-atlas-leader path { fill: none; stroke: #607f72; stroke-width: 1; stroke-linecap: round; }
-.region-atlas-leader circle { fill: #486f5d; stroke: #fff; stroke-width: 1; }
-.region-atlas-label { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 100%; height: 100%; padding: 2px 5px; border: 1px solid transparent; border-radius: 8px; color: #253f33; text-align: center; text-decoration: none; pointer-events: auto; cursor: pointer; text-shadow: 0 1px 3px #ffffffc9, 0 0 5px #ffffffa8; }
-.region-atlas-label strong { font-size: 12px; font-weight: 750; line-height: 1.2; white-space: nowrap; }
-.region-atlas-label > span { color: #416555; font-size: 10px; font-weight: 650; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.region-atlas-label.is-callout { border-color: #dce6df; background: #fffffff0; box-shadow: 0 2px 6px #25473709; }
-.region-atlas-label.is-callout::before { position: absolute; top: 7px; left: 0; width: 3px; height: 22px; background: var(--region-color); border-radius: 4px; content: ''; }
-.region-atlas-label:hover, .region-atlas-label.is-active { background: #fff; border-color: #5b9271; color: #145e39; }
+.region-atlas-label { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; width: 100%; height: 100%; padding: 0; color: #304337; text-align: center; text-decoration: none; pointer-events: auto; cursor: pointer; }
+.region-atlas-label strong { font-size: 15px; font-weight: 400; line-height: 1.25; white-space: nowrap; }
+.region-atlas-label > span { color: #708076; font-size: 12px; font-weight: 400; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.region-atlas-label:hover, .region-atlas-label.is-active { color: #1c6240; }
+.region-atlas-picker { position: absolute; top: 16px; right: 16px; z-index: 12; font-family: inherit; }
+.region-atlas-picker > summary { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 9px 13px; border: 1px solid #e4ece7; border-radius: 11px; background: #f4f8f5; color: #304337; font-size: 14px; list-style: none; cursor: pointer; }
+.region-atlas-picker > summary::-webkit-details-marker { display: none; }
+.region-atlas-picker > summary > span { color: #708076; font-size: 12px; }
+.region-atlas-picker > summary > svg { transition: transform .16s; }
+.region-atlas-picker[open] > summary > svg { transform: rotate(180deg); }
+.region-atlas-picker-panel { position: absolute; top: calc(100% + 8px); right: 0; display: flex; flex-direction: column; width: min(490px, calc(100vw - 100px)); max-height: min(500px, calc(var(--atlas-height) - 84px)); overflow: hidden; border: 1px solid #e4ece7; border-radius: 16px; background: #fff; box-shadow: 0 12px 45px #163a2320; }
+.region-atlas-picker-heading { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px 10px 18px; border-bottom: 1px solid #e4ece7; }
+.region-atlas-picker-heading strong { font-size: 16px; }
+.region-atlas-picker-heading button { display: grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: 9px; background: transparent; color: #708076; cursor: pointer; }
+.region-atlas-picker-heading button:hover { background: #edf2ed; }
+.region-atlas-picker-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 20px; min-height: 0; padding: 4px 18px 12px; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.region-atlas-picker-list a { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 46px; padding: 10px 0; border-bottom: 1px solid #e4ece7; color: #304337; text-decoration: none; }
+.region-atlas-picker-list strong { font-size: 15px; line-height: 1.35; overflow-wrap: anywhere; }
+.region-atlas-picker-list a > span { flex: 0 0 auto; color: #708076; font-size: 13px; font-variant-numeric: tabular-nums; }
+.region-atlas-picker-list a:hover, .region-atlas-picker-list a:focus-visible { color: #23704b; background: #f5f9f6; }
 .region-atlas-caption { position: absolute; display: flex; align-items: center; gap: 7px; left: 20px; bottom: 14px; padding: 5px 0; color: #7d9686; font-size: 11px; pointer-events: none; }
-.region-atlas-caption > span { width: 6px; height: 6px; border-radius: 50%; background: #87b599; }
 .region-atlas-tooltip { position: absolute; z-index: 8; min-width: 190px; max-width: 230px; padding: 15px 18px; border: 1px solid #e0ebe4; border-radius: 16px; background: #fffffff5; box-shadow: 0 12px 35px #1b503323; pointer-events: none; }
-.region-atlas-tooltip-name { display: block; color: #365a43; font-size: 13px; font-weight: 650; }
+.region-atlas-tooltip-name { display: block; color: #365a43; font-size: 14px; font-weight: 400; }
 .region-atlas-tooltip > div { display: flex; align-items: baseline; gap: 7px; margin-top: 5px; }
 .region-atlas-tooltip strong { color: #247447; font-size: 27px; font-weight: 750; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
 .region-atlas-tooltip > div > span { color: #86a08e; font-size: 11px; }
@@ -87,6 +99,10 @@
   .region-atlas-card, .region-district-map-card { border-radius: 17px; }
   .region-atlas { padding: 0; }
   .region-atlas-controls { display: none; }
+  .region-atlas-picker { top: 12px; right: 12px; }
+  .region-atlas-picker-panel { width: calc(100vw - 52px); }
+  .region-atlas-picker-list { grid-template-columns: 1fr; }
+  .region-atlas-picker-heading button { width: 44px; height: 44px; }
   .region-atlas-caption { left: 15px; bottom: 12px; font-size: 10px; }
   .region-district-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 10px; }
   .region-district-map-card > .region-card-heading { display: none; }

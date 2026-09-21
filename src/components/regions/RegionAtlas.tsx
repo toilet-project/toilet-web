@@ -38,6 +38,15 @@ export function RegionAtlas({ locale, provinceCode }: { locale: Locale; province
 
   return <RegionAtlasCanvas key={province?.code ?? 'all'} width={width} height={height} label={province ? t.chooseDistrict : t.chooseProvince} countLabel={t.toilets}
     zoomInLabel={t.zoomIn} zoomOutLabel={t.zoomOut} resetLabel={t.resetView} detailHint={t.zoomDetails}
-    areas={regions.map((region, index) => ({ code: region.code, name: regionName(region, locale), shortName: locale === 'ko' && !province ? region.name.replace(/특별자치도|특별자치시|특별시|광역시|도$/gu, '') : regionName(region, locale), count: region.count.toLocaleString(locale), anchor: project(regionLabelAnchor(region)), color: colors[index], labelPriority: polygonParts(region.geometry).reduce((sum, rings) => sum + Math.abs(rings[0].reduce((area, point, i, ring) => { const next = ring[(i + 1) % ring.length]; return area + point[0] * next[1] - next[0] * point[1] }, 0)), 0),
-      href: localizedPublicPath(regionPath(province?.code ?? region.code, province ? region.code : undefined), locale)!, path: pathFor(region, project) }))} />
+    allRegionsLabel={t.allRegions} closeLabel={t.closeSelection}
+    areas={regions.map((region, index) => {
+      const bounds = regionBounds(region)
+      const surface = polygonParts(region.geometry).reduce((sum, rings) => sum + rings.reduce((part, ring, ringIndex) => part + (ringIndex ? -1 : 1) * Math.abs(ring.reduce((area, point, i) => {
+        const p = project(point), next = project(ring[(i + 1) % ring.length])
+        return area + p[0] * next[1] - next[0] * p[1]
+      }, 0)) / 2, 0), 0)
+      return { code: region.code, name: regionName(region, locale), count: region.count.toLocaleString(locale), anchor: project(regionLabelAnchor(region)), color: colors[index],
+        surface, regionWidth: project([bounds.east, bounds.north])[0] - project([bounds.west, bounds.north])[0],
+        href: localizedPublicPath(regionPath(province?.code ?? region.code, province ? region.code : undefined), locale)!, path: pathFor(region, project) }
+    })} />
 }

@@ -18,15 +18,23 @@ test('neighbouring central Seoul districts have distinguishable colors', () => {
   assert.notEqual(colors[regions.findIndex(r => r.code === '11110')], colors[regions.findIndex(r => r.code === '11140')])
 })
 
-test('crowded mobile names stay inside the map and use non-overlapping callouts', () => {
-  const labels = placeAtlasLabels(Array.from({ length: 25 }, (_, n) => ({ code: String(n), x: 160 + n % 5 * 14, y: 210 + Math.floor(n / 5) * 14, width: 64 })), 366, 570)
-  assert.equal(labels.length, 25)
-  assert.ok(labels.some(label => label.callout))
+test('crowded mobile names stay at their geographic anchors without overlap', () => {
+  const labels = placeAtlasLabels(Array.from({ length: 25 }, (_, n) => ({ code: String(n), x: 160 + n % 5 * 14, y: 210 + Math.floor(n / 5) * 14, width: 64, height: 25, availableArea: 5000, regionWidth: 90 })), 366, 570)
+  assert.ok(labels.length > 0 && labels.length < 25)
   for (let i = 0; i < labels.length; i++) {
     const a = labels[i]
     assert.ok(a.left >= 0 && a.left + a.width <= 366 && a.top >= 0 && a.top + a.height <= 570)
+    assert.equal(a.left + a.width / 2, a.x)
+    assert.equal(a.top + a.height / 2, a.y)
     for (const b of labels.slice(i + 1)) assert.ok(a.left + a.width <= b.left || b.left + b.width <= a.left || a.top + a.height <= b.top || b.top + b.height <= a.top)
   }
+})
+
+test('zoom reveals small regions and long localized names only when they fit', () => {
+  const input = { code: '31', x: 160, y: 200, width: 184, height: 25, availableArea: 1400, regionWidth: 95 }
+  assert.equal(placeAtlasLabels([input], 366, 570).length, 0)
+  assert.equal(placeAtlasLabels([{ ...input, availableArea: 1400 * 4, regionWidth: 190 }], 366, 570).length, 1)
+  assert.equal(placeAtlasLabels([{ ...input, x: 20, availableArea: 5600, regionWidth: 190 }], 366, 570).length, 0)
 })
 
 test('clusters count underlying facilities, keep membership and exclude off-screen points', () => {

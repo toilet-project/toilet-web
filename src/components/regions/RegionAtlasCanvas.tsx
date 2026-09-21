@@ -1,19 +1,23 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type FocusEvent } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type FocusEvent } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { constrainAtlas, initialAtlasViewport, zoomAtlas, type AtlasPoint, type AtlasViewport } from '../../lib/regionAtlasViewport'
 import { placeAtlasLabels } from '../../lib/atlasLabelLayout'
 
-type Area = { code: string; name: string; shortName: string; count: string; href: string; path: string; anchor: [number, number]; color: string; labelPriority: number }
+type Area = { code: string; name: string; count: string; href: string; path: string; anchor: [number, number]; color: string; surface: number; regionWidth: number }
 type Selection = { area: Area; x: number; y: number }
 type Pointer = AtlasPoint & { clientX: number; clientY: number }
 
-export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoomInLabel, zoomOutLabel, resetLabel, detailHint }: {
+export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoomInLabel, zoomOutLabel, resetLabel, detailHint, allRegionsLabel, closeLabel }: {
   areas: Area[]; width: number; height: number; label: string; countLabel: string
   zoomInLabel: string; zoomOutLabel: string; resetLabel: string; detailHint: string
+  allRegionsLabel: string; closeLabel: string
 }) {
   const root = useRef<HTMLDivElement>(null)
+  const picker = useRef<HTMLDetailsElement>(null)
+  const pickerId = useId()
   const svg = useRef<SVGSVGElement>(null)
   const router = useRouter()
   const pointerType = useRef('mouse')
@@ -23,6 +27,8 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoo
   const [view, setView] = useState(initialAtlasViewport)
   const [isDragging, setIsDragging] = useState(false)
   const [selection, setSelection] = useState<Selection | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [nameWidths, setNameWidths] = useState<Record<string, number>>({})
   const [size, setSize] = useState({ width, height })
   useEffect(() => {
     if (!svg.current) return
@@ -30,13 +36,45 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoo
     observer.observe(svg.current)
     return () => observer.disconnect()
   }, [])
+  useEffect(() => {
+    let cancelled = false
+    function measure() {
+      const context = document.createElement('canvas').getContext('2d')
+      if (!context || !root.current || cancelled) return
+      context.font = `400 15px ${getComputedStyle(root.current).fontFamily}`
+      setNameWidths(Object.fromEntries(areas.map(area => [area.code, Math.ceil(context.measureText(area.name).width) + 12])))
+    }
+    void document.fonts.ready.then(measure)
+    document.fonts.addEventListener('loadingdone', measure)
+    return () => { cancelled = true; document.fonts.removeEventListener('loadingdone', measure) }
+  }, [areas])
+  useEffect(() => {
+    if (!pickerOpen) return
+    function outside(event: globalThis.PointerEvent) {
+      if (event.target instanceof Node && !picker.current?.contains(event.target)) {
+        if (picker.current) picker.current.open = false
+        setSelection(null)
+      }
+    }
+    document.addEventListener('pointerdown', outside)
+    return () => document.removeEventListener('pointerdown', outside)
+  }, [pickerOpen])
+  function closePicker(restoreFocus = true) {
+    if (picker.current) picker.current.open = false
+    setSelection(null)
+    if (restoreFocus) picker.current?.querySelector('summary')?.focus()
+  }
   const fit = Math.min(size.width / width, size.height / height) || 1
   const offset = { x: (size.width - width * fit) / 2, y: (size.height - height * fit) / 2 }
-  const labels = useMemo(() => placeAtlasLabels([...areas].sort((a, b) => b.labelPriority - a.labelPriority).map(area => ({ code: area.code,
+  const showCounts = view.scale >= 1.5
+  const labels = useMemo(() => placeAtlasLabels([...areas].sort((a, b) => b.surface - a.surface).map(area => ({ code: area.code,
     x: (area.anchor[0] * view.scale + view.x) * fit + offset.x,
     y: (area.anchor[1] * view.scale + view.y) * fit + offset.y,
-    width: Math.max(48, Math.min(164, [...area.shortName].reduce((sum, letter) => sum + (letter.codePointAt(0)! > 127 ? 12 : 7), 0) + 16)),
-  })).filter(p => p.x >= 0 && p.x <= size.width && p.y >= 0 && p.y <= size.height).slice(0, areas.length > 32 ? Math.max(16, Math.floor(size.width * size.height / 12000)) : areas.length), size.width, size.height), [areas, view, fit, offset.x, offset.y, size])
+    width: Math.max(44, nameWidths[area.code] ?? [...area.name].reduce((sum, letter) => sum + (letter.codePointAt(0)! > 127 ? 15 : 8), 12)),
+    height: showCounts ? 39 : 25,
+    availableArea: area.surface * (view.scale * fit) ** 2,
+    regionWidth: area.regionWidth * view.scale * fit,
+  })), size.width, size.height), [areas, view, fit, offset.x, offset.y, size, nameWidths, showCounts])
   const changeView = useCallback((next: AtlasViewport) => {
     viewRef.current = next
     setView(next)
@@ -105,7 +143,7 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoo
     if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
     if (pointers.current.size === 0) setIsDragging(false)
   }
-  return <div ref={root} className={`region-atlas-wrap${isDragging ? ' is-dragging' : ''}`} onPointerLeave={event => { if (event.pointerType !== 'touch') setSelection(null) }} onKeyDownCapture={() => { pointerType.current = 'keyboard' }} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setSelection(null) }}>
+  return <div ref={root} className={`region-atlas-wrap${isDragging ? ' is-dragging' : ''}`} style={{ '--atlas-height': `${size.height}px` } as CSSProperties} onPointerLeave={event => { if (event.pointerType !== 'touch') setSelection(null) }} onKeyDownCapture={event => { pointerType.current = 'keyboard'; if (event.key === 'Escape' && pickerOpen) { event.preventDefault(); closePicker() } }} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) { setSelection(null); closePicker(false) } }}>
     <svg ref={svg} className="region-atlas" viewBox={`0 0 ${width} ${height}`} role="group" aria-label={label}
       onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerEnd} onPointerCancel={pointerEnd}
       onLostPointerCapture={event => { if (event.target === event.currentTarget) { pointers.current.delete(event.pointerId); if (pointers.current.size === 0) setIsDragging(false) } }}
@@ -124,28 +162,33 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoo
         </a>)}
       </g>
       <g className="region-atlas-labels" transform={`translate(${-offset.x / fit} ${-offset.y / fit}) scale(${1 / fit})`}>
-        {labels.filter(item => item.callout).map(item => <g key={item.code} className="region-atlas-leader" aria-hidden="true">
-          <path d={`M${item.x},${item.y} L${item.left + item.width / 2},${item.top + item.height / 2}`} />
-          <circle cx={item.x} cy={item.y} r="2.5" />
-        </g>)}
         {labels.map(item => { const area = areas.find(area => area.code === item.code)!; return <foreignObject key={area.code} x={item.left} y={item.top} width={item.width} height={item.height}>
-          <a href={area.href} className={`region-atlas-label${item.callout ? ' is-callout' : ''}${selection?.area.code === area.code ? ' is-active' : ''}`} style={{ '--region-color': area.color } as CSSProperties}
+          <a href={area.href} className={`region-atlas-label${selection?.area.code === area.code ? ' is-active' : ''}`}
             aria-label={`${area.name} · ${area.count} ${countLabel}`} title={`${area.name} · ${area.count} ${countLabel}`} tabIndex={-1}
             onPointerEnter={event => hover(event, area)}
             onClick={event => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); router.push(area.href) } }}>
-            <strong>{area.shortName}</strong><span>{area.count}</span>
+            <strong>{area.name}</strong>{showCounts && <span>{area.count}</span>}
           </a>
         </foreignObject> })}
       </g>
     </svg>
-    {selection && <div className="region-atlas-tooltip" style={{ left: selection.x, top: selection.y }} role="status">
+    {selection && !pickerOpen && <div className="region-atlas-tooltip" style={{ left: selection.x, top: selection.y }} role="status">
       <span className="region-atlas-tooltip-name">{selection.area.name}</span><div><strong>{selection.area.count}</strong><span>{countLabel}</span></div>
     </div>}
+    <details ref={picker} className="region-atlas-picker" onToggle={event => setPickerOpen(event.currentTarget.open)}>
+      <summary aria-controls={pickerId} aria-expanded={pickerOpen}>{allRegionsLabel}<span>{areas.length}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary>
+      <section id={pickerId} className="region-atlas-picker-panel" aria-label={allRegionsLabel}>
+        <div className="region-atlas-picker-heading"><strong>{label}</strong><button type="button" onClick={() => closePicker()} aria-label={closeLabel}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></div>
+        <div className="region-atlas-picker-list">{areas.map(area => <Link key={area.code} href={area.href} prefetch={false} onClick={() => closePicker(false)} onFocus={event => focus(event, area)} onPointerEnter={event => hover(event, area)}>
+          <strong>{area.name}</strong><span aria-label={`${area.count} ${countLabel}`}>{area.count}</span>
+        </Link>)}</div>
+      </section>
+    </details>
     <div className="region-atlas-controls">
       <button type="button" onClick={() => zoom(1.5)} disabled={view.scale >= 8} aria-label={zoomInLabel} title={zoomInLabel}><span aria-hidden="true">+</span></button>
       <button type="button" onClick={() => zoom(1 / 1.5)} disabled={view.scale <= 1} aria-label={zoomOutLabel} title={zoomOutLabel}><span aria-hidden="true">−</span></button>
       <button type="button" onClick={() => changeView(initialAtlasViewport)} aria-label={resetLabel} title={resetLabel}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" /></svg></button>
     </div>
-    <span className="region-atlas-caption"><span aria-hidden="true" />{areas.length > 32 ? detailHint : label}</span>
+    <span className="region-atlas-caption">{detailHint}</span>
   </div>
 }

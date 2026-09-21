@@ -31,9 +31,9 @@ export function regionLabelAnchor(region: Region): Position {
   return best
 }
 
-export const atlasColors = ['#b9d8ca', '#c8d9e9', '#d9d7b5', '#cfc8df', '#aad6d6', '#e5cdb9']
+export const atlasColors = ['#e2ece5', '#edf2ed', '#d8e7de', '#cddfd3']
 
-// Shared boundary vertices form a small adjacency graph; neighbours get different hues.
+// Shared boundary vertices form a small adjacency graph; neighbours get different green tones.
 export function regionColors(regions: Region[]) {
   const vertices = regions.map(region => new Set(polygonParts(region.geometry).flat(2).map(([x, y]) => `${x.toFixed(3)},${y.toFixed(3)}`)))
   const colors: number[] = []
@@ -44,4 +44,3 @@ export function regionColors(regions: Region[]) {
   })
   return colors.map(index => atlasColors[index])
 }
-
