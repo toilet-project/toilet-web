@@ -16,7 +16,8 @@ export function placeAtlasLabels(inputs: LabelInput[], width: number, height: nu
     const gap = fitToRegion ? 8 : 3
     for (const anchor of [input, ...(input.alternatives ?? [])]) {
       const left = anchor.x - input.width / 2, top = anchor.y - input.height / 2
-      if (left < 10 || left + input.width > width - 10 || top < 12 || top + input.height > height - 42) continue
+      const bottomPadding = fitToRegion ? 42 : 12
+      if (left < 10 || left + input.width > width - 10 || top < 12 || top + input.height > height - bottomPadding) continue
       if (placed.some(p => left < p.left + p.width + gap && left + input.width > p.left - gap
         && top < p.top + p.height + gap && top + input.height > p.top - gap)) continue
       placed.push({ ...input, x: anchor.x, y: anchor.y, left, top })

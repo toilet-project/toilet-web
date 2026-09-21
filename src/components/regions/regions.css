@@ -14,8 +14,8 @@
 .region-hero-stat span { color: #8b9f91; font-size: 10px; }
 .region-discovery-layout { display: flex; flex: 1; min-height: 0; }
 .region-atlas-card, .region-district-map-card { position: relative; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid #dfeae3; border-radius: 22px; background: #fff; }
-.region-atlas-card { flex: 1; background: #fff; }
-.region-atlas-wrap { position: relative; width: 100%; height: 100%; overflow: hidden; background: #fff; }
+.region-atlas-card { flex: 1; background: #edf3f5; }
+.region-atlas-wrap { position: relative; width: 100%; height: 100%; overflow: hidden; background: #edf3f5; }
 .region-atlas { display: block; width: 100%; height: 100%; padding: 0; touch-action: none; user-select: none; cursor: grab; }
 .region-atlas-wrap.is-dragging .region-atlas, .region-atlas-wrap.is-dragging .region-atlas-area { cursor: grabbing; }
 .region-atlas-controls { position: absolute; bottom: 62px; right: 16px; z-index: 7; display: grid; padding: 4px; border: 1px solid #e4ece7; border-radius: 14px; background: #ffffffed; }
