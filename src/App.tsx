@@ -19,6 +19,7 @@ import { MobileNavigation, MobilePage, type MobileTab, type MobileAccountView } 
 import { AppUpdateNotice } from './components/AppUpdateNotice'
 import { readMapResume, saveMapResume, MAP_RESUME_KEY } from './lib/appUpdate'
 import { MAP_NAVIGATION_EVENT, mapNavigationPath } from './lib/navigationCache'
+import { mapSdkIdentity } from './lib/mapProviderSelection'
 import { AuthExpiredError, getCurrentUser, logout, startSocialLogin, type AuthProfile } from './api/auth'
 import {
   addMapEventListener,
@@ -26,6 +27,7 @@ import {
   createMapCoordinate,
   createMapOverlay,
   destroyMap,
+  NaverMapLanguageReloadRequired,
   preventMapEvent,
   type MapInstance,
   type MapOverlay,
@@ -171,6 +173,7 @@ function groupPointsByScreenGrid(map: MapInstance, points: MapPoint[]) {
 
 function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash = '' }: { route: MapRouteData; onNavigate: (id: number | null) => void; onMounted: () => void; onLocaleChange: (locale: Locale, id: number | null) => void; testToiletHash?: string }) {
   const locale = useLocale()
+  const mapRuntimeKey = mapSdkIdentity(locale)
   const t = useMessages()
   const mapLocale = useRef(locale)
   useLayoutEffect(() => {
@@ -276,6 +279,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const [withdrawalNotice, setWithdrawalNotice] = useState<string | null>(null)
   const [isLocating, setIsLocating] = useState(false)
   const [isMobileCardExpanded, setIsMobileCardExpanded] = useState(false)
+  const isMobileCardExpandedRef = useRef(isMobileCardExpanded)
+  useLayoutEffect(() => { isMobileCardExpandedRef.current = isMobileCardExpanded }, [isMobileCardExpanded])
   const [currentLocation, setCurrentLocation] = useState<Coordinates | null>(null)
   const [mapCenter, setMapCenter] = useState<Coordinates>(DAEJEON_CITY_HALL)
   const [distanceSource, setDistanceSource] = useState<DistanceSource>('point')
@@ -1273,7 +1278,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         const snapshot = mapSwitchSnapshotRef.current
         const center = snapshot?.center ?? resume?.center ?? toiletCoordinates(initialRouteRef.current.detail) ?? toiletCoordinates(testToilet) ?? DAEJEON_CITY_HALL
         const level = snapshot?.level ?? resume?.level ?? (initialRouteRef.current.detail || testToilet ? 4 : 6)
-        const map = await createMap(container, center, level, locale, controller.signal)
+        const map = await createMap(container, center, level, mapLocale.current, controller.signal)
         if (disposed) return
         mapRef.current = map
         mapSwitchSnapshotRef.current = null
@@ -1326,6 +1331,26 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         if (!disposed && resume?.source === 'current-location') startCurrentLocationWatch()
       } catch (caughtError) {
         if (disposed) return
+        // Browser Back/Forward can bypass the language menu. Recover the same
+        // viewport and detail route before loading the SDK in the new language.
+        if (caughtError instanceof NaverMapLanguageReloadRequired) {
+          const snapshot = mapSwitchSnapshotRef.current
+          const live = liveMapStateRef.current
+          try {
+            saveMapResume(window.sessionStorage, {
+              path: window.location.pathname,
+              center: snapshot?.center ?? resume?.center ?? live.mapCenter,
+              level: snapshot?.level ?? resume?.level ?? 6,
+              reference: snapshot?.reference ?? resume?.reference ?? live.mapCenter,
+              source: snapshot?.source ?? resume?.source ?? live.distanceSource,
+              currentLocation: snapshot ? snapshot.currentLocation : resume?.currentLocation ?? live.currentLocation,
+              expanded: isMobileCardExpandedRef.current,
+              savedAt: Date.now(),
+            })
+          } catch { /* Map navigation still works without session storage. */ }
+          window.location.reload()
+          return
+        }
         setIsLoading(false)
         setIsMapSwitching(false)
         setError(caughtError instanceof Error ? caughtError.message : '지도를 불러오지 못했습니다.')
@@ -1369,7 +1394,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       window.clearTimeout(mapLoadTimerRef.current)
       window.clearTimeout(locationMessageTimerRef.current)
     }
-  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, startCurrentLocationWatch, referenceRequestGate, testToilet, locale])
+  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, startCurrentLocationWatch, referenceRequestGate, testToilet, mapRuntimeKey])
 
   const distanceReference = resolveDistanceReference(distanceSource, mapCenter, currentLocation)
   const displaySelectedToilet = selectedToilet ? localizeToiletMapItem(selectedToilet, locale) : null

@@ -10,6 +10,9 @@ import { localeForPath, localizedPublicPath } from '../i18n/routes'
 import { rememberLocale, type Locale } from '../i18n/locale'
 import { consumeLanguageLoginReturn } from '../i18n/loginReturn'
 import { ENGLISH_UI_ENABLED } from '../i18n/feature'
+import { MAP_NAVIGATION_EVENT } from '../lib/navigationCache'
+import { loadedNaverMapLanguage } from '../lib/mapProvider'
+import { naverMapLanguageForLocale, naverMapLanguageNeedsReload, resolveMapProvider } from '../lib/mapProviderSelection'
 
 const noServerTestHash = () => ''
 
@@ -56,7 +59,16 @@ export function MapShell({ children }: { children: ReactNode }) {
     const path = localizedPublicPath(id === null ? '/' : toiletPath(id), locale)
     if (!path) return
     try { rememberLocale(window.localStorage, locale) } catch { /* Preference storage is optional. */ }
-    routerRef.current.push(path + window.location.search + window.location.hash, { scroll: false })
+    const target = path + window.location.search + window.location.hash
+    // NAVER publishes the map-label language at SDK load time. A new document is
+    // needed only when its language changes; preserve the viewport before leaving.
+    if (resolveMapProvider(locale) === 'naver'
+      && naverMapLanguageNeedsReload(loadedNaverMapLanguage(), naverMapLanguageForLocale(locale))) {
+      window.dispatchEvent(new CustomEvent(MAP_NAVIGATION_EVENT, { detail: path }))
+      window.location.assign(target)
+      return
+    }
+    routerRef.current.push(target, { scroll: false })
   }, [])
   return <MapRouteContext.Provider value={{ mounted, register }}>
     <MapErrorBoundary>{route && <MapApp key={testToiletHash} testToiletHash={testToiletHash} route={route} onNavigate={navigate} onLocaleChange={changeLocale} onMounted={onMounted} />}</MapErrorBoundary>
