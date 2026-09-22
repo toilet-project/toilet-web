@@ -14,7 +14,7 @@ export function toiletTranslation<T extends TranslatableToilet>(toilet: T, local
   const entry = Object.entries(toilet.translations ?? {}).find(([key]) => key.toLowerCase().replace('_', '-') === normalized)
   // Chinese regions require an exact match; never substitute another region's text.
   const translation = entry?.[1] ?? (normalized.startsWith('zh-') ? undefined : toilet.translations?.[normalized.split('-')[0]])
-  return translation?.name?.trim() ? translation : null
+  return translation ?? null
 }
 
 export function localizeToilet<T extends TranslatableToilet>(toilet: T, locale: Locale | string): T {
@@ -22,7 +22,7 @@ export function localizeToilet<T extends TranslatableToilet>(toilet: T, locale: 
   if (!translation) return toilet
   return {
     ...toilet,
-    name: translation.name.trim(),
+    name: translation.name?.trim() || toilet.name,
     ...('roadAddress' in toilet && translation.roadAddress?.trim() ? { roadAddress: translation.roadAddress.trim() } : {}),
     ...('jibunAddress' in toilet && translation.jibunAddress?.trim() ? { jibunAddress: translation.jibunAddress.trim() } : {}),
   }

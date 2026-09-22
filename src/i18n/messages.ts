@@ -148,7 +148,7 @@ const en = {
   'content.original': 'Original',
   'map.subtitle': 'Restrooms in Korea, for travelers',
   'map.home': 'Geupddong map home',
-  'map.search': 'Search address or place',
+  'map.search': 'Search places',
   'map.searchShort': 'Search places',
   'map.place': 'Place',
   'map.reviewTestMarker': 'Review test · virtual',

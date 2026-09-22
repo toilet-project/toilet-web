@@ -104,6 +104,11 @@ test('current API translations are selected by locale with field-level Korean fa
   assert.strictEqual(localizeToilet(canonical, 'ko'), canonical)
   const untranslated = { ...canonical, translations: {} }
   assert.strictEqual(localizeToilet(untranslated, 'en'), untranslated)
+  const blankName = { ...canonical, translations: {
+    en: { name: ' ', roadAddress: '405 Hangang-daero, Jung-gu, Seoul', jibunAddress: null },
+  } }
+  assert.equal(localizeToilet(blankName, 'en').name, canonical.name)
+  assert.equal(localizeToilet(blankName, 'en').roadAddress, '405 Hangang-daero, Jung-gu, Seoul')
 
   const regional = { ...canonical, translations: {
     zh: { name: 'Generic Chinese - must not leak' },

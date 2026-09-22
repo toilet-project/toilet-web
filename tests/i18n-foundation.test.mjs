@@ -83,6 +83,7 @@ test('facility translations select the exact Chinese region and keep missing fie
   assert.equal(localizeToiletDetail(toilet, 'zh-TW').name, '繁體廁所')
   assert.deepEqual(localizeToiletDetail(toilet, 'zh-HK'), toilet)
   assert.equal(localizeToiletDetail(toilet, 'en').jibunAddress, '원문 지번')
+  assert.equal(englishToiletMetadata({ name: '원문 화장실', translations: { en: { name: ' ', roadAddress: 'English road', jibunAddress: null } } }).title, '원문 화장실 — Restroom in Korea')
 })
 
 test('map notices follow the selected language and Korean reference marker stays Korean', () => {

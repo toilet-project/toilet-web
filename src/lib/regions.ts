@@ -9,15 +9,15 @@ export type Position = [number, number]
 export type RegionGeometry = { type: 'Polygon' | 'MultiPolygon'; coordinates: Position[][] | Position[][][] }
 export type Region = { code: string; name: string; provinceCode: string; provinceName: string; geometry: RegionGeometry; count: number }
 
-const provinceNames: Record<string, { en: string; ja: string; zh: string }> = {
-  '11': { en: 'Seoul', ja: 'ソウル', zh: '首尔' }, '26': { en: 'Busan', ja: '釜山', zh: '釜山' },
+const provinceNames: Record<string, { en: string; ja: string; zh: string; zhTraditional?: string }> = {
+  '11': { en: 'Seoul', ja: 'ソウル', zh: '首尔', zhTraditional: '首爾' }, '26': { en: 'Busan', ja: '釜山', zh: '釜山' },
   '27': { en: 'Daegu', ja: '大邱', zh: '大邱' }, '28': { en: 'Incheon', ja: '仁川', zh: '仁川' },
   '12': { en: 'Jeonnam–Gwangju', ja: '全南・光州', zh: '全南·光州' }, '30': { en: 'Daejeon', ja: '大田', zh: '大田' },
   '31': { en: 'Ulsan', ja: '蔚山', zh: '蔚山' }, '36': { en: 'Sejong', ja: '世宗', zh: '世宗' },
   '41': { en: 'Gyeonggi', ja: '京畿道', zh: '京畿道' }, '51': { en: 'Gangwon', ja: '江原道', zh: '江原道' },
   '43': { en: 'Chungbuk', ja: '忠清北道', zh: '忠清北道' }, '44': { en: 'Chungnam', ja: '忠清南道', zh: '忠清南道' },
-  '47': { en: 'Gyeongbuk', ja: '慶尚北道', zh: '庆尚北道' }, '48': { en: 'Gyeongnam', ja: '慶尚南道', zh: '庆尚南道' },
-  '50': { en: 'Jeju', ja: '済州', zh: '济州' }, '52': { en: 'Jeonbuk', ja: '全北', zh: '全北' },
+  '47': { en: 'Gyeongbuk', ja: '慶尚北道', zh: '庆尚北道', zhTraditional: '慶尚北道' }, '48': { en: 'Gyeongnam', ja: '慶尚南道', zh: '庆尚南道', zhTraditional: '慶尚南道' },
+  '50': { en: 'Jeju', ja: '済州', zh: '济州', zhTraditional: '濟州' }, '52': { en: 'Jeonbuk', ja: '全北', zh: '全北' },
 }
 
 const districts: Region[] = districtSource.features.map(feature => ({
@@ -48,7 +48,10 @@ export function regionName(region: Region, locale: Locale) {
   if (locale === 'ko') return region.name
   if (region.code.length === 2) {
     const localized = provinceNames[region.code]
-    return locale === 'en' ? localized?.en ?? region.name : locale === 'ja' ? localized?.ja ?? region.name : localized?.zh ?? region.name
+    if (locale === 'en') return localized?.en ?? region.name
+    if (locale === 'ja') return localized?.ja ?? region.name
+    if (locale === 'zh-TW' || locale === 'zh-HK') return localized?.zhTraditional ?? localized?.zh ?? region.name
+    return localized?.zh ?? region.name
   }
   // The five-digit code links geometry, canonical Korean names and locale labels.
   // A newly added code remains usable in Korean until its translation is exported.
