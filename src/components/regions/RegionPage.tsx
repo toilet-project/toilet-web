@@ -58,13 +58,8 @@ export async function RegionPage({ locale, parts }: { locale: Locale; parts: str
   const title = district ? regionName(district, locale) : province ? regionName(province, locale) : r.nationalMap
   const count = (district?.count ?? province?.count ?? provinces.reduce((sum, item) => sum + item.count, 0)).toLocaleString(locale)
   const regions = province ? districtsIn(province.code) : provinces
-  let toilets = [] as Awaited<ReturnType<typeof getDistrictToilets>>
-  let failed = false
-  if (district && province) {
-    try { toilets = await getDistrictToilets(province.code, district.code) }
-    catch { failed = true }
-  }
-  const facilityLinks = district && !failed ? toilets.map(toilet => ({
+  const toilets = district && province ? await getDistrictToilets(province.code, district.code) : []
+  const facilityLinks = district ? toilets.map(toilet => ({
     id: toilet.id,
     name: localizeToiletMapItem(toilet, locale).name,
     href: localized(regionToiletPath(toilet, locale)),
@@ -85,7 +80,7 @@ export async function RegionPage({ locale, parts }: { locale: Locale; parts: str
         <p className="region-mobile-hint">{district ? r.mobileMarkerHint : r.mobileExploreHint}</p>
       </div>
       {district && province ? <section className="region-district-layout" aria-label={title}>
-        <div className="region-district-map-card"><div className="region-card-heading"><span className="region-eyebrow">{r.locationMap}</span><h2>{title}</h2></div><DistrictNaverMap district={preciseDistrict!} toilets={toilets} locale={locale} failed={failed} />
+        <div className="region-district-map-card"><div className="region-card-heading"><span className="region-eyebrow">{r.locationMap}</span><h2>{title}</h2></div><DistrictNaverMap district={preciseDistrict!} toilets={toilets} locale={locale} />
           {facilityLinks.length > 0 && <details className="region-facility-directory"><summary>{r.restroomList} ({facilityLinks.length.toLocaleString(locale)})</summary>
             <nav aria-label={r.nearby}><ul>{facilityLinks.map(toilet => <li key={toilet.id}><a href={toilet.href}>{toilet.name}</a></li>)}</ul></nav>
           </details>}{sourceNote}</div>
