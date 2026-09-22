@@ -69,3 +69,11 @@
 - 현행 코드: `src/app/(map)/en/layout.tsx`, `src/app/(map)/[language]/layout.tsx`, `src/app/[language]/regions/[[...parts]]/page.tsx`, `src/components/regions/RegionPage.tsx`, `src/components/regions/RegionToiletPage.tsx`, `src/app/pages-sitemap.xml/route.ts`, `src/app/sitemaps/[file]/route.ts`, `src/lib/regionToiletPath.ts`, `src/components/regions/DistrictNaverMap.tsx`.
 - [Search Console 페이지 색인 보고서](https://search.google.com/search-console/index?resource_id=sc-domain%3Ageupddong.com), [사이트맵 보고서](https://search.google.com/search-console/sitemaps?resource_id=sc-domain%3Ageupddong.com), [크롤링 통계](https://search.google.com/search-console/settings/crawl-stats?resource_id=sc-domain%3Ageupddong.com), [Cloudflare Security Analytics](https://dash.cloudflare.com/1611d88218de929b3ed6e2cd7c863be5/geupddong.com/security/analytics).
 - [Google: 페이지 색인 보고서 설명](https://support.google.com/webmasters/answer/7440203), [크롤링 예산](https://developers.google.com/crawling/docs/crawl-budget), [noindex 규칙](https://developers.google.com/search/docs/crawling-indexing/block-indexing), [다국어 사이트](https://developers.google.com/search/docs/specialty/international/managing-multi-regional-sites), [canonical 신호](https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls), [탐색 가능한 링크](https://developers.google.com/search/docs/crawling-indexing/links-crawlable).
+
+## 다음 단계 구현: 시설별 언어 색인 자격
+
+공개 API는 `VISIBLE` 시설 중 한국어 원본의 `source_hash`와 일치하고, 해당 언어의 이름 및 도로명·지번 주소 중 하나가 있는 시설만 외국어 사이트맵에 넣는다. 상세 API도 같은 최신 번역만 응답한다. 웹은 이 응답을 기준으로 외국어 상세의 `robots`·canonical·hreflang을 결정한다. 자격이 없는 언어는 `noindex`, 한국어 canonical을 사용하며 사이트맵과 hreflang에서도 제외한다. 영어·일본어·중국어 각 변형은 개별 번역을 요구한다. 지도 홈의 색인 정책은 그대로 둔다.
+
+한국어와 외국어 시설 사이트맵은 API의 현재 이름·좌표로 경로를 만들기 때문에 웹 빌드에 포함된 옛 이름 스냅샷에 의존하지 않는다. 공개 URL은 `/sitemap-toilets-{shard}.xml` 및 `/sitemap-toilets-{shard}-{locale}.xml`이다. 기존 상세·별칭 경로와 같은 URL 생성기를 사용하고, 번역 변경은 기존 `catalogChanged` 무효화 이벤트와 1시간 원본 캐시 만료로 반영한다. API를 먼저 배포해야 웹이 새 사이트맵 원본을 읽을 수 있다.
+
+실제 운영 DB의 언어별 자격 건수와 Google 색인 여부는 배포 후 확인 대상이다. 이 기준은 번역의 최신성과 이름·주소 존재를 확인하며, 문장 전체의 번역 품질을 자동으로 판정하지는 않는다. 캐시 재설계 PR #286의 30일 지역 지도 정책과 변경 전·후 경로 무효화는 별도로 통합한다.

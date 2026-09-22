@@ -52,6 +52,7 @@ const config: NextConfig = {
         ? [{ source: '/toilet/:id(\\d+)', destination: '/review-verification/:id' }] : []),
       // Root-level sitemap URLs cover /toilet/* without relying on search-console scope overrides.
       { source: '/sitemap-toilets-:shard(\\d+).xml', destination: '/sitemaps/:shard.xml' },
+      { source: '/sitemap-toilets-:shard(\\d+)-:locale(en|ja|zh-cn|zh-tw|zh-hk).xml', destination: '/sitemaps/:shard-:locale.xml' },
       ...(process.env.NODE_ENV === 'development'
         ? [{ source: '/api/:path*', destination: 'https://api.geupddong.com/api/:path*' }] : []),
     ]

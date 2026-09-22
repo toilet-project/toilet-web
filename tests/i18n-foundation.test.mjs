@@ -11,6 +11,7 @@ import { englishHomeMetadata, englishHomeData, englishToiletMetadata, englishPla
 import { freeRestroomSearchPrompt } from '../src/i18n/searchCopy.ts'
 import { LANGUAGE_LOGIN_RETURN_KEY, saveLanguageLoginReturn, consumeLanguageLoginReturn } from '../src/i18n/loginReturn.ts'
 import { localizeToiletDetail } from '../src/i18n/toiletTranslations.ts'
+import { facilitySeoSignals, indexableFacilityLocales } from '../src/i18n/facilitySeo.ts'
 import { localizeMapLabels, mapSystemNotice } from '../src/i18n/mapLabels.ts'
 
 test('display labels do not replace standards-based locale identifiers', () => {
@@ -186,7 +187,7 @@ test('English analytics do not expose IDs or fragment/query values', () => {
 test('English metadata keeps facility names and physical-place identity unchanged', () => {
   const detail = { id: 123, name: '시험 화장실', latitude: 36.3, longitude: 127.3, roadAddress: '시험 주소' }
   assert.equal(englishToiletMetadata(detail).title, '시험 화장실 — Restroom in Korea')
-  assert.match(englishToiletMetadata(detail).description, /Visiting Korea\?.*Restroom/)
+  assert.match(englishToiletMetadata(detail).description, /Visiting Korea\?.*restroom/i)
   const place = englishPlaceData(detail)
   assert.equal(place['@id'], encodeURI('https://geupddong.com/regions/대전광역시-30/유성구-30200/toilet/123-시험-화장실#place'))
   assert.equal(place.url, encodeURI('https://geupddong.com/en/regions/daejeon-30/yuseong-gu-30200/toilet/123-시험-화장실'))
@@ -215,6 +216,24 @@ test('English presentation distinguishes restrooms from fixtures and introduces 
   const original = { id: 123, name: 'Original Toilet Name' }
   assert.equal(englishPlaceData(original).name, original.name)
   assert.match(englishToiletMetadata(original).title, /^Original Toilet Name/)
+})
+
+test('facility SEO alternatives require current complete locale text and preserve a Korean canonical fallback', () => {
+  const detail = { id: 177, name: '사직주유소', latitude: 37.57, longitude: 126.98,
+    translations: {
+      en: { name: 'Sajik gas station', roadAddress: '1 Sajik-ro', jibunAddress: null },
+      ja: { name: 'サジク給油所', roadAddress: null, jibunAddress: null },
+      'zh-CN': { name: '社稷加油站', roadAddress: null, jibunAddress: '钟路区地址' },
+    } }
+  assert.deepEqual(indexableFacilityLocales(detail), ['ko', 'en', 'zh-CN'])
+  const english = facilitySeoSignals(detail, 'en')
+  assert.equal(english.eligible, true)
+  assert.equal(english.canonical, '/en/regions/seoul-11/jongno-gu-11110/toilet/177-sajik-gas-station')
+  assert.deepEqual(Object.keys(english.languages), ['ko', 'en', 'zh-CN'])
+  const japanese = facilitySeoSignals(detail, 'ja')
+  assert.equal(japanese.eligible, false)
+  assert.equal(japanese.canonical, '/regions/서울특별시-11/종로구-11110/toilet/177-사직주유소')
+  assert.equal(japanese.robots.index, false)
 })
 
 test('foreign search descriptions address free-restroom searches without claiming facilities are free', () => {

@@ -5,6 +5,8 @@ import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { setTimeout as delay } from 'node:timers/promises'
 import {signatureFor, REVALIDATION_PATH} from '../src/server/cacheRevalidation.ts'
+import { regionToiletPath } from '../src/lib/regionToiletPath.ts'
+import { localizedPublicPath } from '../src/i18n/routes.ts'
 
 const counts = new Map()
 const indexable = process.argv.includes('--indexable')
@@ -17,18 +19,33 @@ let deleted = false
 const fixture = { id: 900001, name: '검증용 화장실', toiletType: '공중화장실', latitude: 36.85, longitude: 127.15,
   roadAddress: '충청남도 천안시 서북구 검증로 1', jibunAddress: '', openTime: '상시', openTimeDetail: '',
   region: { sidoName: '충청남도', sidoCode: '44', sigunguName: '천안시 서북구', sigunguCode: '44133', cityName: '천안시', districtName: '서북구' },
-  maleToiletCount: 3, femaleToiletCount: 5, hasEmergencyBell: 'Y', hasCctv: 'N', hasDiaperTable: 'N' }
+  maleToiletCount: 3, femaleToiletCount: 5, hasEmergencyBell: 'Y', emergencyBellLocation: '', hasCctv: 'N', hasDiaperTable: 'N', diaperTableLocation: '',
+  translations: { en: { name: 'Verified restroom', roadAddress: '1 Test Road, Cheonan', jibunAddress: null } } }
 const api = createServer((req,res) => {
   counts.set(req.url,(counts.get(req.url) || 0)+1)
   res.setHeader('Content-Type','application/json')
   if (req.url === '/api/v1/toilets/sitemap/shards') return res.end('[0,1,90]')
+  if (req.url === '/api/v1/toilets/sitemap/shards?locale=en') return res.end('[90]')
+  if (req.url?.startsWith('/api/v1/toilets/sitemap/shards?locale=')) return res.end('[]')
   if (req.url === '/api/v1/toilets/sitemap/ids?shard=0') return res.end('[1,10000]')
   if (req.url === '/api/v1/toilets/sitemap/ids?shard=1') return res.end('[10001,20000]')
   if (req.url === '/api/v1/toilets/sitemap/ids?shard=90') return res.end('[900001,900002]')
   if (req.url === '/api/v1/toilets/sitemap/ids?shard=2') return res.end('[]')
   if (req.url === '/api/v1/toilets/sitemap/ids?shard=3') return res.end('[30001,30001]')
+  if (req.url?.startsWith('/api/v1/toilets/sitemap/entries?')) {
+    const query = new URL(req.url, 'http://localhost').searchParams
+    const shard = Number(query.get('shard')), locale = query.get('locale')
+    if (shard === 3) return res.end('[{"id":30001,"name":"duplicate","latitude":36.85,"longitude":127.15},{"id":30001,"name":"duplicate","latitude":36.85,"longitude":127.15}]')
+    if (shard === 4) { res.statusCode = 503; return res.end('{}') }
+    const entry = (id,name,latitude=36.85,longitude=127.15) => ({id,name,latitude,longitude})
+    if (locale === 'ko' && shard === 0) return res.end(JSON.stringify([entry(1,'원문 1'),entry(10000,'원문 10000')]))
+    if (locale === 'ko' && shard === 1) return res.end(JSON.stringify([entry(10001,'원문 10001'),entry(20000,'원문 20000')]))
+    if (locale === 'ko' && shard === 90) return res.end(JSON.stringify([entry(900001,'검증용 화장실'),entry(900002,'좌표 없는 화장실',null,null)]))
+    if (locale === 'en' && shard === 90) return res.end(JSON.stringify([entry(900001,'Verified restroom')]))
+    return res.end('[]')
+  }
   if (req.url === '/api/v1/toilets/900001' && !deleted) return res.end(JSON.stringify(fixture))
-  if (req.url === '/api/v1/toilets/900002') return res.end(JSON.stringify({...fixture,id:900002,latitude:null,longitude:null,roadAddress:'',jibunAddress:'충청남도 천안시 서북구 검증동 1',region:null}))
+  if (req.url === '/api/v1/toilets/900002') return res.end(JSON.stringify({...fixture,id:900002,latitude:null,longitude:null,roadAddress:'',jibunAddress:'충청남도 천안시 서북구 검증동 1',region:null,translations:{}}))
   if (req.url === '/api/v1/toilets/900003') return res.end(JSON.stringify({...fixture,id:900003,name:'</script><script>alert("x")</script>'}))
   if (req.url === '/api/v1/toilets/900004') return res.end(JSON.stringify({...fixture,id:900004,name:'공학1호관'}))
   res.statusCode = req.url === '/api/v1/toilets/900500' ? 503 : 404
@@ -116,25 +133,43 @@ try {
   assert.equal(index.status,200)
   assert.match(index.headers.get('content-type'),/application\/xml/)
   assert.match(await index.text(),/https:\/\/geupddong.com\/sitemap-toilets-90.xml/)
+  assert.match(await (await fetch(`${origin}/sitemap.xml`)).text(),/https:\/\/geupddong.com\/sitemap-toilets-90-en.xml/)
   for(const [shard,ids] of [[0,[1,10000]],[1,[10001,20000]],[90,[900001,900002]]]) {
     const response=await fetch(`${origin}/sitemap-toilets-${shard}.xml`)
     assert.equal(response.status,200)
     const xml=await response.text()
     for(const id of ids) {
-      const url = id > 900000 ? `https://geupddong.com/toilet/${id}` : `https://geupddong.com/regions/`
+      const url = id === 900002 ? `https://geupddong.com/toilet/${id}` : `https://geupddong.com/regions/`
       assert.ok(xml.includes(`<loc>${url}`), `sitemap includes the canonical location for ${id}`)
-      if (id <= 900000) assert.match(decodeURI(xml), new RegExp(`/toilet/${id}-[\\p{L}\\p{N}-]+</loc>`, 'u'))
+      if (id !== 900002) assert.match(decodeURI(xml), new RegExp(`/toilet/${id}-[\\p{L}\\p{N}-]+</loc>`, 'u'))
     }
     assert.doesNotMatch(xml,/lastmod/)
   }
   await (await fetch(`${origin}/sitemaps/0.xml`)).text()
-  assert.equal(counts.get('/api/v1/toilets/sitemap/ids?shard=0'),1,'ID data cache reused')
-  for(const file of ['2.xml','01.xml','bad.xml','-1.xml','900719925475.xml'])
+  assert.equal(counts.get('/api/v1/toilets/sitemap/entries?shard=0&locale=ko'),1,'catalog data cache reused')
+  const englishSitemap=await (await fetch(`${origin}/sitemap-toilets-90-en.xml`)).text()
+  const englishPath=localizedPublicPath(regionToiletPath(fixture,'en'),'en')
+  assert.ok(englishSitemap.includes(`<loc>${encodeURI(`https://geupddong.com${englishPath}`)}</loc>`))
+  assert.doesNotMatch(englishSitemap,/900002/,'untranslated detail stays out of the foreign sitemap')
+  for(const file of ['2.xml','01.xml','bad.xml','-1.xml','900719925475.xml','0-xx.xml'])
     assert.equal((await fetch(`${origin}/sitemaps/${file}`)).status,404)
   for(const file of ['3.xml','4.xml']) {
     const failed=await fetch(`${origin}/sitemaps/${file}`)
     assert.equal(failed.status,503,'bad/upstream unavailable must not publish an empty successful sitemap')
     assert.equal(failed.headers.get('cache-control'),'no-store')
+  }
+  if(indexable && process.env.ENGLISH_UI_RELEASE === 'true') {
+    const localized=await fetch(`${origin}${encodeURI(englishPath)}`)
+    const localizedHtml=await localized.text()
+    assert.equal(localized.status,200,output)
+    assert.match(localizedHtml,/<meta name="robots" content="index, follow"/)
+    assert.match(localizedHtml.split('</head>')[0],/hreflang="en"/i)
+    assert.doesNotMatch(localizedHtml.split('</head>')[0],/hreflang="ja"/i)
+    const alias=await (await fetch(`${origin}/en/toilet/900001`)).text()
+    assert.match(alias,/<meta name="robots" content="noindex, follow"/)
+    const untranslated=await (await fetch(`${origin}/en/toilet/900002`)).text()
+    assert.match(untranslated,/<meta name="robots" content="noindex, follow"/)
+    assert.match(untranslated,/<link rel="canonical" href="https:\/\/geupddong.com\/toilet\/900002"/)
   }
   for(let i=0;i<3;i++) {
     const cached = await fetch(`${origin}/toilet/900001`)

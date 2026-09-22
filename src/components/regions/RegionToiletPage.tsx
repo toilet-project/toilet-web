@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound, permanentRedirect } from 'next/navigation'
 import type { Locale } from '../../i18n/locale'
-import { SUPPORTED_LOCALES } from '../../i18n/locale'
+import { facilitySeoSignals } from '../../i18n/facilitySeo'
 import { localizedPublicPath } from '../../i18n/routes'
 import { localizeToiletDetail } from '../../i18n/toiletTranslations'
 import { getDistrict } from '../../lib/regions'
@@ -27,13 +27,12 @@ export async function loadRegionToilet(province: string, district: string, facil
 export async function regionToiletMetadata(province: string, district: string, facility: string, locale: Locale): Promise<Metadata> {
   const detail = await loadRegionToilet(province, district, facility)
   const localized = localizeToiletDetail(detail, locale)
-  const path = regionToiletPath(detail, locale)
-  const canonical = localizedPublicPath(path, locale)!
+  const seo = facilitySeoSignals(detail, locale)
   return { title: { absolute: `${localized.name} | ${locale === 'ko' ? '급똥' : 'Geupddong'}` },
     description: localized.roadAddress || localized.jibunAddress || localized.name,
-    alternates: { canonical, languages: Object.fromEntries(SUPPORTED_LOCALES.map(language => [language,
-      localizedPublicPath(regionToiletPath(detail, language), language)!])) },
-    openGraph: { title: localized.name, url: canonical, type: 'website', images: ['/og-image.png'] } }
+    robots: seo.robots,
+    alternates: { canonical: seo.canonical, languages: seo.languages },
+    openGraph: { title: localized.name, url: seo.canonical, type: 'website', images: ['/og-image.png'] } }
 }
 
 export async function RegionToiletPage({ province, district, facility, locale }: { province: string; district: string; facility: string; locale: Locale }) {

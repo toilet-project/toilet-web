@@ -28,7 +28,7 @@ export function englishToiletMetadata(detail: Pick<ToiletDetailResponse, 'name' 
   const name = toiletTranslation(detail, 'en')?.name?.trim() || detail.name.trim()
   return {
     title: name ? `${name} — Restroom in Korea` : 'Restroom locations and facilities in Korea',
-    description: name ? `Visiting Korea? Check the location, opening hours and facilities of ${name}. Restroom names and addresses are shown in their original language.`
+    description: name ? `Visiting Korea? Check this restroom's location, opening hours and facilities: ${name}.`
       : 'Find restroom locations, opening hours and facilities for your trip in Korea.',
   }
 }

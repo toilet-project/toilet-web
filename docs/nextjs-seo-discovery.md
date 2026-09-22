@@ -52,3 +52,9 @@
 - [Schema.org Place](https://schema.org/Place)
 - [Next JSON-LD](https://nextjs.org/docs/app/guides/json-ld)
 - 설치된 Next 16.3.4의 robots/sitemap/route-handlers/connection 문서 확인.
+
+## 2026-09-22 다국어 시설 사이트맵 확장
+
+이전 설명은 최초 한국어 사이트맵 구현 기록이다. 새 API의 `GET /api/v1/toilets/sitemap/shards?locale={locale}`는 해당 언어의 최신 이름·주소 번역이 있는 공개 시설 구간만 반환한다. `GET /api/v1/toilets/sitemap/entries?shard={shard}&locale={locale}`는 현재 이름·좌표를 최대 1만 건 반환한다. 한국어도 이 목록으로 현재 이름을 읽어 정식 URL을 만든다. 기존 `/ids`는 호환성을 위해 유지한다. 새 DB 테이블이나 색인 DDL은 없다.
+
+웹은 각 언어의 구간에 `/sitemap-toilets-{shard}-{locale}.xml`을 만든다. 번역이 없거나 원본과 해시가 다른 시설은 그 언어의 사이트맵·hreflang에서 빠지고 상세 페이지는 `noindex`가 된다. 현재 번역이 있으면 언어별 canonical을 쓰며, 지역·시설 이름 slug와 좌표 기반 지역 코드를 현재 API 값으로 계산한다. 상세 및 사이트맵 모두 `toilet-catalog` 무효화 신호를 받는다. 사이트맵 인덱스는 새 API에 의존하므로 API 배포가 웹 배포보다 먼저다.
