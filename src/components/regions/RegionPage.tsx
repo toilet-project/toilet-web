@@ -60,6 +60,7 @@ export async function RegionPage({ locale, parts }: { locale: Locale; parts: str
         </div>
         {!district && <RegionPicker title={r.allRegions} label={province ? r.chooseDistrict : r.chooseProvince} countLabel={r.toilets} closeLabel={r.closeSelection}
           areas={regions.map(region => ({ code: region.code, name: regionName(region, locale), count: region.count.toLocaleString(locale), href: localized(regionPath(province?.code ?? region.code, province ? region.code : undefined)) }))} />}
+        <p className="region-mobile-hint">{district ? r.mobileMarkerHint : r.mobileExploreHint}</p>
       </div>
       {district && province ? <section className="region-district-layout" aria-label={title}>
         <div className="region-district-map-card"><div className="region-card-heading"><span className="region-eyebrow">{r.locationMap}</span><h2>{title}</h2></div><DistrictNaverMap district={district} toilets={toilets} locale={locale} failed={failed} />{sourceNote}</div>
