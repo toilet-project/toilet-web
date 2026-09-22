@@ -226,14 +226,18 @@ test('facility SEO alternatives require current complete locale text and preserv
       'zh-CN': { name: '社稷加油站', roadAddress: null, jibunAddress: '钟路区地址' },
     } }
   assert.deepEqual(indexableFacilityLocales(detail), ['ko', 'en', 'zh-CN'])
-  const english = facilitySeoSignals(detail, 'en')
+  const english = facilitySeoSignals(detail, 'en', true)
   assert.equal(english.eligible, true)
   assert.equal(english.canonical, '/en/regions/seoul-11/jongno-gu-11110/toilet/177-sajik-gas-station')
   assert.deepEqual(Object.keys(english.languages), ['ko', 'en', 'zh-CN'])
-  const japanese = facilitySeoSignals(detail, 'ja')
+  const japanese = facilitySeoSignals(detail, 'ja', true)
   assert.equal(japanese.eligible, false)
   assert.equal(japanese.canonical, '/regions/서울특별시-11/종로구-11110/toilet/177-사직주유소')
   assert.equal(japanese.robots.index, false)
+  const gated = facilitySeoSignals(detail, 'en', false)
+  assert.deepEqual(Object.keys(gated.languages), ['ko'])
+  assert.equal(gated.eligible, false)
+  assert.equal(gated.robots.index, false)
 })
 
 test('foreign search descriptions address free-restroom searches without claiming facilities are free', () => {

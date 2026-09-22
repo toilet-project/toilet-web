@@ -1,6 +1,7 @@
 import type { ToiletDetailResponse } from '../api/toilets'
 import { regionToiletPath } from '../lib/regionToiletPath.ts'
 import { SUPPORTED_LOCALES, type Locale } from './locale.ts'
+import { ENGLISH_UI_ENABLED } from './feature.ts'
 import { localizedPublicPath } from './routes.ts'
 import { toiletTranslation } from './toiletTranslations.ts'
 
@@ -15,8 +16,8 @@ export function indexableFacilityLocales(detail: Facility): Locale[] {
   })
 }
 
-export function facilitySeoSignals(detail: Facility, locale: Locale) {
-  const locales = indexableFacilityLocales(detail)
+export function facilitySeoSignals(detail: Facility, locale: Locale, foreignUiEnabled = ENGLISH_UI_ENABLED) {
+  const locales = foreignUiEnabled ? indexableFacilityLocales(detail) : (['ko'] as Locale[])
   const eligible = locales.includes(locale)
   const canonicalLocale = eligible ? locale : 'ko'
   const pathFor = (language: Locale) => localizedPublicPath(regionToiletPath(detail, language), language)!

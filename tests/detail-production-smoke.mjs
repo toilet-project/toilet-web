@@ -10,6 +10,8 @@ import { localizedPublicPath } from '../src/i18n/routes.ts'
 
 const counts = new Map()
 const indexable = process.argv.includes('--indexable')
+const foreignUiEnabled = (indexable && process.env.ENGLISH_UI_RELEASE === 'true')
+  || (!indexable && process.env.ENGLISH_UI_PREVIEW === 'true')
 const productionReview = indexable
   && process.env.REVIEW_API_ENABLED === 'true'
   && process.env.REVIEW_PRODUCTION_APPROVED === 'true'
@@ -98,6 +100,7 @@ try {
   assert.match(html,/충청남도 천안시 서북구 검증로 1/)
   assert.match(html,/충청남도 천안시 서북구/)
   assert.match(html,/화장실 수/)
+  if (!foreignUiEnabled) assert.doesNotMatch(html.split('</head>')[0],/hreflang="en"/i)
   const assertMetadata = (document, name) => {
     const title = `${name} 위치 및 이용정보 | 충청남도 천안시 서북구`
     const description = `충청남도 천안시 서북구에 위치한 ${name}의 위치, 개방시간과 시설 정보를 확인하세요.`
@@ -133,7 +136,9 @@ try {
   assert.equal(index.status,200)
   assert.match(index.headers.get('content-type'),/application\/xml/)
   assert.match(await index.text(),/https:\/\/geupddong.com\/sitemap-toilets-90.xml/)
-  assert.match(await (await fetch(`${origin}/sitemap.xml`)).text(),/https:\/\/geupddong.com\/sitemap-toilets-90-en.xml/)
+  const indexXml = await (await fetch(`${origin}/sitemap.xml`)).text()
+  if (foreignUiEnabled) assert.match(indexXml,/https:\/\/geupddong.com\/sitemap-toilets-90-en.xml/)
+  else assert.doesNotMatch(indexXml,/sitemap-toilets-90-en.xml/)
   for(const [shard,ids] of [[0,[1,10000]],[1,[10001,20000]],[90,[900001,900002]]]) {
     const response=await fetch(`${origin}/sitemap-toilets-${shard}.xml`)
     assert.equal(response.status,200)
@@ -147,10 +152,17 @@ try {
   }
   await (await fetch(`${origin}/sitemaps/0.xml`)).text()
   assert.equal(counts.get('/api/v1/toilets/sitemap/entries?shard=0&locale=ko'),1,'catalog data cache reused')
-  const englishSitemap=await (await fetch(`${origin}/sitemap-toilets-90-en.xml`)).text()
+  const englishSitemapResponse=await fetch(`${origin}/sitemap-toilets-90-en.xml`)
   const englishPath=localizedPublicPath(regionToiletPath(fixture,'en'),'en')
-  assert.ok(englishSitemap.includes(`<loc>${encodeURI(`https://geupddong.com${englishPath}`)}</loc>`))
-  assert.doesNotMatch(englishSitemap,/900002/,'untranslated detail stays out of the foreign sitemap')
+  if (foreignUiEnabled) {
+    assert.equal(englishSitemapResponse.status,200)
+    const englishSitemap=await englishSitemapResponse.text()
+    assert.ok(englishSitemap.includes(`<loc>${encodeURI(`https://geupddong.com${englishPath}`)}</loc>`))
+    assert.doesNotMatch(englishSitemap,/900002/,'untranslated detail stays out of the foreign sitemap')
+  } else {
+    assert.equal(englishSitemapResponse.status,404)
+    assert.equal((await fetch(`${origin}/en/toilet/900001`)).status,404)
+  }
   for(const file of ['2.xml','01.xml','bad.xml','-1.xml','900719925475.xml','0-xx.xml'])
     assert.equal((await fetch(`${origin}/sitemaps/${file}`)).status,404)
   for(const file of ['3.xml','4.xml']) {
@@ -158,7 +170,7 @@ try {
     assert.equal(failed.status,503,'bad/upstream unavailable must not publish an empty successful sitemap')
     assert.equal(failed.headers.get('cache-control'),'no-store')
   }
-  if(indexable && process.env.ENGLISH_UI_RELEASE === 'true') {
+  if(indexable && foreignUiEnabled) {
     const localized=await fetch(`${origin}${encodeURI(englishPath)}`)
     const localizedHtml=await localized.text()
     assert.equal(localized.status,200,output)
