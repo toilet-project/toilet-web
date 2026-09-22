@@ -30,6 +30,17 @@ test('signed v2 events retain the latest revision and deletion precedence',async
     {toiletId:2,revision:4,action:'UPSERT',catalogChanged:false},
   ]})
 })
+test('signed v3 region envelopes are accepted without losing old positions',async()=>{
+  const bounds={west:126.98,south:37.5622338,east:127.0245747,north:37.57}
+  const body=JSON.stringify({contractVersion:3,events:[
+    {toiletId:1,revision:5,action:'UPSERT',catalogChanged:true,regionScopeComplete:true,regionBounds:bounds},
+    {toiletId:2,revision:1,action:'DELETE',catalogChanged:true,regionScopeComplete:false,regionBounds:null},
+  ]})
+  assert.deepEqual(await authenticateRevalidation(request(body),secret,now),{protocol:'v3',events:[
+    {toiletId:1,revision:5,action:'UPSERT',catalogChanged:true,regionScopeComplete:true,regionBounds:bounds},
+    {toiletId:2,revision:1,action:'DELETE',catalogChanged:true,regionScopeComplete:false,regionBounds:null},
+  ]})
+})
 test('tampered payload/signature and expired or future signatures rejected',async()=>{
   await reject(request('{"toiletIds":[2]}',timestamp,signatureFor(secret,timestamp,'{"toiletIds":[1]}')),401)
   await reject(request('{"toiletIds":[1]}',timestamp,'0'.repeat(64)),401)
@@ -43,6 +54,10 @@ test('no secret means disabled, not publicly accessible',async()=>{
 test('path/tag injection, bad IDs, malformed JSON and excessive batches rejected',async()=>{
   for(const body of ['{','{}','{"toiletIds":[]}','{"toiletIds":[0]}','{"toiletIds":["1"]}','{"toiletIds":[9007199254740992]}','{"toiletIds":[1],"path":"/"}',
     JSON.stringify({toiletIds:Array(101).fill(1)}), JSON.stringify({contractVersion:2,events:[{toiletId:1,revision:0,action:'UPSERT',catalogChanged:false}]}),
-    JSON.stringify({contractVersion:2,events:[{toiletId:1,revision:1,action:'UPSERT',catalogChanged:false,path:'/'}]})]) await reject(request(body),400)
+    JSON.stringify({contractVersion:2,events:[{toiletId:1,revision:1,action:'UPSERT',catalogChanged:false,path:'/'}]}),
+    JSON.stringify({contractVersion:3,events:[{toiletId:1,revision:1,action:'UPSERT',catalogChanged:false,regionScopeComplete:true,regionBounds:{west:128,south:37,east:127,north:38}}]}),
+    JSON.stringify({contractVersion:3,events:[{toiletId:1,revision:1,action:'UPSERT',catalogChanged:false,regionScopeComplete:true,regionBounds:{west:127,south:37,east:128,north:38,path:'/evil'}}]}),
+    JSON.stringify({contractVersion:3,events:[{toiletId:1,revision:1,action:'UPSERT',catalogChanged:false,regionScopeComplete:true,regionBounds:null},
+      {toiletId:1,revision:2,action:'DELETE',catalogChanged:true,regionScopeComplete:false,regionBounds:null}]})]) await reject(request(body),400)
   await reject(request(' '.repeat(32769)),413)
 })

@@ -6,6 +6,7 @@ import { once } from 'node:events'
 import { setTimeout as delay } from 'node:timers/promises'
 import {signatureFor, REVALIDATION_PATH} from '../src/server/cacheRevalidation.ts'
 import { regionToiletPath } from '../src/lib/regionToiletPath.ts'
+import { localizedRegionPath } from '../src/lib/regions.ts'
 import { localizedPublicPath } from '../src/i18n/routes.ts'
 
 const counts = new Map()
@@ -19,6 +20,8 @@ const productionReview = indexable
 const secret = 'test-only-signing-secret-at-least-32-bytes'
 let deleted = false
 let mapName = '지역 지도 검증 화장실'
+let mapLatitude = 36.85
+let mapLongitude = 127.15
 let mapUnavailable = false
 const fixture = { id: 900001, name: '검증용 화장실', toiletType: '공중화장실', latitude: 36.85, longitude: 127.15,
   roadAddress: '충청남도 천안시 서북구 검증로 1', jibunAddress: '', openTime: '상시', openTimeDetail: '',
@@ -30,7 +33,7 @@ const api = createServer((req,res) => {
   res.setHeader('Content-Type','application/json')
   if (req.url?.startsWith('/api/v1/toilets?')) {
     if (mapUnavailable) { res.statusCode = 503; return res.end('{}') }
-    const marker = { id: fixture.id, name: mapName, latitude: fixture.latitude, longitude: fixture.longitude }
+    const marker = { id: fixture.id, name: mapName, latitude: mapLatitude, longitude: mapLongitude }
     return res.end(JSON.stringify({ meta: { map_level: 8, display_type: 'MARKER', total_count: 1, result_count: 1 }, toilets: [marker], clusters: [] }))
   }
   if (req.url === '/api/v1/toilets/sitemap/shards') return res.end('[0,1,90]')
@@ -207,6 +210,12 @@ try {
     const timestamp=String(Math.floor(Date.now()/1000))
     return fetch(`${origin}${REVALIDATION_PATH}`,{method:'POST',headers:{'content-type':'application/json','x-cache-timestamp':timestamp,'x-cache-signature':signatureFor(secret,timestamp,body)},body})
   }
+  const invalidateScopedRegion = async(regionBounds, regionScopeComplete=true) => {
+    const body=JSON.stringify({contractVersion:3,events:[{toiletId:900001,revision:2,action:'UPSERT',catalogChanged:false,
+      regionScopeComplete,regionBounds}]})
+    const timestamp=String(Math.floor(Date.now()/1000))
+    return fetch(`${origin}${REVALIDATION_PATH}`,{method:'POST',headers:{'content-type':'application/json','x-cache-timestamp':timestamp,'x-cache-signature':signatureFor(secret,timestamp,body)},body})
+  }
   fixture.name='변경된 화장실'
   fixture.openTime='09:00~18:00'
   fixture.region={sidoName:'세종특별자치시',sidoCode:'36',sigunguName:null}
@@ -251,6 +260,30 @@ try {
   mapUnavailable=false
   const recoveredDistrict=await fetch(`${origin}${encodeURI('/regions/서울특별시-11/종로구-11110')}`)
   assert.equal(recoveredDistrict.status,200,'the region page must recover when the upstream map does')
+  const oldSeoulUrl=`${origin}${encodeURI('/regions/서울특별시-11/종로구-11110')}`
+  const newSeoulUrl=`${origin}${encodeURI('/regions/서울특별시-11/중구-11140')}`
+  const oldSeoulEnUrl=`${origin}${localizedPublicPath(localizedRegionPath('en','11','11110'),'en')}`
+  const newSeoulEnUrl=`${origin}${localizedPublicPath(localizedRegionPath('en','11','11140'),'en')}`
+  mapLatitude=37.57; mapLongitude=126.98; mapName='종로구 이전 지도 화장실'
+  assert.equal((await invalidateScopedRegion({west:126.98,south:37.57,east:126.98,north:37.57})).status,200)
+  assert.match(await (await fetch(oldSeoulUrl)).text(),/종로구 이전 지도 화장실/)
+  assert.doesNotMatch(await (await fetch(newSeoulUrl)).text(),/종로구 이전 지도 화장실/)
+  assert.match(await (await fetch(oldSeoulEnUrl)).text(),/종로구 이전 지도 화장실/)
+  assert.doesNotMatch(await (await fetch(newSeoulEnUrl)).text(),/종로구 이전 지도 화장실/)
+  mapLatitude=37.5622338; mapLongitude=127.0245747; mapName='중구 이동 지도 화장실'
+  assert.equal((await invalidateScopedRegion({west:126.98,south:37.5622338,east:127.0245747,north:37.57})).status,200)
+  assert.doesNotMatch(await (await fetch(oldSeoulUrl)).text(),/종로구 이전 지도 화장실/)
+  assert.match(await (await fetch(newSeoulUrl)).text(),/중구 이동 지도 화장실/)
+  assert.doesNotMatch(await (await fetch(oldSeoulEnUrl)).text(),/종로구 이전 지도 화장실/)
+  assert.match(await (await fetch(newSeoulEnUrl)).text(),/중구 이동 지도 화장실/)
+  const mapRequestsBeforeUnchangedDistrict=[...counts].filter(([path])=>path.startsWith('/api/v1/toilets?')).reduce((sum,[,count])=>sum+count,0)
+  assert.equal((await fetch(districtUrl)).status,200)
+  const mapRequestsAfterUnchangedDistrict=[...counts].filter(([path])=>path.startsWith('/api/v1/toilets?')).reduce((sum,[,count])=>sum+count,0)
+  assert.equal(mapRequestsAfterUnchangedDistrict,mapRequestsBeforeUnchangedDistrict,'unaffected district remains cached after scoped move')
+  assert.equal((await invalidateScopedRegion(null,false)).status,200)
+  assert.equal((await fetch(districtUrl)).status,200)
+  const mapRequestsAfterLegacyFallback=[...counts].filter(([path])=>path.startsWith('/api/v1/toilets?')).reduce((sum,[,count])=>sum+count,0)
+  assert.ok(mapRequestsAfterLegacyFallback>mapRequestsAfterUnchangedDistrict,'incomplete v3 scope conservatively refreshes all districts')
   const maliciousHtml=await (await fetch(`${origin}/toilet/900003`)).text()
   const maliciousLd=maliciousHtml.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]
   assert.equal(JSON.parse(maliciousLd).name,'</script><script>alert("x")</script>')
