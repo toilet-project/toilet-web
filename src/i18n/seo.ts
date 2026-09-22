@@ -24,7 +24,7 @@ export function englishHomeData() {
 }
 
 export function englishToiletMetadata(detail: Pick<ToiletDetailResponse, 'name' | 'translations'>) {
-  const name = (toiletTranslation(detail, 'en')?.name ?? detail.name).trim()
+  const name = toiletTranslation(detail, 'en')?.name?.trim() || detail.name.trim()
   return {
     title: name ? `${name} — Restroom in Korea` : 'Restroom locations and facilities in Korea',
     description: name ? `Visiting Korea? Check the location, opening hours and facilities of ${name}. Restroom names and addresses are shown in their original language.`

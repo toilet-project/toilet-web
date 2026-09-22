@@ -24,6 +24,11 @@ test('every mapped district has code-keyed names in all supported languages', ()
     }
   }
   assert.equal(regionName(getDistrict('11', '11140'), 'zh-CN'), '中区')
+  assert.equal(regionName(getProvince('11'), 'zh-CN'), '首尔')
+  assert.equal(regionName(getProvince('11'), 'zh-TW'), '首爾')
+  assert.equal(regionName(getProvince('11'), 'zh-HK'), '首爾')
+  assert.equal(regionName(getProvince('47'), 'zh-HK'), '慶尚北道')
+  assert.equal(regionName(getProvince('50'), 'zh-TW'), '濟州')
   assert.equal(regionName(getDistrict('41', '41111'), 'en'), 'Jangan-gu, Suwon-si')
 })
 
