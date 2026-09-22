@@ -20,9 +20,11 @@ if(!secret||Buffer.byteLength(secret,'utf8')<32)throw new Error('CACHE_MAINTENAN
 const baseUrl=normalizeBaseUrl(args['base-url'])
 const partitionCount=positiveInteger(args['partition-count']||28,'partition count',{maximum:365})
 const partition=positiveInteger(args.partition,'partition',{minimum:0,maximum:partitionCount-1})
+const retries=positiveInteger(args.retries||5,'retries',{minimum:0,maximum:10})
+const requestTimeoutMs=positiveInteger(args['request-timeout-seconds']||30,'request timeout seconds',{maximum:300})*1000
 const cycleId=args['cycle-id']
 if(!cycleId||!/^[a-zA-Z0-9._-]{1,100}$/.test(cycleId))throw new Error('Explicit cycle ID required')
-const allIds=await collectPublicToiletIds({baseUrl,requestTimeoutMs:positiveInteger(args['request-timeout-seconds']||30,'request timeout seconds',{maximum:300})*1000})
+const allIds=await collectPublicToiletIds({baseUrl,requestTimeoutMs,retries})
 const ids=partitionToiletIds(allIds,partition,partitionCount)
 if(!ids.length)throw new Error('Selected refresh partition is empty')
 const checkpointPath=resolve(args.checkpoint||`.cache-refresh/${cycleId}-${partition}.json`)
@@ -33,8 +35,7 @@ try{
     baseUrl,secret,cycleId,partition,partitionCount,ids,checkpointPath,
     concurrency:positiveInteger(args.concurrency||8,'concurrency',{maximum:32}),rps:positiveInteger(args.rps||5,'rps',{maximum:25}),
     maxSeconds:positiveInteger(args['max-minutes']||80,'max minutes',{maximum:300})*60,
-    retries:positiveInteger(args.retries||5,'retries',{minimum:0,maximum:10}),
-    requestTimeoutMs:positiveInteger(args['request-timeout-seconds']||30,'request timeout seconds',{maximum:300})*1000,
+    retries,requestTimeoutMs,
     progressEvery:positiveInteger(args['progress-every']||25,'progress interval',{maximum:1000}),
     onProgress:value=>console.log(JSON.stringify({type:'progress',...value}))})
 }catch(error){
