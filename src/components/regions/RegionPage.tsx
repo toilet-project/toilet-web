@@ -4,6 +4,8 @@ import { notFound } from 'next/navigation'
 import type { Locale } from '../../i18n/locale'
 import { SUPPORTED_LOCALES } from '../../i18n/locale'
 import { localizedPublicPath } from '../../i18n/routes'
+import { localizeToiletMapItem } from '../../i18n/toiletTranslations'
+import { regionToiletPath } from '../../lib/regionToiletPath'
 import { districtsIn, getDistrict, getProvince, provinces, regionName, regionPath, regionSnapshot } from '../../lib/regions'
 import { getDistrictToilets, getPreciseDistrict } from '../../server/regions'
 import { SiteHeader } from '../SiteHeader'
@@ -50,6 +52,11 @@ export async function RegionPage({ locale, parts }: { locale: Locale; parts: str
     try { toilets = await getDistrictToilets(province.code, district.code) }
     catch { failed = true }
   }
+  const facilityLinks = district && !failed ? toilets.map(toilet => ({
+    id: toilet.id,
+    name: localizeToiletMapItem(toilet, locale).name,
+    href: localized(regionToiletPath(toilet)),
+  })).sort((left, right) => left.name.localeCompare(right.name, locale) || left.id - right.id) : []
   const sourceNote = <details className="region-source"><summary>{r.source}<span aria-hidden="true">ⓘ</span></summary><p><a href="https://github.com/DevMinGeonPark/mapcn-kr">SGIS · 행정안전부 / vuski/admdongkor / mapcn-kr</a> (CC BY 4.0).<br />{new Date(regionSnapshot.generatedAt).toLocaleDateString(locale)} · {regionSnapshot.unassigned.toLocaleString(locale)} {r.outsideBoundary}.</p></details>
   return <div className="region-site-shell is-region-page">
     <SiteHeader path={path} />
@@ -65,7 +72,10 @@ export async function RegionPage({ locale, parts }: { locale: Locale; parts: str
         <p className="region-mobile-hint">{district ? r.mobileMarkerHint : r.mobileExploreHint}</p>
       </div>
       {district && province ? <section className="region-district-layout" aria-label={title}>
-        <div className="region-district-map-card"><div className="region-card-heading"><span className="region-eyebrow">{r.locationMap}</span><h2>{title}</h2></div><DistrictNaverMap district={preciseDistrict!} toilets={toilets} locale={locale} failed={failed} />{sourceNote}</div>
+        <div className="region-district-map-card"><div className="region-card-heading"><span className="region-eyebrow">{r.locationMap}</span><h2>{title}</h2></div><DistrictNaverMap district={preciseDistrict!} toilets={toilets} locale={locale} failed={failed} />
+          {facilityLinks.length > 0 && <details className="region-facility-directory"><summary>{r.restroomList} ({facilityLinks.length.toLocaleString(locale)})</summary>
+            <nav aria-label={r.nearby}><ul>{facilityLinks.map(toilet => <li key={toilet.id}><a href={toilet.href}>{toilet.name}</a></li>)}</ul></nav>
+          </details>}{sourceNote}</div>
       </section> : <section className="region-discovery-layout"><div className="region-atlas-card"><RegionAtlas locale={locale} provinceCode={province?.code} />{sourceNote}</div></section>}
     </main>
     <SiteFooter hint={r.intro} />
