@@ -8,6 +8,7 @@ import { mapNavigationPath } from '../src/lib/navigationCache.ts'
 import { parseMapResume } from '../src/lib/appUpdate.ts'
 import { sanitizeAnalyticsPagePath } from '../src/lib/analytics.ts'
 import { englishHomeMetadata, englishHomeData, englishToiletMetadata, englishPlaceData } from '../src/i18n/seo.ts'
+import { freeRestroomSearchPrompt } from '../src/i18n/searchCopy.ts'
 import { LANGUAGE_LOGIN_RETURN_KEY, saveLanguageLoginReturn, consumeLanguageLoginReturn } from '../src/i18n/loginReturn.ts'
 import { localizeToiletDetail } from '../src/i18n/toiletTranslations.ts'
 import { localizeMapLabels, mapSystemNotice } from '../src/i18n/mapLabels.ts'
@@ -187,8 +188,8 @@ test('English metadata keeps facility names and physical-place identity unchange
   assert.equal(englishToiletMetadata(detail).title, '시험 화장실 — Restroom in Korea')
   assert.match(englishToiletMetadata(detail).description, /Visiting Korea\?.*Restroom/)
   const place = englishPlaceData(detail)
-  assert.equal(place['@id'], 'https://geupddong.com/regions/30/30200/toilet/123-siheom-hwajangsil#place')
-  assert.equal(place.url, 'https://geupddong.com/en/regions/30/30200/toilet/123-siheom-hwajangsil')
+  assert.equal(place['@id'], encodeURI('https://geupddong.com/regions/대전광역시-30/유성구-30200/toilet/123-시험-화장실#place'))
+  assert.equal(place.url, encodeURI('https://geupddong.com/en/regions/daejeon-30/yuseong-gu-30200/toilet/123-시험-화장실'))
   assert.equal(place.name, detail.name)
   assert.equal(place.address.streetAddress, detail.roadAddress)
   assert.equal(place.description, englishToiletMetadata(detail).description)
@@ -197,6 +198,7 @@ test('English metadata keeps facility names and physical-place identity unchange
 test('English presentation distinguishes restrooms from fixtures and introduces Korea to travelers', () => {
   assert.match(englishHomeMetadata.title, /public restrooms in Korea/)
   assert.match(englishHomeMetadata.description, /travelers in Korea/)
+  assert.match(englishHomeMetadata.description, /free restroom/)
   const home = englishHomeData()
   for (const entity of home['@graph']) {
     assert.equal(entity.url, 'https://geupddong.com/en')
@@ -213,6 +215,15 @@ test('English presentation distinguishes restrooms from fixtures and introduces 
   const original = { id: 123, name: 'Original Toilet Name' }
   assert.equal(englishPlaceData(original).name, original.name)
   assert.match(englishToiletMetadata(original).title, /^Original Toilet Name/)
+})
+
+test('foreign search descriptions address free-restroom searches without claiming facilities are free', () => {
+  assert.equal(freeRestroomSearchPrompt('ko'), '')
+  for (const [locale, term] of [['en', 'free restroom'], ['ja', '無料トイレ'], ['zh-CN', '免费厕所'], ['zh-TW', '免費廁所'], ['zh-HK', '免費公廁']]) {
+    const prompt = freeRestroomSearchPrompt(locale)
+    assert.ok(prompt.includes(term), locale)
+    assert.match(prompt, /[?？]/u, locale)
+  }
 })
 
 test('the same map owns both routes; English preview remains gated and unindexed', async () => {

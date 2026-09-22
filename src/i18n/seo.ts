@@ -2,10 +2,11 @@ import type { ToiletDetailResponse } from '../api/toilets.ts'
 import { placeData, SITE_ORIGIN } from '../lib/seo.ts'
 import { regionToiletPath } from '../lib/regionToiletPath.ts'
 import { localizeToiletDetail, toiletTranslation } from './toiletTranslations.ts'
+import { freeRestroomSearchPrompt } from './searchCopy.ts'
 
 export const englishHomeMetadata = {
   title: 'Geupddong | Find public restrooms in Korea',
-  description: 'A public restroom map for travelers in Korea. Find nearby restrooms and check locations, opening hours and facilities during your trip.',
+  description: `A public restroom map for travelers in Korea. ${freeRestroomSearchPrompt('en')}`,
 } as const
 
 export function englishHomeData() {
@@ -35,5 +36,5 @@ export function englishToiletMetadata(detail: Pick<ToiletDetailResponse, 'name' 
 export function englishPlaceData(detail: ToiletDetailResponse) {
   // One physical place keeps its stable identity and source name across languages.
   const display = localizeToiletDetail(detail, 'en')
-  return { ...placeData(detail), name: display.name, url: `${SITE_ORIGIN}/en${regionToiletPath(detail)}`, description: englishToiletMetadata(detail).description }
+  return { ...placeData(detail), name: display.name, url: encodeURI(`${SITE_ORIGIN}/en${regionToiletPath(detail, 'en')}`), description: englishToiletMetadata(detail).description }
 }

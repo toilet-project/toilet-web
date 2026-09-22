@@ -15,6 +15,7 @@ import { HeaderIcon } from './HeaderIcon'
 import { NotificationMenu } from './NotificationMenu'
 import { regionText } from './regions/regionText'
 import { loadedNaverMapLanguage, naverMapLanguageForLocale, naverMapLanguageNeedsReload } from '../lib/mapProviderSelection'
+import type { Locale } from '../i18n/locale'
 
 function BottomIcon({ name }: { name: 'map' | 'regions' | 'notifications' | 'account' }) {
   const shape = name === 'map' ? <><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Z" /><path d="M9 3v16M15 5v16" /></>
@@ -24,7 +25,7 @@ function BottomIcon({ name }: { name: 'map' | 'regions' | 'notifications' | 'acc
   return <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{shape}</svg>
 }
 
-export function SiteHeader({ path }: { path: string }) {
+export function SiteHeader({ path, languagePaths }: { path: string; languagePaths?: Partial<Record<Locale, string>> }) {
   const locale = useLocale(), t = useMessages(), r = regionText(locale), router = useRouter()
   const [profile, setProfile] = useState<AuthProfile | null>(null)
   const [ready, setReady] = useState(false)
@@ -55,7 +56,7 @@ export function SiteHeader({ path }: { path: string }) {
         <NotificationMenu owner={profile?.userId ?? null} open={notificationsOpen} onOpenChange={setNotificationsOpen} unread={profile ? unread : 0} onLogin={() => router.push(account)} onCountChange={() => setNotificationVersion(value => value + 1)} onSessionExpired={() => { setProfile(null); setUnread(0) }} onOpenReport={id => router.push(`${account}?view=reports&report=${id}`)} />
         {ready && (profile ? <ProfileMenu profile={profile} onLogout={() => { void logout().then(() => { setProfile(null); router.push(home) }) }} /> : <Link className="site-header-login" href={account}><HeaderIcon name="account" /><span>{t('auth.login')}</span></Link>)}
         <LanguageSelector locale={locale} onSelect={next => {
-          const target = localizedPublicPath(path, next) ?? localizedPublicPath('/', next)!
+          const target = languagePaths?.[next] ?? localizedPublicPath(path, next) ?? localizedPublicPath('/', next)!
           // NAVER fixes label language when its SDK loads; switching it in-place leaves this map blank.
           if (naverMapLanguageNeedsReload(loadedNaverMapLanguage(), naverMapLanguageForLocale(next))) {
             window.location.assign(target)

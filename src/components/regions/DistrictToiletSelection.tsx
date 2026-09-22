@@ -67,7 +67,7 @@ export function DistrictToiletSelection({ toilets, locale, onClose }: { toilets:
           <ToiletDetailContents toilet={loaded} />
         </>}
       </div>
-      <Link className="district-selection-link" href={localizedPublicPath(regionToiletPath(active), locale)!}>{t('detail.show')}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg></Link>
+      <Link className="district-selection-link" href={localizedPublicPath(regionToiletPath(active, locale), locale)!}>{t('detail.show')}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg></Link>
     </> : <>
       <header className="district-selection-heading"><span className="card-label">{toilets.length.toLocaleString(locale)} {r.toilets}</span><h2>{localizeToiletMapItem(toilets[0], locale).displayGroupName || r.restroomList}</h2></header>
       <div className="district-selection-facilities">{toilets.map(toilet => <button key={toilet.id} type="button" onClick={() => choose(toilet.id)}><strong>{localizeToiletMapItem(toilet, locale).name}</strong><span>{t('detail.show')}</span></button>)}</div>

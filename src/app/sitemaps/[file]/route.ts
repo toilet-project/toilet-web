@@ -1,5 +1,6 @@
 import { MAX_SHARD, sitemapXml } from '../../../lib/seo'
 import { facilitySlug } from '../../../lib/regionToiletPath'
+import { localizedRegionPath } from '../../../lib/regions'
 import toiletRegions from '../../../../data/regions/toilet-district.json'
 import { getSitemapIds, sitemapUnavailable, xmlResponse } from '../../../server/sitemaps'
 
@@ -15,7 +16,7 @@ export async function GET(_request: Request, context: { params: Promise<{ file: 
     if (!ids.length) return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } })
     return xmlResponse(sitemapXml(ids.map(id => {
       const region = regions[id]
-      return region?.length === 2 ? `/regions/${region[0].slice(0, 2)}/${region[0]}/toilet/${id}-${facilitySlug(region[1])}` : `/toilet/${id}`
+      return region?.length === 2 ? `${localizedRegionPath('ko', region[0].slice(0, 2), region[0])}/toilet/${id}-${facilitySlug(region[1])}` : `/toilet/${id}`
     })))
   } catch { return sitemapUnavailable() }
 }

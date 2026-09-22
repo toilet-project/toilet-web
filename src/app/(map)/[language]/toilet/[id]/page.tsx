@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!locale) notFound()
   const detail = await getToilet(id)
   if (!detail) return { title: { absolute: message(locale, 'detail.missing') }, robots: { index: false, follow: false } }
-  const path = `/${language}${regionToiletPath(detail)}`
+  const path = `/${language}${regionToiletPath(detail, locale)}`
   return { title: { absolute: `${localizeToiletDetail(detail, locale).name} | Geupddong` }, alternates: { canonical: path } }
 }
 

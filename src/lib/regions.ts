@@ -4,6 +4,7 @@ import countSource from '../../data/regions/counts.json' with { type: 'json' }
 import districtNames from '../../data/regions/names.json' with { type: 'json' }
 import boundaryOverrides from '../../data/regions/toilet-boundary-overrides.json' with { type: 'json' }
 import type { Locale } from '../i18n/locale'
+import { urlName } from './urlName.ts'
 
 export type Position = [number, number]
 export type RegionGeometry = { type: 'Polygon' | 'MultiPolygon'; coordinates: Position[][] | Position[][][] }
@@ -107,6 +108,16 @@ export function regionPath(provinceCode?: string, districtCode?: string) {
   if (!getProvince(provinceCode)) return '/regions'
   if (!districtCode) return `/regions/${provinceCode}`
   return getDistrict(provinceCode, districtCode) ? `/regions/${provinceCode}/${districtCode}` : `/regions/${provinceCode}`
+}
+
+export function localizedRegionPath(locale: Locale, provinceCode?: string, districtCode?: string) {
+  if (!provinceCode) return '/regions'
+  const province = getProvince(provinceCode)
+  if (!province) return '/regions'
+  const provincePath = `/regions/${urlName(regionName(province, locale))}-${province.code}`
+  if (!districtCode) return provincePath
+  const district = getDistrict(province.code, districtCode)
+  return district ? `${provincePath}/${urlName(regionName(district, locale))}-${district.code}` : provincePath
 }
 
 export const regionSnapshot = { generatedAt: countSource.generatedAt, sourceCount: countSource.sourceCount, unassigned: countSource.unassigned }
