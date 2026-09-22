@@ -1,6 +1,6 @@
 import { isLocale, SUPPORTED_LOCALES, type Locale } from './locale.ts'
 
-const PUBLIC_PATH = /^\/(?:toilet\/[1-9]\d*|regions(?:\/[0-9]{2}(?:\/[0-9]{5}(?:\/toilet\/[1-9]\d*-[a-z0-9]+(?:-[a-z0-9]+)*)?)?)?|account|policies\/(?:all|terms|privacy|location))?$/
+const PUBLIC_PATH = /^\/(?:toilet\/[1-9]\d*|regions(?:\/[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*(?:\/[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*(?:\/toilet\/[1-9]\d*-[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*)?)?)?|account|policies\/(?:all|terms|privacy|location))?$/u
 
 export function localeForPath(path: string | null): Locale {
   return localePrefix(path ?? '').locale
@@ -36,9 +36,12 @@ export function parseLocalizedPublicPath(input: string): { locale: Locale; path:
   const boundary = input.search(/[?#]/)
   const rawPath = boundary < 0 ? input : input.slice(0, boundary)
   const suffix = boundary < 0 ? '' : input.slice(boundary)
-  // Do not interpret encoded separators, aliases or traversal as a supported route.
-  if (rawPath.includes('%') || rawPath.includes('//')) return null
-  const normalized = rawPath.length > 1 ? rawPath.replace(/\/$/, '') : rawPath
+  // Decode native-script names, but never interpret encoded ASCII separators or aliases.
+  if (/%[0-7][0-9a-f]/i.test(rawPath) || rawPath.includes('//')) return null
+  let decoded: string
+  try { decoded = decodeURIComponent(rawPath).normalize('NFC') } catch { return null }
+  if (decoded.includes('%') || decoded.includes('//')) return null
+  const normalized = decoded.length > 1 ? decoded.replace(/\/$/, '') : decoded
   const { locale, prefix } = localePrefix(normalized)
   const path = prefix ? normalized.slice(prefix.length) || '/' : normalized
   if (!PUBLIC_PATH.test(path)) return null

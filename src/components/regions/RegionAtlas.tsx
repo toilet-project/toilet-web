@@ -1,4 +1,4 @@
-import { districtsIn, getProvince, polygonParts, provinces, regionBounds, regionName, regionPath, type Region } from '../../lib/regions'
+import { districtsIn, getProvince, polygonParts, provinces, regionBounds, regionName, localizedRegionPath, type Region } from '../../lib/regions'
 import { localizedPublicPath } from '../../i18n/routes'
 import type { Locale } from '../../i18n/locale'
 import { regionText } from './regionText'
@@ -50,6 +50,6 @@ export function RegionAtlas({ locale, provinceCode }: { locale: Locale; province
       return { code: region.code, name: regionName(region, locale), mapName: !province && locale === 'ko' ? provinceMapNames[region.code] ?? region.name : regionName(region, locale), emphasized,
         count: region.count.toLocaleString(locale), anchor: project(anchor), alternatives: !province && !emphasized ? regionLabelOptions(region, anchor).map(project) : [], color: emphasized ? '#317756' : colors[index],
         surface, regionWidth: project([bounds.east, bounds.north])[0] - project([bounds.west, bounds.north])[0],
-        href: localizedPublicPath(regionPath(province?.code ?? region.code, province ? region.code : undefined), locale)!, path: pathFor(region, project) }
+        href: localizedPublicPath(localizedRegionPath(locale, province?.code ?? region.code, province ? region.code : undefined), locale)!, path: pathFor(region, project) }
     })} />
 }

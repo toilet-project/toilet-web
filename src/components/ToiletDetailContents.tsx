@@ -5,7 +5,7 @@ import Link from 'next/link'
 import type { ToiletDetailResponse } from '../api/toilets'
 import { getDisplayAddress } from '../lib/address'
 import { regionLabel } from '../lib/toiletRoute'
-import { districtForToilet, getProvince, regionName, regionPath } from '../lib/regions'
+import { districtForToilet, getProvince, regionName, localizedRegionPath } from '../lib/regions'
 import { localizedPublicPath } from '../i18n/routes'
 import { visibleCounts, hasValue, formatOpenTime, formatPhoneNumber, formatInstallationDate, formatFacilityLocation, type CountItem } from '../lib/detailFormatting'
 import { TRANSIENT_NOTICE_MS } from '../lib/uiTiming'
@@ -37,7 +37,7 @@ export function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse 
   return (
     <div className="card-details" tabIndex={0} aria-label={t('detail.title')}>
       {address && <DetailRow className="detail-address" label={t('detail.address')} value={address} copyable />}
-      {linkedRegion && district ? <div className="detail-row detail-region-link"><dt>{t('detail.region')}</dt><dd><Link href={localizedPublicPath(regionPath(district.provinceCode, district.code), locale)!}>{linkedRegion}<span aria-hidden="true">↗</span></Link></dd></div>
+      {linkedRegion && district ? <div className="detail-row detail-region-link"><dt>{t('detail.region')}</dt><dd><Link href={localizedPublicPath(localizedRegionPath(locale, district.provinceCode, district.code), locale)!}>{linkedRegion}<span aria-hidden="true">↗</span></Link></dd></div>
         : regionLabel(display.region) && <DetailRow label={t('detail.region')} value={regionLabel(display.region)} />}
       <DetailRow label={t('detail.openingDetails')} value={formatOpenTime(display, locale)} />
       {hasValue(display.installationDate) && <DetailRow label={t('detail.installed')} value={formatInstallationDate(display.installationDate, locale)} />}

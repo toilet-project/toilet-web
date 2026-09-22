@@ -5,6 +5,7 @@ import { Component, useCallback, useLayoutEffect, useRef, useState, useSyncExter
 import { useRouter } from 'next/navigation'
 import { MapRouteContext, type MapRouteData } from './mapRouteContext'
 import { toiletPath } from '../lib/toiletRoute'
+import { regionToiletPath } from '../lib/regionToiletPath'
 import { getReviewTestHash, subscribeReviewTestHash } from '../lib/reviewTestToilet'
 import { localeForPath, localizedPublicPath } from '../i18n/routes'
 import { rememberLocale, type Locale } from '../i18n/locale'
@@ -57,7 +58,9 @@ export function MapShell({ children }: { children: ReactNode }) {
   const [route, setRoute] = useState<MapRouteData | null>(null)
   const [mounted, setMounted] = useState(false)
   const register = useCallback((next: MapRouteData) => {
-    if (window.location.pathname.replace(/\/$/, '') !== next.path.replace(/\/$/, '')) return
+    let browserPath = window.location.pathname
+    try { browserPath = decodeURI(browserPath).normalize('NFC') } catch { return }
+    if (browserPath.replace(/\/$/, '') !== next.path.replace(/\/$/, '')) return
     setRoute(next)
   }, [])
   const onMounted = useCallback(() => setMounted(true), [])
@@ -67,7 +70,7 @@ export function MapShell({ children }: { children: ReactNode }) {
     routerRef.current.push(path + getReviewTestHash(), { scroll: false })
   }, [])
   const changeLocale = useCallback((locale: Locale, id: number | null) => {
-    const currentPath = id !== null && route?.detail?.id === id ? route.path : id === null ? '/' : toiletPath(id)
+    const currentPath = id !== null && route?.detail?.id === id ? regionToiletPath(route.detail, locale) : id === null ? '/' : toiletPath(id)
     const path = localizedPublicPath(currentPath, locale)
     if (!path) return
     try { rememberLocale(window.localStorage, locale) } catch { /* Preference storage is optional. */ }

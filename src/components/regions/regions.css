@@ -59,6 +59,13 @@
 .region-atlas-tooltip > div > span { color: #86a08e; font-size: 11px; }
 .region-district-layout { display: grid; flex: 1; min-height: 0; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .region-district-map-card { display: flex; flex-direction: column; }
+.region-facility-directory { flex: 0 0 auto; min-width: 0; margin: 0 10px 10px; border: 1px solid #e3ece5; border-radius: 12px; background: #fff; }
+.region-facility-directory > summary { padding: 10px 15px; color: #236442; font-size: 13px; cursor: pointer; }
+.region-facility-directory > summary:focus-visible { outline: 2px solid #31845a; outline-offset: -2px; }
+.region-facility-directory nav { max-height: min(35dvh, 360px); overflow-y: auto; border-top: 1px solid #e3ece5; }
+.region-facility-directory ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0 16px; margin: 0; padding: 6px 15px 12px; list-style: none; }
+.region-facility-directory a { display: block; padding: 8px 0; color: #304337; font-size: 13px; line-height: 1.4; text-decoration: none; overflow-wrap: anywhere; }
+.region-facility-directory a:hover, .region-facility-directory a:focus-visible { color: #176a42; text-decoration: underline; text-underline-offset: 3px; }
 .region-card-heading { flex: 0 0 auto; padding: 16px 20px 12px; }
 .region-card-heading h2 { margin: 5px 0 0; font-size: 18px; letter-spacing: -.03em; }
 .region-card-heading p { margin: 5px 0 0; color: #819889; font-size: 11px; }
@@ -126,6 +133,8 @@
   .region-district-layout { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 10px; }
   .region-district-map-card > .region-card-heading { display: none; }
   .district-map-wrap { margin: 0; border: 0; border-radius: 16px; }
+  .region-facility-directory { margin: 4px 0 0; }
+  .region-facility-directory nav { max-height: min(42dvh, 320px); }
   .region-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px 8px; }
   .region-card-heading .region-eyebrow { display: none; }
   .region-card-heading h2 { margin: 0; font-size: 13px; }

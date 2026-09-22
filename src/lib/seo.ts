@@ -24,8 +24,8 @@ export function placeData(detail: ToiletDetailResponse) {
   const region = detail.region
   return {
     '@context': 'https://schema.org', '@type': 'Place',
-    '@id': `${SITE_ORIGIN}${regionToiletPath(detail)}#place`,
-    url: `${SITE_ORIGIN}${regionToiletPath(detail)}`, name: detail.name,
+    '@id': `${encodeURI(SITE_ORIGIN + regionToiletPath(detail))}#place`,
+    url: encodeURI(SITE_ORIGIN + regionToiletPath(detail)), name: detail.name,
     ...(address ? { address: { '@type': 'PostalAddress', streetAddress: address, addressCountry: 'KR',
       ...(region?.sidoName ? { addressRegion: region.sidoName } : {}),
       ...(region?.sigunguName ? { addressLocality: region.sigunguName } : {}),
@@ -42,7 +42,7 @@ export function sitemapXml(paths: string[], index = false) {
   const escape = (value: string) => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
   const root = index ? 'sitemapindex' : 'urlset'
   const item = index ? 'sitemap' : 'url'
-  return `<?xml version="1.0" encoding="UTF-8"?><${root} xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${paths.map(path => `<${item}><loc>${escape(SITE_ORIGIN + path)}</loc></${item}>`).join('')}</${root}>`
+  return `<?xml version="1.0" encoding="UTF-8"?><${root} xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${paths.map(path => `<${item}><loc>${escape(encodeURI(SITE_ORIGIN + path))}</loc></${item}>`).join('')}</${root}>`
 }
 
 export function validateSitemapIds(value: unknown, shard?: number): number[] {

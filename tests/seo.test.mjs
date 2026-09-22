@@ -32,7 +32,7 @@ test('Place uses actual preferred address, validated region and coordinates',()=
   assert.equal(data.address.streetAddress,detail.roadAddress)
   assert.equal(data.address.addressLocality,'유성구')
   assert.equal(data.geo.latitude,36.3)
-  assert.match(data.url,/^https:\/\/geupddong\.com\/regions\/30\/30200\/toilet\/1-[a-z0-9-]+$/)
+  assert.equal(data.url, encodeURI('https://geupddong.com/regions/대전광역시-30/유성구-30200/toilet/1-검증-화장실'))
   assert.equal('openingHours' in data,false)
 })
 test('jibun fallback; no inferred region, missing/invalid coordinates omitted',()=>{
@@ -69,7 +69,7 @@ test('10000 URLs stay below XML limits without invented lastmod',()=>{
   assert.equal((xml.match(/<url>/g)||[]).length,10000)
   assert.ok(Buffer.byteLength(xml)<52_428_800)
   assert.doesNotMatch(xml,/lastmod|region/)
-  assert.match(sitemapXml(['/a?x=1&y=<x>']),/&amp;y=&lt;x&gt;/)
+  assert.match(sitemapXml(['/a?x=1&y=<x>']),/&amp;y=%3Cx%3E/)
   assert.match(sitemapXml(['/sitemaps/0.xml'],true),/<sitemapindex/)
 })
 test('production allows toilets; preview blocks crawling without advertising sitemap',()=>{

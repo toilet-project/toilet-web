@@ -1,11 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { allDistricts, districtAt, getDistrict, getProvince, provinces, regionName, regionPath, regionSnapshot } from '../src/lib/regions.ts'
+import { allDistricts, districtAt, getDistrict, getProvince, localizedRegionPath, provinces, regionName, regionPath, regionSnapshot } from '../src/lib/regions.ts'
 import { regionContains, districtForToilet } from '../src/lib/regions.ts'
 import preciseDistricts from '../data/regions/sgg-precise.json' with { type: 'json' }
 import boundaryOverrides from '../data/regions/toilet-boundary-overrides.json' with { type: 'json' }
-import { regionToiletPath } from '../src/lib/regionToiletPath.ts'
-import { localizedPublicPath, parseLocalizedPublicPath } from '../src/i18n/routes.ts'
+import { parseRegionToiletSegment, regionToiletPath } from '../src/lib/regionToiletPath.ts'
+import { codeFromRegionSegment, decodedRouteSegment } from '../src/lib/urlName.ts'
+import { isMapPath, localizedPublicPath, parseLocalizedPublicPath } from '../src/i18n/routes.ts'
 
 test('the current administrative map accounts for every assigned public toilet exactly once', () => {
   assert.equal(provinces.length, 16)
@@ -34,15 +35,31 @@ test('every mapped district has code-keyed names in all supported languages', ()
 
 test('a known point and detail resolve to stable region URLs in every locale', () => {
   assert.equal(districtAt(126.98, 37.57)?.code, '11110')
-  const detail = { id: 177, name: '사직주유소', latitude: 37.57, longitude: 126.98 }
+  const detail = { id: 177, name: '사직주유소', latitude: 37.57, longitude: 126.98,
+    translations: { en: { name: 'Sajik gas station' }, ja: { name: 'サジク給油所' }, 'zh-CN': { name: '社稷加油站' } } }
   const path = regionToiletPath(detail)
-  assert.equal(path, '/regions/11/11110/toilet/177-sajikjuyuso')
+  assert.equal(path, '/regions/서울특별시-11/종로구-11110/toilet/177-사직주유소')
+  assert.equal(regionToiletPath(detail, 'en'), '/regions/seoul-11/jongno-gu-11110/toilet/177-sajik-gas-station')
+  assert.equal(regionToiletPath(detail, 'ja'), '/regions/ソウル-11/鍾路区-11110/toilet/177-サジク給油所')
+  assert.equal(regionToiletPath(detail, 'zh-CN'), '/regions/首尔-11/钟路区-11110/toilet/177-社稷加油站')
+  assert.equal(regionToiletPath(detail, 'zh-TW'), '/regions/首爾-11/鐘路區-11110/toilet/177-사직주유소', 'missing translations do not invent names')
   for (const locale of ['ko', 'en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
-    const localized = localizedPublicPath(path, locale)
-    assert.equal(parseLocalizedPublicPath(localized).path, path)
+    const localized = localizedPublicPath(regionToiletPath(detail, locale), locale)
+    assert.equal(parseLocalizedPublicPath(localized).path, regionToiletPath(detail, locale))
     assert.equal(parseLocalizedPublicPath(localized).locale, locale)
+    assert.equal(parseLocalizedPublicPath(encodeURI(localized)).path, regionToiletPath(detail, locale))
+    assert.equal(isMapPath(encodeURI(localized)), true)
   }
   assert.equal(regionPath('11', '11110'), '/regions/11/11110')
+  assert.equal(localizedRegionPath('ko', '11', '11110'), '/regions/서울특별시-11/종로구-11110')
+  assert.equal(localizedRegionPath('en', '11', '11110'), '/regions/seoul-11/jongno-gu-11110')
+  assert.equal(codeFromRegionSegment('서울특별시-11', 2), '11')
+  assert.equal(decodedRouteSegment(encodeURIComponent('서울특별시-11')), '서울특별시-11')
+  assert.equal(decodedRouteSegment('서울특별시%2F11'), null)
+  assert.equal(codeFromRegionSegment('11110', 5), '11110')
+  assert.equal(codeFromRegionSegment('서울특별시-11110', 2), null)
+  assert.equal(parseRegionToiletSegment('177-サジク給油所'), 177)
+  assert.equal(parseRegionToiletSegment('177-sajikjuyuso'), 177, 'legacy slugs remain redirectable')
 })
 
 test('facilities outside the current map retain their existing detail URL', () => {
@@ -59,7 +76,7 @@ test('precise district assignment corrects a real border facility and its detail
   assert.equal(districtForToilet(257, longitude, latitude)?.code, '11140')
   assert.equal(districtForToilet(257, 126.98, 37.57)?.code, '11110', 'a moved facility must not retain its old correction')
   assert.equal(regionToiletPath({ id: 257, name: '무학봉체육관', latitude, longitude }),
-    '/regions/11/11140/toilet/257-muhakbongcheyukgwan')
+    '/regions/서울특별시-11/중구-11140/toilet/257-무학봉체육관')
 })
 
 test('the precise dataset and current snapshot cover the same 256 district codes', () => {
