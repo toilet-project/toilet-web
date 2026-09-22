@@ -1,4 +1,4 @@
-import type { ToiletDetailResponse } from '../api/toilets'
+import type { NormalizedOpeningHours, ToiletDetailResponse } from '../api/toilets'
 
 export const SHARED_TOILET_CACHE_SCHEMA = 1
 export const SHARED_TOILET_CACHE_PREFIX = `public-toilets/v${SHARED_TOILET_CACHE_SCHEMA}`
@@ -69,6 +69,39 @@ function translationMap(value: unknown) {
   return Object.keys(translations).length ? translations : undefined
 }
 
+function openingTime(value: unknown): value is string | null {
+  if (value === null) return true
+  if (typeof value !== 'string' || !/^\d{2}:\d{2}$/.test(value)) return false
+  return Number(value.slice(0, 2)) < 24 && Number(value.slice(3)) < 60
+}
+
+function normalizedOpeningHours(value: unknown): NormalizedOpeningHours | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const input = value as Record<string, unknown>
+  const { openingPolicy, open24h, status, confidence, parserVersion, holidayPolicy,
+    manualOverride, sourceChanged, schedules } = input
+  if (typeof openingPolicy !== 'string' || typeof status !== 'string'
+    || typeof parserVersion !== 'string' || typeof holidayPolicy !== 'string'
+    || (open24h !== null && typeof open24h !== 'boolean')
+    || (confidence !== null && (typeof confidence !== 'number' || !Number.isFinite(confidence)))
+    || typeof manualOverride !== 'boolean' || typeof sourceChanged !== 'boolean'
+    || !Array.isArray(schedules)) return null
+  const publicSchedules: NormalizedOpeningHours['schedules'] = []
+  for (const value of schedules) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+    const slot = value as Record<string, unknown>
+    const { dayOfWeek, slotIndex, startTime, endTime, crossesMidnight, closed } = slot
+    if (!Number.isSafeInteger(dayOfWeek) || (dayOfWeek as number) < 1 || (dayOfWeek as number) > 7
+      || !Number.isSafeInteger(slotIndex) || (slotIndex as number) < 0
+      || !openingTime(startTime) || !openingTime(endTime)
+      || typeof crossesMidnight !== 'boolean' || typeof closed !== 'boolean') return null
+    publicSchedules.push({ dayOfWeek: dayOfWeek as number, slotIndex: slotIndex as number,
+      startTime, endTime, crossesMidnight, closed })
+  }
+  return { openingPolicy, open24h, status, confidence, parserVersion, holidayPolicy,
+    manualOverride, sourceChanged, schedules: publicSchedules }
+}
+
 // Copy only the public detail contract. Extra origin fields can never leak into shared R2.
 export function sanitizePublicToiletDetail(value: unknown, expectedId: number): ToiletDetailResponse {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid toilet detail response')
@@ -91,7 +124,10 @@ export function sanitizePublicToiletDetail(value: unknown, expectedId: number): 
     femaleToiletCount: count(input.femaleToiletCount), femaleDisabledToiletCount: count(input.femaleDisabledToiletCount),
     femaleChildToiletCount: count(input.femaleChildToiletCount), agencyName: optionalString(input.agencyName),
     phoneNumber: optionalString(input.phoneNumber), openTime: optionalString(input.openTime),
-    openTimeDetail: optionalString(input.openTimeDetail), installationDate: optionalString(input.installationDate),
+    openTimeDetail: optionalString(input.openTimeDetail),
+    ...(Object.hasOwn(input, 'normalizedOpeningHours')
+      ? { normalizedOpeningHours: normalizedOpeningHours(input.normalizedOpeningHours) } : {}),
+    installationDate: optionalString(input.installationDate),
     hasEmergencyBell: optionalString(input.hasEmergencyBell), emergencyBellLocation: optionalString(input.emergencyBellLocation),
     hasCctv: optionalString(input.hasCctv), hasDiaperTable: optionalString(input.hasDiaperTable),
     diaperTableLocation: optionalString(input.diaperTableLocation), dataBaseDate: optionalString(input.dataBaseDate),
