@@ -17,6 +17,26 @@ test('public IDs are collected from same-origin sitemap shards only',async()=>{
   const ids=await collectPublicToiletIds({baseUrl:'https://preview.example',fetchImpl:async url=>response(routes.get(String(url)))})
   assert.deepEqual(ids,[2,1])
 })
+test('public ID discovery retries transient sitemap timeouts and server errors',async()=>{
+  const attempts=new Map(),waits=[]
+  const fetchImpl=async url=>{
+    const path=new URL(url).pathname,count=(attempts.get(path)||0)+1;attempts.set(path,count)
+    if(path==='/sitemap.xml'&&count===1)throw new DOMException('timed out','TimeoutError')
+    if(path==='/sitemap.xml')return response('<sitemapindex><loc>https://preview.example/sitemap-toilets-0.xml</loc></sitemapindex>')
+    if(path==='/sitemap-toilets-0.xml'&&count===1)return response('retry',{status:503})
+    return response('<urlset><loc>https://preview.example/toilet/7</loc></urlset>')
+  }
+  const ids=await collectPublicToiletIds({baseUrl:'https://preview.example',fetchImpl,retries:2,
+    waitImpl:async milliseconds=>waits.push(milliseconds)})
+  assert.deepEqual(ids,[7]);assert.equal(attempts.get('/sitemap.xml'),2);assert.equal(attempts.get('/sitemap-toilets-0.xml'),2)
+  assert.deepEqual(waits,[500,500])
+})
+test('public ID discovery does not retry permanent sitemap errors',async()=>{
+  let attempts=0
+  await assert.rejects(collectPublicToiletIds({baseUrl:'https://preview.example',retries:3,waitImpl:async()=>{},
+    fetchImpl:async()=>{attempts++;return response('missing',{status:404})}}),/Source request failed \(404\)/)
+  assert.equal(attempts,1)
+})
 test('checkpoint, bounded workers and cache evidence complete a sample',async()=>{
   const directory=await mkdtemp(join(tmpdir(),'prewarm-')),checkpointPath=join(directory,'checkpoint.json')
   const hits=new Map(),progress=[]

@@ -31,20 +31,35 @@ export function toiletIdsFromXml(xml,baseUrl){
 function requestSignal(timeoutMs){
   return AbortSignal.timeout(positiveInteger(timeoutMs,'request timeout',{maximum:300_000}))
 }
-async function checkedText(fetchImpl,url,timeoutMs=30_000){
-  const response=await fetchImpl(url,{headers:{'user-agent':'geupddong-cache-prewarm/1'},signal:requestSignal(timeoutMs)})
-  if(!response.ok) throw new Error(`Source request failed (${response.status})`)
-  return response.text()
+const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds))
+const sourceRetryDelay=attempt=>Math.min(500*2**attempt,10_000)
+async function checkedText(fetchImpl,url,timeoutMs=30_000,retries=3,waitImpl=wait){
+  for(let attempt=0;attempt<=retries;attempt++){
+    let response
+    try{
+      response=await fetchImpl(url,{headers:{'user-agent':'geupddong-cache-prewarm/1'},signal:requestSignal(timeoutMs)})
+      if(response.ok)return await response.text()
+    }catch(error){
+      if(attempt===retries)throw error
+      await waitImpl(sourceRetryDelay(attempt));continue
+    }
+    await response.arrayBuffer().catch(()=>{})
+    if(![408,425,429].includes(response.status)&&response.status<500)throw new Error(`Source request failed (${response.status})`)
+    if(attempt===retries)throw new Error(`Source request failed (${response.status})`)
+    await waitImpl(sourceRetryDelay(attempt))
+  }
+  throw new Error('Source request failed')
 }
-export async function collectPublicToiletIds({fetchImpl=fetch,baseUrl,mode='all',ids=[],shard,requestTimeoutMs=30_000}){
+export async function collectPublicToiletIds({fetchImpl=fetch,baseUrl,mode='all',ids=[],shard,requestTimeoutMs=30_000,
+  retries=3,waitImpl=wait}){
   if(mode==='ids') return [...new Set(ids.map(id=>positiveInteger(id,'toilet ID')))]
-  const index=await checkedText(fetchImpl,`${baseUrl}/sitemap.xml`,requestTimeoutMs)
+  const index=await checkedText(fetchImpl,`${baseUrl}/sitemap.xml`,requestTimeoutMs,retries,waitImpl)
   const shards=xmlLocations(index).map(location=>new URL(location,new URL(baseUrl)))
     .filter(url=>url.origin===new URL(baseUrl).origin && /^\/sitemap-toilets-\d+\.xml$/.test(url.pathname))
   const selected=mode==='shard' ? shards.filter(url=>url.pathname===`/sitemap-toilets-${positiveInteger(shard,'shard',{minimum:0})}.xml`) : shards
   if(!selected.length) throw new Error('No matching toilet sitemap shards')
   const found=[]
-  for(const url of selected) found.push(...toiletIdsFromXml(await checkedText(fetchImpl,url,requestTimeoutMs),baseUrl))
+  for(const url of selected) found.push(...toiletIdsFromXml(await checkedText(fetchImpl,url,requestTimeoutMs,retries,waitImpl),baseUrl))
   return [...new Set(found)]
 }
 export async function readDeploymentVersion(fetchImpl,baseUrl,requestTimeoutMs=30_000){
@@ -75,7 +90,6 @@ function retryDelay(response,attempt){
   const header=Number(response?.headers?.get?.('retry-after'))
   return Number.isFinite(header)&&header>=0 ? Math.min(header*1000,30_000) : Math.min(500*2**attempt,10_000)
 }
-const wait=milliseconds=>new Promise(resolve=>setTimeout(resolve,milliseconds))
 export async function requestDetail({fetchImpl,id,baseUrl,retries,requestTimeoutMs=30_000,waitImpl=wait,onRequest}){
   for(let attempt=0;attempt<=retries;attempt++){
     let response
