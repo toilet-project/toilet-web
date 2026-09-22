@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
 import test from 'node:test'
 import {applySharedToiletInvalidation,readThroughSharedToiletCache,refreshSharedToiletCache,SHARED_TOILET_CACHE_SCHEMA,sharedToiletCacheKey} from '../src/server/sharedToiletCache.ts'
+import {formatOpenTime} from '../src/lib/detailFormatting.ts'
 
 class FakeR2 {
   objects=new Map(); sequence=0
@@ -26,6 +27,12 @@ function detail(id,name='공개 화장실'){
     maleToiletCount:1,maleUrinalCount:1,maleDisabledToiletCount:0,maleDisabledUrinalCount:0,maleChildToiletCount:0,maleChildUrinalCount:0,
     femaleToiletCount:1,femaleDisabledToiletCount:0,femaleChildToiletCount:0,agencyName:'기관',phoneNumber:'',openTime:'상시',openTimeDetail:'',
     installationDate:'',hasEmergencyBell:'N',emergencyBellLocation:'',hasCctv:'N',hasDiaperTable:'N',diaperTableLocation:'',dataBaseDate:'2026-09-15',dataSource:'공공데이터'}
+}
+
+function hours(openingPolicy='SCHEDULED'){
+  return {openingPolicy,open24h:false,status:'CONFIRMED',confidence:0.95,parserVersion:'v2',holidayPolicy:'CLOSED',
+    manualOverride:true,sourceChanged:false,schedules:[{dayOfWeek:1,slotIndex:0,startTime:'09:00',endTime:'18:00',
+      crossesMidnight:false,closed:false}]}
 }
 
 test('public detail is reused across callers and extra personal fields never persist',async()=>{
@@ -55,6 +62,59 @@ test('public translation fields persist safely while malformed locale entries ar
   })
   assert.equal(bucket.value(18).data.privateTranslationToken,undefined)
   assert.equal(Object.hasOwn(bucket.value(18).data.translations,'__proto__'),false)
+})
+
+test('structured opening hours are stored without extra origin or nested fields',async()=>{
+  const bucket=new FakeR2()
+  const value={...hours(),reviewerEmail:'private@example.test',schedules:[
+    {...hours().schedules[0],reviewNote:'private'}]}
+  await readThroughSharedToiletCache({bucket,toiletId:19,
+    fetchOrigin:async()=>({...detail(19),normalizedOpeningHours:value}),now:()=>1000})
+  assert.deepEqual(bucket.value(19).data.normalizedOpeningHours,hours())
+  assert.equal(bucket.value(19).data.normalizedOpeningHours.reviewerEmail,undefined)
+  assert.equal(bucket.value(19).data.normalizedOpeningHours.schedules[0].reviewNote,undefined)
+  assert.equal(formatOpenTime(bucket.value(19).data,'en'),'Mon 09:00–18:00 · Closed on public holidays')
+  assert.equal(formatOpenTime(bucket.value(19).data,'ja'),'月 09:00–18:00 · 祝日は利用不可')
+})
+
+test('old v1 records without structured hours stay usable until the scheduled refresh',async()=>{
+  const bucket=new FakeR2();let calls=0
+  await bucket.put(sharedToiletCacheKey(20),JSON.stringify({schema:SHARED_TOILET_CACHE_SCHEMA,toiletId:20,
+    revision:0,state:'data',storedAt:1000,freshUntil:2_593_000,staleUntil:3_197_000,data:detail(20)}))
+  const cached=await readThroughSharedToiletCache({bucket,toiletId:20,
+    fetchOrigin:async()=>{calls++;return {...detail(20),normalizedOpeningHours:hours()}},now:()=>2000})
+  assert.equal(calls,0)
+  assert.equal(cached.normalizedOpeningHours,undefined)
+  const refreshed=await refreshSharedToiletCache({bucket,toiletId:20,
+    fetchOrigin:async()=>{calls++;return {...detail(20),normalizedOpeningHours:hours(),
+      translations:{en:{name:'Restroom',roadAddress:'Road',jibunAddress:null}}}},now:()=>3000})
+  assert.equal(calls,1)
+  assert.deepEqual(refreshed.data.normalizedOpeningHours,hours())
+  assert.equal(refreshed.data.translations.en.name,'Restroom')
+})
+
+test('translation and opening-hours changes invalidate the old object before repopulation',async()=>{
+  const bucket=new FakeR2();let calls=0
+  await readThroughSharedToiletCache({bucket,toiletId:21,now:()=>1000,fetchOrigin:async()=>{
+    calls++;return {...detail(21),normalizedOpeningHours:hours(),translations:{en:{name:'Old',roadAddress:null,jibunAddress:null}}}
+  }})
+  await applySharedToiletInvalidation(bucket,{toiletId:21,revision:1,action:'UPSERT',catalogChanged:true},()=>2000)
+  assert.equal(bucket.value(21).state,'invalidated')
+  const current=await readThroughSharedToiletCache({bucket,toiletId:21,now:()=>3000,fetchOrigin:async()=>{
+    calls++;return {...detail(21),normalizedOpeningHours:hours('ALWAYS'),translations:{
+      en:{name:'Updated',roadAddress:null,jibunAddress:null},ja:{name:'更新',roadAddress:null,jibunAddress:null}}}
+  }})
+  assert.equal(calls,2)
+  assert.equal(current.normalizedOpeningHours.openingPolicy,'ALWAYS')
+  assert.equal(current.translations.ja.name,'更新')
+  assert.equal(bucket.value(21).state,'data')
+})
+
+test('invalid structured hours cannot be mistaken for a confirmed schedule',async()=>{
+  const bucket=new FakeR2()
+  await readThroughSharedToiletCache({bucket,toiletId:22,fetchOrigin:async()=>({...detail(22),
+    normalizedOpeningHours:{...hours(),schedules:[{...hours().schedules[0],startTime:'25:99'}]}}),now:()=>1000})
+  assert.equal(bucket.value(22).data.normalizedOpeningHours,null)
 })
 
 test('an incompatible object is conditionally replaced from the public origin',async()=>{
