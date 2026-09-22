@@ -15,7 +15,11 @@ for (const path of ['/', '/robots.txt', `/toilet/${id}`, `/toilet/${id}`, '/toil
   if (path === '/robots.txt') assert.match(html,/Disallow: \//)
   else assert.match(response.headers.get('x-robots-tag') || '', /noindex/)
   if(path === `/toilet/${id}`) {
-    assert.ok(html.includes(`https://geupddong.com/toilet/${id}`),'canonical')
+    const canonical = html.match(/<link rel="canonical" href="([^"]+)"/)
+    assert.ok(canonical, 'canonical')
+    const canonicalUrl = new URL(canonical[1])
+    assert.equal(canonicalUrl.origin, 'https://geupddong.com')
+    assert.match(canonicalUrl.pathname, new RegExp(`^/regions/\\d{2}/\\d{5}/toilet/${id}-[^/]+$`))
     const match=html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)
     assert.ok(match,'server JSON-LD')
     assert.equal(JSON.parse(match[1])['@type'],'Place')
