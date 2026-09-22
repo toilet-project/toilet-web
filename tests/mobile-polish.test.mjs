@@ -89,35 +89,20 @@ test('all login entry surfaces put Google before Kakao with matching provider ha
   }
 })
 
-test('community uses the shared three-second transient notice without navigating', async () => {
+test('the former community tab opens the localized region atlas', async () => {
   const nav = await source('../src/components/MobileNavigation.tsx')
-  const app = await source('../src/App.tsx')
-  const hint = await source('../src/components/reviews/ReviewEntryHint.tsx')
-  const preview = await source('../src/components/reviews/ReviewPreview.tsx')
-  const detail = await source('../src/components/ToiletDetailContents.tsx')
-  const css = await source('../src/components/mobile-navigation.css')
-  const timing = await source('../src/lib/uiTiming.ts')
-  assert.doesNotMatch(nav, /coming soon/)
-  assert.match(nav, /onClick=\{showCommunityNotice\}/)
-  assert.match(nav, /t\('nav.comingSoon'\)/)
   const { message } = await import('../src/i18n/messages.ts')
-  assert.equal(message('ko', 'nav.comingSoon'), '준비 중이에요')
-  assert.match(nav, /TRANSIENT_NOTICE_MS/)
-  assert.match(timing, /TRANSIENT_NOTICE_MS = 3_000/)
-  assert.match(nav, /clearTimeout\(noticeTimer.current\)/)
-  assert.match(nav, /role="status" aria-live="polite"/)
-  for (const transient of [nav, app, hint, preview, detail]) {
-    assert.match(transient, /document\.addEventListener\('pointerdown',\s*dismiss/)
-    assert.match(transient, /document\.addEventListener\('keydown',\s*dismiss/)
-  }
-  assert.doesNotMatch(css, /last-of-type\s*\{\s*height: 23px/)
+  assert.match(nav, /href=\{localizedPublicPath\('\/regions', locale\)!\}/)
+  assert.match(nav, /<Icon name="regions"/)
+  assert.equal(message('ko', 'nav.community'), '지역별')
+  assert.doesNotMatch(nav, /showCommunityNotice|comingSoon/)
 })
 
 test('compact navigation retains readable labels, touch targets and safe-area padding', async () => {
   const css = await source('../src/components/mobile-navigation.css')
-  assert.match(css, /\.mobile-navigation button\s*\{[^}]*min-height: 52px/)
+  assert.match(css, /\.mobile-navigation button, \.mobile-navigation a\s*\{[^}]*min-height: 52px/)
   assert.match(css, /max\(2px, env\(safe-area-inset-bottom\)\)/)
-  assert.match(css, /\.mobile-navigation button\s*\{[^}]*font-size: 11px/)
+  assert.match(css, /\.mobile-navigation button, \.mobile-navigation a\s*\{[^}]*font-size: 11px/)
 })
 
 test('future toilet metrics are placeholders in a 44px row, with a labeled report action', async () => {

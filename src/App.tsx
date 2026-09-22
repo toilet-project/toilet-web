@@ -7,7 +7,11 @@ import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, typ
 import { createDetailCache } from './lib/detailCache'
 import { createCardHandleGesture, createMarkerTapGesture, createReferenceRequestGate, relayoutPreservingCenter } from './lib/mapInteraction'
 import { cardPlacement } from './lib/cardPlacement'
-import { DesktopHeaderMenu } from './components/DesktopHeaderMenu'
+import { ToiletListItem } from './components/ToiletListItem'
+import { ProfileMenu } from './components/ProfileMenu'
+import { PrimaryNavigation } from './components/PrimaryNavigation'
+import { HeaderIcon } from './components/HeaderIcon'
+import { SiteFooter } from './components/SiteFooter'
 import { LanguageSelector } from './components/LanguageSelector'
 import { toiletTypeLabel } from './i18n/facilityLabels'
 import { mapSystemNotice, localizeMapLabels } from './i18n/mapLabels'
@@ -37,9 +41,8 @@ import { searchPlaces } from './lib/placeSearch'
 import type { PlaceSearchResult } from './lib/placeSearchTypes'
 import { ToiletReportModal } from './components/ToiletReportModal'
 import { MyReportsPanel } from './components/MyReportsPanel'
-import { NotificationPanel } from './components/NotificationPanel'
+import { NotificationMenu } from './components/NotificationMenu'
 import { PolicyConsentModal } from './components/PolicyConsentModal'
-import { PolicyFooter } from './components/PolicyPage'
 import { AccountDialog } from './components/AccountDialog'
 import { AccountRecoveryDialog } from './components/AccountRecoveryDialog'
 import { fetchUnreadNotificationCount } from './api/notifications'
@@ -108,13 +111,6 @@ function scrollCoordinateGroupItem(list: HTMLElement, item: HTMLElement, behavio
   const itemBounds = item.getBoundingClientRect()
   const top = list.scrollTop + itemBounds.top - listBounds.top - 8
   list.scrollTo({ top: Math.max(0, top), behavior })
-}
-
-function toiletTypeTone(toiletType?: string) {
-  const normalizedType = toiletType?.replace(/\s/g, '') ?? ''
-  if (normalizedType.includes('개방')) return 'is-open'
-  if (normalizedType.includes('제보')) return 'is-reported'
-  return 'is-public'
 }
 
 function coordinateGroupFloor(name: string) {
@@ -304,6 +300,13 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const [isPlaceSearching, setIsPlaceSearching] = useState(false)
   const [activePlaceSearchIndex, setActivePlaceSearchIndex] = useState(-1)
   const [isPlaceSearchFocused, setIsPlaceSearchFocused] = useState(false)
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search).get('q')?.trim()
+    if (query && query.length >= 2 && query.length <= 100) {
+      setPlaceSearchKeyword(query)
+      setIsPlaceSearchFocused(true)
+    }
+  }, [])
   const [isMobileAreaListOpen, setIsMobileAreaListOpen] = useState(false)
   const isMobileAreaListVisible = isMobileAreaListOpen && !route.detail
   const [mobileAreaToilets, setMobileAreaToilets] = useState<ToiletMapItem[] | null>(null)
@@ -322,8 +325,16 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
   const [isAccountOpen, setIsAccountOpen] = useState(false)
-  const [mobileTab, setMobileTab] = useState<MobileTab>('map')
-  const [mobileAccountView, setMobileAccountView] = useState<MobileAccountView>('home')
+  const [incomingMobileView] = useState(() => {
+    if (typeof window === 'undefined' || window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) return null
+    const query = new URLSearchParams(window.location.search)
+    const tab = query.get('tab')
+    if (tab !== 'account' && tab !== 'notifications') return null
+    const view = query.get('view')
+    return { tab, view: tab === 'account' && (view === 'settings' || view === 'reports') ? view : 'home' } as const
+  })
+  const [mobileTab, setMobileTab] = useState<MobileTab>(incomingMobileView?.tab ?? 'map')
+  const [mobileAccountView, setMobileAccountView] = useState<MobileAccountView>(incomingMobileView?.view ?? 'home')
   useEffect(() => {
     if (isDesktop || mobileTab === 'map' || mobileAccountView === 'reviews') return
     const screen = mobileTab === 'notifications' ? 'notifications'
@@ -389,6 +400,15 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       return Boolean(profile && profile.userId === authProfile?.userId && profile.status === 'ACTIVE' && !profile.consentRequired)
     },
   }, { embedded: !isDesktop, toiletId: expandedCoordinateToilet?.id ?? selectedToilet?.id, contextKey: `${selectedToilet?.id}:${expandedCoordinateToilet?.id}:${mobileTab}:${testToiletHash}`, onOpen: () => { if (!isDesktop) { setMobileTab('account'); setMobileAccountView('reviews') } }, onClose: () => setMobileAccountView('home') })
+  const openedIncomingReview = useRef(false)
+  useEffect(() => {
+    if (isAuthLoading || !authProfile || openedIncomingReview.current || window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) return
+    const query = new URLSearchParams(window.location.search)
+    if (query.get('tab') === 'account' && query.get('view') === 'reviews' && REVIEW_UI_ENABLED) {
+      openedIncomingReview.current = true
+      void reviewPreview.openMine()
+    }
+  }, [isAuthLoading, authProfile, reviewPreview])
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(DESKTOP_LAYOUT_QUERY)
@@ -1536,19 +1556,15 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
             ><strong>{place.name}</strong><span className="place-search-result-detail"><small>{place.category || t('map.place')}</small><span>{place.address || t('map.noAddress')}</span></span></button>)}
           </div>}
         </div>
+        {isDesktop && <PrimaryNavigation className="desktop-primary-nav" active="map" />}
         {!isDesktop && <div className="mobile-header-actions">
-          {ENGLISH_UI_ENABLED ? <LanguageSelector locale={locale} onSelect={next => onLocaleChange(next, testToilet ? null : selectedToilet?.id ?? expandedCoordinateToilet?.id ?? null)} /> : <>
-          {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => setMobileTab('account')}>로그인</button>}
-          <DesktopHeaderMenu compact authenticated={Boolean(authProfile)} onReports={openMyReports} onAccount={() => { reviewPreview.close(); setMobileTab('account'); setMobileAccountView('home') }} onLogout={handleLogout} />
-          </>}
+          {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => setMobileTab('account')}>{t('auth.login')}</button>}
+          {ENGLISH_UI_ENABLED && <LanguageSelector locale={locale} onSelect={next => onLocaleChange(next, testToilet ? null : selectedToilet?.id ?? expandedCoordinateToilet?.id ?? null)} />}
         </div>}
         {isDesktop && <div className="desktop-header-actions">
-          {isAuthLoading ? <span className="auth-status">{t('map.checking')}</span> : authProfile ? <>
-            <button type="button" className="notification-button" onClick={() => setIsNotificationsOpen(true)} aria-label={unreadNotificationCount ? t('map.unread', { count: unreadNotificationCount }) : t('nav.notifications')}><span aria-hidden="true" />{unreadNotificationCount > 0 && <strong>{unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}</strong>}</button>
-            <button type="button" className="header-account-button" onClick={() => setIsAccountOpen(true)}>{t('auth.account')}</button>
-          </> : <button type="button" className="header-account-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}>{t('auth.login')}</button>}
+          <NotificationMenu owner={authProfile?.userId ?? null} open={isNotificationsOpen} onOpenChange={setIsNotificationsOpen} unread={unreadNotificationCount} onLogin={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }} onCountChange={refreshNotificationCount} onSessionExpired={handleSessionExpired} onOpenReport={showReportHistory} />
+          {isAuthLoading ? <span className="auth-status">{t('map.checking')}</span> : authProfile ? <ProfileMenu profile={authProfile} onLogout={handleLogout} /> : <button type="button" className="header-account-button" onClick={() => { setLoginPurpose('general'); setIsLoginDialogOpen(true) }}><HeaderIcon name="account" /><span>{t('auth.login')}</span></button>}
           {ENGLISH_UI_ENABLED && <LanguageSelector locale={locale} onSelect={next => onLocaleChange(next, testToilet ? null : selectedToilet?.id ?? expandedCoordinateToilet?.id ?? null)} />}
-          <DesktopHeaderMenu authenticated={Boolean(authProfile)} onReviews={REVIEW_UI_ENABLED ? reviewPreview.openMine : undefined} onReports={openMyReports} onAccount={() => setIsAccountOpen(true)} onLogout={handleLogout} />
         </div>}
         </div>
       </header>
@@ -1598,36 +1614,25 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
             {!isListZoomLimited && areaToilets.length === 0 && !isLoading && <p className="desktop-area-list-status">{t('map.empty')}</p>}
             {!isListZoomLimited && sortedAreaToiletGroups.map((group) => {
               const representative = representativeToilet(group)
-              const displayName = group.displayGroupName || representative.name
-              const additionalCount = group.count - 1
               const distance = distanceReference ? formatDistance(calculateDistanceInMeters(distanceReference, representative)) : '—'
-              return <button key={`${group.latitude}:${group.longitude}`} type="button" className="desktop-area-list-item" onClick={() => selectMobileAreaToilet(representative)}>
-                <strong><span className="desktop-area-list-name">{displayName || t('map.unnamed')}</span>{additionalCount > 0 && <span className="desktop-area-list-additional">{group.displayGroupName ? t('map.facilities', { count: additionalCount + 1 }) : `+${additionalCount}`}</span>}</strong>
-                <span className={`desktop-area-list-type ${toiletTypeTone(representative.toiletType)}`}>{toiletTypeLabel(representative.toiletType || '공중화장실', locale)}</span>
-                <span className="desktop-area-list-distance">{distance}</span>
-              </button>
+              return <ToiletListItem key={`${group.latitude}:${group.longitude}`} id={representative.id} name={group.displayGroupName || representative.name || ''} type={representative.toiletType} count={group.count} distance={distance}
+                active={selectedToilet?.id === representative.id || selectedCoordinateGroup?.latitude === group.latitude && selectedCoordinateGroup?.longitude === group.longitude}
+                onSelect={() => selectMobileAreaToilet(representative)} />
             })}
           </div>
         </aside>}
         {isMobileAreaListVisible && <aside className="mobile-area-list" aria-label={t('map.list')}>
           <button className="mobile-area-list-handle" type="button" onClick={() => setIsMobileAreaListOpen(false)} aria-label={t('map.closeList')} />
-          {!isListZoomLimited && <div className="mobile-area-list-header"><span>{t('map.name')}</span><span>{t('map.type')}</span><span>{t('map.distance')}</span></div>}
+          {!isListZoomLimited && <div className="mobile-area-list-header"><strong>{t('map.area', { count: result?.meta.total_count.toLocaleString(locale) ?? 0 })}</strong><span>{t(distanceSource === 'current-location' ? 'map.nearest' : 'map.nearestPoint')}</span></div>}
           <div className="mobile-area-list-content">
             {!isListZoomLimited && isMobileAreaListLoading && <p className="mobile-area-list-status">{t('common.loading')}</p>}
             {!isListZoomLimited && !isMobileAreaListLoading && areaToilets.length === 0 && <p className="mobile-area-list-status">{t('map.empty')}</p>}
             {!isListZoomLimited && !isMobileAreaListLoading && sortedAreaToiletGroups.map((group) => {
               const representative = representativeToilet(group)
-              const displayName = group.displayGroupName || representative.name
-              const additionalCount = group.count - 1
               const distance = distanceReference ? formatDistance(calculateDistanceInMeters(distanceReference, representative)) : '—'
-              return <button key={`${group.latitude}:${group.longitude}`} type="button" className="mobile-area-list-item" onClick={() => selectMobileAreaToilet(representative)}>
-                <strong>
-                  <span className="mobile-area-list-name">{displayName || t('map.unnamed')}</span>
-                  {additionalCount > 0 && <span className="mobile-area-list-additional">{group.displayGroupName ? t('map.facilities', { count: additionalCount + 1 }) : `+${additionalCount}`}</span>}
-                </strong>
-                <span className={`mobile-area-list-type ${toiletTypeTone(representative.toiletType)}`}>{toiletTypeLabel(representative.toiletType || '공중화장실', locale)}</span>
-                <span className="mobile-area-list-distance">{distance}</span>
-              </button>
+              return <ToiletListItem key={`${group.latitude}:${group.longitude}`} id={representative.id} name={group.displayGroupName || representative.name || ''} type={representative.toiletType} count={group.count} distance={distance}
+                active={selectedToilet?.id === representative.id || selectedCoordinateGroup?.latitude === group.latitude && selectedCoordinateGroup?.longitude === group.longitude}
+                onSelect={() => selectMobileAreaToilet(representative)} />
             })}
           </div>
         </aside>}
@@ -1734,7 +1739,6 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); showReportHistory() }} />}
         {reviewPreview.modal}
         {authProfile && isDesktop && isMyReportsOpen && <MyReportsPanel key={`reports-${authProfile.userId}`} onSessionExpired={handleSessionExpired} initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
-        {authProfile && isDesktop && isNotificationsOpen && <NotificationPanel key={`inbox-${authProfile.userId}`} unread={unreadNotificationCount} onSessionExpired={handleSessionExpired} onClose={() => setIsNotificationsOpen(false)} onCountChange={refreshNotificationCount} onOpenReport={(reportId) => { setIsNotificationsOpen(false); showReportHistory(reportId) }} />}
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
         {authProfile?.consentRequired && <PolicyConsentModal isNewRegistration={authProfile.status === 'PENDING_CONSENT'} onComplete={handleConsentComplete} onLogout={handleLogout} />}
         {authProfile && isAccountOpen && <AccountDialog profile={authProfile} onClose={() => setIsAccountOpen(false)} onWithdrawn={handleWithdrawn} />}
@@ -1746,7 +1750,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         </section></div>}
         {!isAuthLoading && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('recovery') === 'required' && <AccountRecoveryDialog />}
       </section>
-      {isDesktop ? <footer className="site-footer"><p>{t('map.footer')}</p><PolicyFooter /></footer> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { reviewPreview.close(); setMobileAccountView('home'); setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
+      {isDesktop ? <SiteFooter /> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { reviewPreview.close(); setMobileAccountView('home'); setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
     </main>
   )
 }

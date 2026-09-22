@@ -32,7 +32,7 @@ test('Place uses actual preferred address, validated region and coordinates',()=
   assert.equal(data.address.streetAddress,detail.roadAddress)
   assert.equal(data.address.addressLocality,'유성구')
   assert.equal(data.geo.latitude,36.3)
-  assert.equal(data.url,'https://geupddong.com/toilet/1')
+  assert.match(data.url,/^https:\/\/geupddong\.com\/regions\/30\/30200\/toilet\/1-[a-z0-9-]+$/)
   assert.equal('openingHours' in data,false)
 })
 test('jibun fallback; no inferred region, missing/invalid coordinates omitted',()=>{
@@ -64,7 +64,7 @@ test('sitemap validates ordered bounded IDs and fixed shard boundaries',()=>{
   assert.deepEqual(validateSitemapIds([0,2,90]),[0,2,90])
   assert.throws(()=>validateSitemapIds([MAX_SHARD+1]))
 })
-test('10000 URLs stay below XML limits; no invented lastmod or region URLs',()=>{
+test('10000 URLs stay below XML limits without invented lastmod',()=>{
   const xml=sitemapXml(Array.from({length:10000},(_,i)=>`/toilet/${i+1}`))
   assert.equal((xml.match(/<url>/g)||[]).length,10000)
   assert.ok(Buffer.byteLength(xml)<52_428_800)

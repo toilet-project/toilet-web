@@ -67,7 +67,8 @@ export function MapShell({ children }: { children: ReactNode }) {
     routerRef.current.push(path + getReviewTestHash(), { scroll: false })
   }, [])
   const changeLocale = useCallback((locale: Locale, id: number | null) => {
-    const path = localizedPublicPath(id === null ? '/' : toiletPath(id), locale)
+    const currentPath = id !== null && route?.detail?.id === id ? route.path : id === null ? '/' : toiletPath(id)
+    const path = localizedPublicPath(currentPath, locale)
     if (!path) return
     try { rememberLocale(window.localStorage, locale) } catch { /* Preference storage is optional. */ }
     const target = path + window.location.search + window.location.hash
@@ -80,7 +81,7 @@ export function MapShell({ children }: { children: ReactNode }) {
       return
     }
     routerRef.current.push(target, { scroll: false })
-  }, [])
+  }, [route])
   return <MapRouteContext.Provider value={{ mounted, register }}>
     <MapErrorBoundary locale={locale}>{route && <MapApp key={testToiletHash} testToiletHash={testToiletHash} route={route} onNavigate={navigate} onLocaleChange={changeLocale} onMounted={onMounted} />}</MapErrorBoundary>
     {children}

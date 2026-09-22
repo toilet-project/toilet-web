@@ -16,9 +16,9 @@ import { toiletTypeLabel } from '../i18n/facilityLabels'
 import { message } from '../i18n/messages'
 import { localizeToiletDetail } from '../i18n/toiletTranslations'
 
-export function ToiletRouteBridge({ detail, locale = 'ko' }: { detail: ToiletDetailResponse | null; locale?: Locale }) {
+export function ToiletRouteBridge({ detail, locale = 'ko', path: overridePath }: { detail: ToiletDetailResponse | null; locale?: Locale; path?: string }) {
   const { mounted, register } = useMapRouteContext()
-  const path = localizedPublicPath(detail ? toiletPath(detail.id) : '/', locale)!
+  const path = overridePath ?? localizedPublicPath(detail ? toiletPath(detail.id) : '/', locale)!
   const t = (key: Parameters<typeof message>[1]) => message(locale, key)
   const reviewsEnabled = process.env.NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW === 'true' || process.env.NEXT_PUBLIC_REVIEW_API_ENABLED === 'true'
   const displayDetail = detail ? localizeToiletDetail(detail, locale) : null

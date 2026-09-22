@@ -9,6 +9,9 @@ import '../components/mobile-navigation.css'
 import '../components/app-update.css'
 import '../components/reviews/reviews.css'
 import '../components/history.css'
+import '../components/regions/regions.css'
+import '../components/site-chrome.css'
+import '../components/toilet-list.css'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://geupddong.com'),
