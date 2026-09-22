@@ -14,6 +14,7 @@ import { PrimaryNavigation } from './PrimaryNavigation'
 import { HeaderIcon } from './HeaderIcon'
 import { NotificationMenu } from './NotificationMenu'
 import { regionText } from './regions/regionText'
+import { loadedNaverMapLanguage, naverMapLanguageForLocale, naverMapLanguageNeedsReload } from '../lib/mapProviderSelection'
 
 function BottomIcon({ name }: { name: 'map' | 'regions' | 'notifications' | 'account' }) {
   const shape = name === 'map' ? <><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Z" /><path d="M9 3v16M15 5v16" /></>
@@ -53,7 +54,13 @@ export function SiteHeader({ path }: { path: string }) {
       <div className="site-header-actions">
         <NotificationMenu owner={profile?.userId ?? null} open={notificationsOpen} onOpenChange={setNotificationsOpen} unread={profile ? unread : 0} onLogin={() => router.push(account)} onCountChange={() => setNotificationVersion(value => value + 1)} onSessionExpired={() => { setProfile(null); setUnread(0) }} onOpenReport={id => router.push(`${account}?view=reports&report=${id}`)} />
         {ready && (profile ? <ProfileMenu profile={profile} onLogout={() => { void logout().then(() => { setProfile(null); router.push(home) }) }} /> : <Link className="site-header-login" href={account}><HeaderIcon name="account" /><span>{t('auth.login')}</span></Link>)}
-        <LanguageSelector locale={locale} onSelect={next => { router.push(localizedPublicPath(path, next) ?? localizedPublicPath('/', next)!) }} />
+        <LanguageSelector locale={locale} onSelect={next => {
+          const target = localizedPublicPath(path, next) ?? localizedPublicPath('/', next)!
+          // NAVER fixes label language when its SDK loads; switching it in-place leaves this map blank.
+          if (naverMapLanguageNeedsReload(loadedNaverMapLanguage(), naverMapLanguageForLocale(next))) {
+            window.location.assign(target)
+          } else router.push(target)
+        }} />
       </div>
     </div></header>
     <nav className="mobile-navigation site-mobile-nav" aria-label={t('nav.main')}>

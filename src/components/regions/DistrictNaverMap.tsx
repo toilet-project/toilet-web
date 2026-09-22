@@ -6,7 +6,7 @@ import type { Locale } from '../../i18n/locale'
 import { localizeToiletMapItem } from '../../i18n/toiletTranslations'
 import { groupToiletsByCoordinate } from '../../lib/toiletGrouping'
 import type { MapOverlay } from '../../lib/mapProvider'
-import { regionBounds, polygonParts, type Region } from '../../lib/regions'
+import { regionBounds, regionName, polygonParts, type Region } from '../../lib/regions'
 import { clusterRegionPoints } from '../../lib/regionMapClusters'
 import { regionText } from './regionText'
 import { DistrictToiletSelection } from './DistrictToiletSelection'
@@ -118,7 +118,7 @@ export function DistrictNaverMap({ district, toilets, locale, failed = false }: 
   }, [district, toilets, locale, t])
 
   return <div className="district-map-wrap">
-    <div className="district-naver-map" ref={container} role="region" aria-label={`${district.name} · ${t.locationMap}`} />
+    <div className="district-naver-map" ref={container} role="region" aria-label={`${regionName(district, locale)} · ${t.locationMap}`} />
     {(error || failed) && <p className="district-map-error" role="alert">{error ? t.mapError : t.error}</p>}
     {!error && !failed && toilets.length === 0 && <p className="district-map-error" role="status">{t.empty}</p>}
     {selected.length > 0 && <DistrictToiletSelection key={selected.map(toilet => toilet.id).join(':')} toilets={selected} locale={locale} onClose={() => setSelected([])} />}

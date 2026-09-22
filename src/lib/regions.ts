@@ -1,6 +1,7 @@
 import sidoSource from '../../data/regions/sido.json' with { type: 'json' }
 import districtSource from '../../data/regions/sgg.json' with { type: 'json' }
 import countSource from '../../data/regions/counts.json' with { type: 'json' }
+import districtNames from '../../data/regions/names.json' with { type: 'json' }
 import type { Locale } from '../i18n/locale'
 
 export type Position = [number, number]
@@ -48,8 +49,9 @@ export function regionName(region: Region, locale: Locale) {
     const localized = provinceNames[region.code]
     return locale === 'en' ? localized?.en ?? region.name : locale === 'ja' ? localized?.ja ?? region.name : localized?.zh ?? region.name
   }
-  // Administrative proper names stay in their authoritative form until reviewed translations exist.
-  return region.name
+  // The five-digit code links geometry, canonical Korean names and locale labels.
+  // A newly added code remains usable in Korean until its translation is exported.
+  return (districtNames as Record<string, Partial<Record<Locale, string>>>)[region.code]?.[locale] ?? region.name
 }
 
 export function polygonParts(geometry: RegionGeometry): Position[][][] {

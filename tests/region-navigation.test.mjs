@@ -13,6 +13,17 @@ test('the current administrative map accounts for every assigned public toilet e
   assert.equal(regionName(getDistrict('41', '41111'), 'ko'), '수원시 장안구')
 })
 
+test('every mapped district has code-keyed names in all supported languages', () => {
+  for (const district of allDistricts()) {
+    for (const locale of ['en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
+      const label = regionName(district, locale)
+      assert.ok(label && !/[가-힣]/u.test(label), `${district.code} ${locale}: ${label}`)
+    }
+  }
+  assert.equal(regionName(getDistrict('11', '11140'), 'zh-CN'), '中区')
+  assert.equal(regionName(getDistrict('41', '41111'), 'en'), 'Jangan-gu, Suwon-si')
+})
+
 test('a known point and detail resolve to stable region URLs in every locale', () => {
   assert.equal(districtAt(126.98, 37.57)?.code, '11110')
   const detail = { id: 177, name: '사직주유소', latitude: 37.57, longitude: 126.98 }

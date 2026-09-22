@@ -22,6 +22,13 @@ export function naverMapLanguageNeedsReload(loaded: NaverMapLanguage | null, req
   return loaded !== null && loaded !== requested
 }
 
+export function loadedNaverMapLanguage(): NaverMapLanguage | null {
+  const script = document.querySelector<HTMLScriptElement>('script[data-geupddong-map-provider="naver"]')
+  const language = script?.dataset.geupddongMapLanguage
+    ?? (script ? new URL(script.src).searchParams.get('language') : null)
+  return language === 'ko' || language === 'en' || language === 'ja' || language === 'zh' ? language : null
+}
+
 export function mapSdkIdentity(locale: Locale, preference: MapProviderPreference = 'auto') {
   return resolveMapProvider(locale, preference) === 'kakao' ? 'kakao' : `naver:${naverMapLanguageForLocale(locale)}`
 }

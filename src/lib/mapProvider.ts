@@ -1,6 +1,7 @@
 import type { Locale } from '../i18n/locale'
 import { createKakaoMap, type KakaoMapInstance, type KakaoOverlay } from './kakaoMap'
 import {
+  loadedNaverMapLanguage,
   mapLevelFromNaverZoom,
   naverMapLanguageForLocale,
   naverMapLanguageNeedsReload,
@@ -12,6 +13,7 @@ import {
 } from './mapProviderSelection'
 
 export { mapLevelFromNaverZoom, naverZoomFromLevel, resolveMapProvider } from './mapProviderSelection'
+export { loadedNaverMapLanguage } from './mapProviderSelection'
 export type { MapProvider, MapProviderPreference } from './mapProviderSelection'
 
 export type MapCoordinate = {
@@ -93,13 +95,6 @@ let naverSdkPromise: Promise<void> | undefined
 
 export class NaverMapLanguageReloadRequired extends Error {
   constructor() { super('네이버 지도 언어 변경에는 페이지 새로고침이 필요합니다.') }
-}
-
-export function loadedNaverMapLanguage(): NaverMapLanguage | null {
-  const script = document.querySelector<HTMLScriptElement>('script[data-geupddong-map-provider="naver"]')
-  const language = script?.dataset.geupddongMapLanguage
-    ?? (script ? new URL(script.src).searchParams.get('language') : null)
-  return language === 'ko' || language === 'en' || language === 'ja' || language === 'zh' ? language : null
 }
 
 function kakaoCoordinate(raw: unknown): MapCoordinate {
