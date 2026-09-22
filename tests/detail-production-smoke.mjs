@@ -95,7 +95,7 @@ try {
   const building = await (await fetch(`${origin}/toilet/900004`)).text()
   assertMetadata(building, '공학1호관 화장실')
   assert.match(building, /<h1[^>]*>공학1호관<\/h1>/)
-  assert.match(html,/href="https:\/\/geupddong.com\/regions\/44\/44133\/toilet\/900001-geomjeungyong-hwajangsil"/)
+  assert.ok(html.includes(`href="${encodeURI('https://geupddong.com/regions/충청남도-44/천안시-서북구-44133/toilet/900001-검증용-화장실')}"`))
   if(indexable) assert.equal(first.headers.get('x-robots-tag'),null)
   else assert.match(first.headers.get('x-robots-tag'),/noindex/)
   const ld=JSON.parse(html.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1])
@@ -123,7 +123,7 @@ try {
     for(const id of ids) {
       const url = id > 900000 ? `https://geupddong.com/toilet/${id}` : `https://geupddong.com/regions/`
       assert.ok(xml.includes(`<loc>${url}`), `sitemap includes the canonical location for ${id}`)
-      if (id <= 900000) assert.match(xml, new RegExp(`/toilet/${id}-[a-z0-9-]+</loc>`))
+      if (id <= 900000) assert.match(decodeURI(xml), new RegExp(`/toilet/${id}-[\\p{L}\\p{N}-]+</loc>`, 'u'))
     }
     assert.doesNotMatch(xml,/lastmod/)
   }
