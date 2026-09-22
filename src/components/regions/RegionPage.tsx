@@ -5,7 +5,7 @@ import type { Locale } from '../../i18n/locale'
 import { SUPPORTED_LOCALES } from '../../i18n/locale'
 import { localizedPublicPath } from '../../i18n/routes'
 import { districtsIn, getDistrict, getProvince, provinces, regionName, regionPath, regionSnapshot } from '../../lib/regions'
-import { getDistrictToilets } from '../../server/regions'
+import { getDistrictToilets, getPreciseDistrict } from '../../server/regions'
 import { SiteHeader } from '../SiteHeader'
 import { SiteFooter } from '../SiteFooter'
 import { RegionPicker } from './RegionPicker'
@@ -36,6 +36,8 @@ export function regionMetadata(locale: Locale, parts: string[]): Metadata {
 
 export async function RegionPage({ locale, parts }: { locale: Locale; parts: string[] }) {
   const { province, district } = resolve(parts)
+  const preciseDistrict = district && province ? getPreciseDistrict(province.code, district.code) : null
+  if (district && !preciseDistrict) throw new Error(`Missing precise boundary for ${district.code}`)
   const r = regionText(locale)
   const path = regionPath(province?.code, district?.code)
   const localized = (raw: string) => localizedPublicPath(raw, locale)!
@@ -63,7 +65,7 @@ export async function RegionPage({ locale, parts }: { locale: Locale; parts: str
         <p className="region-mobile-hint">{district ? r.mobileMarkerHint : r.mobileExploreHint}</p>
       </div>
       {district && province ? <section className="region-district-layout" aria-label={title}>
-        <div className="region-district-map-card"><div className="region-card-heading"><span className="region-eyebrow">{r.locationMap}</span><h2>{title}</h2></div><DistrictNaverMap district={district} toilets={toilets} locale={locale} failed={failed} />{sourceNote}</div>
+        <div className="region-district-map-card"><div className="region-card-heading"><span className="region-eyebrow">{r.locationMap}</span><h2>{title}</h2></div><DistrictNaverMap district={preciseDistrict!} toilets={toilets} locale={locale} failed={failed} />{sourceNote}</div>
       </section> : <section className="region-discovery-layout"><div className="region-atlas-card"><RegionAtlas locale={locale} provinceCode={province?.code} />{sourceNote}</div></section>}
     </main>
     <SiteFooter hint={r.intro} />

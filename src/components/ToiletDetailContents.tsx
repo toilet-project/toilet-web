@@ -5,7 +5,7 @@ import Link from 'next/link'
 import type { ToiletDetailResponse } from '../api/toilets'
 import { getDisplayAddress } from '../lib/address'
 import { regionLabel } from '../lib/toiletRoute'
-import { districtAt, getProvince, regionName, regionPath } from '../lib/regions'
+import { districtForToilet, getProvince, regionName, regionPath } from '../lib/regions'
 import { localizedPublicPath } from '../i18n/routes'
 import { visibleCounts, hasValue, formatOpenTime, formatPhoneNumber, formatInstallationDate, formatFacilityLocation, type CountItem } from '../lib/detailFormatting'
 import { TRANSIENT_NOTICE_MS } from '../lib/uiTiming'
@@ -30,7 +30,7 @@ export function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse 
     { label: t('detail.childToilets'), count: display.femaleChildToiletCount },
   ])
   const address = getDisplayAddress(display.roadAddress, display.jibunAddress)
-  const district = display.longitude != null && display.latitude != null ? districtAt(display.longitude, display.latitude) : null
+  const district = display.longitude != null && display.latitude != null ? districtForToilet(display.id, display.longitude, display.latitude) : null
   const province = district ? getProvince(district.provinceCode) : null
   const linkedRegion = district && province ? `${regionName(province, locale)} ${regionName(district, locale)}` : null
 

@@ -2,6 +2,7 @@ import sidoSource from '../../data/regions/sido.json' with { type: 'json' }
 import districtSource from '../../data/regions/sgg.json' with { type: 'json' }
 import countSource from '../../data/regions/counts.json' with { type: 'json' }
 import districtNames from '../../data/regions/names.json' with { type: 'json' }
+import boundaryOverrides from '../../data/regions/toilet-boundary-overrides.json' with { type: 'json' }
 import type { Locale } from '../i18n/locale'
 
 export type Position = [number, number]
@@ -82,6 +83,20 @@ export function regionContains(region: Region, longitude: number, latitude: numb
 export function districtAt(longitude: number, latitude: number) {
   if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null
   return districts.find(district => regionContains(district, longitude, latitude)) ?? null
+}
+
+/** Snapshot corrections keep client-side detail links aligned with the precise district assignment. */
+export function districtForToilet(id: number, longitude: number, latitude: number) {
+  const overrides = boundaryOverrides as Record<string, Array<string | number | null>>
+  const correction = overrides[String(id)]
+  // A facility can move after the snapshot; never apply its old correction
+  // to new coordinates.
+  if (correction && correction.length === 3 && typeof correction[1] === 'number' && typeof correction[2] === 'number'
+    && Math.abs(latitude - correction[1]) < 0.0000001 && Math.abs(longitude - correction[2]) < 0.0000001) {
+    const code = correction[0]
+    return typeof code === 'string' ? getDistrict(code.slice(0, 2), code) : null
+  }
+  return districtAt(longitude, latitude)
 }
 
 export function regionPath(provinceCode?: string, districtCode?: string) {

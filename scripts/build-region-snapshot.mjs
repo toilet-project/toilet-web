@@ -3,7 +3,8 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const districts = JSON.parse(await readFile(resolve(root, 'data/regions/sgg.json'), 'utf8')).features
+const districts = JSON.parse(await readFile(resolve(root, 'data/regions/sgg-precise.json'), 'utf8')).features
+const simplified = JSON.parse(await readFile(resolve(root, 'data/regions/sgg.json'), 'utf8')).features
 
 function ringContains(ring, x, y) {
   let inside = false
@@ -26,14 +27,17 @@ function boundsOf(feature) {
   return [Math.min(...longitudes), Math.min(...latitudes), Math.max(...longitudes), Math.max(...latitudes)]
 }
 
-const indexed = districts.map(feature => ({
+function index(features) { return features.map(feature => ({
   code: feature.properties.sgg,
   geometry: feature.geometry,
   bounds: boundsOf(feature),
-}))
+})) }
 
-function districtAt(longitude, latitude) {
-  for (const item of indexed) {
+const indexed = index(districts)
+const simplifiedIndex = index(simplified)
+
+function districtAt(longitude, latitude, regions = indexed) {
+  for (const item of regions) {
     const [west, south, east, north] = item.bounds
     if (longitude < west || longitude > east || latitude < south || latitude > north) continue
     const polygons = item.geometry.type === 'Polygon' ? [item.geometry.coordinates] : item.geometry.coordinates
@@ -53,10 +57,13 @@ if (result.toilets.length !== result.meta.total_count) throw new Error('Public t
 
 const counts = Object.fromEntries(indexed.map(item => [item.code, 0]))
 const toiletDistrict = {}
+const boundaryOverrides = {}
 let unassigned = 0
 for (const toilet of result.toilets) {
   if (!Number.isSafeInteger(toilet.id) || !Number.isFinite(toilet.latitude) || !Number.isFinite(toilet.longitude)) continue
   const code = districtAt(toilet.longitude, toilet.latitude)
+  const simplifiedCode = districtAt(toilet.longitude, toilet.latitude, simplifiedIndex)
+  if (code !== simplifiedCode) boundaryOverrides[toilet.id] = [code, toilet.latitude, toilet.longitude]
   if (!code) { unassigned++; continue }
   counts[code]++
   toiletDistrict[toilet.id] = [code, toilet.name]
@@ -67,4 +74,5 @@ await mkdir(directory, { recursive: true })
 const generatedAt = new Date().toISOString()
 await writeFile(resolve(directory, 'counts.json'), JSON.stringify({ generatedAt, sourceCount: result.toilets.length, unassigned, counts }) + '\n')
 await writeFile(resolve(directory, 'toilet-district.json'), JSON.stringify(toiletDistrict) + '\n')
-console.log(`Assigned ${Object.keys(toiletDistrict).length}/${result.toilets.length} public toilets to current district boundaries; ${unassigned} outside known boundaries.`)
+await writeFile(resolve(directory, 'toilet-boundary-overrides.json'), JSON.stringify(boundaryOverrides) + '\n')
+console.log(`Assigned ${Object.keys(toiletDistrict).length}/${result.toilets.length} public toilets to precise district boundaries; ${unassigned} outside known boundaries, ${Object.keys(boundaryOverrides).length} client-link corrections.`)

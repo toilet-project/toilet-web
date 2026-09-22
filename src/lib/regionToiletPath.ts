@@ -1,5 +1,5 @@
 import type { ToiletDetailResponse } from '../api/toilets'
-import { districtAt, regionPath } from './regions.ts'
+import { districtForToilet, regionPath } from './regions.ts'
 import { toiletPath } from './toiletRoute.ts'
 
 const initial = ['g','kk','n','d','tt','r','m','b','pp','s','ss','','j','jj','ch','k','t','p','h']
@@ -19,7 +19,7 @@ export function facilitySlug(name: string) {
 
 export function regionToiletPath(detail: Pick<ToiletDetailResponse, 'id' | 'name' | 'latitude' | 'longitude'>) {
   if (detail.latitude == null || detail.longitude == null) return toiletPath(detail.id)
-  const district = districtAt(detail.longitude, detail.latitude)
+  const district = districtForToilet(detail.id, detail.longitude, detail.latitude)
   if (!district) return toiletPath(detail.id)
   return `${regionPath(district.provinceCode, district.code)}/toilet/${detail.id}-${facilitySlug(detail.name)}`
 }
