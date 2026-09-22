@@ -11,7 +11,7 @@ function localeOf(segment: string): Locale {
   if (segment === 'zh-hk') return 'zh-HK'
   notFound()
 }
-export const revalidate = 3600
+export const revalidate = 2_592_000
 export function generateStaticParams() { return [] }
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { language, parts } = await params

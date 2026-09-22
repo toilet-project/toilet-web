@@ -21,6 +21,9 @@ export async function POST(request: Request) {
       revalidateTag(`toilet:${id}`, { expire: 0 })
       for (const path of localizedToiletPaths(id)) revalidatePath(path)
     }
+    revalidateTag('region-markers', { expire: 0 })
+    revalidatePath('/regions/[[...parts]]', 'page')
+    revalidatePath('/[language]/regions/[[...parts]]', 'page')
     if (catalogChanged) {
       revalidateTag('toilet-catalog', { expire: 0 })
       revalidatePath('/sitemap.xml')

@@ -18,6 +18,8 @@ const productionReview = indexable
   && process.env.NEXT_PUBLIC_API_BASE_URL === 'https://api.geupddong.com'
 const secret = 'test-only-signing-secret-at-least-32-bytes'
 let deleted = false
+let mapName = '지역 지도 검증 화장실'
+let mapUnavailable = false
 const fixture = { id: 900001, name: '검증용 화장실', toiletType: '공중화장실', latitude: 36.85, longitude: 127.15,
   roadAddress: '충청남도 천안시 서북구 검증로 1', jibunAddress: '', openTime: '상시', openTimeDetail: '',
   region: { sidoName: '충청남도', sidoCode: '44', sigunguName: '천안시 서북구', sigunguCode: '44133', cityName: '천안시', districtName: '서북구' },
@@ -26,6 +28,11 @@ const fixture = { id: 900001, name: '검증용 화장실', toiletType: '공중�
 const api = createServer((req,res) => {
   counts.set(req.url,(counts.get(req.url) || 0)+1)
   res.setHeader('Content-Type','application/json')
+  if (req.url?.startsWith('/api/v1/toilets?')) {
+    if (mapUnavailable) { res.statusCode = 503; return res.end('{}') }
+    const marker = { id: fixture.id, name: mapName, latitude: fixture.latitude, longitude: fixture.longitude }
+    return res.end(JSON.stringify({ meta: { map_level: 8, display_type: 'MARKER', total_count: 1, result_count: 1 }, toilets: [marker], clusters: [] }))
+  }
   if (req.url === '/api/v1/toilets/sitemap/shards') return res.end('[0,1,90]')
   if (req.url === '/api/v1/toilets/sitemap/shards?locale=en') return res.end('[90]')
   if (req.url?.startsWith('/api/v1/toilets/sitemap/shards?locale=')) return res.end('[]')
@@ -195,6 +202,11 @@ try {
     const timestamp=String(Math.floor(Date.now()/1000))
     return fetch(`${origin}${REVALIDATION_PATH}`,{method:'POST',headers:{'content-type':'application/json','x-cache-timestamp':timestamp,'x-cache-signature':valid?signatureFor(secret,timestamp,body):'0'.repeat(64)},body})
   }
+  const invalidateRegion = async() => {
+    const body=JSON.stringify({contractVersion:2,events:[{toiletId:900001,revision:1,action:'UPSERT',catalogChanged:false}]})
+    const timestamp=String(Math.floor(Date.now()/1000))
+    return fetch(`${origin}${REVALIDATION_PATH}`,{method:'POST',headers:{'content-type':'application/json','x-cache-timestamp':timestamp,'x-cache-signature':signatureFor(secret,timestamp,body)},body})
+  }
   fixture.name='변경된 화장실'
   fixture.openTime='09:00~18:00'
   fixture.region={sidoName:'세종특별자치시',sidoCode:'36',sigunguName:null}
@@ -222,6 +234,23 @@ try {
   const noCoordsHtml=await noCoords.text()
   assert.match(noCoordsHtml,/충청남도 천안시 서북구 검증동 1/)
   assert.equal('geo' in JSON.parse(noCoordsHtml.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]),false)
+  const districtPath=regionToiletPath(fixture).split('/toilet/')[0]
+  const districtUrl=`${origin}${encodeURI(districtPath)}`
+  const districtFirst=await fetch(districtUrl)
+  assert.equal(districtFirst.status,200)
+  assert.match(await districtFirst.text(),/지역 지도 검증 화장실/)
+  mapName='갱신된 지역 지도 화장실'
+  assert.match(await (await fetch(districtUrl)).text(),/지역 지도 검증 화장실/,'30-day district page remains cached until invalidation')
+  assert.equal((await invalidateRegion()).status,200)
+  const districtChanged=await fetch(districtUrl)
+  assert.equal(districtChanged.status,200)
+  assert.match(await districtChanged.text(),/갱신된 지역 지도 화장실/)
+  mapUnavailable=true
+  const failedDistrict=await fetch(`${origin}${encodeURI('/regions/서울특별시-11/종로구-11110')}`)
+  assert.equal(failedDistrict.status,500,'an upstream failure must not cache a successful empty region page')
+  mapUnavailable=false
+  const recoveredDistrict=await fetch(`${origin}${encodeURI('/regions/서울특별시-11/종로구-11110')}`)
+  assert.equal(recoveredDistrict.status,200,'the region page must recover when the upstream map does')
   const maliciousHtml=await (await fetch(`${origin}/toilet/900003`)).text()
   const maliciousLd=maliciousHtml.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]
   assert.equal(JSON.parse(maliciousLd).name,'</script><script>alert("x")</script>')
