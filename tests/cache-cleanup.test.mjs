@@ -62,7 +62,17 @@ test('manual cleanup selects only one older release and keeps active and rollbac
   assert.equal(selected.unknownObjects.length,0)
   assert.doesNotThrow(()=>assertReviewedCleanupPlan(selected,{files:1,bytes:30,fingerprint:selected.deleteFingerprint}))
   assert.throws(()=>selectRetiredNamespaceCleanup(plan,releases,[active],'cache-active'),/protected/)
-  assert.throws(()=>selectRetiredNamespaceCleanup(plan,releases,[active],'cache-previous'),/rollback releases/)
+  assert.throws(()=>selectRetiredNamespaceCleanup(plan,releases,[active],'cache-previous'),/protected/)
+})
+test('zero-day automatic policy retains the active and immediately preceding Worker caches',()=>{
+  const plan=planIncrementalCacheCleanup({objects:[
+    {key:'incremental-cache/cache-active/a.cache',size:10},
+    {key:'incremental-cache/cache-previous/b.cache',size:20},
+    {key:'incremental-cache/cache-old/c.cache',size:30},
+  ],releases,activeWorkerVersions:[active],now:Date.parse('2026-09-15T12:00:00Z'),rollbackProtectionDays:0})
+  assert.deepEqual(plan.deleteObjects.map(row=>row.key),['incremental-cache/cache-old/c.cache'])
+  assert.equal(plan.protectedCacheNamespaces['cache-active'],'active traffic')
+  assert.equal(plan.protectedCacheNamespaces['cache-previous'],'immediate rollback release')
 })
 test('missing active manifest and ambiguous keys fail closed',()=>{
   assert.throws(()=>planIncrementalCacheCleanup({objects:[],releases,activeWorkerVersions:['44444444-4444-4444-8444-444444444444']}),/missing a release manifest/)
