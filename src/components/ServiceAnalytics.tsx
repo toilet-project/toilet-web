@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
-import { trackEngagement, trackEvent, trackPageView, trackSessionStart } from '../lib/analytics'
+import { trackEngagement, trackEvent, trackPageView } from '../lib/analytics'
 
 export function ServiceAnalytics() {
   const pathname = usePathname()
@@ -12,14 +12,8 @@ export function ServiceAnalytics() {
     const page = pathname || '/'
     if (lastPage.current === page) return
     lastPage.current = page
-    try {
-      if (!window.sessionStorage.getItem('geupddong.analytics-session-started.v1')) {
-        window.sessionStorage.setItem('geupddong.analytics-session-started.v1', '1')
-        trackSessionStart(page)
-      }
-    } catch {
-      trackSessionStart(page)
-    }
+    // The analytics sender starts a session once before its first event, including
+    // when sessionStorage is unavailable or the previous session has expired.
     trackPageView(page)
   }, [pathname])
 
