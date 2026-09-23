@@ -62,6 +62,12 @@ export function validateSitemapIds(value: unknown, shard?: number): number[] {
 
 export function robotsPolicy(indexable: boolean) {
   return indexable
-    ? { rules: { userAgent: '*', allow: '/', disallow: ['/api/', '/_internal/', '/admin/', '/login/'] }, sitemap: `${SITE_ORIGIN}/sitemap.xml` }
+    ? {
+      rules: [
+        { userAgent: ['ClaudeBot', 'Moltbot', 'GPTBot', 'Google-Extended', 'FacebookBot', 'Meta-ExternalAgent'], disallow: '/' },
+        { userAgent: '*', allow: '/', disallow: ['/api/', '/_internal/', '/admin/', '/login/'] },
+      ],
+      sitemap: `${SITE_ORIGIN}/sitemap.xml`,
+    }
     : { rules: { userAgent: '*', disallow: '/' } }
 }
