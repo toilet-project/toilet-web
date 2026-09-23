@@ -2,6 +2,16 @@ name: Incremental cache cleanup plan
 
 on:
   workflow_dispatch:
+    inputs:
+      cache_namespace:
+        description: Optional exact retired Worker cache namespace
+        required: false
+        type: string
+      rollback_days:
+        description: Rollback protection days (default 3; lower values require a namespace)
+        required: false
+        default: '3'
+        type: string
 
 permissions:
   contents: read
@@ -33,13 +43,19 @@ jobs:
           printf '%s' "$REGISTRY_JSON" > cache-release-registry.json
       - name: Produce dry-run plan only
         env:
+          CACHE_NAMESPACE: ${{ inputs.cache_namespace }}
+          ROLLBACK_DAYS: ${{ inputs.rollback_days || '3' }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CACHE_STATUS_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_CACHE_READ_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_CACHE_READ_SECRET_ACCESS_KEY }}
           R2_INCREMENTAL_CACHE_BUCKET: geupddong-next-production-cache
-        run: node scripts/cleanup-incremental-cache.mjs --registry cache-release-registry.json --report cache-cleanup-plan.json
+        shell: bash
+        run: |
+          args=(--registry cache-release-registry.json --report cache-cleanup-plan.json --rollback-days "$ROLLBACK_DAYS")
+          if [[ -n "$CACHE_NAMESPACE" ]]; then args+=(--only-namespace "$CACHE_NAMESPACE"); fi
+          node scripts/cleanup-incremental-cache.mjs "${args[@]}"
       - if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:

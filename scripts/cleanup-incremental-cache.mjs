@@ -2,7 +2,7 @@ import {execFile} from 'node:child_process'
 import {promisify} from 'node:util'
 import {readFile,writeFile} from 'node:fs/promises'
 import {resolve} from 'node:path'
-import {assertAutomaticCleanupPlan,assertReviewedCleanupPlan,normalizeDeploymentStatus,planIncrementalCacheCleanup,sameActiveDeployment,selectAutomaticCleanupBatch} from './cache/cleanup-lib.mjs'
+import {assertAutomaticCleanupPlan,assertReviewedCleanupPlan,normalizeDeploymentStatus,planIncrementalCacheCleanup,sameActiveDeployment,selectAutomaticCleanupBatch,selectRetiredNamespaceCleanup} from './cache/cleanup-lib.mjs'
 import {R2S3Store} from './cache/r2-s3-store.mjs'
 const executeFile=promisify(execFile)
 function argsOf(values){const out={};for(let i=0;i<values.length;i++){const key=values[i];if(['--execute','--automatic'].includes(key)){out[key.slice(2)]=true;continue}if(!key.startsWith('--')||values[i+1]===undefined)throw new Error(`Invalid argument ${key}`);out[key.slice(2)]=values[++i]}return out}
@@ -10,6 +10,10 @@ const args=argsOf(process.argv.slice(2)),workerName='geupddong-web-production'
 if(!args.registry||!args.report)throw new Error('Required: --registry FILE --report FILE')
 if(args.execute&&process.env.CACHE_CLEANUP_ENABLED!=='true')throw new Error('Deletion disabled; CACHE_CLEANUP_ENABLED=true is also required')
 if(args.automatic&&(!args.execute||process.env.CACHE_CLEANUP_AUTOMATIC_ENABLED!=='true'))throw new Error('Automatic deletion is disabled')
+if(args.automatic&&args['only-namespace'])throw new Error('Manual namespace selection cannot run automatically')
+const rollbackProtectionDays=Number(args['rollback-days']??3)
+if(!Number.isSafeInteger(rollbackProtectionDays)||rollbackProtectionDays<0||rollbackProtectionDays>30)throw new Error('Invalid rollback protection days')
+if(rollbackProtectionDays<3&&!args['only-namespace'])throw new Error('Reduced rollback protection requires an exact namespace')
 function requiredExpected(name){
   const value=args[name]
   if(value===undefined||value==='')throw new Error(`Execution requires --${name}`)
@@ -24,9 +28,10 @@ const config={accountId:process.env.R2_ACCOUNT_ID,accessKeyId:process.env.R2_ACC
 if(config.bucket!=='geupddong-next-production-cache')throw new Error('Exact production incremental-cache bucket is required')
 const store=new R2S3Store(config),before=await status(),releases=JSON.parse(await readFile(args.registry,'utf8'))
 const objects=await store.list('incremental-cache/')
-const fullPlan=planIncrementalCacheCleanup({objects,releases,activeWorkerVersions:before.activeWorkerVersions,rollbackProtectionDays:Number(args['rollback-days']||3)})
+const fullPlan=planIncrementalCacheCleanup({objects,releases,activeWorkerVersions:before.activeWorkerVersions,rollbackProtectionDays})
 const automaticLimits=args.automatic?{maxFiles:requiredExpected('max-delete-files'),maxBytes:requiredExpected('max-delete-bytes')}:null
-const plan=args.automatic?selectAutomaticCleanupBatch(fullPlan,automaticLimits):fullPlan
+const plan=args.automatic?selectAutomaticCleanupBatch(fullPlan,automaticLimits)
+  :args['only-namespace']?selectRetiredNamespaceCleanup(fullPlan,releases,before.activeWorkerVersions,args['only-namespace']):fullPlan
 const result={...plan,mode:args.execute?'execute':'dry-run',execution:{attempted:false,startedAt:null,deletedFiles:0,completedAt:null,error:null}}
 await writeFile(args.report,JSON.stringify(result,null,2)+'\n')
 if(args.execute){

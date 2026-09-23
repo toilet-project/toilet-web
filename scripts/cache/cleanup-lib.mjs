@@ -32,6 +32,22 @@ function automaticLimits({maxFiles,maxBytes}){
   return {files,bytes}
 }
 function summarizeObjects(rows){return {files:rows.length,bytes:rows.reduce((sum,row)=>sum+Number(row.size),0)}}
+export function selectRetiredNamespaceCleanup(plan,releases,activeWorkerVersions,cacheNamespace){
+  if(typeof cacheNamespace!=='string'||!cacheNamespace||cacheNamespace.includes('/'))throw new Error('Exact cache namespace is required')
+  const release=releases.find(row=>(row.cacheNamespace||row.appVersion)===cacheNamespace)
+  if(!release||release.workerVersion===null)throw new Error('A registered Worker cache namespace is required')
+  if(activeWorkerVersions.includes(release.workerVersion)||plan.protectedCacheNamespaces[cacheNamespace]){
+    throw new Error('Selected cache namespace is protected')
+  }
+  const newer=releases.filter(row=>row.workerVersion&&Date.parse(row.deployedAt)>Date.parse(release.deployedAt))
+  if(newer.length<2)throw new Error('Keep the active and most recent rollback releases')
+  const selected=plan.deleteObjects.filter(row=>row.cacheNamespace===cacheNamespace)
+  if(!selected.length)throw new Error('Selected cache namespace has no retired objects')
+  if(plan.unknownObjects.some(row=>cacheNamespaceFromKey(row.key)===cacheNamespace))throw new Error('Selected cache namespace has unclassified objects')
+  return {...plan,deleteObjects:selected,protectedObjects:[],unknownObjects:[],
+    deleteFingerprint:cleanupPlanFingerprint(selected),summary:{delete:summarizeObjects(selected),protected:{files:0,bytes:0},unknown:{files:0,bytes:0}},
+    manualNamespace:cacheNamespace}
+}
 export function selectAutomaticCleanupBatch(plan,limits){
   const maximum=automaticLimits(limits)
   if(!plan||!Array.isArray(plan.deleteObjects)||!Array.isArray(plan.unknownObjects))throw new Error('Invalid automatic cleanup plan')
@@ -46,13 +62,14 @@ export function selectAutomaticCleanupBatch(plan,limits){
       return Math.min(oldest,Number.isFinite(uploaded)?uploaded:Number.MAX_SAFE_INTEGER)
     },Number.MAX_SAFE_INTEGER)}))
     .sort((left,right)=>left.oldestUpload-right.oldestUpload||left.cacheNamespace.localeCompare(right.cacheNamespace))
-  const oversized=ordered.filter(group=>group.summary.files>maximum.files||group.summary.bytes>maximum.bytes)
-  if(oversized.length)throw new Error(`Automatic deletion refused: cache namespace exceeds the configured limit: ${oversized[0].cacheNamespace}`)
-  const selected=[],deferred=[];let selectedFiles=0,selectedBytes=0
+  const selected=[],deferred=[];let selectedFiles=0,selectedBytes=0,full=false
   for(const group of ordered){
-    if(selectedFiles+group.summary.files<=maximum.files&&selectedBytes+group.summary.bytes<=maximum.bytes){
-      selected.push(...group.objects);selectedFiles+=group.summary.files;selectedBytes+=group.summary.bytes
-    }else deferred.push(...group.objects)
+    for(const object of [...group.objects].sort((left,right)=>left.key.localeCompare(right.key))){
+      if(Number(object.size)>maximum.bytes)throw new Error(`Automatic deletion refused: cache object exceeds the configured byte limit: ${object.key}`)
+      if(!full&&selectedFiles<maximum.files&&selectedBytes+Number(object.size)<=maximum.bytes){
+        selected.push(object);selectedFiles++;selectedBytes+=Number(object.size)
+      }else{full=true;deferred.push(object)}
+    }
   }
   const summary={...plan.summary,delete:summarizeObjects(selected)}
   return {...plan,deleteObjects:selected,deleteFingerprint:cleanupPlanFingerprint(selected),summary,

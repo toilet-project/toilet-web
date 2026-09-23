@@ -3,6 +3,15 @@ name: Incremental cache cleanup execute (disabled)
 on:
   workflow_dispatch:
     inputs:
+      cache_namespace:
+        description: Exact retired Worker cache namespace from the reviewed dry-run
+        required: true
+        type: string
+      rollback_days:
+        description: Exact rollback protection days from the reviewed dry-run
+        required: true
+        default: '3'
+        type: string
       expected_delete_files:
         description: Exact file count from the reviewed dry-run
         required: true
@@ -54,6 +63,8 @@ jobs:
           printf '%s' "$REGISTRY_JSON" > cache-release-registry.json
       - name: Delete only the reviewed retired cache plan
         env:
+          CACHE_NAMESPACE: ${{ inputs.cache_namespace }}
+          ROLLBACK_DAYS: ${{ inputs.rollback_days }}
           CACHE_CLEANUP_ENABLED: 'true'
           CLOUDFLARE_API_TOKEN: ${{ secrets.CACHE_STATUS_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -64,14 +75,17 @@ jobs:
           EXPECTED_DELETE_FILES: ${{ inputs.expected_delete_files }}
           EXPECTED_DELETE_BYTES: ${{ inputs.expected_delete_bytes }}
           EXPECTED_DELETE_FINGERPRINT: ${{ inputs.expected_delete_fingerprint }}
-        run: >-
-          node scripts/cleanup-incremental-cache.mjs
-          --registry cache-release-registry.json
-          --report cache-cleanup-execution.json
-          --execute
-          --expected-delete-files "$EXPECTED_DELETE_FILES"
-          --expected-delete-bytes "$EXPECTED_DELETE_BYTES"
-          --expected-delete-fingerprint "$EXPECTED_DELETE_FINGERPRINT"
+        shell: bash
+        run: |
+          node scripts/cleanup-incremental-cache.mjs \
+            --registry cache-release-registry.json \
+            --report cache-cleanup-execution.json \
+            --only-namespace "$CACHE_NAMESPACE" \
+            --rollback-days "$ROLLBACK_DAYS" \
+            --execute \
+            --expected-delete-files "$EXPECTED_DELETE_FILES" \
+            --expected-delete-bytes "$EXPECTED_DELETE_BYTES" \
+            --expected-delete-fingerprint "$EXPECTED_DELETE_FINGERPRINT"
       - if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
