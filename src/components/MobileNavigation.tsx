@@ -33,7 +33,7 @@ export function MobileNavigation({ tab, onChange, unread }: { tab: MobileTab; on
   const t = useMessages(), locale = useLocale()
   return <nav className="mobile-navigation" aria-label={t('nav.main')}>
     <button type="button" aria-current={tab === 'map' ? 'page' : undefined} onClick={() => onChange('map')}><span className="mobile-nav-icon"><Icon name="map" /></span><span>{t('nav.map')}</span></button>
-    <Link href={localizedPublicPath('/regions', locale)!}><span className="mobile-nav-icon"><Icon name="regions" /></span><span>{t('nav.community')}</span></Link>
+    <Link href={localizedPublicPath('/regions', locale)!} prefetch={true}><span className="mobile-nav-icon"><Icon name="regions" /></span><span>{t('nav.community')}</span></Link>
     <button type="button" aria-current={tab === 'notifications' ? 'page' : undefined} onClick={() => onChange('notifications')}><span className="mobile-nav-icon"><Icon name="notifications" /></span><span>{t('nav.notifications')}</span>{unread > 0 && <b aria-label={t('notification.unreadCount', { count: unread })}>{unread > 99 ? '99+' : unread}</b>}</button>
     <button type="button" aria-current={tab === 'account' ? 'page' : undefined} onClick={() => onChange('account')}><span className="mobile-nav-icon"><Icon name="account" /></span><span>{t('nav.account')}</span></button>
   </nav>

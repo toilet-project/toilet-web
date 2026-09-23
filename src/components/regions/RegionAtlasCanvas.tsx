@@ -19,6 +19,7 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoo
   const router = useRouter()
   const pointerType = useRef('mouse')
   const pointers = useRef(new Map<number, Pointer>())
+  const prefetched = useRef(new Set<string>())
   const dragged = useRef(false)
   const viewRef = useRef<AtlasViewport>(initialAtlasViewport)
   const [view, setView] = useState(initialAtlasViewport)
@@ -92,16 +93,25 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoo
     return () => element.removeEventListener('wheel', wheel)
   }, [width, height, changeView])
   function zoom(factor: number) { changeView(zoomAtlas(viewRef.current, viewRef.current.scale * factor, { x: width / 2, y: height / 2 }, width, height)) }
+  function prefetch(area: Area) {
+    if (prefetched.current.has(area.href)) return
+    prefetched.current.add(area.href)
+    router.prefetch(area.href)
+  }
   function position(area: Area, clientX: number, clientY: number) {
     const bounds = root.current?.getBoundingClientRect()
     if (!bounds) return
     setSelection({ area, x: Math.max(12, Math.min(clientX - bounds.left + 18, bounds.width - 218)), y: Math.max(12, Math.min(clientY - bounds.top - 24, bounds.height - 116)) })
   }
   function hover(event: PointerEvent<Element>, area: Area) {
-    if (event.pointerType !== 'touch' && pointers.current.size === 0) position(area, event.clientX, event.clientY)
+    if (event.pointerType !== 'touch' && pointers.current.size === 0) {
+      prefetch(area)
+      position(area, event.clientX, event.clientY)
+    }
   }
   function focus(event: FocusEvent<Element>, area: Area) {
     if (pointerType.current === 'touch') return
+    prefetch(area)
     const bounds = event.currentTarget.getBoundingClientRect()
     position(area, bounds.x + bounds.width / 2, bounds.y + bounds.height / 2)
   }
@@ -146,7 +156,7 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoo
       onKeyDown={event => { if (event.key === '+' || event.key === '=') { event.preventDefault(); zoom(1.5) } else if (event.key === '-') { event.preventDefault(); zoom(1 / 1.5) } else if (event.key === '0') { event.preventDefault(); changeView(homeView) } }}>
       <g transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
         {areas.map(area => <a key={area.code} href={area.href} style={{ '--region-color': area.color } as CSSProperties} className={`region-atlas-area${area.emphasized ? ' is-emphasized' : ''}${selection?.area.code === area.code ? ' is-active' : ''}`} aria-label={`${area.name} · ${area.count} ${countLabel}`}
-          onPointerMove={event => hover(event, area)} onPointerEnter={event => hover(event, area)} onFocus={event => focus(event, area)}
+          onPointerMove={event => hover(event, area)} onPointerEnter={event => hover(event, area)} onPointerDown={() => prefetch(area)} onFocus={event => focus(event, area)}
           onClick={event => {
             if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
             event.preventDefault()
@@ -159,7 +169,7 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoo
         {labels.map(item => { const area = areas.find(area => area.code === item.code)!; return <foreignObject key={area.code} x={item.left} y={item.top} width={item.width} height={item.height}>
           <a href={area.href} className={`region-atlas-label${area.emphasized ? ' is-emphasized' : ''}${selection?.area.code === area.code ? ' is-active' : ''}`} style={{ '--atlas-label-size': `${labelSize}px` } as CSSProperties}
             aria-label={`${area.name} · ${area.count} ${countLabel}`} title={`${area.name} · ${area.count} ${countLabel}`} tabIndex={-1}
-            onPointerEnter={event => hover(event, area)}
+            onPointerEnter={event => hover(event, area)} onPointerDown={() => prefetch(area)} onFocus={() => prefetch(area)}
             onClick={event => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); router.push(area.href) } }}>
             <strong>{area.mapName}</strong>{showCounts && <span>{area.count}</span>}
           </a>
