@@ -4,7 +4,7 @@ import { notFound, permanentRedirect } from 'next/navigation'
 import type { Locale } from '../../i18n/locale'
 import { SUPPORTED_LOCALES } from '../../i18n/locale'
 import { localizedPublicPath } from '../../i18n/routes'
-import { freeRestroomSearchPrompt } from '../../i18n/searchCopy'
+import { regionSeoCopy } from '../../i18n/regionSeoCopy'
 import { localizeToiletMapItem } from '../../i18n/toiletTranslations'
 import { regionToiletPath } from '../../lib/regionToiletPath'
 import { districtsIn, getDistrict, getProvince, localizedRegionPath, provinces, regionName, regionSnapshot } from '../../lib/regions'
@@ -35,11 +35,12 @@ function normalizedParts(parts: string[]) {
 export function regionMetadata(locale: Locale, parts: string[]): Metadata {
   parts = normalizedParts(parts)
   const { province, district } = resolve(parts)
-  const r = regionText(locale)
-  const title = [district && regionName(district, locale), province && regionName(province, locale), r.regions].filter(Boolean).join(' · ')
+  const { title, description } = regionSeoCopy(locale, {
+    province: province ? regionName(province, locale) : undefined,
+    district: district ? regionName(district, locale) : undefined,
+  })
   const path = localizedRegionPath(locale, province?.code, district?.code)
   const canonical = localizedPublicPath(path, locale)!
-  const description = `${district ? `${regionName(district, locale)} · ${district.count.toLocaleString(locale)} ${r.toilets}. ` : ''}${r.intro}${locale === 'ko' ? '' : ` ${freeRestroomSearchPrompt(locale)}`}`
   return { title: { absolute: `${title} | ${locale === 'ko' ? '급똥' : 'Geupddong'}` }, description,
     alternates: { canonical, languages: Object.fromEntries(SUPPORTED_LOCALES.map(language => [language,
       localizedPublicPath(localizedRegionPath(language, province?.code, district?.code), language)!])) },
