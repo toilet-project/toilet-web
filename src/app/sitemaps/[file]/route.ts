@@ -1,5 +1,5 @@
 import { MAX_SHARD, sitemapXml } from '../../../lib/seo'
-import { regionToiletPathForDistrict } from '../../../lib/regionToiletPath'
+import { regionToiletPath, regionToiletPathForDistrict } from '../../../lib/regionToiletPath'
 import { localizedPublicPath } from '../../../i18n/routes'
 import { SUPPORTED_LOCALES } from '../../../i18n/locale'
 import { ENGLISH_UI_ENABLED } from '../../../i18n/feature'
@@ -19,7 +19,10 @@ export async function GET(_request: Request, context: { params: Promise<{ file: 
   try {
     const entries = await getSitemapEntries(shard, locale)
     if (!entries.length) return new Response(null, { status: 404, headers: { 'Cache-Control': 'no-store' } })
-    return xmlResponse(sitemapXml(entries.map(entry =>
-      localizedPublicPath(regionToiletPathForDistrict(entry, locale, districtCodes[entry.id]), locale)!)))
+    return xmlResponse(sitemapXml(entries.map(entry => {
+      const districtCode = districtCodes[entry.id]
+      const path = districtCode ? regionToiletPathForDistrict(entry, locale, districtCode) : regionToiletPath(entry, locale)
+      return localizedPublicPath(path, locale)!
+    })))
   } catch { return sitemapUnavailable() }
 }
