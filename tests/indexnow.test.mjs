@@ -67,8 +67,8 @@ test('UPSERT resolves canonical paths while DELETE submits stable removal aliase
   assert.deepEqual(result, { submitted: 10, status: 202 })
   const payload = JSON.parse(requests.at(-1).init.body)
   assert.equal(payload.urlList.length, 10)
-  assert.ok(payload.urlList.some(url => url.includes('/en/regions/')))
-  assert.ok(payload.urlList.includes('https://geupddong.com/zh-hk/toilet/178'))
+  assert.ok(payload.urlList.some(url => new URL(url).pathname.startsWith('/en/regions/')))
+  assert.equal(payload.urlList.at(-1), 'https://geupddong.com/zh-hk/toilet/178')
 })
 
 test('one unavailable UPSERT does not suppress another event in the signed batch', async () => {
