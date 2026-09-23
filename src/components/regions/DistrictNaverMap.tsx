@@ -6,6 +6,7 @@ import type { Locale } from '../../i18n/locale'
 import { localizeToiletMapItem } from '../../i18n/toiletTranslations'
 import { groupToiletsByCoordinate } from '../../lib/toiletGrouping'
 import type { MapOverlay } from '../../lib/mapProvider'
+import { loadedNaverMapLanguage, naverMapLanguageForLocale, naverMapLanguageNeedsReload } from '../../lib/mapProviderSelection'
 import { regionBounds, regionName, polygonParts, type Region } from '../../lib/regions'
 import { clusterRegionPoints } from '../../lib/regionMapClusters'
 import { regionText } from './regionText'
@@ -25,6 +26,12 @@ export function DistrictNaverMap({ district, toilets, locale, failed = false }: 
   const [error, setError] = useState(false)
   useEffect(() => {
     if (!container.current) return
+    // A client-side link can reach this page after a map SDK was loaded in a
+    // different language. NAVER cannot change that SDK in place.
+    if (naverMapLanguageNeedsReload(loadedNaverMapLanguage(), naverMapLanguageForLocale(locale))) {
+      window.location.reload()
+      return
+    }
     const abort = new AbortController()
     let cleanup: (() => void) | undefined
     setSelected([])
@@ -113,7 +120,12 @@ export function DistrictNaverMap({ district, toilets, locale, failed = false }: 
       )
       drawMarkers()
       cleanup = () => { removeIdle(); removeZoom(); resize.disconnect(); overlays.forEach(overlay => overlay.setMap(null)); polygon.setMap(null); destroyMap(map) }
-    }).catch(() => { if (!abort.signal.aborted) setError(true) })
+    }).catch(() => {
+      if (abort.signal.aborted) return
+      // Also cover a language switch racing with the SDK script's insertion.
+      if (naverMapLanguageNeedsReload(loadedNaverMapLanguage(), naverMapLanguageForLocale(locale))) window.location.reload()
+      else setError(true)
+    })
     return () => { abort.abort(); cleanup?.() }
   }, [district, toilets, locale, t])
 

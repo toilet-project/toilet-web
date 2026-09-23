@@ -13,7 +13,7 @@ import { consumeLanguageLoginReturn } from '../i18n/loginReturn'
 import { ENGLISH_UI_ENABLED } from '../i18n/feature'
 import { MAP_NAVIGATION_EVENT } from '../lib/navigationCache'
 import { loadedNaverMapLanguage } from '../lib/mapProvider'
-import { naverMapLanguageForLocale, naverMapLanguageNeedsReload, resolveMapProvider } from '../lib/mapProviderSelection'
+import { naverMapLanguageForLocale, naverMapLanguageNeedsReload } from '../lib/mapProviderSelection'
 import { useLocale } from '../i18n/context'
 import { message } from '../i18n/messages'
 
@@ -75,10 +75,10 @@ export function MapShell({ children }: { children: ReactNode }) {
     if (!path) return
     try { rememberLocale(window.localStorage, locale) } catch { /* Preference storage is optional. */ }
     const target = path + window.location.search + window.location.hash
-    // NAVER publishes the map-label language at SDK load time. A new document is
-    // needed only when its language changes; preserve the viewport before leaving.
-    if (resolveMapProvider(locale) === 'naver'
-      && naverMapLanguageNeedsReload(loadedNaverMapLanguage(), naverMapLanguageForLocale(locale))) {
+    // NAVER fixes label language at SDK load time. Even when the Korean home
+    // map uses Kakao, its district pages still use NAVER, so discard an SDK
+    // loaded in another language before navigating there.
+    if (naverMapLanguageNeedsReload(loadedNaverMapLanguage(), naverMapLanguageForLocale(locale))) {
       window.dispatchEvent(new CustomEvent(MAP_NAVIGATION_EVENT, { detail: path }))
       window.location.assign(target)
       return
