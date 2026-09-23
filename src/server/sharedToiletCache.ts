@@ -267,5 +267,22 @@ export async function getSharedToiletBucket(): Promise<R2BucketLike | null> {
 export async function persistSharedToiletInvalidation(events: ToiletCacheEvent[]) {
   const bucket = await getSharedToiletBucket()
   if (!bucket) return
-  for (const event of events) await applySharedToiletInvalidation(bucket, event)
+  await applySharedToiletInvalidations(bucket, events)
+}
+
+export async function applySharedToiletInvalidations(bucket: R2BucketLike, events: ToiletCacheEvent[]) {
+  // A signed delivery can contain 100 toilets. Serial R2 reads and writes can
+  // outlast the API sender's timeout, leaving the entire outbox batch pending.
+  // Bound concurrency below Workers' six simultaneous outgoing connections;
+  // finish every attempted event before returning a retryable failure.
+  let cursor = 0
+  let failed = false
+  await Promise.all(Array.from({ length: Math.min(4, events.length) }, async () => {
+    while (cursor < events.length) {
+      const event = events[cursor++]
+      try { await applySharedToiletInvalidation(bucket, event) }
+      catch { failed = true }
+    }
+  }))
+  if (failed) throw new Error('Shared toilet invalidation failed')
 }

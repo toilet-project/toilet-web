@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import {readFileSync} from 'node:fs'
 import test from 'node:test'
-import {applySharedToiletInvalidation,readThroughSharedToiletCache,refreshSharedToiletCache,SHARED_TOILET_CACHE_SCHEMA,sharedToiletCacheKey} from '../src/server/sharedToiletCache.ts'
+import {applySharedToiletInvalidation,applySharedToiletInvalidations,readThroughSharedToiletCache,refreshSharedToiletCache,SHARED_TOILET_CACHE_SCHEMA,sharedToiletCacheKey} from '../src/server/sharedToiletCache.ts'
 import {formatOpenTime} from '../src/lib/detailFormatting.ts'
 
 class FakeR2 {
@@ -108,6 +108,36 @@ test('translation and opening-hours changes invalidate the old object before rep
   assert.equal(current.normalizedOpeningHours.openingPolicy,'ALWAYS')
   assert.equal(current.translations.ja.name,'更新')
   assert.equal(bucket.value(21).state,'data')
+})
+
+test('a full signed batch invalidates shared objects with bounded R2 concurrency',async()=>{
+  const bucket=new FakeR2()
+  let active=0, peak=0
+  const originalGet=bucket.get.bind(bucket)
+  bucket.get=async key=>{
+    active++; peak=Math.max(peak,active)
+    try { await new Promise(resolve=>setTimeout(resolve,5)); return await originalGet(key) }
+    finally { active-- }
+  }
+  const events=Array.from({length:100},(_,index)=>({toiletId:index+1,revision:1,action:'UPSERT',catalogChanged:false}))
+  await applySharedToiletInvalidations(bucket,events)
+  assert.equal(peak,4)
+  for(const event of events){
+    assert.equal(bucket.value(event.toiletId).state,'invalidated')
+    assert.equal(bucket.value(event.toiletId).revision,1)
+  }
+})
+
+test('a failed R2 write rejects acknowledgement after attempting the rest of the batch',async()=>{
+  const bucket=new FakeR2()
+  const originalPut=bucket.put.bind(bucket)
+  bucket.put=async (key,...args)=>{
+    if(key===sharedToiletCacheKey(3)) throw new Error('R2 unavailable')
+    return originalPut(key,...args)
+  }
+  const events=Array.from({length:8},(_,index)=>({toiletId:index+1,revision:1,action:'UPSERT',catalogChanged:false}))
+  await assert.rejects(()=>applySharedToiletInvalidations(bucket,events),/Shared toilet invalidation failed/)
+  for(const event of events.filter(({toiletId})=>toiletId!==3)) assert.equal(bucket.value(event.toiletId).state,'invalidated')
 })
 
 test('invalid structured hours cannot be mistaken for a confirmed schedule',async()=>{
