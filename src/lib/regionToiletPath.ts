@@ -1,6 +1,6 @@
 import type { ToiletDetailResponse } from '../api/toilets'
 import type { Locale } from '../i18n/locale'
-import { localizeToilet } from '../i18n/toiletTranslations.ts'
+import { toiletTranslation } from '../i18n/toiletTranslations.ts'
 import { districtForToilet, getDistrict, localizedRegionPath } from './regions.ts'
 import { toiletPath } from './toiletRoute.ts'
 import { urlName } from './urlName.ts'
@@ -14,7 +14,8 @@ export function regionToiletPathForDistrict(detail: Pick<RoutableToilet, 'id' | 
   locale: Locale, districtCode: string | null | undefined) {
   if (!districtCode || !/^\d{5}$/.test(districtCode)
     || !getDistrict(districtCode.slice(0, 2), districtCode)) return toiletPath(detail.id)
-  const name = localizeToilet(detail, locale).name
+  // A temporary display fallback must not become a permanent redirect slug.
+  const name = toiletTranslation(detail, locale)?.name?.trim() || detail.name
   return `${localizedRegionPath(locale, districtCode.slice(0, 2), districtCode)}/toilet/${detail.id}-${facilitySlug(name)}`
 }
 

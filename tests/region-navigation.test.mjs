@@ -44,7 +44,10 @@ test('a known point and detail resolve to stable region URLs in every locale', (
   assert.equal(regionToiletPath(detail, 'en'), '/regions/seoul-11/jongno-gu-11110/toilet/177-sajik-gas-station')
   assert.equal(regionToiletPath(detail, 'ja'), '/regions/ソウル-11/鍾路区-11110/toilet/177-サジク給油所')
   assert.equal(regionToiletPath(detail, 'zh-CN'), '/regions/首尔-11/钟路区-11110/toilet/177-社稷加油站')
-  assert.equal(regionToiletPath(detail, 'zh-TW'), '/regions/首爾-11/鐘路區-11110/toilet/177-사직주유소', 'missing translations do not invent names')
+  assert.equal(regionToiletPath(detail, 'zh-TW'), '/regions/首爾-11/鐘路區-11110/toilet/177-사직주유소', 'temporary display fallback must not change a permanent URL')
+  assert.equal(regionToiletPath(detail, 'zh-HK'), '/regions/首爾-11/鐘路區-11110/toilet/177-사직주유소')
+  assert.equal(regionToiletPath({ ...detail, translations: { ...detail.translations, 'zh-TW': { name: '繁體名稱' } } }, 'zh-TW'),
+    '/regions/首爾-11/鐘路區-11110/toilet/177-繁體名稱')
   assert.equal(regionToiletPathForDistrict(detail, 'zh-CN', '11110'),
     '/regions/首尔-11/钟路区-11110/toilet/177-社稷加油站', 'snapshot paths avoid per-entry polygon scans')
   assert.equal(regionToiletPathForDistrict(detail, 'zh-CN', '99999'), '/toilet/177')

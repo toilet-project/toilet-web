@@ -5,7 +5,7 @@ import { toiletTypeLabel } from '../src/i18n/facilityLabels.ts'
 import { mapSystemNotice, localizeMapLabels } from '../src/i18n/mapLabels.ts'
 import { formatOpenTime, formatInstallationDate, formatFacilityLocation, formatLastUpdatedAt, hasVisibleKoreanOriginal } from '../src/lib/detailFormatting.ts'
 import { message } from '../src/i18n/messages.ts'
-import { localizeToilet, localizeToiletMapItem, localizeToiletMapSearch } from '../src/i18n/toiletTranslations.ts'
+import { fallbackToiletDisplayLanguages, localizeToilet, localizeToiletMapItem, localizeToiletMapSearch } from '../src/i18n/toiletTranslations.ts'
 
 test('only exact structured categories translate and unreviewed opening hours do not pretend to be translated', () => {
   assert.equal(toiletTypeLabel('공중화장실', 'en'), 'Public')
@@ -92,7 +92,7 @@ test('system notices have safe English fallbacks without leaking arbitrary serve
   for (const value of ['private-error-value', '__proto__']) assert.doesNotMatch(mapSystemNotice(value, 'en'), /private-error-value|__proto__/)
   assert.equal(mapSystemNotice('검색 결과가 없습니다.', 'ko'), '검색 결과가 없습니다.')
 })
-test('current API translations are selected by locale with field-level Korean fallback', () => {
+test('current API translations are selected by locale with field-level display fallback', () => {
   const canonical = {
     id: 1, name: '서울역 화장실', roadAddress: '서울특별시 중구 한강대로 405', jibunAddress: '서울특별시 중구 봉래동2가',
     translations: { en: { name: 'Seoul Station Restroom', roadAddress: '405 Hangang-daero, Jung-gu, Seoul', jibunAddress: null } },
@@ -116,8 +116,40 @@ test('current API translations are selected by locale with field-level Korean fa
   } }
   assert.equal(localizeToilet(regional, 'zh-CN').name, '简体名称')
   assert.equal(localizeToilet(regional, 'zh-TW').name, '繁體名稱')
-  assert.strictEqual(localizeToilet(regional, 'zh-HK'), regional)
+  assert.equal(localizeToilet(regional, 'zh-HK').name, '简体名称')
   assert.strictEqual(localizeToilet({ ...canonical, translations: { zh: regional.translations.zh } }, 'zh-CN').name, canonical.name)
+
+  const partial = { ...canonical, translations: {
+    'zh-TW': { name: '臺灣名稱', roadAddress: ' ', jibunAddress: null },
+    'zh-CN': { name: '简体名称', roadAddress: '简体道路地址', jibunAddress: ' ' },
+    en: { name: 'English name', roadAddress: 'English road address', jibunAddress: 'English lot address' },
+  } }
+  const taiwan = localizeToilet(partial, 'zh-TW')
+  assert.deepEqual([taiwan.name, taiwan.roadAddress, taiwan.jibunAddress],
+    ['臺灣名稱', '简体道路地址', 'English lot address'])
+  assert.deepEqual(fallbackToiletDisplayLanguages(partial, 'zh-TW'), ['zh-CN'])
+  const hongKong = localizeToilet(partial, 'zh-HK')
+  assert.deepEqual([hongKong.name, hongKong.roadAddress, hongKong.jibunAddress],
+    ['简体名称', '简体道路地址', 'English lot address'])
+  assert.deepEqual(fallbackToiletDisplayLanguages(partial, 'zh-HK'), ['zh-CN'])
+  const englishOnly = { ...canonical, translations: { en: partial.translations.en } }
+  assert.equal(localizeToilet(englishOnly, 'zh-HK').name, 'English name')
+  assert.deepEqual(fallbackToiletDisplayLanguages(englishOnly, 'zh-HK'), ['en'])
+  const mixed = { ...canonical, translations: {
+    'zh-CN': { name: '简体名称', roadAddress: null, jibunAddress: null },
+    en: { name: 'English name', roadAddress: 'English road address', jibunAddress: null },
+  } }
+  assert.deepEqual([localizeToilet(mixed, 'zh-HK').name, localizeToilet(mixed, 'zh-HK').roadAddress],
+    ['简体名称', 'English road address'])
+  assert.deepEqual(fallbackToiletDisplayLanguages(mixed, 'zh-HK'), ['zh-CN', 'en'])
+  const exactHongKong = { ...mixed, translations: { ...mixed.translations,
+    'zh-HK': { name: '香港名稱', roadAddress: '香港地址', jibunAddress: null },
+  } }
+  assert.equal(localizeToilet(exactHongKong, 'zh-HK').name, '香港名稱')
+  assert.deepEqual(fallbackToiletDisplayLanguages(exactHongKong, 'zh-HK'), [])
+  assert.strictEqual(localizeToilet(untranslated, 'zh-HK'), untranslated)
+  assert.deepEqual(fallbackToiletDisplayLanguages(untranslated, 'zh-HK'), [])
+  assert.deepEqual(fallbackToiletDisplayLanguages(partial, 'en'), [])
 
   const response = { meta: { map_level: 3, display_type: 'MARKER', total_count: 1, result_count: 1 }, toilets: [{ ...canonical, latitude: 37.5, longitude: 127 }], clusters: [] }
   assert.equal(localizeToiletMapSearch(response, 'en').toilets[0].name, 'Seoul Station Restroom')
@@ -135,6 +167,15 @@ test('administrator display-group names use a locale translation with Korean fal
     displayGroupId: 7, displayGroupName: '우리문화원',
   }, 'en')
   assert.equal(fallback.displayGroupName, '우리문화원')
+
+  const regional = { ...fallback, displayGroupTranslations: {
+    'zh-CN': '简体文化院', en: 'Cultural Center', 'zh-TW': '臺灣文化院',
+  } }
+  assert.equal(localizeToiletMapItem(regional, 'zh-TW').displayGroupName, '臺灣文化院')
+  assert.equal(localizeToiletMapItem(regional, 'zh-HK').displayGroupName, '简体文化院')
+  assert.equal(localizeToiletMapItem({ ...regional, displayGroupTranslations: { ...regional.displayGroupTranslations, 'zh-HK': ' ' } }, 'zh-HK').displayGroupName, '简体文化院')
+  assert.equal(localizeToiletMapItem({ ...regional, displayGroupTranslations: { en: 'Cultural Center' } }, 'zh-HK').displayGroupName, 'Cultural Center')
+  assert.equal(localizeToiletMapItem(fallback, 'zh-HK').displayGroupName, '우리문화원')
 })
 test('map overlays relabel in place and preserve original named groups', () => {
   const nodes = [

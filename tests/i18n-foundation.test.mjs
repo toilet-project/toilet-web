@@ -70,7 +70,7 @@ test('Asian fixed UI dictionaries are complete while source and user text remain
   assert.notEqual(message('zh-CN', 'review.paper'), message('zh-HK', 'review.paper'))
 })
 
-test('facility translations select the exact Chinese region and keep missing fields in Korean', () => {
+test('facility translations prefer the exact Chinese region, then Simplified Chinese and English for display', () => {
   const toilet = { name: '원문 화장실', roadAddress: '원문 도로명', jibunAddress: '원문 지번',
     translations: {
       en: { name: 'English restroom', roadAddress: 'English road', jibunAddress: null },
@@ -83,7 +83,10 @@ test('facility translations select the exact Chinese region and keep missing fie
   assert.equal(localizeToiletDetail(toilet, 'ja').roadAddress, '원문 도로명')
   assert.equal(localizeToiletDetail(toilet, 'zh-CN').roadAddress, '简体地址')
   assert.equal(localizeToiletDetail(toilet, 'zh-TW').name, '繁體廁所')
-  assert.deepEqual(localizeToiletDetail(toilet, 'zh-HK'), toilet)
+  assert.equal(localizeToiletDetail(toilet, 'zh-TW').roadAddress, '简体地址')
+  assert.equal(localizeToiletDetail(toilet, 'zh-HK').name, '简体卫生间')
+  assert.equal(localizeToiletDetail(toilet, 'zh-HK').roadAddress, '简体地址')
+  assert.equal(localizeToiletDetail(toilet, 'zh-HK').jibunAddress, '원문 지번')
   assert.equal(localizeToiletDetail(toilet, 'en').jibunAddress, '원문 지번')
   assert.equal(englishToiletMetadata({ name: '원문 화장실', translations: { en: { name: ' ', roadAddress: 'English road', jibunAddress: null } } }).title, '원문 화장실 — Restroom in Korea')
 })
@@ -234,6 +237,12 @@ test('facility SEO alternatives require current complete locale text and preserv
   assert.equal(japanese.eligible, false)
   assert.equal(japanese.canonical, '/regions/서울특별시-11/종로구-11110/toilet/177-사직주유소')
   assert.equal(japanese.robots.index, false)
+  for (const locale of ['zh-TW', 'zh-HK']) {
+    const traditional = facilitySeoSignals(detail, locale, true)
+    assert.equal(traditional.eligible, false, `${locale} display fallback is not a translation`)
+    assert.equal(traditional.canonical, '/regions/서울특별시-11/종로구-11110/toilet/177-사직주유소')
+    assert.equal(traditional.robots.index, false)
+  }
   const gated = facilitySeoSignals(detail, 'en', false)
   assert.deepEqual(Object.keys(gated.languages), ['ko'])
   assert.equal(gated.eligible, false)
