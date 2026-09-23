@@ -7,6 +7,7 @@ import { SUPPORTED_LOCALES } from '../../../../i18n/locale'
 import { getDistrict, localizedRegionPath } from '../../../../lib/regions'
 import { districtCodesOverlappingBounds } from '../../../../server/regions'
 import type { ScopedToiletCacheEvent } from '../../../../server/cacheRevalidation'
+import { scheduleIndexNowNotification } from '../../../../server/indexNow'
 
 export const runtime = 'nodejs'
 const headers = { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow' }
@@ -59,6 +60,8 @@ export async function POST(request: Request) {
       revalidatePath('/sitemaps/[file]', 'page')
     }
     if (persisted.some(result => result.status === 'rejected')) throw new Error('Cache persistence failed')
+    // Search discovery is best effort and must never delay or reject the cache outbox acknowledgement.
+    await scheduleIndexNowNotification(authenticated.events)
     const acknowledgement = authenticated.protocol === 'v1'
       ? { ok: true, acceptedIds: ids }
       : { ok: true, acceptedEvents: authenticated.events.map(({ toiletId, revision }) => ({ toiletId, revision })) }
