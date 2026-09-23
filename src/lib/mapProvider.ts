@@ -160,12 +160,11 @@ function naverAdapter(raw: NaverMap): MapInstance {
   }
 }
 
-async function fetchNaverClientId(signal?: AbortSignal) {
+async function fetchNaverClientId() {
   const response = await fetch('/api/map-provider-config', {
     method: 'GET',
     headers: { Accept: 'application/json' },
     cache: 'no-store',
-    signal,
   })
   if (!response.ok) throw new Error('영문 지도 설정을 불러오지 못했습니다.')
   const config = await response.json() as MapProviderConfig
@@ -177,7 +176,9 @@ async function loadNaverSdk(language: NaverMapLanguage, signal?: AbortSignal) {
   if (naverMapLanguageNeedsReload(loadedNaverMapLanguage(), language)) throw new NaverMapLanguageReloadRequired()
   if (window.naver?.maps?.Map) return
   if (!naverSdkPromise) {
-    naverSdkPromise = fetchNaverClientId(signal).then(clientId => new Promise<void>((resolve, reject) => {
+    // The SDK is shared across maps. Unmounting one map must not cancel the
+    // configuration request that another map is already waiting for.
+    naverSdkPromise = fetchNaverClientId().then(clientId => new Promise<void>((resolve, reject) => {
       const existing = document.querySelector<HTMLScriptElement>('script[data-geupddong-map-provider="naver"]')
       const script = existing ?? document.createElement('script')
       if (!existing) {

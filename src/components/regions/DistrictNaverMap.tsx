@@ -19,6 +19,18 @@ type NaverMaps = {
   Polygon: new (options: { map: unknown; paths: unknown[][]; strokeColor: string; strokeWeight: number; strokeOpacity: number; fillColor: string; fillOpacity: number; clickable: boolean }) => NaverPolygon
 }
 
+const recoveryKey = (locale: Locale, district: Region) => `district-map-recovery:${locale}:${district.code}`
+
+function reloadOnceAfterMapFailure(locale: Locale, district: Region) {
+  try {
+    const key = recoveryKey(locale, district)
+    if (window.sessionStorage.getItem(key)) return false
+    window.sessionStorage.setItem(key, '1')
+    window.location.reload()
+    return true
+  } catch { return false }
+}
+
 export function DistrictNaverMap({ district, toilets, locale, failed = false }: { district: Region; toilets: ToiletMapItemResponse[]; locale: Locale; failed?: boolean }) {
   const t = regionText(locale)
   const container = useRef<HTMLDivElement>(null)
@@ -119,12 +131,16 @@ export function DistrictNaverMap({ district, toilets, locale, failed = false }: 
         { top: 30, right: 30, bottom: 30, left: 30 },
       )
       drawMarkers()
+      try { window.sessionStorage.removeItem(recoveryKey(locale, district)) } catch { /* Optional recovery guard. */ }
       cleanup = () => { removeIdle(); removeZoom(); resize.disconnect(); overlays.forEach(overlay => overlay.setMap(null)); polygon.setMap(null); destroyMap(map) }
-    }).catch(() => {
+    }).catch(error => {
       if (abort.signal.aborted) return
       // Also cover a language switch racing with the SDK script's insertion.
       if (naverMapLanguageNeedsReload(loadedNaverMapLanguage(), naverMapLanguageForLocale(locale))) window.location.reload()
-      else setError(true)
+      else {
+        console.warn('District map initialization failed', error)
+        if (!reloadOnceAfterMapFailure(locale, district)) setError(true)
+      }
     })
     return () => { abort.abort(); cleanup?.() }
   }, [district, toilets, locale, t])
