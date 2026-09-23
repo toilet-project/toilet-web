@@ -69,3 +69,8 @@ test('Naver map is enabled in both approved targets',()=>{
   assert.equal(preview.vars.NAVER_MAP_ENABLED,'true')
   assert.equal(production.vars.NAVER_MAP_ENABLED,'true')
 })
+
+test('IndexNow is isolated from preview and enabled only in production',()=>{
+  assert.equal(preview.vars.INDEXNOW_ENABLED,'false')
+  assert.equal(production.vars.INDEXNOW_ENABLED,'true')
+})
