@@ -62,6 +62,23 @@ export async function collectPublicToiletIds({fetchImpl=fetch,baseUrl,mode='all'
   for(const url of selected) found.push(...toiletIdsFromXml(await checkedText(fetchImpl,url,requestTimeoutMs,retries,waitImpl),baseUrl))
   return [...new Set(found)]
 }
+export async function collectPublicMapToiletIds({fetchImpl=fetch,baseUrl,requestTimeoutMs=60_000,retries=3,waitImpl=wait}){
+  const url=new URL('/api/v1/toilets',baseUrl)
+  for(const [name,value] of Object.entries({southLat:33,northLat:39,westLng:124,eastLng:132,zoom:8,includeList:true})) {
+    url.searchParams.set(name,String(value))
+  }
+  let value
+  try { value=JSON.parse(await checkedText(fetchImpl,url,requestTimeoutMs,retries,waitImpl)) }
+  catch(error){
+    if(error instanceof SyntaxError) throw new Error('Invalid public toilet catalog response')
+    throw error
+  }
+  if(value?.meta?.display_type!=='MARKER'||!Array.isArray(value.toilets)
+    ||value.toilets.length!==value.meta.total_count) throw new Error('Incomplete public toilet catalog response')
+  const ids=value.toilets.map(item=>positiveInteger(item?.id,'toilet ID'))
+  if(new Set(ids).size!==ids.length) throw new Error('Duplicate public toilet catalog ID')
+  return ids
+}
 export async function readDeploymentVersion(fetchImpl,baseUrl,requestTimeoutMs=30_000){
   const response=await fetchImpl(`${baseUrl}/version.json`,{cache:'no-store',headers:{'user-agent':'geupddong-cache-prewarm/1'},signal:requestSignal(requestTimeoutMs)})
   if(!response.ok) throw new Error(`Version check failed (${response.status})`)
