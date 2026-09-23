@@ -144,6 +144,11 @@ export function planIncrementalCacheCleanup({objects,releases,activeWorkerVersio
     const protectedUntil=retirement+rollbackProtectionDays*86_400_000
     if(now<protectedUntil) protectedCacheNamespaces.set(release.cacheNamespace,`retirement protection until ${new Date(protectedUntil).toISOString()}`)
   }
+  const immediatePrevious=workerReleases.filter(release=>!activeWorkerVersions.includes(release.workerVersion)
+    &&Date.parse(release.deployedAt)<newestActive).sort((left,right)=>Date.parse(right.deployedAt)-Date.parse(left.deployedAt))[0]
+  if(immediatePrevious&&!protectedCacheNamespaces.has(immediatePrevious.cacheNamespace)){
+    protectedCacheNamespaces.set(immediatePrevious.cacheNamespace,'immediate rollback release')
+  }
   const knownCacheNamespaces=new Set(registry.map(release=>release.cacheNamespace)),deleteObjects=[],protectedObjects=[],unknownObjects=[]
   for(const object of objects){
     if(!object||typeof object.key!=='string'||!Number.isFinite(Number(object.size))||Number(object.size)<0) throw new Error('Invalid R2 inventory object')

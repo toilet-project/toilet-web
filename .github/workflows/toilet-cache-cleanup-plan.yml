@@ -8,9 +8,9 @@ on:
         required: false
         type: string
       rollback_days:
-        description: Rollback protection days (default 3; lower values require a namespace)
+        description: Rollback protection days (default 0 for the scheduled policy)
         required: false
-        default: '3'
+        default: '0'
         type: string
 
 permissions:
@@ -44,7 +44,7 @@ jobs:
       - name: Produce dry-run plan only
         env:
           CACHE_NAMESPACE: ${{ inputs.cache_namespace }}
-          ROLLBACK_DAYS: ${{ inputs.rollback_days || '3' }}
+          ROLLBACK_DAYS: ${{ inputs.rollback_days || '0' }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CACHE_STATUS_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

@@ -13,7 +13,7 @@ if(args.automatic&&(!args.execute||process.env.CACHE_CLEANUP_AUTOMATIC_ENABLED!=
 if(args.automatic&&args['only-namespace'])throw new Error('Manual namespace selection cannot run automatically')
 const rollbackProtectionDays=Number(args['rollback-days']??3)
 if(!Number.isSafeInteger(rollbackProtectionDays)||rollbackProtectionDays<0||rollbackProtectionDays>30)throw new Error('Invalid rollback protection days')
-if(rollbackProtectionDays<3&&!args['only-namespace'])throw new Error('Reduced rollback protection requires an exact namespace')
+if(rollbackProtectionDays<3&&args.execute&&!args.automatic&&!args['only-namespace'])throw new Error('Manual deletion with reduced rollback protection requires an exact namespace')
 function requiredExpected(name){
   const value=args[name]
   if(value===undefined||value==='')throw new Error(`Execution requires --${name}`)
