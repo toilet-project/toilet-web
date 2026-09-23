@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import {assertAutomaticCleanupPlan,assertReviewedCleanupPlan,cacheNamespaceFromKey,cleanupPlanFingerprint,normalizeDeploymentStatus,planIncrementalCacheCleanup,sameActiveDeployment,selectAutomaticCleanupBatch} from '../scripts/cache/cleanup-lib.mjs'
+import {assertAutomaticCleanupPlan,assertReviewedCleanupPlan,cacheNamespaceFromKey,cleanupPlanFingerprint,normalizeDeploymentStatus,planIncrementalCacheCleanup,sameActiveDeployment,selectAutomaticCleanupBatch,selectRetiredNamespaceCleanup} from '../scripts/cache/cleanup-lib.mjs'
 
 const active='11111111-1111-4111-8111-111111111111',previous='22222222-2222-4222-8222-222222222222',old='33333333-3333-4333-8333-333333333333'
 const retiredNamespace='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-12345-1-review-production-candidate'
@@ -49,6 +49,21 @@ test('execution requires an exact reviewed plan with no unknown objects',()=>{
   const unknown=planIncrementalCacheCleanup({objects:[{key:'incremental-cache/unregistered/d.cache',size:50}],releases,activeWorkerVersions:[active]})
   assert.throws(()=>assertReviewedCleanupPlan(unknown,{files:1,bytes:50,fingerprint:cleanupPlanFingerprint(unknown.deleteObjects)}),/unclassified/)
 })
+test('manual cleanup selects only one older release and keeps active and rollback versions',()=>{
+  const plan=planIncrementalCacheCleanup({objects:[
+    {key:'incremental-cache/cache-active/a.cache',size:10},
+    {key:'incremental-cache/cache-previous/b.cache',size:20},
+    {key:'incremental-cache/cache-old/c.cache',size:30},
+    {key:'incremental-cache/unregistered/d.cache',size:40},
+  ],releases,activeWorkerVersions:[active],now:Date.parse('2026-09-15T12:00:00Z'),rollbackProtectionDays:0})
+  const selected=selectRetiredNamespaceCleanup(plan,releases,[active],'cache-old')
+  assert.deepEqual(selected.deleteObjects.map(row=>row.key),['incremental-cache/cache-old/c.cache'])
+  assert.deepEqual(selected.summary.delete,{files:1,bytes:30})
+  assert.equal(selected.unknownObjects.length,0)
+  assert.doesNotThrow(()=>assertReviewedCleanupPlan(selected,{files:1,bytes:30,fingerprint:selected.deleteFingerprint}))
+  assert.throws(()=>selectRetiredNamespaceCleanup(plan,releases,[active],'cache-active'),/protected/)
+  assert.throws(()=>selectRetiredNamespaceCleanup(plan,releases,[active],'cache-previous'),/rollback releases/)
+})
 test('missing active manifest and ambiguous keys fail closed',()=>{
   assert.throws(()=>planIncrementalCacheCleanup({objects:[],releases,activeWorkerVersions:['44444444-4444-4444-8444-444444444444']}),/missing a release manifest/)
   assert.equal(cacheNamespaceFromKey('incremental-cache/deployment/hash.cache'),'deployment');assert.equal(cacheNamespaceFromKey('other/deployment/hash.cache'),null)
@@ -79,11 +94,18 @@ test('automatic cleanup selects whole retired namespaces and preserves unknown o
   assert.doesNotThrow(()=>assertReviewedCleanupPlan(batch,{files:2,bytes:40,fingerprint:batch.deleteFingerprint},{allowUnknownObjects:true}))
   assert.throws(()=>assertReviewedCleanupPlan(batch,{files:2,bytes:40,fingerprint:batch.deleteFingerprint}),/unclassified/)
 })
-test('automatic cleanup refuses a namespace that cannot fit one safe batch and skips empty plans',()=>{
+test('automatic cleanup splits an oversized retired namespace into bounded repeatable batches',()=>{
   const oversized=planIncrementalCacheCleanup({objects:[
     {key:'incremental-cache/cache-old/a.cache',size:20},{key:'incremental-cache/cache-old/b.cache',size:20},
   ],releases,activeWorkerVersions:[active],now:Date.parse('2026-09-19T12:00:00Z')})
-  assert.throws(()=>selectAutomaticCleanupBatch(oversized,{maxFiles:1,maxBytes:40}),/namespace exceeds/)
+  const first=selectAutomaticCleanupBatch(oversized,{maxFiles:1,maxBytes:40})
+  assert.deepEqual(first.deleteObjects.map(row=>row.key),['incremental-cache/cache-old/a.cache'])
+  assert.deepEqual(first.automaticBatch.deferred,{files:1,bytes:20})
+  const remaining=planIncrementalCacheCleanup({objects:[{key:'incremental-cache/cache-old/b.cache',size:20}],releases,activeWorkerVersions:[active],now:Date.parse('2026-09-19T12:00:00Z')})
+  const second=selectAutomaticCleanupBatch(remaining,{maxFiles:1,maxBytes:40})
+  assert.deepEqual(second.deleteObjects.map(row=>row.key),['incremental-cache/cache-old/b.cache'])
+  assert.deepEqual(second.automaticBatch.deferred,{files:0,bytes:0})
+  assert.throws(()=>selectAutomaticCleanupBatch(oversized,{maxFiles:1,maxBytes:19}),/object exceeds/)
   const empty=planIncrementalCacheCleanup({objects:[{key:'incremental-cache/cache-active/a.cache',size:10}],releases,activeWorkerVersions:[active],now:Date.parse('2026-09-15T12:00:00Z')})
   const batch=selectAutomaticCleanupBatch(empty,{maxFiles:1,maxBytes:1})
   assert.equal(assertAutomaticCleanupPlan(batch,{maxFiles:1,maxBytes:1}).shouldExecute,false)
