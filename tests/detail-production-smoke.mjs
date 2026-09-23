@@ -27,7 +27,10 @@ const fixture = { id: 900001, name: '검증용 화장실', toiletType: '공중�
   roadAddress: '충청남도 천안시 서북구 검증로 1', jibunAddress: '', openTime: '상시', openTimeDetail: '',
   region: { sidoName: '충청남도', sidoCode: '44', sigunguName: '천안시 서북구', sigunguCode: '44133', cityName: '천안시', districtName: '서북구' },
   maleToiletCount: 3, femaleToiletCount: 5, hasEmergencyBell: 'Y', emergencyBellLocation: '', hasCctv: 'N', hasDiaperTable: 'N', diaperTableLocation: '',
-  translations: { en: { name: 'Verified restroom', roadAddress: '1 Test Road, Cheonan', jibunAddress: null } } }
+  translations: {
+    en: { name: 'Verified restroom', roadAddress: '1 Test Road, Cheonan', jibunAddress: null },
+    'zh-CN': { name: '验证用厕所', roadAddress: '韩国天安市测试路1号', jibunAddress: null },
+  } }
 const api = createServer((req,res) => {
   counts.set(req.url,(counts.get(req.url) || 0)+1)
   res.setHeader('Content-Type','application/json')
@@ -38,6 +41,7 @@ const api = createServer((req,res) => {
   }
   if (req.url === '/api/v1/toilets/sitemap/shards') return res.end('[0,1,90]')
   if (req.url === '/api/v1/toilets/sitemap/shards?locale=en') return res.end('[90]')
+  if (req.url === '/api/v1/toilets/sitemap/shards?locale=zh-cn') return res.end('[90]')
   if (req.url?.startsWith('/api/v1/toilets/sitemap/shards?locale=')) return res.end('[]')
   if (req.url === '/api/v1/toilets/sitemap/ids?shard=0') return res.end('[1,10000]')
   if (req.url === '/api/v1/toilets/sitemap/ids?shard=1') return res.end('[10001,20000]')
@@ -54,6 +58,7 @@ const api = createServer((req,res) => {
     if (locale === 'ko' && shard === 1) return res.end(JSON.stringify([entry(10001,'원문 10001'),entry(20000,'원문 20000')]))
     if (locale === 'ko' && shard === 90) return res.end(JSON.stringify([entry(900001,'검증용 화장실'),entry(900002,'좌표 없는 화장실',null,null)]))
     if (locale === 'en' && shard === 90) return res.end(JSON.stringify([entry(900001,'Verified restroom')]))
+    if (locale === 'zh-cn' && shard === 90) return res.end(JSON.stringify([entry(900001,'验证用厕所')]))
     return res.end('[]')
   }
   if (req.url === '/api/v1/toilets/900001' && !deleted) return res.end(JSON.stringify(fixture))
@@ -164,15 +169,22 @@ try {
   assert.equal(counts.get('/api/v1/toilets/sitemap/entries?shard=0&locale=ko'),1,'catalog data cache reused')
   const englishSitemapResponse=await fetch(`${origin}/sitemap-toilets-90-en.xml`)
   const englishPath=localizedPublicPath(regionToiletPath(fixture,'en'),'en')
+  const chineseSitemapResponse=await fetch(`${origin}/sitemap-toilets-90-zh-cn.xml`)
+  const chinesePath=localizedPublicPath(regionToiletPath(fixture,'zh-CN'),'zh-CN')
   if (foreignUiEnabled) {
     assert.equal(englishSitemapResponse.status,200)
     const englishSitemap=await englishSitemapResponse.text()
     assert.ok(englishSitemap.includes(`<loc>${encodeURI(`https://geupddong.com${englishPath}`)}</loc>`))
     assert.doesNotMatch(englishSitemap,/900002/,'untranslated detail stays out of the foreign sitemap')
+    assert.equal(chineseSitemapResponse.status,200)
+    assert.ok((await chineseSitemapResponse.text()).includes(`<loc>${encodeURI(`https://geupddong.com${chinesePath}`)}</loc>`))
   } else {
     assert.equal(englishSitemapResponse.status,404)
+    assert.equal(chineseSitemapResponse.status,404)
     assert.equal((await fetch(`${origin}/en/toilet/900001`)).status,404)
   }
+  assert.equal((await fetch(`${origin}/sitemap-toilets-90-zh-tw.xml`)).status,404)
+  assert.equal((await fetch(`${origin}/sitemap-toilets-90-zh-hk.xml`)).status,404)
   for(const file of ['2.xml','01.xml','bad.xml','-1.xml','900719925475.xml','0-xx.xml'])
     assert.equal((await fetch(`${origin}/sitemaps/${file}`)).status,404)
   for(const file of ['3.xml','4.xml']) {
