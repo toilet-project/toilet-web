@@ -12,7 +12,11 @@ function localeOf(segment: string): Locale {
   notFound()
 }
 export const revalidate = 2_592_000
-export function generateStaticParams() { return [] }
+// Pre-render the localized nationwide atlases while keeping province and
+// district paths available through on-demand generation.
+export function generateStaticParams(): { language: string; parts: string[] }[] {
+  return ['en', 'ja', 'zh-cn', 'zh-tw', 'zh-hk'].map(language => ({ language, parts: [] }))
+}
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { language, parts } = await params
   return regionMetadata(localeOf(language), parts ?? [])

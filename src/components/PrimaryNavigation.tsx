@@ -10,6 +10,6 @@ export function PrimaryNavigation({ active, className = '' }: { active?: 'map' |
   const locale = useLocale(), t = useMessages(), r = regionText(locale)
   return <nav className={`primary-navigation ${className}`} aria-label={t('nav.main')}>
     <Link href={localizedPublicPath('/', locale)!} aria-current={active === 'map' ? 'page' : undefined}><span className="primary-navigation-icon"><HeaderIcon name="map" /></span><span>{t('nav.map')}</span></Link>
-    <Link href={localizedPublicPath('/regions', locale)!} aria-current={active === 'regions' ? 'page' : undefined}><span className="primary-navigation-icon"><HeaderIcon name="regions" /></span><span>{r.regions}</span></Link>
+    <Link href={localizedPublicPath('/regions', locale)!} prefetch={active !== 'regions'} aria-current={active === 'regions' ? 'page' : undefined}><span className="primary-navigation-icon"><HeaderIcon name="regions" /></span><span>{r.regions}</span></Link>
   </nav>
 }
