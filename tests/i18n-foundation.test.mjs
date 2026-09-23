@@ -9,6 +9,7 @@ import { parseMapResume } from '../src/lib/appUpdate.ts'
 import { sanitizeAnalyticsPagePath } from '../src/lib/analytics.ts'
 import { englishHomeMetadata, englishHomeData, englishToiletMetadata, englishPlaceData } from '../src/i18n/seo.ts'
 import { freeRestroomSearchPrompt } from '../src/i18n/searchCopy.ts'
+import { regionSeoCopy } from '../src/i18n/regionSeoCopy.ts'
 import { LANGUAGE_LOGIN_RETURN_KEY, saveLanguageLoginReturn, consumeLanguageLoginReturn } from '../src/i18n/loginReturn.ts'
 import { localizeToiletDetail } from '../src/i18n/toiletTranslations.ts'
 import { facilitySeoSignals, indexableFacilityLocales } from '../src/i18n/facilitySeo.ts'
@@ -19,6 +20,29 @@ test('display labels do not replace standards-based locale identifiers', () => {
   assert.deepEqual(SUPPORTED_LOCALES, ['ko', 'en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK'])
   assert.deepEqual(LOCALE_OPTIONS.map(({ label }) => label), ['KOR', 'EN', 'JA', '简', '繁', '繁'])
   for (const invalid of ['KOR', 'EN', 'en-US', 'jp', '__proto__', null, 1]) assert.equal(isLocale(invalid), false)
+})
+
+test('region search titles distinguish nationwide, province and district pages', () => {
+  assert.equal(regionSeoCopy('ko', {}).title, '전국 화장실 위치 지도')
+  assert.equal(regionSeoCopy('ko', { province: '서울특별시' }).title, '서울특별시 화장실 위치 지도')
+  const district = regionSeoCopy('ko', { province: '대전광역시', district: '유성구' })
+  assert.equal(district.title, '대전광역시 유성구 화장실 위치 지도')
+  assert.match(district.description, /대전광역시 유성구 공중화장실 위치/)
+})
+
+test('localized region descriptions address free-restroom searches without promising every facility is free', () => {
+  const names = {
+    en: ['Seoul', 'Jongno-gu', 'Looking for a free restroom in Jongno-gu, Seoul?'],
+    ja: ['ソウル', '鍾路区', 'ソウル・鍾路区で無料トイレをお探しですか？'],
+    'zh-CN': ['首尔', '钟路区', '在首尔钟路区找免费厕所？'],
+    'zh-TW': ['首爾', '鐘路區', '在首爾鐘路區找免費廁所？'],
+    'zh-HK': ['首爾', '鐘路區', '在首爾鐘路區找免費公廁？'],
+  }
+  for (const [locale, [province, district, query]] of Object.entries(names)) {
+    const copy = regionSeoCopy(locale, { province, district })
+    assert.ok(copy.title.includes(district), `${locale}: ${copy.title}`)
+    assert.ok(copy.description.startsWith(query), `${locale}: ${copy.description}`)
+  }
 })
 
 test('KO URLs stay stable and English URLs use a single /en prefix', () => {
