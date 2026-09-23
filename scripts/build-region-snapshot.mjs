@@ -57,6 +57,7 @@ if (result.toilets.length !== result.meta.total_count) throw new Error('Public t
 
 const counts = Object.fromEntries(indexed.map(item => [item.code, 0]))
 const toiletDistrict = {}
+const toiletDistrictCodes = []
 const boundaryOverrides = {}
 let unassigned = 0
 for (const toilet of result.toilets) {
@@ -67,6 +68,7 @@ for (const toilet of result.toilets) {
   if (!code) { unassigned++; continue }
   counts[code]++
   toiletDistrict[toilet.id] = [code, toilet.name]
+  toiletDistrictCodes[toilet.id] = code
 }
 
 const directory = resolve(root, 'data/regions')
@@ -74,5 +76,6 @@ await mkdir(directory, { recursive: true })
 const generatedAt = new Date().toISOString()
 await writeFile(resolve(directory, 'counts.json'), JSON.stringify({ generatedAt, sourceCount: result.toilets.length, unassigned, counts }) + '\n')
 await writeFile(resolve(directory, 'toilet-district.json'), JSON.stringify(toiletDistrict) + '\n')
+await writeFile(resolve(directory, 'toilet-district-codes.json'), JSON.stringify(toiletDistrictCodes) + '\n')
 await writeFile(resolve(directory, 'toilet-boundary-overrides.json'), JSON.stringify(boundaryOverrides) + '\n')
 console.log(`Assigned ${Object.keys(toiletDistrict).length}/${result.toilets.length} public toilets to precise district boundaries; ${unassigned} outside known boundaries, ${Object.keys(boundaryOverrides).length} client-link corrections.`)

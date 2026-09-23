@@ -4,7 +4,9 @@ import { allDistricts, districtAt, getDistrict, getProvince, localizedRegionPath
 import { regionContains, districtForToilet } from '../src/lib/regions.ts'
 import preciseDistricts from '../data/regions/sgg-precise.json' with { type: 'json' }
 import boundaryOverrides from '../data/regions/toilet-boundary-overrides.json' with { type: 'json' }
-import { parseRegionToiletSegment, regionToiletPath } from '../src/lib/regionToiletPath.ts'
+import toiletDistrict from '../data/regions/toilet-district.json' with { type: 'json' }
+import toiletDistrictCodes from '../data/regions/toilet-district-codes.json' with { type: 'json' }
+import { parseRegionToiletSegment, regionToiletPath, regionToiletPathForDistrict } from '../src/lib/regionToiletPath.ts'
 import { codeFromRegionSegment, decodedRouteSegment } from '../src/lib/urlName.ts'
 import { isMapPath, localizedPublicPath, parseLocalizedPublicPath } from '../src/i18n/routes.ts'
 
@@ -43,6 +45,9 @@ test('a known point and detail resolve to stable region URLs in every locale', (
   assert.equal(regionToiletPath(detail, 'ja'), '/regions/ソウル-11/鍾路区-11110/toilet/177-サジク給油所')
   assert.equal(regionToiletPath(detail, 'zh-CN'), '/regions/首尔-11/钟路区-11110/toilet/177-社稷加油站')
   assert.equal(regionToiletPath(detail, 'zh-TW'), '/regions/首爾-11/鐘路區-11110/toilet/177-사직주유소', 'missing translations do not invent names')
+  assert.equal(regionToiletPathForDistrict(detail, 'zh-CN', '11110'),
+    '/regions/首尔-11/钟路区-11110/toilet/177-社稷加油站', 'snapshot paths avoid per-entry polygon scans')
+  assert.equal(regionToiletPathForDistrict(detail, 'zh-CN', '99999'), '/toilet/177')
   for (const locale of ['ko', 'en', 'ja', 'zh-CN', 'zh-TW', 'zh-HK']) {
     const localized = localizedPublicPath(regionToiletPath(detail, locale), locale)
     assert.equal(parseLocalizedPublicPath(localized).path, regionToiletPath(detail, locale))
@@ -87,4 +92,9 @@ test('the precise dataset and current snapshot cover the same 256 district codes
   for (const [code] of Object.values(boundaryOverrides)) {
     if (code !== null) assert.ok(expected.has(code), code)
   }
+})
+
+test('the compact sitemap district projection matches the release snapshot', () => {
+  for (const [id, [code]] of Object.entries(toiletDistrict)) assert.equal(toiletDistrictCodes[Number(id)], code, id)
+  assert.equal(toiletDistrictCodes[1], '11110')
 })

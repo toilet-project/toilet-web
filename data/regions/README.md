@@ -15,17 +15,22 @@ The generator verifies the source SHA-256 and all 256 district codes.
 Attribution remains visible in the regional UI. Do not substitute the older
 API district reference table: its codes differ after the 2026 changes.
 
-`counts.json`, `toilet-district.json` and
+`counts.json`, `toilet-district.json`, `toilet-district-codes.json` and
 `toilet-boundary-overrides.json` are generated from the public,
 user-visible toilet API by `node scripts/build-region-snapshot.mjs`. Each
 visible toilet coordinate is assigned to a precise district polygon. The
 small override file corrects client-side detail links where the simplified
 atlas polygon would classify a facility differently. Coordinates outside
 every current precise polygon are excluded and counted in `unassigned`.
-The snapshot timestamp appears on the UI. Regenerate all three snapshot
+The snapshot timestamp appears on the UI. Regenerate all four snapshot
 files before each regional preview or release so counts, links and sitemap
 paths reflect the latest public data. District markers are read from the live
 API and clipped to the same precise boundary.
+
+`toilet-district-codes.json` is the compact runtime projection used while
+building large multilingual sitemap shards. It avoids repeating polygon
+searches for thousands of entries and must stay in sync with
+`toilet-district.json`.
 
 `names.json` holds code-keyed foreign-language district labels. They remain
 machine-translated until individually reviewed; missing translations fall
