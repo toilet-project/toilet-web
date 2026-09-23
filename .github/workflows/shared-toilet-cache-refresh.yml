@@ -73,6 +73,7 @@ jobs:
           node scripts/refresh-shared-toilet-data.mjs
           --execute
           --base-url https://geupddong.com
+          --catalog-base-url https://api.geupddong.com
           --partition-count 28
           --partition "$PARTITION"
           --cycle-id "$CYCLE_ID"
@@ -83,6 +84,7 @@ jobs:
           --max-minutes 80
           --retries 5
           --request-timeout-seconds 30
+          --catalog-request-timeout-seconds 60
           --progress-every 25
       - name: Save resumable checkpoint
         if: ${{ always() }}

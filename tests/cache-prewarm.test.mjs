@@ -5,7 +5,7 @@ import {mkdtemp,readFile,rm,writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {promisify} from 'node:util'
-import {collectPublicToiletIds,failedIdsFromCheckpoint,prewarmToiletPages,requestDetail} from '../scripts/cache/prewarm-lib.mjs'
+import {collectPublicMapToiletIds,collectPublicToiletIds,failedIdsFromCheckpoint,prewarmToiletPages,requestDetail} from '../scripts/cache/prewarm-lib.mjs'
 
 const response=(body,{status=200,headers={}}={})=>new Response(typeof body==='string'?body:JSON.stringify(body),{status,headers})
 const execFileAsync=promisify(execFile)
@@ -36,6 +36,23 @@ test('public ID discovery does not retry permanent sitemap errors',async()=>{
   await assert.rejects(collectPublicToiletIds({baseUrl:'https://preview.example',retries:3,waitImpl:async()=>{},
     fetchImpl:async()=>{attempts++;return response('missing',{status:404})}}),/Source request failed \(404\)/)
   assert.equal(attempts,1)
+})
+test('shared refresh IDs come from the complete public map catalog',async()=>{
+  let requested
+  const ids=await collectPublicMapToiletIds({baseUrl:'https://api.example',fetchImpl:async url=>{
+    requested=new URL(url)
+    return response({meta:{display_type:'MARKER',total_count:3},toilets:[{id:27},{id:55},{id:83}]})
+  }})
+  assert.deepEqual(ids,[27,55,83])
+  assert.equal(requested.pathname,'/api/v1/toilets')
+  assert.equal(requested.searchParams.get('includeList'),'true')
+  assert.equal(requested.searchParams.get('zoom'),'8')
+})
+test('shared refresh rejects truncated or duplicate public map catalogs',async()=>{
+  await assert.rejects(collectPublicMapToiletIds({baseUrl:'https://api.example',fetchImpl:async()=>
+    response({meta:{display_type:'MARKER',total_count:2},toilets:[{id:1}]})}),/Incomplete public toilet catalog/)
+  await assert.rejects(collectPublicMapToiletIds({baseUrl:'https://api.example',fetchImpl:async()=>
+    response({meta:{display_type:'MARKER',total_count:2},toilets:[{id:1},{id:1}]})}),/Duplicate public toilet catalog ID/)
 })
 test('checkpoint, bounded workers and cache evidence complete a sample',async()=>{
   const directory=await mkdtemp(join(tmpdir(),'prewarm-')),checkpointPath=join(directory,'checkpoint.json')

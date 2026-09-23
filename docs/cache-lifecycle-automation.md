@@ -11,8 +11,9 @@
 - 순환 주기: 28일
 - 파티션: `toiletId % 28`
 - 기본 처리율: 5 req/s, 동시 작업 8개
-- 예상 일일 대상: 53,590개 기준 평균 약 1,914개
-- 이론상 요청 시간: 약 6분 23초. sitemap 조회, R2 조건부 저장, 재시도를 포함한 정상 범위는 약 8~15분이다.
+- 대상 목록: 공개 지도 API의 전국 `MARKER` 목록. SEO 색인용 `visibility_status` 사이트맵과 분리한다.
+- 예상 일일 대상: 약 50,000~54,000개 기준 평균 약 1,800~1,930개
+- 이론상 요청 시간: 약 6분 23초. 공개 목록 조회, R2 조건부 저장, 재시도를 포함한 정상 범위는 약 8~15분이다.
 
 GitHub Actions는 매일 05:30 KST에 그날의 파티션을 선택한다. 저장소 변수 `CACHE_DATA_REFRESH_ENABLED`가 `true`일 때만 실행된다. 내부 POST 경로는 `CACHE_MAINTENANCE_SECRET`으로 HMAC 서명하며 한 요청에 화장실 ID 하나만 허용한다. 이 secret은 기존 변경 이벤트용 `CACHE_REVALIDATION_SECRET`과 분리한다.
 
@@ -22,7 +23,7 @@ GitHub Actions는 매일 05:30 KST에 그날의 파티션을 선택한다. 저�
 
 정기 갱신은 공유 R2 객체만 교체하며 이미 생성된 HTML/RSC 페이지 캐시는 무효화하지 않는다. 따라서 변경 이벤트가 없던 기존 객체의 정규화 개방시간이 R2에 채워져도 그 전에 만들어진 상세 페이지는 자체 30일 재검증 또는 별도의 경로 무효화 때 새 필드를 표시한다. 이 보강만으로 모든 언어별 상세 페이지를 즉시 재생성했다고 간주하지 않는다.
 
-워크플로는 배포 작업과 다른 concurrency group을 쓰고 `cancel-in-progress: false`로 설정한다. 배포 ID나 Worker version을 체크포인트에 넣지 않으므로 배포가 바뀌어도 이미 갱신한 ID는 유지된다. 배포 중 일시적인 404, 429, 5xx, timeout은 backoff한다. 실행이 끝내 실패하면 같은 cycle ID와 partition으로 수동 재실행해 체크포인트부터 이어간다.
+워크플로는 배포 작업과 다른 concurrency group을 쓰고 `cancel-in-progress: false`로 설정한다. 갱신 대상 ID는 전국 공개 지도 목록에서 가져오며, 단계적으로 공개 중인 SEO 사이트맵을 대상 카탈로그로 사용하지 않는다. 목록 응답 수와 `meta.total_count`가 다르거나 ID가 중복되면 갱신을 시작하지 않는다. 배포 ID나 Worker version을 체크포인트에 넣지 않으므로 배포가 바뀌어도 이미 갱신한 ID는 유지된다. 배포 중 일시적인 404, 429, 5xx, timeout은 backoff한다. 실행이 끝내 실패하면 같은 cycle ID와 partition으로 수동 재실행해 체크포인트부터 이어간다.
 
 ## 페이지 캐시
 
