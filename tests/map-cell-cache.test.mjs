@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { invalidateMapCells, mapCellGlobalKey, mapCellObjectKey, readThroughMapCell,
+import { fetchMapCellOrigin, invalidateMapCells, mapCellGlobalKey, mapCellObjectKey, readThroughMapCell,
   sanitizeMapCellOriginResponse } from '../src/server/mapCellCache.ts'
 
 class FakeR2 {
@@ -23,6 +23,26 @@ const cell = { x: 2540, y: 750 }
 const marker = (name, id = 1) => ({ id, name, latitude: 37.525, longitude: 127.025 })
 const event = bounds => ({ toiletId: 1, revision: 1, action: 'UPSERT', catalogChanged: false,
   regionScopeComplete: true, regionBounds: bounds })
+
+test('legacy map reads remain available when an older API rejects /map-cell', async () => {
+  const originalFetch = globalThis.fetch
+  const calls = []
+  globalThis.fetch = async url => {
+    calls.push(String(url))
+    if (calls.length === 1) return { status: 400, ok: false }
+    return { status: 200, ok: true, json: async () => ({ meta: { display_type: 'MARKER' },
+      toilets: [marker('fallback', 17)] }) }
+  }
+  try {
+    const result = await fetchMapCellOrigin(cell)
+    assert.equal(result[0].name, 'fallback')
+    assert.match(calls[0], /\/api\/v1\/toilets\/map-cell\?/)
+    assert.match(calls[1], /\/api\/v1\/toilets\?/)
+    assert.match(calls[1], /includeList=false/)
+  } finally {
+    globalThis.fetch = originalFetch
+  }
+})
 
 test('simultaneous cold readers cause one origin read and reuse a stable R2 key', async () => {
   const bucket = new FakeR2(); let originReads = 0

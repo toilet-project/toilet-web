@@ -105,8 +105,9 @@ export async function fetchMapCellOrigin(cell: MapCell): Promise<ToiletMapItemRe
   let response = await fetch(compactUrl, {
     cache: 'no-store', signal: AbortSignal.timeout(8_000),
   })
-  // During the API/WEB rollout the old API remains a safe public read fallback.
-  if (response.status === 404) {
+  // An older API may route /map-cell through /{toiletId} and return 400.
+  // Keep the legacy read available until the compact endpoint is deployed.
+  if (response.status === 400 || response.status === 404) {
     query.set('zoom', '8')
     query.set('includeList', 'false')
     response = await fetch(`${origin.replace(/\/$/, '')}/api/v1/toilets?${query}`, {
