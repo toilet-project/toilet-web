@@ -19,6 +19,7 @@
     "test:address": "node --experimental-strip-types --test tests/address.test.mjs",
     "test:detail-production": "node tests/detail-production-smoke.mjs",
     "cache:prewarm": "node scripts/prewarm-toilet-pages.mjs",
+    "cache:prewarm-map-cells": "node scripts/prewarm-map-cells.mjs",
     "cache:refresh-shared": "node scripts/refresh-shared-toilet-data.mjs",
     "cache:cleanup": "node scripts/cleanup-incremental-cache.mjs",
     "search:build-import": "node scripts/build-place-search-import.mjs",
