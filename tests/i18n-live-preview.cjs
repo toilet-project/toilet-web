@@ -22,7 +22,7 @@ async function main() {
     await page.goto(origin + '/en/toilet/2752')
     await page.locator('.language-selector-trigger').waitFor()
     await page.waitForFunction(() => Boolean(window.naver?.maps?.Map || window.kakao?.maps?.Map) && document.querySelectorAll('.map img').length > 0)
-    await page.locator('.place-card .card-label').filter({ hasText: 'Open' }).waitFor()
+    await page.locator('.place-card .card-label').filter({ hasText: 'Public' }).waitFor()
     const mapNode = await page.locator('.map').elementHandle()
     const title = await page.locator('.place-card h1').innerText()
     assert.ok(title.length > 0)
