@@ -32,6 +32,7 @@ jobs:
       - run: pnpm test
       # Synthetic-only API candidate. No production credentials, review writes or deployment.
       - run: pnpm exec opennextjs-cloudflare build --config wrangler.jsonc
+      - run: node scripts/relocate-worker-wasm.mjs
       - run: node scripts/write-worker-release-manifest.mjs preview
       - run: pnpm exec wrangler deploy --dry-run --config wrangler.jsonc
       - run: tar -czf workers-review-verification.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs review-verification-proxy.mjs place-search-worker.mjs map-provider-worker.mjs package.json pnpm-lock.yaml wrangler.jsonc worker-release-manifest.json open-next.config.ts next.config.ts .next/BUILD_ID
@@ -66,6 +67,7 @@ jobs:
       - run: pnpm run typecheck
       - run: pnpm test
       - run: pnpm exec opennextjs-cloudflare build --config wrangler.production.jsonc
+      - run: node scripts/relocate-worker-wasm.mjs
       - run: node scripts/write-worker-release-manifest.mjs production-candidate
       - run: pnpm exec wrangler deploy --dry-run --config wrangler.production.jsonc
       - run: tar -czf workers-review-production-candidate.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs review-verification-proxy.mjs place-search-worker.mjs map-provider-worker.mjs package.json pnpm-lock.yaml wrangler.production.jsonc worker-release-manifest.json open-next.config.ts next.config.ts .next/BUILD_ID
