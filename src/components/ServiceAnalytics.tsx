@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import { trackEngagement, trackEvent, trackPageView } from '../lib/analytics'
+import { observeVisibleEngagement } from '../lib/visible-engagement'
 
 export function ServiceAnalytics() {
   const pathname = usePathname()
@@ -19,11 +20,12 @@ export function ServiceAnalytics() {
 
   useEffect(() => {
     const page = pathname || '/'
-    const startedAt = Date.now()
+    const isActive = () => document.visibilityState === 'visible' && document.hasFocus()
+    const stopEngagement = observeVisibleEngagement(seconds => trackEngagement(page, seconds))
     const sent = new Set<number>()
-    let finished = false
     const onScroll = () => {
-      const scrollable = Math.max(1, document.documentElement.scrollHeight - window.innerHeight)
+      const scrollable = document.documentElement.scrollHeight - window.innerHeight
+      if (scrollable <= 0 || !isActive()) return
       const depth = Math.round(window.scrollY * 100 / scrollable)
       for (const threshold of [50, 90]) {
         if (depth >= threshold && !sent.has(threshold)) {
@@ -32,18 +34,11 @@ export function ServiceAnalytics() {
         }
       }
     }
-    const finish = () => {
-      if (finished) return
-      finished = true
-      trackEngagement(page, (Date.now() - startedAt) / 1000)
-    }
     window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('pagehide', finish, { once: true })
     onScroll()
     return () => {
       window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('pagehide', finish)
-      finish()
+      stopEngagement()
     }
   }, [pathname])
 
