@@ -9,6 +9,20 @@ test('shared cells cover the initial map level but not close-up or cluster level
   assert.equal(mapCellZoomSupported(10), false)
 })
 
+test('preview and production bundles both request shared map cells', async () => {
+  const original = process.env.SITE_INDEXABLE
+  try {
+    for (const [siteIndexable, expected] of [['false', 'true'], ['true', 'true'], ['', 'false']]) {
+      process.env.SITE_INDEXABLE = siteIndexable
+      const { default: config } = await import(`../next.config.ts?map-cell-${siteIndexable || 'local'}`)
+      assert.equal(config.env.NEXT_PUBLIC_MAP_CELL_CACHE_ENABLED, expected)
+    }
+  } finally {
+    if (original === undefined) delete process.env.SITE_INDEXABLE
+    else process.env.SITE_INDEXABLE = original
+  }
+})
+
 test('nearby viewports share stable cells and broad viewports fall back', () => {
   const first = cellsForBounds({ south: 37.54, north: 37.57, west: 126.95, east: 127 })
   const shifted = cellsForBounds({ south: 37.546, north: 37.576, west: 126.956, east: 127.006 })
