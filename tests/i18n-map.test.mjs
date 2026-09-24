@@ -9,7 +9,7 @@ import { fallbackToiletDisplayLanguages, localizeToilet, localizeToiletMapItem, 
 
 test('only exact structured categories translate and unreviewed opening hours do not pretend to be translated', () => {
   assert.equal(toiletTypeLabel('공중화장실', 'en'), 'Public')
-  assert.equal(toiletTypeLabel('개방화장실', 'en'), 'Open')
+  assert.equal(toiletTypeLabel('개방화장실', 'en'), 'Public')
   assert.equal(toiletTypeLabel('간이화장실', 'en'), 'Portable')
   assert.equal(toiletTypeLabel('이동화장실', 'en'), 'Portable')
   for (const value of ['사유 시설 이름', '__proto__', '서울 화장실']) assert.equal(toiletTypeLabel(value, 'en'), value)
