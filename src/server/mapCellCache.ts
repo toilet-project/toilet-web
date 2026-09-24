@@ -59,9 +59,12 @@ export function sanitizeMapCellOriginResponse(value: unknown, cell: MapCell): To
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid map cell origin response')
   const response = value as Record<string, unknown>
   const meta = response.meta as Record<string, unknown> | undefined
-  if (meta?.display_type !== 'MARKER' || !Array.isArray(response.toilets)) throw new Error('Invalid map cell origin response')
+  // The API omits empty arrays from JSON; an empty cell still has explicit zero counts.
+  const emptyCell = response.toilets == null && meta?.total_count === 0 && meta?.result_count === 0
+  if (meta?.display_type !== 'MARKER' || (!Array.isArray(response.toilets) && !emptyCell))
+    throw new Error('Invalid map cell origin response')
   const bounds = cellBounds(cell)
-  return response.toilets.map(raw => {
+  return (emptyCell ? [] : response.toilets as unknown[]).map(raw => {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Invalid map cell marker')
     const marker = raw as Record<string, unknown>
     if (!Number.isSafeInteger(marker.id) || Number(marker.id) < 1 || typeof marker.name !== 'string'

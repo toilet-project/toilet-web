@@ -137,3 +137,10 @@ test('the cached marker excludes addresses and unknown origin fields', () => {
   assert.deepEqual(value.translations, { en: { name: 'Restroom', roadAddress: null, jibunAddress: null } })
   assert.deepEqual(value.displayGroupTranslations, { en: 'Group' })
 })
+
+test('an API response with explicit zero counts and no toilet list is an empty cell', () => {
+  const empty = { meta: { display_type: 'MARKER', total_count: 0, result_count: 0 } }
+  assert.deepEqual(sanitizeMapCellOriginResponse(empty, cell), [])
+  assert.throws(() => sanitizeMapCellOriginResponse({ ...empty,
+    meta: { ...empty.meta, total_count: 1 } }, cell), /Invalid map cell origin response/)
+})
