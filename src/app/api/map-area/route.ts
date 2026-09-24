@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     const bucket = await getMapCellBucket()
     const results: Awaited<ReturnType<typeof readThroughMapCell>>[] = []
     let cursor = 0
-    await Promise.all(Array.from({ length: Math.min(2, cells.length) }, async () => {
+    await Promise.all(Array.from({ length: Math.min(4, cells.length) }, async () => {
       while (cursor < cells.length) {
         const cell = cells[cursor++]
         results.push(bucket ? await readThroughMapCell({ bucket, cell })
