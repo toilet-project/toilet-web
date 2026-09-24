@@ -1,0 +1,52 @@
+name: Map cell R2 prewarm
+
+on:
+  schedule:
+    - cron: '17 18 * * *'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Site to warm
+        required: true
+        type: choice
+        options:
+          - preview
+          - production
+
+permissions:
+  contents: read
+
+concurrency:
+  group: map-cell-prewarm
+  cancel-in-progress: false
+
+jobs:
+  prewarm:
+    # Keep the production schedule dormant until the WEB cell route is deployed.
+    if: ${{ github.event_name == 'workflow_dispatch' || vars.MAP_CELL_PREWARM_AUTOMATIC_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+      - name: Warm the selected site's R2 cells
+        env:
+          MAP_CELL_PREWARM_ENABLED: 'true'
+          EVENT_NAME: ${{ github.event_name }}
+          TARGET: ${{ inputs.target }}
+        shell: bash
+        run: |
+          if [[ "$EVENT_NAME" == 'schedule' || "$TARGET" == 'production' ]]; then
+            node scripts/prewarm-map-cells.mjs --execute --base-url https://geupddong.com --allow-production yes --scope halo --rps 4 --concurrency 3 --refresh yes
+          else
+            node scripts/prewarm-map-cells.mjs --execute --base-url https://preview.geupddong.com --scope halo --rps 4 --concurrency 3 --refresh yes
+          fi
+      - if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: map-cell-prewarm-report
+          path: .cache-prewarm/map-cells-*.json
+          retention-days: 30
+          if-no-files-found: warn

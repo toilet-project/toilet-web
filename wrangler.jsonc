@@ -21,6 +21,7 @@
     "CACHE_RUNTIME": "workers",
     "SITE_INDEXABLE": "false",
     "SHARED_TOILET_CACHE_ENABLED": "false",
+    "MAP_CELL_CACHE_ENABLED": "true",
     "INDEXNOW_ENABLED": "false",
     "NAVER_MAP_ENABLED": "true",
     "PLACE_SEARCH_ENABLED": "true",

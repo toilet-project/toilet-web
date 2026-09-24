@@ -1,4 +1,5 @@
 import { createApiUrl } from '../config/api'
+import { cellsForBounds, mapCellZoomSupported } from '../lib/mapCells'
 
 export type ToiletTranslationText = {
   name: string
@@ -86,9 +87,22 @@ export type ToiletDetailResponse = {
   translations?: ToiletTranslations
 }
 
-export async function fetchToiletsInBounds(params: { southLat: number; northLat: number; westLng: number; eastLng: number; zoom: number; includeList?: boolean }): Promise<ToiletMapSearchResponse> {
+export async function fetchToiletsInBounds(params: { southLat: number; northLat: number; westLng: number; eastLng: number; zoom: number; includeList?: boolean }, signal?: AbortSignal): Promise<ToiletMapSearchResponse> {
   const query = new URLSearchParams(Object.entries(params).map(([key, value]) => [key, String(value)]))
-  const response = await fetch(createApiUrl(`/api/v1/toilets?${query}`))
+  const cells = mapCellZoomSupported(params.zoom) && process.env.NEXT_PUBLIC_MAP_CELL_CACHE_ENABLED === 'true'
+    ? cellsForBounds({ south: params.southLat, north: params.northLat, west: params.westLng, east: params.eastLng }) : null
+  const legacyUrl = createApiUrl(`/api/v1/toilets?${query}`)
+  const url = cells ? `/api/map-area?${query}` : legacyUrl
+  let response: Response
+  try {
+    response = await fetch(url, { signal })
+  } catch (error) {
+    if (!cells || signal?.aborted) throw error
+    response = await fetch(legacyUrl, { signal })
+  }
+  // Keep the established viewport API as the map's safe rollback path.
+  if (cells && !response.ok && !signal?.aborted)
+    response = await fetch(legacyUrl, { signal })
   if (!response.ok) throw new Error(`화장실 조회에 실패했습니다. (${response.status})`)
   const payload = await response.json() as Partial<ToiletMapSearchResponse>
   return { meta: payload.meta ?? { map_level: params.zoom, display_type: 'MARKER', total_count: 0, result_count: 0 }, toilets: payload.toilets ?? [], clusters: payload.clusters ?? [] }

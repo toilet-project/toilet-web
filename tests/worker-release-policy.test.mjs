@@ -43,6 +43,7 @@ test('candidate cannot claim root or share preview cache',()=>{
   assert.throws(()=>validateWorkerConfig({...production,r2_buckets:preview.r2_buckets},'production-candidate'))
   assert.throws(()=>validateWorkerConfig({...production,d1_databases:[{...production.d1_databases[0],database_id:preview.d1_databases[0].database_id}]},'production-candidate'))
   assert.throws(()=>validateWorkerConfig({...production,vars:{...production.vars,SHARED_TOILET_CACHE_ENABLED:'false'}},'production-candidate'))
+  assert.throws(()=>validateWorkerConfig({...production,vars:{...production.vars,MAP_CELL_CACHE_ENABLED:'false'}},'production-candidate'))
 })
 test('no unexpected target, nested env, CPU upgrade or singular route',()=>{
   assert.throws(()=>validateWorkerConfig(preview,'typo'))

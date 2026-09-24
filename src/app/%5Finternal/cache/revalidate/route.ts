@@ -2,6 +2,7 @@ import { revalidatePath, revalidateTag } from 'next/cache'
 import { authenticateRevalidation, RevalidationError } from '../../../../server/cacheRevalidation'
 import { persistWorkerInvalidation } from '../../../../server/workerInvalidation'
 import { persistSharedToiletInvalidation } from '../../../../server/sharedToiletCache'
+import { persistMapCellInvalidation } from '../../../../server/mapCellCache'
 import { localizedPublicPath, localizedToiletPaths } from '../../../../i18n/routes'
 import { SUPPORTED_LOCALES } from '../../../../i18n/locale'
 import { getDistrict, localizedRegionPath } from '../../../../lib/regions'
@@ -33,10 +34,11 @@ export async function POST(request: Request) {
     const ids = authenticated.events.map(event => event.toiletId)
     const catalogChanged = authenticated.events.some(event => event.catalogChanged)
     const districtCodes = authenticated.protocol === 'v3' ? affectedDistrictCodes(authenticated.events) : null
-    // Both stores are attempted before acknowledgement. A partial failure returns 503 and the outbox retries.
+    // Every affected cache is attempted before acknowledgement. A partial failure returns 503 for outbox retry.
     const persisted = await Promise.allSettled([
       persistWorkerInvalidation(ids, catalogChanged, districtCodes),
       authenticated.protocol !== 'v1' ? persistSharedToiletInvalidation(authenticated.events) : Promise.resolve(),
+      persistMapCellInvalidation(authenticated.protocol === 'v3' ? authenticated.events : null),
     ])
     for (const id of ids) {
       revalidateTag(`toilet:${id}`, { expire: 0 })

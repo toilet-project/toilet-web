@@ -208,6 +208,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const referencePointOverlayRef = useRef<MapOverlay | null>(null)
   const locationWatchIdRef = useRef<number | null>(null)
   const requestSequenceRef = useRef(0)
+  const mapRequestAbortRef = useRef<AbortController | null>(null)
   const mapInteractionRef = useRef(false)
   const markerClickUntilRef = useRef(0)
   const selectedToiletRef = useRef<SelectedToilet | null>(initialSelected)
@@ -1062,6 +1063,9 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     if (!map) return
 
     const requestSequence = ++requestSequenceRef.current
+    mapRequestAbortRef.current?.abort()
+    const controller = new AbortController()
+    mapRequestAbortRef.current = controller
     const bounds = map.getBounds()
     const southWest = bounds.getSouthWest()
     const northEast = bounds.getNorthEast()
@@ -1075,7 +1079,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         eastLng: northEast.getLng(),
         zoom: map.getLevel(),
         includeList: window.matchMedia(DESKTOP_LAYOUT_QUERY).matches && map.getLevel() <= MAX_LIST_ZOOM_LEVEL,
-      })
+      }, controller.signal)
 
       if (requestSequence !== requestSequenceRef.current) return
       setResult(response)
@@ -1088,7 +1092,10 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         setError('화장실 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
       }
     } finally {
-      if (requestSequence === requestSequenceRef.current) setIsLoading(false)
+      if (requestSequence === requestSequenceRef.current) {
+        mapRequestAbortRef.current = null
+        setIsLoading(false)
+      }
     }
   }, [renderResult])
 
@@ -1385,6 +1392,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     return () => {
       disposed = true
       controller.abort()
+      mapRequestAbortRef.current?.abort()
       referenceRequestGate.invalidate()
       requestSequenceRef.current += 1
       const activeMap = mapRef.current
