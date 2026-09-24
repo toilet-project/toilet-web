@@ -61,6 +61,7 @@ jobs:
       - run: pnpm run test:detail-production
       - run: node tests/detail-production-smoke.mjs --indexable
       - run: pnpm exec opennextjs-cloudflare build --config ${{ matrix.config }}
+      - run: node scripts/relocate-worker-wasm.mjs
       - run: node scripts/write-worker-release-manifest.mjs ${{ matrix.target }}
       # Deliberately no Cloudflare credentials, upload, resource creation or deployment.
       - name: Validate Worker bundle without uploading

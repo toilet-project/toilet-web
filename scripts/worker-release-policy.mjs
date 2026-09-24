@@ -7,6 +7,7 @@ export function validateWorkerConfig(config, target, {deploy = false, stage = fa
   assert.equal(config.main, 'custom-worker.mjs', 'Navigation response cache guard must wrap OpenNext')
   assert.equal(config.vars?.SITE_INDEXABLE, String(production), 'Wrong runtime indexing policy')
   assert.equal(config.vars?.CACHE_RUNTIME, 'workers')
+  assert.equal(config.vars?.MAP_CELL_CACHE_ENABLED, 'true', 'Map cell R2 cache must be enabled in both targets')
   assert.equal(config.services?.find(row => row.binding === 'WORKER_SELF_REFERENCE')?.service, config.name)
   assert.equal(config.r2_buckets?.find(row => row.binding === 'NEXT_INC_CACHE_R2_BUCKET')?.bucket_name, `geupddong-next-${suffix}-cache`)
   assert.equal(config.r2_buckets?.find(row => row.binding === 'PUBLIC_TOILET_DATA_CACHE_R2')?.bucket_name, `geupddong-next-${suffix}-cache`)
