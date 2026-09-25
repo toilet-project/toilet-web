@@ -62,8 +62,10 @@ export async function readThroughRegionMarkers(options: { bucket: R2BucketLike; 
   const now = options.now ?? Date.now
   const pause = options.pause ?? (milliseconds => new Promise<void>(resolve => setTimeout(resolve, milliseconds)))
   for (let attempt = 0; attempt < 300; attempt++) {
-    const globalRevision = (await loadGlobal(bucket))?.record?.revision ?? 0
-    const current = await loadDistrict(bucket, districtCode)
+    const [global, current] = await Promise.all([
+      loadGlobal(bucket), loadDistrict(bucket, districtCode),
+    ])
+    const globalRevision = global?.record?.revision ?? 0
     const record = current?.record
     const sameGeneration = record?.globalRevision === globalRevision
     if (record?.state === 'data' && sameGeneration && record.storedAt + FRESH_MS > now()) {
