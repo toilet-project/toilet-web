@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { RegionPage, regionMetadata } from '../../../../components/regions/RegionPage'
 import { isLocale, type Locale } from '../../../../i18n/locale'
+import { localizedRegionPath, provinces } from '../../../../lib/regions'
 
 type Props = { params: Promise<{ language: string; parts?: string[] }> }
 function localeOf(segment: string): Locale {
@@ -12,10 +13,14 @@ function localeOf(segment: string): Locale {
   notFound()
 }
 export const revalidate = 2_592_000
-// Pre-render the localized nationwide atlases while keeping province and
-// district paths available through on-demand generation.
+// Pre-render localized nationwide and province atlases; districts stay on-demand.
 export function generateStaticParams(): { language: string; parts: string[] }[] {
-  return ['en', 'ja', 'zh-cn', 'zh-tw', 'zh-hk'].map(language => ({ language, parts: [] }))
+  return ['en', 'ja', 'zh-cn', 'zh-tw', 'zh-hk'].flatMap(language => {
+    const locale = localeOf(language)
+    return [{ language, parts: [] }, ...provinces.map(province => ({
+      language, parts: [localizedRegionPath(locale, province.code).slice('/regions/'.length)],
+    }))]
+  })
 }
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { language, parts } = await params

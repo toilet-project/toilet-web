@@ -5,12 +5,12 @@ import { useRouter } from 'next/navigation'
 import { compactOverviewViewport, constrainAtlas, initialAtlasViewport, zoomAtlas, type AtlasPoint, type AtlasViewport } from '../../lib/regionAtlasViewport'
 import { placeAtlasLabels } from '../../lib/atlasLabelLayout'
 
-type Area = { code: string; name: string; mapName: string; emphasized: boolean; count: string; href: string; path: string; anchor: [number, number]; alternatives: [number, number][]; color: string; surface: number; regionWidth: number }
+type Area = { code: string; name: string; mapName: string; emphasized: boolean; count: string; href: string; outlineHref?: string; anchor: [number, number]; alternatives: [number, number][]; color: string; surface: number; regionWidth: number }
 type Selection = { area: Area; x: number; y: number }
 type Pointer = AtlasPoint & { clientX: number; clientY: number }
 
-export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoomInLabel, zoomOutLabel, resetLabel, detailHint, overview }: {
-  areas: Area[]; width: number; height: number; label: string; countLabel: string
+export function RegionAtlasCanvas({ areas, width, height, assetHref, label, countLabel, zoomInLabel, zoomOutLabel, resetLabel, detailHint, overview }: {
+  areas: Area[]; width: number; height: number; assetHref: string; label: string; countLabel: string
   zoomInLabel: string; zoomOutLabel: string; resetLabel: string; detailHint: string
   overview: boolean
 }) {
@@ -20,6 +20,7 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoo
   const pointerType = useRef('mouse')
   const pointers = useRef(new Map<number, Pointer>())
   const prefetched = useRef(new Set<string>())
+  const preloadedOutlines = useRef(new Map<string, HTMLImageElement>())
   const dragged = useRef(false)
   const viewRef = useRef<AtlasViewport>(initialAtlasViewport)
   const [view, setView] = useState(initialAtlasViewport)
@@ -96,6 +97,11 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoo
   function prefetch(area: Area) {
     if (prefetched.current.has(area.href)) return
     prefetched.current.add(area.href)
+    if (area.outlineHref && !preloadedOutlines.current.has(area.outlineHref)) {
+      const image = new Image()
+      preloadedOutlines.current.set(area.outlineHref, image)
+      image.src = area.outlineHref
+    }
     router.prefetch(area.href)
   }
   function position(area: Area, clientX: number, clientY: number) {
@@ -162,7 +168,7 @@ export function RegionAtlasCanvas({ areas, width, height, label, countLabel, zoo
             event.preventDefault()
             router.push(area.href)
           }}>
-          <path d={area.path} fillRule="evenodd" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          <use href={`${assetHref}#r-${area.code}`} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         </a>)}
       </g>
       <g className="region-atlas-labels" transform={`translate(${-offset.x / fit} ${-offset.y / fit}) scale(${1 / fit})`}>
