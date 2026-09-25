@@ -9,6 +9,8 @@ const FRESH_MS = 30 * 24 * 60 * 60 * 1000
 const STALE_MS = 37 * 24 * 60 * 60 * 1000
 const LEASE_MS = 15_000
 const RETRY_MS = 60_000
+const EDGE_TTL_MS = 30_000
+const EDGE_URL = `https://geupddong.com/__internal/map-clusters/v${SCHEMA}/snapshot`
 type State = 'data' | 'loading' | 'invalidated'
 type Record = { schema: number; revision: number; state: State; storedAt: number;
   leaseUntil?: number; retryAt?: number; data?: ClusterBin[] }
@@ -17,6 +19,37 @@ export type ClusterSourceRead = { bins: ClusterBin[]; source: 'hit' | 'miss' | '
 // A Worker isolate can reuse the decoded national snapshot. Check the small R2
 // object head on every request so invalidations from other isolates are seen.
 let hotSnapshot: Loaded = null
+let hotCheckedAt = 0
+let hotBucket: R2BucketLike | null = null
+
+function edgeCache(): Cache | undefined {
+  return (globalThis as typeof globalThis & { caches?: CacheStorage & { default?: Cache } })
+    .caches?.default
+}
+
+async function readEdgeCache(): Promise<Loaded> {
+  try {
+    const cached = await edgeCache()?.match(EDGE_URL)
+    const etag = cached?.headers.get('X-R2-Etag')
+    if (!cached || !etag) return null
+    const record = validRecord(await decompressRecord(await cached.arrayBuffer()))
+    return record ? { etag, record } : null
+  } catch { return null }
+}
+
+async function writeEdgeCache(bytes: Uint8Array, etag: string) {
+  try {
+    await edgeCache()?.put(EDGE_URL, new Response(bytes.buffer.slice(bytes.byteOffset,
+      bytes.byteOffset + bytes.byteLength) as ArrayBuffer, { headers: {
+      'Cache-Control': `public, max-age=${EDGE_TTL_MS / 1000}`,
+      'X-R2-Etag': etag,
+    } }))
+  } catch { /* R2 remains the source of truth when local edge cache is unavailable. */ }
+}
+
+async function removeEdgeCache() {
+  try { await edgeCache()?.delete(EDGE_URL) } catch { /* Best effort. */ }
+}
 
 async function compressRecord(record: Record): Promise<Uint8Array> {
   const stream = new Blob([JSON.stringify(record)]).stream().pipeThrough(new CompressionStream('gzip'))
@@ -44,14 +77,34 @@ function validRecord(value: unknown): Record | null {
 }
 
 async function load(bucket: R2BucketLike): Promise<Loaded> {
+  if (hotBucket !== bucket) {
+    hotBucket = bucket
+    hotSnapshot = null
+    hotCheckedAt = 0
+  }
+  if (hotSnapshot && Date.now() - hotCheckedAt < EDGE_TTL_MS) return hotSnapshot
+  if (!hotSnapshot) {
+    const cached = await readEdgeCache()
+    if (cached) {
+      hotSnapshot = cached
+      hotCheckedAt = Date.now()
+      return cached
+    }
+  }
   const head = (bucket as R2BucketLike & { head?: (key: string) => Promise<{ etag: string } | null> }).head
   if (head && hotSnapshot) {
     const metadata = await head.call(bucket, KEY)
-    if (metadata?.etag === hotSnapshot.etag) return hotSnapshot
+    if (metadata?.etag === hotSnapshot.etag) {
+      hotCheckedAt = Date.now()
+      return hotSnapshot
+    }
   }
   const object = await bucket.get(KEY)
-  hotSnapshot = object ? { etag: object.etag,
-    record: validRecord(await decompressRecord(await object.arrayBuffer())) } : null
+  const bytes = object ? new Uint8Array(await object.arrayBuffer()) : null
+  hotSnapshot = bytes ? { etag: object!.etag,
+    record: validRecord(await decompressRecord(bytes.buffer)) } : null
+  hotCheckedAt = Date.now()
+  if (bytes && hotSnapshot?.record) await writeEdgeCache(bytes, object!.etag)
   return hotSnapshot
 }
 
@@ -60,9 +113,18 @@ function condition(current: Loaded): R2PutOnlyIf {
 }
 
 async function put(bucket: R2BucketLike, record: Record, current: Loaded) {
-  const stored = await bucket.put(KEY, await compressRecord(record), { onlyIf: condition(current),
+  const bytes = await compressRecord(record)
+  const stored = await bucket.put(KEY, bytes, { onlyIf: condition(current),
     httpMetadata: { contentType: 'application/gzip' } })
-  if (stored) hotSnapshot = { etag: stored.etag, record }
+  if (stored) {
+    hotBucket = bucket
+    hotSnapshot = { etag: stored.etag, record }
+    hotCheckedAt = Date.now()
+    await writeEdgeCache(bytes, stored.etag)
+  } else {
+    hotSnapshot = null
+    await removeEdgeCache()
+  }
   return stored
 }
 

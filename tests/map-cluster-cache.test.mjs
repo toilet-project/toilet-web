@@ -117,7 +117,7 @@ test('concurrent readers share one national R2 snapshot and never read origin on
   assert.equal(originReads, 1)
   assert.equal(bucket.value(mapClusterObjectKey()).state, 'data')
   assert.equal(bucket.getCalls, readsAfterWarm)
-  assert.ok(bucket.headCalls >= 12)
+  assert.equal(bucket.headCalls, 0)
   assert.ok(bucket.objects.get(mapClusterObjectKey()).value.byteLength < 300)
 })
 
@@ -128,7 +128,12 @@ test('a change written by another isolate invalidates the decoded hot snapshot',
   const before = bucket.getCalls
   const record = bucket.value(mapClusterObjectKey())
   await bucket.put(mapClusterObjectKey(), JSON.stringify({ ...record, state: 'invalidated', data: undefined }))
-  const rebuilt = await readThroughMapClusterCache({ bucket, fetchOrigin: async () => [[37.52, 127.02]] })
+  const originalNow = Date.now
+  Date.now = () => originalNow() + 31_000
+  let rebuilt
+  try {
+    rebuilt = await readThroughMapClusterCache({ bucket, fetchOrigin: async () => [[37.52, 127.02]] })
+  } finally { Date.now = originalNow }
   assert.equal(rebuilt.source, 'miss')
   assert.ok(bucket.getCalls > before)
   assert.equal(clusterBinsInBounds(rebuilt.bins, bounds, 10).meta.total_count, 1)
