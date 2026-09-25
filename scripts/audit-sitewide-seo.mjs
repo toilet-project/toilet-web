@@ -2,12 +2,12 @@
 // family/language. Never crawl hundreds of thousands of detail pages to warm ISR.
 import { mkdir, writeFile, readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
+import { parse } from 'parse5'
 
 const origin = process.argv[2] || 'https://geupddong.com'
 const out = resolve(process.argv[3] || '.artifacts/sitewide-seo')
 await mkdir(out, { recursive: true })
-const decode = text => text.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-const locations = xml => [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => decode(m[1]))
+const locations = xml => [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map(m => m[1].replaceAll('&amp;', '&'))
 async function read(path) {
   const url = new URL(path, origin)
   url.host = new URL(origin).host; url.protocol = new URL(origin).protocol
@@ -52,21 +52,36 @@ for (const locale of ['', '/en', '/ja', '/zh-cn', '/zh-tw', '/zh-hk']) {
 }
 samples.set('not-found', '/seo-audit-page-that-does-not-exist')
 const pages = []
-const attr = (tag, key) => decode(tag.match(new RegExp(`\\b${key}=["']([^"']*)["']`, 'i'))?.[1] || '')
+const attr = (node, key) => node?.attrs?.find(item => item.name === key)?.value || ''
+const textContent = node => node.nodeName === '#text' ? node.value : (node.childNodes || []).map(textContent).join('')
+function inspectHtml(html) {
+  const nodes = { html: null, title: null, metas: [], links: [], headings: [], anchors: [], scripts: [] }
+  function walk(node) {
+    if (node.tagName === 'html') nodes.html = node
+    if (node.tagName === 'title') nodes.title = node
+    if (node.tagName === 'meta') nodes.metas.push(node)
+    if (node.tagName === 'link') nodes.links.push(node)
+    if (/^h[1-6]$/.test(node.tagName || '')) nodes.headings.push(node)
+    if (node.tagName === 'a') nodes.anchors.push(node)
+    if (node.tagName === 'script' && attr(node, 'type') === 'application/ld+json') nodes.scripts.push(node)
+    if (node.tagName === 'script') return
+    for (const child of node.childNodes || []) walk(child)
+  }
+  walk(parse(html))
+  return nodes
+}
 for (const [key, path] of samples) {
   try {
     const { html, ...response } = await read(path)
-    const body = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
     await writeFile(resolve(out, `page-${pages.length}.html`), html)
-    const metas = [...html.matchAll(/<meta\b[^>]*>/gi)].map(m => m[0])
-    const links = [...html.matchAll(/<link\b[^>]*>/gi)].map(m => m[0])
-    const meta = name => attr(metas.find(tag => attr(tag, 'name') === name || attr(tag, 'property') === name) || '', 'content')
-    const title = decode(html.match(/<title>(.*?)<\/title>/s)?.[1] || '')
+    const document = inspectHtml(html)
+    const meta = name => attr(document.metas.find(tag => attr(tag, 'name') === name || attr(tag, 'property') === name), 'content')
+    const title = document.title ? textContent(document.title) : ''
     const description = meta('description')
-    const headings = [...body.matchAll(/<h([1-6])\b[^>]*>(.*?)<\/h\1>/gis)].map(m => ({ level: Number(m[1]), text: decode(m[2].replace(/<[^>]*>/g, '')) }))
-    const jsonLd = [...html.matchAll(/<script\b[^>]*type="application\/ld\+json"[^>]*>(.*?)<\/script>/gs)].map(m => JSON.parse(m[1]))
-    const placeholders = [...body.matchAll(/<a\b[^>]*>/gi)].map(m => attr(m[0], 'href')).filter(href => !href.trim() || href === '#' || /^javascript:/i.test(href))
-    pages.push({ key, path: decodeURI(path), ...response, title, titleLength: [...title].length, description, descriptionLength: [...description].length, lang: attr(html.match(/<html\b[^>]*>/)?.[0] || '', 'lang'), robots: meta('robots'), canonical: attr(links.find(tag => attr(tag, 'rel') === 'canonical') || '', 'href'), headings, jsonLd, placeholders, ogTitle: meta('og:title'), ogDescription: meta('og:description'), twitterTitle: meta('twitter:title') })
+    const headings = document.headings.map(node => ({ level: Number(node.tagName[1]), text: textContent(node) }))
+    const jsonLd = document.scripts.map(node => JSON.parse(textContent(node)))
+    const placeholders = document.anchors.map(node => attr(node, 'href')).filter(href => !href.trim() || href === '#' || /^javascript:/i.test(href))
+    pages.push({ key, path: decodeURI(path), ...response, title, titleLength: [...title].length, description, descriptionLength: [...description].length, lang: attr(document.html, 'lang'), robots: meta('robots'), canonical: attr(document.links.find(tag => attr(tag, 'rel') === 'canonical'), 'href'), headings, jsonLd, placeholders, ogTitle: meta('og:title'), ogDescription: meta('og:description'), twitterTitle: meta('twitter:title') })
     console.log(`${response.status} ${key}: h1=${headings.filter(h => h.level === 1).length}`)
   } catch (error) { pages.push({ key, path, error: String(error) }) }
 }

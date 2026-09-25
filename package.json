@@ -37,6 +37,7 @@
     "@types/react-dom": "^19.2.3",
     "aws4fetch": "1.0.20",
     "oxlint": "^1.75.0",
+    "parse5": "^8.0.1",
     "typescript": "~6.0.2",
     "wrangler": "4.129.0"
   }
