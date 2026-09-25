@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { Suspense } from 'react'
 import { notFound, permanentRedirect } from 'next/navigation'
 import type { Locale } from '../../i18n/locale'
 import { SUPPORTED_LOCALES } from '../../i18n/locale'
@@ -8,7 +9,8 @@ import { regionSeoCopy } from '../../i18n/regionSeoCopy'
 import { localizeToiletMapItem } from '../../i18n/toiletTranslations'
 import { regionToiletPath } from '../../lib/regionToiletPath'
 import { regionDisplayItems } from '../../lib/regionDisplayItems'
-import { districtsIn, getDistrict, getProvince, localizedRegionPath, provinces, regionName, regionSnapshot } from '../../lib/regions'
+import { districtsIn, getDistrict, getProvince, localizedRegionPath, provinces, regionBounds, regionName, regionSnapshot, type Region } from '../../lib/regions'
+import { atlasPath } from '../../lib/regionAtlasGeometry'
 import { codeFromRegionSegment, decodedRouteSegment } from '../../lib/urlName'
 import { getDistrictToilets, getPreciseDistrict } from '../../server/regions'
 import { RegionPicker } from './RegionPicker'
@@ -46,6 +48,39 @@ export function regionMetadata(locale: Locale, parts: string[]): Metadata {
     openGraph: { title, description, url: canonical, type: 'website', images: ['/og-image.png'] } }
 }
 
+function DistrictBoundaryLoading({ district, label }: { district: Region; label: string }) {
+  const { west, east, south, north } = regionBounds(district)
+  const width = 760, height = 420, pad = 35
+  const longitudeScale = Math.cos(37 * Math.PI / 180)
+  const xSpan = (east - west) * longitudeScale, ySpan = north - south
+  const scale = Math.min((width - 2 * pad) / xSpan, (height - 2 * pad) / ySpan)
+  const xOffset = (width - xSpan * scale) / 2, yOffset = (height - ySpan * scale) / 2
+  const path = atlasPath(district, ([longitude, latitude]) => [
+    xOffset + (longitude - west) * longitudeScale * scale,
+    yOffset + (north - latitude) * scale,
+  ])
+  return <div className="district-map-wrap region-district-loading" role="status" aria-label={label}>
+    <svg viewBox={`0 0 ${width} ${height}`} aria-hidden="true"><path d={path} /></svg>
+    <span>{label}</span>
+  </div>
+}
+
+async function DistrictContents({ locale, provinceCode, districtCode, district }: {
+  locale: Locale; provinceCode: string; districtCode: string; district: Region
+}) {
+  const toilets = await getDistrictToilets(provinceCode, districtCode)
+  const r = regionText(locale)
+  const facilityLinks = toilets.map(toilet => ({
+    id: toilet.id,
+    name: localizeToiletMapItem(toilet, locale).name,
+    href: localizedPublicPath(regionToiletPath(toilet, locale), locale)!,
+  })).sort((left, right) => left.name.localeCompare(right.name, locale) || left.id - right.id)
+  return <><DistrictNaverMap district={district} toilets={regionDisplayItems(toilets, locale)} locale={locale} />
+    {facilityLinks.length > 0 && <details className="region-facility-directory"><summary>{r.restroomList} ({facilityLinks.length.toLocaleString(locale)})</summary>
+      <nav aria-label={r.nearby}><ul>{facilityLinks.map(toilet => <li key={toilet.id}><a href={toilet.href}>{toilet.name}</a></li>)}</ul></nav>
+    </details>}</>
+}
+
 export async function RegionPage({ locale, parts }: { locale: Locale; parts: string[] }) {
   parts = normalizedParts(parts)
   const { province, district } = resolve(parts)
@@ -58,12 +93,6 @@ export async function RegionPage({ locale, parts }: { locale: Locale; parts: str
   const title = district ? regionName(district, locale) : province ? regionName(province, locale) : r.nationalMap
   const count = (district?.count ?? province?.count ?? provinces.reduce((sum, item) => sum + item.count, 0)).toLocaleString(locale)
   const regions = province ? districtsIn(province.code) : provinces
-  const toilets = district && province ? await getDistrictToilets(province.code, district.code) : []
-  const facilityLinks = district ? toilets.map(toilet => ({
-    id: toilet.id,
-    name: localizeToiletMapItem(toilet, locale).name,
-    href: localized(regionToiletPath(toilet, locale)),
-  })).sort((left, right) => left.name.localeCompare(right.name, locale) || left.id - right.id) : []
   const sourceNote = <details className="region-source"><summary>{r.source}<span aria-hidden="true">ⓘ</span></summary><p><a href="https://github.com/DevMinGeonPark/mapcn-kr">SGIS · 행정안전부 / vuski/admdongkor / mapcn-kr</a> (CC BY 4.0).<br />{new Date(regionSnapshot.generatedAt).toLocaleDateString(locale)} · {regionSnapshot.unassigned.toLocaleString(locale)} {r.outsideBoundary}.</p></details>
   return <main className={`region-main${!province ? ' is-national' : ''}`}>
       {province && <nav className="region-breadcrumbs" aria-label="Breadcrumb"><Link href={localized('/regions')}>{r.back}</Link>{province && <><span>/</span><Link href={localized(localizedRegionPath(locale, province.code))}>{regionName(province, locale)}</Link></>}{district && <><span>/</span><span aria-current="page">{regionName(district, locale)}</span></>}</nav>}
@@ -77,10 +106,10 @@ export async function RegionPage({ locale, parts }: { locale: Locale; parts: str
         <p className="region-mobile-hint">{district ? r.mobileMarkerHint : r.mobileExploreHint}</p>
       </div>
       {district && province ? <section className="region-district-layout" aria-label={title}>
-        <div className="region-district-map-card"><div className="region-card-heading"><span className="region-eyebrow">{r.locationMap}</span><h2>{title}</h2></div><DistrictNaverMap district={preciseDistrict!} toilets={regionDisplayItems(toilets, locale)} locale={locale} />
-          {facilityLinks.length > 0 && <details className="region-facility-directory"><summary>{r.restroomList} ({facilityLinks.length.toLocaleString(locale)})</summary>
-            <nav aria-label={r.nearby}><ul>{facilityLinks.map(toilet => <li key={toilet.id}><a href={toilet.href}>{toilet.name}</a></li>)}</ul></nav>
-          </details>}{sourceNote}</div>
+        <div className="region-district-map-card"><div className="region-card-heading"><span className="region-eyebrow">{r.locationMap}</span><h2>{title}</h2></div>
+          <Suspense fallback={<DistrictBoundaryLoading district={preciseDistrict!} label={r.loading} />}>
+            <DistrictContents locale={locale} provinceCode={province.code} districtCode={district.code} district={preciseDistrict!} />
+          </Suspense>{sourceNote}</div>
       </section> : <section className="region-discovery-layout"><div className="region-atlas-card"><RegionAtlas locale={locale} provinceCode={province?.code} />{sourceNote}</div></section>}
     </main>
 }

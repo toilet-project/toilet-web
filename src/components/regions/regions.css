@@ -71,6 +71,9 @@
 .region-card-heading p { margin: 5px 0 0; color: #819889; font-size: 11px; }
 .district-map-wrap { position: relative; flex: 1; min-height: 0; margin: 0 10px 10px; border: 1px solid #e3ece5; border-radius: 15px; overflow: hidden; background: #f1f7f1; }
 .district-naver-map { width: 100%; height: 100%; }
+.region-district-loading { display: grid; place-items: center; color: #59806a; }
+.region-district-loading svg { grid-area: 1 / 1; width: min(78%, 680px); max-height: 78%; fill: #e7f2eb; stroke: #368058; stroke-width: 2; stroke-linejoin: round; }
+.region-district-loading span { grid-area: 1 / 1; align-self: end; margin-bottom: 16px; padding: 7px 12px; border-radius: 999px; background: #ffffffde; font-size: 12px; }
 .district-map-error { position: absolute; z-index: 4; top: 14px; left: 14px; right: 14px; padding: 10px; border-radius: 10px; background: #fff; color: #895427; font-size: 12px; }
 .district-map-selection { position: absolute; z-index: 5; top: 16px; left: 16px; display: flex; flex-direction: column; width: min(370px, calc(100% - 32px)); max-height: calc(100% - 32px); overflow: hidden; padding: 20px; border: 1px solid #d7e9d9; border-radius: 17px; background: #fff; box-shadow: 0 10px 30px #11362526; }
 .district-selection-heading { flex: 0 0 auto; padding-right: 30px; }
