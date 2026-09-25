@@ -9,8 +9,8 @@ import { regionSeoCopy } from '../../i18n/regionSeoCopy'
 import { localizeToiletMapItem } from '../../i18n/toiletTranslations'
 import { regionToiletPath } from '../../lib/regionToiletPath'
 import { regionDisplayItems } from '../../lib/regionDisplayItems'
-import { districtsIn, getDistrict, getProvince, localizedRegionPath, provinces, regionBounds, regionName, regionSnapshot, type Region } from '../../lib/regions'
-import { atlasPath } from '../../lib/regionAtlasGeometry'
+import { districtsIn, getDistrict, getProvince, localizedRegionPath, provinces, regionName, regionSnapshot, type Region } from '../../lib/regions'
+import outlineAssets from '../../../data/regions/outline-assets.json' with { type: 'json' }
 import { codeFromRegionSegment, decodedRouteSegment } from '../../lib/urlName'
 import { getDistrictToilets, getPreciseDistrict } from '../../server/regions'
 import { RegionPicker } from './RegionPicker'
@@ -49,18 +49,9 @@ export function regionMetadata(locale: Locale, parts: string[]): Metadata {
 }
 
 function DistrictBoundaryLoading({ district, label }: { district: Region; label: string }) {
-  const { west, east, south, north } = regionBounds(district)
-  const width = 760, height = 420, pad = 35
-  const longitudeScale = Math.cos(37 * Math.PI / 180)
-  const xSpan = (east - west) * longitudeScale, ySpan = north - south
-  const scale = Math.min((width - 2 * pad) / xSpan, (height - 2 * pad) / ySpan)
-  const xOffset = (width - xSpan * scale) / 2, yOffset = (height - ySpan * scale) / 2
-  const path = atlasPath(district, ([longitude, latitude]) => [
-    xOffset + (longitude - west) * longitudeScale * scale,
-    yOffset + (north - latitude) * scale,
-  ])
+  const asset = outlineAssets[district.code as keyof typeof outlineAssets]
   return <div className="district-map-wrap region-district-loading" role="status" aria-label={label}>
-    <svg viewBox={`0 0 ${width} ${height}`} aria-hidden="true"><path d={path} /></svg>
+    <img src={asset} alt="" />
     <span>{label}</span>
   </div>
 }

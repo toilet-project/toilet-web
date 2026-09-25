@@ -10,3 +10,6 @@
 
 /region-atlas/*
   Cache-Control: public,max-age=31536000,immutable
+
+/region-outline/*
+  Cache-Control: public,max-age=31536000,immutable
