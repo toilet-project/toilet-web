@@ -101,6 +101,9 @@ export function DistrictNaverMap({ district, toilets, locale, failed = false }: 
           logo.className = 'toilet-marker-logo'
           logo.src = '/toilet-marker-logo.svg'
           logo.alt = ''
+          logo.setAttribute('aria-hidden', 'true')
+          logo.width = 24
+          logo.height = 24
           pin.append(logo)
           const label = document.createElement('span')
           label.className = 'toilet-marker-name'
