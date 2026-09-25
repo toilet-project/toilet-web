@@ -117,9 +117,9 @@ try {
   assert.match(html,/화장실 수/)
   if (!foreignUiEnabled) assert.doesNotMatch(html.split('</head>')[0],/hreflang="en"/i)
   const assertMetadata = (document, name) => {
-    const title = `${name} 위치 및 이용정보 | 충청남도 천안시 서북구`
-    const description = `충청남도 천안시 서북구에 위치한 ${name}의 위치, 개방시간과 시설 정보를 확인하세요.`
-    assert.ok(document.includes(`<title>${title} | 급똥</title>`))
+    const title = `${name} 위치 및 이용정보 | 충청남도 천안시 서북구 | 급똥`
+    const description = `충청남도 천안시 서북구에 위치한 ${name}의 위치, 개방시간과 시설 정보를 확인하세요. 주소: 충청남도 천안시 서북구 검증로 1. 지도에서 위치와 제공된 편의시설 정보를 살펴보고 방문을 준비하세요.`
+    assert.ok(document.includes(`<title>${title}</title>`))
     for (const [attribute,key,value] of [
       ['name','description',description], ['property','og:title',title],
       ['property','og:description',description], ['name','twitter:title',title],
