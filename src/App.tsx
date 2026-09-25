@@ -1,4 +1,5 @@
 'use client'
+import { HomeIntro } from './components/HomeIntro'
 import { PublicReviews, PublicReviewsLoading } from './components/reviews/PublicReviews'
 
 
@@ -865,6 +866,9 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     logo.src = toiletMarkerLogo
     logo.className = 'toilet-marker-logo'
     logo.alt = ''
+    logo.setAttribute('aria-hidden', 'true')
+    logo.width = 24
+    logo.height = 24
     pin.append(logo)
     const name = document.createElement('span')
     name.className = 'toilet-marker-name'
@@ -941,6 +945,9 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     logo.className = 'toilet-marker-logo'
     logo.src = toiletMarkerLogo
     logo.alt = ''
+    logo.setAttribute('aria-hidden', 'true')
+    logo.width = 24
+    logo.height = 24
     pin.append(logo)
     content.append(pin)
     content.addEventListener('click', suppressMapClickFromMarker)
@@ -982,6 +989,9 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           logo.className = 'toilet-marker-logo'
           logo.src = toiletMarkerLogo
           logo.alt = ''
+          logo.setAttribute('aria-hidden', 'true')
+          logo.width = 24
+          logo.height = 24
           pin.append(logo)
           const name = document.createElement('span')
           name.className = 'toilet-marker-name'
@@ -1027,6 +1037,9 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       logo.className = 'toilet-marker-logo'
       logo.src = toiletMarkerLogo
       logo.alt = ''
+      logo.setAttribute('aria-hidden', 'true')
+      logo.width = 24
+      logo.height = 24
       pin.append(logo)
       content.append(pin)
       if (shouldShowToiletName) {
@@ -1575,6 +1588,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           {ENGLISH_UI_ENABLED && <LanguageSelector locale={locale} onSelect={next => onLocaleChange(next, testToilet ? null : selectedToilet?.id ?? expandedCoordinateToilet?.id ?? null)} />}
         </div>}
         </div>
+        {route.path === localizedPublicPath('/', locale) && <HomeIntro locale={locale} />}
       </header>
 
       <section className="map-section" aria-label={t('map.title')}>
