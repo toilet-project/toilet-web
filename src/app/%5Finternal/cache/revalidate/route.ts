@@ -3,6 +3,8 @@ import { authenticateRevalidation, RevalidationError } from '../../../../server/
 import { persistWorkerInvalidation } from '../../../../server/workerInvalidation'
 import { persistSharedToiletInvalidation } from '../../../../server/sharedToiletCache'
 import { persistMapCellInvalidation } from '../../../../server/mapCellCache'
+import { invalidateMapClusterCache } from '../../../../server/mapClusterCache'
+import { getMapCellBucket } from '../../../../server/mapCellCache'
 import { persistRegionMarkerInvalidation } from '../../../../server/regionMarkerCache'
 import { localizedPublicPath, localizedToiletPaths } from '../../../../i18n/routes'
 import { SUPPORTED_LOCALES } from '../../../../i18n/locale'
@@ -40,6 +42,9 @@ export async function POST(request: Request) {
       persistWorkerInvalidation(ids, catalogChanged, districtCodes),
       authenticated.protocol !== 'v1' ? persistSharedToiletInvalidation(authenticated.events) : Promise.resolve(),
       persistMapCellInvalidation(authenticated.protocol === 'v3' ? authenticated.events : null),
+      process.env.MAP_CLUSTER_CACHE_ENABLED === 'true'
+        ? getMapCellBucket().then(bucket => bucket ? invalidateMapClusterCache(bucket) : Promise.resolve())
+        : Promise.resolve(),
       persistRegionMarkerInvalidation(districtCodes),
     ])
     for (const id of ids) {

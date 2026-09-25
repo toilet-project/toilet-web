@@ -43,10 +43,24 @@ jobs:
           else
             node scripts/prewarm-map-cells.mjs --execute --base-url https://preview.geupddong.com --scope halo --rps 4 --concurrency 3 --refresh yes
           fi
+      - name: Warm the selected site's national cluster summary
+        env:
+          MAP_CLUSTER_PREWARM_ENABLED: 'true'
+          EVENT_NAME: ${{ github.event_name }}
+          TARGET: ${{ inputs.target }}
+        shell: bash
+        run: |
+          if [[ "$EVENT_NAME" == 'schedule' || "$TARGET" == 'production' ]]; then
+            node scripts/prewarm-map-clusters.mjs --execute --base-url https://geupddong.com --allow-production yes
+          else
+            node scripts/prewarm-map-clusters.mjs --execute --base-url https://preview.geupddong.com
+          fi
       - if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: map-cell-prewarm-report
-          path: .cache-prewarm/map-cells-*.json
+          path: |
+            .cache-prewarm/map-cells-*.json
+            .cache-prewarm/map-clusters-*.json
           retention-days: 30
           if-no-files-found: warn

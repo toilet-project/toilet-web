@@ -29,6 +29,7 @@ const config: NextConfig = {
     NEXT_PUBLIC_APP_VERSION: process.env.NEXT_DEPLOYMENT_ID || 'development',
     // Both approved release targets use the matching map-cell Worker route.
     NEXT_PUBLIC_MAP_CELL_CACHE_ENABLED: ['false', 'true'].includes(process.env.SITE_INDEXABLE || '') ? 'true' : 'false',
+    NEXT_PUBLIC_MAP_CLUSTER_CACHE_ENABLED: ['false', 'true'].includes(process.env.SITE_INDEXABLE || '') ? 'true' : 'false',
     // Build-time preview gate, never controlled by query strings or local storage.
     NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW: process.env.SITE_INDEXABLE === 'false' && !reviewApiEnabled ? 'true' : 'false',
     // Production requires all four exact build-time gates above; runtime URLs cannot enable it.

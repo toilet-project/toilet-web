@@ -22,6 +22,8 @@
     "SITE_INDEXABLE": "false",
     "SHARED_TOILET_CACHE_ENABLED": "false",
     "MAP_CELL_CACHE_ENABLED": "true",
+    "MAP_CLUSTER_CACHE_ENABLED": "true",
+    "MAP_CLUSTER_LEGACY_SOURCE_FALLBACK": "true",
     "REGION_MARKER_CACHE_ENABLED": "true",
     "INDEXNOW_ENABLED": "false",
     "NAVER_MAP_ENABLED": "true",

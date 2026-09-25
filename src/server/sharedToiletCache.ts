@@ -13,11 +13,11 @@ export type SharedToiletRecord = {
   schema: number; toiletId: number; revision: number; state: CacheState; storedAt: number
   freshUntil?: number; staleUntil?: number; data?: ToiletDetailResponse
 }
-export type R2ObjectBodyLike = { etag: string; json<T>(): Promise<T> }
+export type R2ObjectBodyLike = { etag: string; json<T>(): Promise<T>; arrayBuffer(): Promise<ArrayBuffer> }
 export type R2PutOnlyIf = { etagMatches?: string; etagDoesNotMatch?: string }
 export type R2BucketLike = {
   get(key: string): Promise<R2ObjectBodyLike | null>
-  put(key: string, value: string, options?: { onlyIf?: R2PutOnlyIf; httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> }): Promise<{ etag: string } | null>
+  put(key: string, value: string | Uint8Array, options?: { onlyIf?: R2PutOnlyIf; httpMetadata?: { contentType?: string }; customMetadata?: Record<string, string> }): Promise<{ etag: string } | null>
 }
 type Loaded = { record: SharedToiletRecord | null; etag: string } | null
 
