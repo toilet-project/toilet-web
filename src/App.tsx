@@ -62,6 +62,7 @@ import { groupToiletsByCoordinate, representativeToilet, type ToiletMapItem, typ
 import type { MapRouteData } from './components/mapRouteContext'
 import { DESKTOP_LAYOUT_QUERY } from './lib/responsiveLayout'
 import { resolveDistanceReference, type DistanceSource } from './lib/distanceReference'
+import { initialMapLocation, isKoreanMapLocation, SEOUL_STATION } from './lib/mapStart'
 import { TRANSIENT_NOTICE_MS } from './lib/uiTiming'
 import { warmOwnPhoto } from './lib/warmOwnPhoto'
 import { refreshSignupPhoto } from './lib/signupPhotoWarm'
@@ -70,7 +71,6 @@ import { resultCountBucket, trackEvent } from './lib/analytics'
 import { localizeToiletDetail, localizeToiletMapItem, localizeToiletMapSearch } from './i18n/toiletTranslations'
 const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
-const DAEJEON_CITY_HALL = { latitude: 36.3504, longitude: 127.3845 }
 const CLUSTER_GRID_SIZE = 84
 const MAX_LIST_ZOOM_LEVEL = 6
 
@@ -282,7 +282,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const isMobileCardExpandedRef = useRef(isMobileCardExpanded)
   useLayoutEffect(() => { isMobileCardExpandedRef.current = isMobileCardExpanded }, [isMobileCardExpanded])
   const [currentLocation, setCurrentLocation] = useState<Coordinates | null>(null)
-  const [mapCenter, setMapCenter] = useState<Coordinates>(DAEJEON_CITY_HALL)
+  const [mapCenter, setMapCenter] = useState<Coordinates>(SEOUL_STATION)
   const [distanceSource, setDistanceSource] = useState<DistanceSource>('point')
   const liveMapStateRef = useRef({ mapCenter, distanceSource, currentLocation })
   useLayoutEffect(() => {
@@ -1128,6 +1128,12 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const updateCurrentLocation = useCallback((coordinates: Coordinates, shouldCenterMap: boolean) => {
     const map = mapRef.current
     if (!map) return
+    if (!isKoreanMapLocation(coordinates)) {
+      setCurrentLocation(null)
+      currentLocationOverlayRef.current?.setMap(null)
+      currentLocationOverlayRef.current = null
+      return
+    }
 
     setCurrentLocation(coordinates)
     const position = createMapCoordinate(map, coordinates.latitude, coordinates.longitude)
@@ -1198,7 +1204,20 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         if (!isCurrent()) return
-        updateCurrentLocation({ latitude: coords.latitude, longitude: coords.longitude }, true)
+        const coordinates = { latitude: coords.latitude, longitude: coords.longitude }
+        if (!isKoreanMapLocation(coordinates)) {
+          updateCurrentLocation(coordinates, false)
+          if (!isInitialRequest) {
+            updateReferencePoint(SEOUL_STATION)
+            map.setLevel(6)
+            map.panTo(createMapCoordinate(map, SEOUL_STATION.latitude, SEOUL_STATION.longitude))
+            showLocationMessage(t('map.outsideKorea'))
+            trackEvent('nearby_search', { permission_state: 'granted', success: false })
+          }
+          setIsLocating(false)
+          return
+        }
+        updateCurrentLocation(coordinates, true)
         if (!isInitialRequest) trackEvent('nearby_search', { permission_state: 'granted', success: true })
         startCurrentLocationWatch()
         window.clearTimeout(locationMessageTimerRef.current)
@@ -1221,7 +1240,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       },
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
     )
-  }, [showLocationMessage, startCurrentLocationWatch, updateCurrentLocation, referenceRequestGate])
+  }, [showLocationMessage, startCurrentLocationWatch, updateCurrentLocation, updateReferencePoint, referenceRequestGate, t])
 
   const moveToSearchPlace = useCallback((place: PlaceSearchResult) => {
     const map = mapRef.current
@@ -1320,18 +1339,20 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
 
       try {
         const snapshot = mapSwitchSnapshotRef.current
-        const center = snapshot?.center ?? resume?.center ?? toiletCoordinates(initialRouteRef.current.detail) ?? toiletCoordinates(testToilet) ?? DAEJEON_CITY_HALL
-        const level = snapshot?.level ?? resume?.level ?? (initialRouteRef.current.detail || testToilet ? 4 : 6)
+        const requestedCenter = snapshot?.center ?? resume?.center ?? toiletCoordinates(initialRouteRef.current.detail) ?? toiletCoordinates(testToilet)
+        const { center, usedFallback } = initialMapLocation(requestedCenter)
+        const level = usedFallback ? 6 : snapshot?.level ?? resume?.level ?? (initialRouteRef.current.detail || testToilet ? 4 : 6)
         const map = await createMap(container, center, level, mapLocale.current, controller.signal)
         if (disposed) return
         mapRef.current = map
         mapSwitchSnapshotRef.current = null
         setIsMapReady(true)
         setMapZoomLevel(map.getLevel())
-        updateReferencePoint(snapshot?.reference ?? resume?.reference ?? center, snapshot?.source ?? resume?.source ?? 'point')
-        if (snapshot?.currentLocation) updateCurrentLocation(snapshot.currentLocation, false)
+        updateReferencePoint(usedFallback ? center : snapshot?.reference ?? resume?.reference ?? center,
+          usedFallback ? 'point' : snapshot?.source ?? resume?.source ?? 'point')
+        if (!usedFallback && snapshot?.currentLocation) updateCurrentLocation(snapshot.currentLocation, false)
         if (resume) {
-          if (!snapshot?.currentLocation && resume.currentLocation) updateCurrentLocation(resume.currentLocation, false)
+          if (!usedFallback && !snapshot?.currentLocation && resume.currentLocation) updateCurrentLocation(resume.currentLocation, false)
           setIsMobileCardExpanded(resume.expanded)
           try { window.sessionStorage.removeItem(MAP_RESUME_KEY) } catch { /* Storage may be unavailable. */ }
         }
@@ -1371,8 +1392,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         resizeObserver.observe(container)
         await loadMapArea()
         if (snapshot) window.requestAnimationFrame(() => { if (!disposed) setIsMapSwitching(false) })
-        if (!disposed && !snapshot && !initialRouteRef.current.detail && !resume && !testToilet) void moveToCurrentLocation(true)
-        if (!disposed && resume?.source === 'current-location') startCurrentLocationWatch()
+        if (!disposed && !snapshot && !initialRouteRef.current.detail && (!resume || usedFallback) && !testToilet) void moveToCurrentLocation(true)
+        if (!disposed && !usedFallback && resume?.source === 'current-location') startCurrentLocationWatch()
       } catch (caughtError) {
         if (disposed) return
         // Browser Back/Forward can bypass the language menu. Recover the same

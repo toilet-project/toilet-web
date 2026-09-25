@@ -84,6 +84,11 @@ export function regionContains(region: Region, longitude: number, latitude: numb
   return polygonParts(region.geometry).some(rings => ringContains(rings[0], longitude, latitude) && !rings.slice(1).some(ring => ringContains(ring, longitude, latitude)))
 }
 
+export function isSouthKoreanCoordinate(longitude: number, latitude: number) {
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return false
+  return provinces.some(province => regionContains(province, longitude, latitude))
+}
+
 export function districtAt(longitude: number, latitude: number) {
   if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) return null
   return districts.find(district => regionContains(district, longitude, latitude)) ?? null
