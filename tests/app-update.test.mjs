@@ -74,5 +74,5 @@ test('styles load once at root in deterministic order and reload requires explic
   assert.match(notice,/disabled=\{blocked\}/)
   assert.match(notice,/onClick=\{\(\) => \{[\s\S]*beforeReload\(\)[\s\S]*window.location.reload\(\)/)
   assert.doesNotMatch(notice,/localStorage.clear|sessionStorage.clear|caches.delete/)
-  assert.match(app,/!initialRouteRef.current.detail && !resume/)
+  assert.match(app,/!initialRouteRef\.current\.detail && \(!resume \|\| usedFallback\)/)
 })
