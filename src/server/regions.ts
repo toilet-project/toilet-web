@@ -71,12 +71,12 @@ export async function getDistrictToiletsWithSource(provinceCode: string, distric
   if (!region) return { toilets: [], source: 'hit' }
   const { south, north, west, east } = regionBounds(region)
   const query = new URLSearchParams({ southLat: String(south), northLat: String(north), westLng: String(west), eastLng: String(east), zoom: '8' })
-  const fetchOrigin = async (shared: boolean) => {
+  const fetchOrigin = async () => {
     try {
       const response = await fetch(`${API_ORIGIN}/api/v1/toilets?${query}`, {
-        ...(shared ? { cache: 'no-store' as const } : {
-          next: { revalidate: 2_592_000, tags: ['region-markers', `region-markers:${districtCode}`] },
-        }),
+        // District pages are ISR routes. A no-store fetch makes a cold R2 read
+        // fail during production rendering; signed changes revalidate this tag.
+        next: { revalidate: 2_592_000, tags: ['region-markers', `region-markers:${districtCode}`] },
         signal: AbortSignal.timeout(20000),
       })
       if (!response.ok) throw new Error(`Region toilets: HTTP ${response.status}`)
@@ -86,11 +86,10 @@ export async function getDistrictToiletsWithSource(provinceCode: string, distric
   let bucket = null
   if (process.env.REGION_MARKER_CACHE_ENABLED === 'true') {
     try { bucket = await getRegionMarkerBucket() }
-    catch { return { toilets: await fetchOrigin(false), source: 'fallback' } }
+    catch { return { toilets: await fetchOrigin(), source: 'fallback' } }
   }
-  if (bucket) return readRegionMarkersOrFallback({ bucket, districtCode, fetchOrigin: () => fetchOrigin(true) },
-    () => fetchOrigin(false))
-  return { toilets: await fetchOrigin(false), source: 'miss' }
+  if (bucket) return readRegionMarkersOrFallback({ bucket, districtCode, fetchOrigin }, fetchOrigin)
+  return { toilets: await fetchOrigin(), source: 'miss' }
 }
 
 export async function getDistrictToilets(provinceCode: string, districtCode: string): Promise<ToiletMapItemResponse[]> {
