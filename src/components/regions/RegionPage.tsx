@@ -7,11 +7,10 @@ import { localizedPublicPath } from '../../i18n/routes'
 import { regionSeoCopy } from '../../i18n/regionSeoCopy'
 import { localizeToiletMapItem } from '../../i18n/toiletTranslations'
 import { regionToiletPath } from '../../lib/regionToiletPath'
+import { regionDisplayItems } from '../../lib/regionDisplayItems'
 import { districtsIn, getDistrict, getProvince, localizedRegionPath, provinces, regionName, regionSnapshot } from '../../lib/regions'
 import { codeFromRegionSegment, decodedRouteSegment } from '../../lib/urlName'
 import { getDistrictToilets, getPreciseDistrict } from '../../server/regions'
-import { SiteHeader } from '../SiteHeader'
-import { SiteFooter } from '../SiteFooter'
 import { RegionPicker } from './RegionPicker'
 import { RegionAtlas } from './RegionAtlas'
 import { DistrictNaverMap } from './DistrictNaverMap'
@@ -66,10 +65,7 @@ export async function RegionPage({ locale, parts }: { locale: Locale; parts: str
     href: localized(regionToiletPath(toilet, locale)),
   })).sort((left, right) => left.name.localeCompare(right.name, locale) || left.id - right.id) : []
   const sourceNote = <details className="region-source"><summary>{r.source}<span aria-hidden="true">ⓘ</span></summary><p><a href="https://github.com/DevMinGeonPark/mapcn-kr">SGIS · 행정안전부 / vuski/admdongkor / mapcn-kr</a> (CC BY 4.0).<br />{new Date(regionSnapshot.generatedAt).toLocaleDateString(locale)} · {regionSnapshot.unassigned.toLocaleString(locale)} {r.outsideBoundary}.</p></details>
-  return <div className="region-site-shell is-region-page">
-    <SiteHeader path={path} languagePaths={Object.fromEntries(SUPPORTED_LOCALES.map(language => [language,
-      localizedPublicPath(localizedRegionPath(language, province?.code, district?.code), language)!]))} />
-    <main className={`region-main${!province ? ' is-national' : ''}`}>
+  return <main className={`region-main${!province ? ' is-national' : ''}`}>
       {province && <nav className="region-breadcrumbs" aria-label="Breadcrumb"><Link href={localized('/regions')}>{r.back}</Link>{province && <><span>/</span><Link href={localized(localizedRegionPath(locale, province.code))}>{regionName(province, locale)}</Link></>}{district && <><span>/</span><span aria-current="page">{regionName(district, locale)}</span></>}</nav>}
       <div className="region-hero">
         <div className="region-hero-copy"><span className="region-eyebrow">{r.explore}</span>
@@ -81,12 +77,10 @@ export async function RegionPage({ locale, parts }: { locale: Locale; parts: str
         <p className="region-mobile-hint">{district ? r.mobileMarkerHint : r.mobileExploreHint}</p>
       </div>
       {district && province ? <section className="region-district-layout" aria-label={title}>
-        <div className="region-district-map-card"><div className="region-card-heading"><span className="region-eyebrow">{r.locationMap}</span><h2>{title}</h2></div><DistrictNaverMap district={preciseDistrict!} toilets={toilets} locale={locale} />
+        <div className="region-district-map-card"><div className="region-card-heading"><span className="region-eyebrow">{r.locationMap}</span><h2>{title}</h2></div><DistrictNaverMap district={preciseDistrict!} toilets={regionDisplayItems(toilets, locale)} locale={locale} />
           {facilityLinks.length > 0 && <details className="region-facility-directory"><summary>{r.restroomList} ({facilityLinks.length.toLocaleString(locale)})</summary>
             <nav aria-label={r.nearby}><ul>{facilityLinks.map(toilet => <li key={toilet.id}><a href={toilet.href}>{toilet.name}</a></li>)}</ul></nav>
           </details>}{sourceNote}</div>
       </section> : <section className="region-discovery-layout"><div className="region-atlas-card"><RegionAtlas locale={locale} provinceCode={province?.code} />{sourceNote}</div></section>}
     </main>
-    <SiteFooter hint={r.intro} />
-  </div>
 }

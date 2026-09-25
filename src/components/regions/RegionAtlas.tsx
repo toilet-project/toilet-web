@@ -1,42 +1,22 @@
-import { districtsIn, getProvince, polygonParts, provinces, regionBounds, regionName, localizedRegionPath, type Region } from '../../lib/regions'
+import { districtsIn, getProvince, polygonParts, provinces, regionBounds, regionName, localizedRegionPath } from '../../lib/regions'
+import { atlasProjection } from '../../lib/regionAtlasGeometry'
+import atlasAssets from '../../../data/regions/atlas-assets.json' with { type: 'json' }
 import { localizedPublicPath } from '../../i18n/routes'
 import type { Locale } from '../../i18n/locale'
 import { regionText } from './regionText'
 import { RegionAtlasCanvas } from './RegionAtlasCanvas'
 import { provinceMapNames, regionColors, regionLabelAnchor, regionLabelOptions } from '../../lib/regionAtlasLabels'
 
-function pathFor(region: Region, project: (point: [number, number]) => [number, number]) {
-  return polygonParts(region.geometry).map(rings => rings.map(ring => ring.map((point, index) => {
-    const [x, y] = project(point)
-    return `${index ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`
-  }).join(' ') + 'Z').join(' ')).join(' ')
-}
-
-function extent(regions: Region[]) {
-  const bounds = regions.map(regionBounds)
-  return { west: Math.min(...bounds.map(b => b.west)), south: Math.min(...bounds.map(b => b.south)),
-    east: Math.max(...bounds.map(b => b.east)), north: Math.max(...bounds.map(b => b.north)) }
-}
-
 export function RegionAtlas({ locale, provinceCode }: { locale: Locale; provinceCode?: string }) {
   const t = regionText(locale)
   const province = provinceCode ? getProvince(provinceCode) : null
   const regions = province ? districtsIn(province.code) : provinces
   const colors = regionColors(regions)
-  const boundary = extent(regions)
-  const width = 760, pad = 32
-  const xSpan = (boundary.east - boundary.west) * Math.cos(37 * Math.PI / 180)
-  const ySpan = boundary.north - boundary.south
-  const height = province ? Math.round(width * ySpan / xSpan) : 800
-  const scale = Math.min((width - 2 * pad) / xSpan, (height - 2 * pad) / ySpan)
-  const drawnWidth = xSpan * scale, drawnHeight = ySpan * scale
-  const xOffset = (width - drawnWidth) / 2, yOffset = (height - drawnHeight) / 2
-  const project = ([longitude, latitude]: [number, number]): [number, number] => [
-    xOffset + (longitude - boundary.west) * Math.cos(37 * Math.PI / 180) * scale,
-    yOffset + (boundary.north - latitude) * scale,
-  ]
+  const { width, height, project } = atlasProjection(regions, Boolean(province))
+  const assetHref = province ? atlasAssets.provinces[province.code as keyof typeof atlasAssets.provinces] : atlasAssets.national
 
-  return <RegionAtlasCanvas key={province?.code ?? 'all'} width={width} height={height} label={province ? t.chooseDistrict : t.chooseProvince} countLabel={t.toilets}
+  return <><link rel="preload" as="image" href={assetHref} type="image/svg+xml" />
+    <RegionAtlasCanvas key={province?.code ?? 'all'} width={width} height={height} assetHref={assetHref} label={province ? t.chooseDistrict : t.chooseProvince} countLabel={t.toilets}
     zoomInLabel={t.zoomIn} zoomOutLabel={t.zoomOut} resetLabel={t.resetView} detailHint={t.zoomDetails}
     overview={!province}
     areas={regions.map((region, index) => {
@@ -50,6 +30,6 @@ export function RegionAtlas({ locale, provinceCode }: { locale: Locale; province
       return { code: region.code, name: regionName(region, locale), mapName: !province && locale === 'ko' ? provinceMapNames[region.code] ?? region.name : regionName(region, locale), emphasized,
         count: region.count.toLocaleString(locale), anchor: project(anchor), alternatives: !province && !emphasized ? regionLabelOptions(region, anchor).map(project) : [], color: emphasized ? '#317756' : colors[index],
         surface, regionWidth: project([bounds.east, bounds.north])[0] - project([bounds.west, bounds.north])[0],
-        href: localizedPublicPath(localizedRegionPath(locale, province?.code ?? region.code, province ? region.code : undefined), locale)!, path: pathFor(region, project) }
-    })} />
+        href: localizedPublicPath(localizedRegionPath(locale, province?.code ?? region.code, province ? region.code : undefined), locale)! }
+    })} /></>
 }

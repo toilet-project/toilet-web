@@ -25,9 +25,9 @@
 .region-atlas-controls button:disabled { color: #bdcec3; cursor: default; }
 .region-atlas-controls button:focus-visible { outline: 2px solid #31845a; outline-offset: -2px; }
 .region-atlas-area { cursor: pointer; }
-.region-atlas-area path { fill: var(--region-color, #e2ece5); stroke: #fff; stroke-width: 1.25; transition: fill .16s; }
-.region-atlas-area:hover path, .region-atlas-area:focus path, .region-atlas-area.is-active path { fill: #bcd8c7; stroke: #fff; }
-.region-atlas-area.is-emphasized:hover path, .region-atlas-area.is-emphasized:focus path, .region-atlas-area.is-emphasized.is-active path { fill: #205d40; }
+.region-atlas-area use { fill: var(--region-color, #e2ece5); stroke: #fff; stroke-width: 1.25; transition: fill .16s; }
+.region-atlas-area:hover use, .region-atlas-area:focus use, .region-atlas-area.is-active use { fill: #bcd8c7; stroke: #fff; }
+.region-atlas-area.is-emphasized:hover use, .region-atlas-area.is-emphasized:focus use, .region-atlas-area.is-emphasized.is-active use { fill: #205d40; }
 .region-atlas-area:focus-visible { outline: none; }
 .region-atlas-labels { pointer-events: none; }
 .region-atlas-label { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; width: 100%; height: 100%; padding: 0; color: #304337; text-align: center; text-decoration: none; pointer-events: auto; cursor: pointer; }
@@ -110,7 +110,7 @@
 .region-loading-grid { display: flex; flex: 1; min-height: 0; }
 .region-loading-grid > div { flex: 1; border-radius: 22px; }
 @keyframes region-loading-shimmer { to { background-position-x: -200%; } }
-@media (prefers-reduced-motion: reduce) { .region-loading-title, .region-loading-grid > div { animation: none; } .region-atlas-area path { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .region-loading-title, .region-loading-grid > div { animation: none; } .region-atlas-area use { transition: none; } }
 @media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (pointer: coarse) {
   .region-main { padding: 12px 12px 14px; }
   .region-breadcrumbs { margin-bottom: 9px; font-size: 10px; }
