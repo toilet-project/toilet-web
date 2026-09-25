@@ -1,6 +1,7 @@
 import { districtsIn, getProvince, polygonParts, provinces, regionBounds, regionName, localizedRegionPath } from '../../lib/regions'
 import { atlasProjection } from '../../lib/regionAtlasGeometry'
 import atlasAssets from '../../../data/regions/atlas-assets.json' with { type: 'json' }
+import outlineAssets from '../../../data/regions/outline-assets.json' with { type: 'json' }
 import { localizedPublicPath } from '../../i18n/routes'
 import type { Locale } from '../../i18n/locale'
 import { regionText } from './regionText'
@@ -30,6 +31,7 @@ export function RegionAtlas({ locale, provinceCode }: { locale: Locale; province
       return { code: region.code, name: regionName(region, locale), mapName: !province && locale === 'ko' ? provinceMapNames[region.code] ?? region.name : regionName(region, locale), emphasized,
         count: region.count.toLocaleString(locale), anchor: project(anchor), alternatives: !province && !emphasized ? regionLabelOptions(region, anchor).map(project) : [], color: emphasized ? '#317756' : colors[index],
         surface, regionWidth: project([bounds.east, bounds.north])[0] - project([bounds.west, bounds.north])[0],
-        href: localizedPublicPath(localizedRegionPath(locale, province?.code ?? region.code, province ? region.code : undefined), locale)! }
+        href: localizedPublicPath(localizedRegionPath(locale, province?.code ?? region.code, province ? region.code : undefined), locale)!,
+        outlineHref: province ? outlineAssets[region.code as keyof typeof outlineAssets] : undefined }
     })} /></>
 }

@@ -93,7 +93,8 @@ export async function RegionPage({ locale, parts }: { locale: Locale; parts: str
           <p>{r.intro}</p>
         </div>
         {!district && <RegionPicker title={r.allRegions} label={province ? r.chooseDistrict : r.chooseProvince} countLabel={r.toilets} closeLabel={r.closeSelection}
-          areas={regions.map(region => ({ code: region.code, name: regionName(region, locale), count: region.count.toLocaleString(locale), href: localized(localizedRegionPath(locale, province?.code ?? region.code, province ? region.code : undefined)) }))} />}
+          areas={regions.map(region => ({ code: region.code, name: regionName(region, locale), count: region.count.toLocaleString(locale), href: localized(localizedRegionPath(locale, province?.code ?? region.code, province ? region.code : undefined)),
+            outlineHref: province ? outlineAssets[region.code as keyof typeof outlineAssets] : undefined }))} />}
         <p className="region-mobile-hint">{district ? r.mobileMarkerHint : r.mobileExploreHint}</p>
       </div>
       {district && province ? <section className="region-district-layout" aria-label={title}>

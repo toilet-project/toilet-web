@@ -5,17 +5,23 @@ import { useRouter } from 'next/navigation'
 import { useEffect, useId, useRef, useState } from 'react'
 
 export function RegionPicker({ areas, title, label, countLabel, closeLabel }: {
-  areas: { code: string; name: string; count: string; href: string }[]
+  areas: { code: string; name: string; count: string; href: string; outlineHref?: string }[]
   title: string; label: string; countLabel: string; closeLabel: string
 }) {
   const router = useRouter()
   const picker = useRef<HTMLDetailsElement>(null), id = useId()
   const prefetched = useRef(new Set<string>())
+  const preloadedOutlines = useRef(new Map<string, HTMLImageElement>())
   const [open, setOpen] = useState(false)
-  function prefetch(href: string) {
-    if (prefetched.current.has(href)) return
-    prefetched.current.add(href)
-    router.prefetch(href)
+  function prefetch(area: (typeof areas)[number]) {
+    if (prefetched.current.has(area.href)) return
+    prefetched.current.add(area.href)
+    if (area.outlineHref && !preloadedOutlines.current.has(area.outlineHref)) {
+      const image = new Image()
+      preloadedOutlines.current.set(area.outlineHref, image)
+      image.src = area.outlineHref
+    }
+    router.prefetch(area.href)
   }
   function close(restoreFocus = true) {
     if (picker.current) picker.current.open = false
@@ -39,7 +45,7 @@ export function RegionPicker({ areas, title, label, countLabel, closeLabel }: {
     <section id={id} className="region-atlas-picker-panel" aria-label={title}>
       <div className="region-atlas-picker-heading"><strong>{label}</strong><button type="button" onClick={() => close()} aria-label={closeLabel}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg></button></div>
       <div className="region-atlas-picker-list">{areas.map(area => <Link key={area.code} href={area.href} prefetch={false}
-        onPointerEnter={() => prefetch(area.href)} onFocus={() => prefetch(area.href)} onPointerDown={() => prefetch(area.href)} onNavigate={() => close(false)}>
+        onPointerEnter={() => prefetch(area)} onFocus={() => prefetch(area)} onPointerDown={() => prefetch(area)} onNavigate={() => close(false)}>
         <strong>{area.name}</strong><span aria-label={`${area.count} ${countLabel}`}>{area.count}</span>
       </Link>)}</div>
     </section>
