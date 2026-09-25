@@ -10,7 +10,8 @@ const STALE_MS = 37 * 24 * 60 * 60 * 1000
 const LEASE_MS = 15_000
 const RETRY_MS = 60_000
 const EDGE_TTL_MS = 30_000
-const EDGE_URL = `https://geupddong.com/__internal/map-clusters/v${SCHEMA}/snapshot`
+const EDGE_SCOPE = process.env.MAP_CLUSTER_LEGACY_SOURCE_FALLBACK === 'true' ? 'preview' : 'production'
+const EDGE_URL = `https://geupddong.com/__internal/map-clusters/v${SCHEMA}/${EDGE_SCOPE}/snapshot`
 type State = 'data' | 'loading' | 'invalidated'
 type Record = { schema: number; revision: number; state: State; storedAt: number;
   leaseUntil?: number; retryAt?: number; data?: ClusterBin[] }
