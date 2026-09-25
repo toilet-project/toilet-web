@@ -5,17 +5,24 @@ import { buildClusterBins, clusterBinsInBounds, mapClusterGridFactor, mapCluster
 import { fetchClusterSourceOrigin, invalidateMapClusterCache, mapClusterObjectKey,
   readThroughMapClusterCache } from '../src/server/mapClusterCache.ts'
 
+let bucketId = 0
 class FakeR2 {
-  objects = new Map(); sequence = 0
+  objects = new Map(); sequence = 0; id = ++bucketId; getCalls = 0; headCalls = 0
   async get(key) {
+    this.getCalls++
     const found = this.objects.get(key)
     return found ? { etag: found.etag, json: async () => JSON.parse(found.value) } : null
+  }
+  async head(key) {
+    this.headCalls++
+    const found = this.objects.get(key)
+    return found ? { etag: found.etag } : null
   }
   async put(key, value, options = {}) {
     const current = this.objects.get(key), only = options.onlyIf
     if (only?.etagDoesNotMatch === '*' && current) return null
     if (only?.etagMatches && current?.etag !== only.etagMatches) return null
-    const etag = `etag-${++this.sequence}`
+    const etag = `bucket-${this.id}-etag-${++this.sequence}`
     this.objects.set(key, { etag, value })
     return { etag }
   }
@@ -102,9 +109,25 @@ test('concurrent readers share one national R2 snapshot and never read origin on
   assert.equal(originReads, 1)
   assert.equal(results.filter(result => result.source === 'miss').length, 1)
   assert.ok(results.every(result => result.bins.length === bins.length))
+  const readsAfterWarm = bucket.getCalls
   assert.equal((await readThroughMapClusterCache({ bucket, fetchOrigin })).source, 'hit')
   assert.equal(originReads, 1)
   assert.equal(bucket.value(mapClusterObjectKey()).state, 'data')
+  assert.equal(bucket.getCalls, readsAfterWarm)
+  assert.ok(bucket.headCalls >= 12)
+})
+
+test('a change written by another isolate invalidates the decoded hot snapshot', async () => {
+  const bucket = new FakeR2()
+  await readThroughMapClusterCache({ bucket, fetchOrigin: async () => points })
+  assert.equal((await readThroughMapClusterCache({ bucket })).source, 'hit')
+  const before = bucket.getCalls
+  const record = bucket.value(mapClusterObjectKey())
+  await bucket.put(mapClusterObjectKey(), JSON.stringify({ ...record, state: 'invalidated', data: undefined }))
+  const rebuilt = await readThroughMapClusterCache({ bucket, fetchOrigin: async () => [[37.52, 127.02]] })
+  assert.equal(rebuilt.source, 'miss')
+  assert.ok(bucket.getCalls > before)
+  assert.equal(clusterBinsInBounds(rebuilt.bins, bounds, 10).meta.total_count, 1)
 })
 
 test('invalidation forces a new source and defeats an in-flight stale writer', async () => {

@@ -14,6 +14,9 @@ type Record = { schema: number; revision: number; state: State; storedAt: number
   leaseUntil?: number; retryAt?: number; data?: ClusterBin[] }
 type Loaded = { record: Record | null; etag: string } | null
 export type ClusterSourceRead = { bins: ClusterBin[]; source: 'hit' | 'miss' | 'stale' }
+// A Worker isolate can reuse the decoded national snapshot. Check the small R2
+// object head on every request so invalidations from other isolates are seen.
+let hotSnapshot: Loaded = null
 
 export function mapClusterObjectKey() { return KEY }
 
@@ -31,9 +34,14 @@ function validRecord(value: unknown): Record | null {
 }
 
 async function load(bucket: R2BucketLike): Promise<Loaded> {
+  const head = (bucket as R2BucketLike & { head?: (key: string) => Promise<{ etag: string } | null> }).head
+  if (head && hotSnapshot) {
+    const metadata = await head.call(bucket, KEY)
+    if (metadata?.etag === hotSnapshot.etag) return hotSnapshot
+  }
   const object = await bucket.get(KEY)
-  if (!object) return null
-  return { etag: object.etag, record: validRecord(await object.json<unknown>()) }
+  hotSnapshot = object ? { etag: object.etag, record: validRecord(await object.json<unknown>()) } : null
+  return hotSnapshot
 }
 
 function condition(current: Loaded): R2PutOnlyIf {
@@ -41,8 +49,10 @@ function condition(current: Loaded): R2PutOnlyIf {
 }
 
 async function put(bucket: R2BucketLike, record: Record, current: Loaded) {
-  return bucket.put(KEY, JSON.stringify(record), { onlyIf: condition(current),
+  const stored = await bucket.put(KEY, JSON.stringify(record), { onlyIf: condition(current),
     httpMetadata: { contentType: 'application/json' } })
+  if (stored) hotSnapshot = { etag: stored.etag, record }
+  return stored
 }
 
 export async function fetchClusterSourceOrigin(): Promise<ClusterPoint[]> {
