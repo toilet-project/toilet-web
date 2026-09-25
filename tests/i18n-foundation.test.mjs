@@ -289,7 +289,7 @@ test('the same map owns both routes; English preview remains gated and unindexed
   assert.match(shell, /key=\{testToiletHash\}/)
   assert.doesNotMatch(shell, /key=\{(?:locale|path|route.path)\}/)
   assert.match(app, /if \(languageOnly\) return/)
-  assert.match(app, /!snapshot && !initialRouteRef\.current\.detail && !resume && !testToilet/)
+  assert.match(app, /!snapshot && !initialRouteRef\.current\.detail && \(!resume \|\| usedFallback\) && !testToilet/)
   assert.match(await read('next.config.ts'), /SITE_INDEXABLE === 'false' && process.env.ENGLISH_UI_PREVIEW === 'true'/)
   assert.match(await read('next.config.ts'), /SITE_INDEXABLE === 'true' && process.env.ENGLISH_UI_RELEASE === 'true'/)
   assert.match(await read('src/app/(map)/en/layout.tsx'), /robots: \{ index: false, follow: false \}/)
