@@ -6,5 +6,5 @@ import { localizedPublicPath } from '../i18n/routes'
 
 export default function NotFound() {
   const locale = useLocale(), t = useMessages()
-  return <main className="app-error"><NotFoundAnalytics /><strong>{t('error.notFound')}</strong><Link href={localizedPublicPath('/', locale)!}>{t('detail.back')}</Link></main>
+  return <main className="app-error"><NotFoundAnalytics /><h1>{t('error.notFound')}</h1><Link href={localizedPublicPath('/', locale)!}>{t('detail.back')}</Link></main>
 }
