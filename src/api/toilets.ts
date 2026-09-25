@@ -1,5 +1,6 @@
 import { createApiUrl } from '../config/api'
 import { cellsForBounds, mapCellZoomSupported } from '../lib/mapCells'
+import { mapClusterZoomSupported } from '../lib/mapClusters'
 
 export type ToiletTranslationText = {
   name: string
@@ -89,19 +90,23 @@ export type ToiletDetailResponse = {
 
 export async function fetchToiletsInBounds(params: { southLat: number; northLat: number; westLng: number; eastLng: number; zoom: number; includeList?: boolean }, signal?: AbortSignal): Promise<ToiletMapSearchResponse> {
   const query = new URLSearchParams(Object.entries(params).map(([key, value]) => [key, String(value)]))
+  const cachedClusters = !params.includeList && mapClusterZoomSupported(params.zoom)
+    && process.env.NEXT_PUBLIC_MAP_CLUSTER_CACHE_ENABLED === 'true'
   const cells = mapCellZoomSupported(params.zoom) && process.env.NEXT_PUBLIC_MAP_CELL_CACHE_ENABLED === 'true'
     ? cellsForBounds({ south: params.southLat, north: params.northLat, west: params.westLng, east: params.eastLng }) : null
   const legacyUrl = createApiUrl(`/api/v1/toilets?${query}`)
-  const url = cells ? `/api/map-area?${query}` : legacyUrl
+  const url = cachedClusters ? `/api/map-clusters?${query}` : cells ? `/api/map-area?${query}` : legacyUrl
   let response: Response
   try {
     response = await fetch(url, { signal })
   } catch (error) {
-    if (!cells || signal?.aborted) throw error
+    // A cluster cache outage must not fan every viewport request back to the mini PC.
+    if (cachedClusters || (!cells && !cachedClusters) || signal?.aborted) throw error
     response = await fetch(legacyUrl, { signal })
   }
-  // Keep the established viewport API as the map's safe rollback path.
-  if (cells && !response.ok && !signal?.aborted)
+  // Only a disabled or not-yet-deployed cluster route may use the legacy query.
+  // Transient cache/source errors should not turn a busy map into an origin stampede.
+  if ((cells || (cachedClusters && response.status === 404)) && !response.ok && !signal?.aborted)
     response = await fetch(legacyUrl, { signal })
   if (!response.ok) throw new Error(`화장실 조회에 실패했습니다. (${response.status})`)
   const payload = await response.json() as Partial<ToiletMapSearchResponse>

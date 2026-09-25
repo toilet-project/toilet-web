@@ -8,6 +8,9 @@ export function validateWorkerConfig(config, target, {deploy = false, stage = fa
   assert.equal(config.vars?.SITE_INDEXABLE, String(production), 'Wrong runtime indexing policy')
   assert.equal(config.vars?.CACHE_RUNTIME, 'workers')
   assert.equal(config.vars?.MAP_CELL_CACHE_ENABLED, 'true', 'Map cell R2 cache must be enabled in both targets')
+  assert.equal(config.vars?.MAP_CLUSTER_CACHE_ENABLED, 'true', 'Map cluster R2 cache must be enabled in both targets')
+  assert.equal(config.vars?.MAP_CLUSTER_LEGACY_SOURCE_FALLBACK, production ? undefined : 'true',
+    'Full-marker source fallback is allowed only on preview')
   assert.equal(config.vars?.REGION_MARKER_CACHE_ENABLED, 'true', 'Region marker R2 cache must be enabled in both targets')
   assert.equal(config.services?.find(row => row.binding === 'WORKER_SELF_REFERENCE')?.service, config.name)
   assert.equal(config.r2_buckets?.find(row => row.binding === 'NEXT_INC_CACHE_R2_BUCKET')?.bucket_name, `geupddong-next-${suffix}-cache`)

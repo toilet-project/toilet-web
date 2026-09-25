@@ -16,6 +16,7 @@ test('preview and production bundles both request shared map cells', async () =>
       process.env.SITE_INDEXABLE = siteIndexable
       const { default: config } = await import(`../next.config.ts?map-cell-${siteIndexable || 'local'}`)
       assert.equal(config.env.NEXT_PUBLIC_MAP_CELL_CACHE_ENABLED, expected)
+      assert.equal(config.env.NEXT_PUBLIC_MAP_CLUSTER_CACHE_ENABLED, expected)
     }
   } finally {
     if (original === undefined) delete process.env.SITE_INDEXABLE
