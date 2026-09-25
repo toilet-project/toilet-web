@@ -1,5 +1,5 @@
 'use client'
-import { HomeIntro } from './components/HomeIntro'
+import { homeCopy } from './i18n/homeCopy'
 import { PublicReviews, PublicReviewsLoading } from './components/reviews/PublicReviews'
 
 
@@ -1541,7 +1541,9 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         }} />
       <header className="topbar">
         <div className="topbar-inner">
-        <a className="brand" href={localizedPublicPath('/', locale)!} aria-label={t('map.home')}><BrandWordmark locale={locale} /></a>
+        {!isDesktop && route.path === localizedPublicPath('/', locale)
+          ? <h1 className="brand map-home-heading"><a href={localizedPublicPath('/', locale)!} aria-label={t('map.home')}><BrandWordmark locale={locale} /></a><span className="sr-only">{homeCopy[locale].heading}</span></h1>
+          : <a className="brand" href={localizedPublicPath('/', locale)!} aria-label={t('map.home')}><BrandWordmark locale={locale} /></a>}
         <span className="subtitle">{t('map.subtitle')}</span>
         <div className="place-search">
           <label className="sr-only" htmlFor="place-search-input">{t('map.search')}</label>
@@ -1588,7 +1590,6 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           {ENGLISH_UI_ENABLED && <LanguageSelector locale={locale} onSelect={next => onLocaleChange(next, testToilet ? null : selectedToilet?.id ?? expandedCoordinateToilet?.id ?? null)} />}
         </div>}
         </div>
-        {route.path === localizedPublicPath('/', locale) && <HomeIntro locale={locale} />}
       </header>
 
       <section className="map-section" aria-label={t('map.title')}>
@@ -1772,7 +1773,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         </section></div>}
         {!isAuthLoading && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('recovery') === 'required' && <AccountRecoveryDialog />}
       </section>
-      {isDesktop ? <SiteFooter /> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { reviewPreview.close(); setMobileAccountView('home'); setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
+      {isDesktop ? <SiteFooter homeIntro={route.path === localizedPublicPath('/', locale)} /> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { reviewPreview.close(); setMobileAccountView('home'); setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
     </main>
   )
 }
