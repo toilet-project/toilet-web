@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { gunzipSync, gzipSync } from 'node:zlib'
 import { buildClusterBins, clusterBinsInBounds, mapClusterGridFactor, mapClusterZoomSupported,
   sanitizeClusterPoints, validClusterBounds, validClusterBins } from '../src/lib/mapClusters.ts'
 import { fetchClusterSourceOrigin, invalidateMapClusterCache, mapClusterObjectKey,
@@ -11,7 +12,9 @@ class FakeR2 {
   async get(key) {
     this.getCalls++
     const found = this.objects.get(key)
-    return found ? { etag: found.etag, json: async () => JSON.parse(found.value) } : null
+    return found ? { etag: found.etag,
+      arrayBuffer: async () => found.value.buffer.slice(found.value.byteOffset,
+        found.value.byteOffset + found.value.byteLength) } : null
   }
   async head(key) {
     this.headCalls++
@@ -23,10 +26,10 @@ class FakeR2 {
     if (only?.etagDoesNotMatch === '*' && current) return null
     if (only?.etagMatches && current?.etag !== only.etagMatches) return null
     const etag = `bucket-${this.id}-etag-${++this.sequence}`
-    this.objects.set(key, { etag, value })
+    this.objects.set(key, { etag, value: typeof value === 'string' ? gzipSync(value) : value })
     return { etag }
   }
-  value(key) { return JSON.parse(this.objects.get(key).value) }
+  value(key) { return JSON.parse(gunzipSync(this.objects.get(key).value).toString()) }
 }
 
 const bounds = { south: 37.5, north: 37.6, west: 126.9, east: 127.1 }
@@ -115,6 +118,7 @@ test('concurrent readers share one national R2 snapshot and never read origin on
   assert.equal(bucket.value(mapClusterObjectKey()).state, 'data')
   assert.equal(bucket.getCalls, readsAfterWarm)
   assert.ok(bucket.headCalls >= 12)
+  assert.ok(bucket.objects.get(mapClusterObjectKey()).value.byteLength < 300)
 })
 
 test('a change written by another isolate invalidates the decoded hot snapshot', async () => {
@@ -175,7 +179,7 @@ test('preview alone can derive a compact snapshot from the existing full marker 
   process.env.MAP_CLUSTER_LEGACY_SOURCE_FALLBACK = 'true'
   globalThis.fetch = async (url, options) => {
     calls.push({ url: String(url), options })
-    return calls.length === 1 ? { status: 400, ok: false }
+    return calls.length === 1 ? { status: 401, ok: false }
       : { status: 200, ok: true, json: async () => ({ meta: { display_type: 'MARKER', total_count: 2 },
         toilets: [{ latitude: 37.52, longitude: 127.02, name: 'not cached' },
           { latitude: 37.53, longitude: 127.03, phoneNumber: 'not cached' }] }) }
@@ -187,7 +191,7 @@ test('preview alone can derive a compact snapshot from the existing full marker 
     assert.match(calls[1].url, /includeList=true/)
     process.env.MAP_CLUSTER_LEGACY_SOURCE_FALLBACK = 'false'
     calls.length = 0
-    await assert.rejects(fetchClusterSourceOrigin(), /HTTP 400/)
+    await assert.rejects(fetchClusterSourceOrigin(), /HTTP 401/)
     assert.equal(calls.length, 1)
   } finally {
     globalThis.fetch = originalFetch

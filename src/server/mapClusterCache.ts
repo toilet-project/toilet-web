@@ -3,8 +3,8 @@ import { buildClusterBins, sanitizeClusterPoints, validClusterBins,
 import { createHmac } from 'node:crypto'
 import type { R2BucketLike, R2PutOnlyIf } from './sharedToiletCache'
 
-const SCHEMA = 1
-const KEY = `map-clusters/v${SCHEMA}/national-points.json`
+const SCHEMA = 2
+const KEY = `map-clusters/v${SCHEMA}/national-points.json.gz`
 const FRESH_MS = 30 * 24 * 60 * 60 * 1000
 const STALE_MS = 37 * 24 * 60 * 60 * 1000
 const LEASE_MS = 15_000
@@ -17,6 +17,16 @@ export type ClusterSourceRead = { bins: ClusterBin[]; source: 'hit' | 'miss' | '
 // A Worker isolate can reuse the decoded national snapshot. Check the small R2
 // object head on every request so invalidations from other isolates are seen.
 let hotSnapshot: Loaded = null
+
+async function compressRecord(record: Record): Promise<Uint8Array> {
+  const stream = new Blob([JSON.stringify(record)]).stream().pipeThrough(new CompressionStream('gzip'))
+  return new Uint8Array(await new Response(stream).arrayBuffer())
+}
+
+async function decompressRecord(bytes: ArrayBuffer): Promise<unknown> {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))
+  return JSON.parse(await new Response(stream).text())
+}
 
 export function mapClusterObjectKey() { return KEY }
 
@@ -40,7 +50,8 @@ async function load(bucket: R2BucketLike): Promise<Loaded> {
     if (metadata?.etag === hotSnapshot.etag) return hotSnapshot
   }
   const object = await bucket.get(KEY)
-  hotSnapshot = object ? { etag: object.etag, record: validRecord(await object.json<unknown>()) } : null
+  hotSnapshot = object ? { etag: object.etag,
+    record: validRecord(await decompressRecord(await object.arrayBuffer())) } : null
   return hotSnapshot
 }
 
@@ -49,8 +60,8 @@ function condition(current: Loaded): R2PutOnlyIf {
 }
 
 async function put(bucket: R2BucketLike, record: Record, current: Loaded) {
-  const stored = await bucket.put(KEY, JSON.stringify(record), { onlyIf: condition(current),
-    httpMetadata: { contentType: 'application/json' } })
+  const stored = await bucket.put(KEY, await compressRecord(record), { onlyIf: condition(current),
+    httpMetadata: { contentType: 'application/gzip' } })
   if (stored) hotSnapshot = { etag: stored.etag, record }
   return stored
 }
@@ -69,7 +80,7 @@ export async function fetchClusterSourceOrigin(): Promise<ClusterPoint[]> {
   })
   // Preview can warm real data before the additive API endpoint reaches production.
   // Production never performs this expensive full-marker fallback.
-  if ([400, 404].includes(response.status) && process.env.MAP_CLUSTER_LEGACY_SOURCE_FALLBACK === 'true') {
+  if ([400, 401, 404].includes(response.status) && process.env.MAP_CLUSTER_LEGACY_SOURCE_FALLBACK === 'true') {
     const query = new URLSearchParams({ southLat: '32', northLat: '40', westLng: '124', eastLng: '132',
       zoom: '8', includeList: 'true' })
     const legacy = await fetch(`${origin.replace(/\/$/, '')}/api/v1/toilets?${query}`, {
