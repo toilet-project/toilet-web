@@ -3,7 +3,7 @@ import type { ToiletMapItemResponse, ToiletMapSearchResponse } from '../api/toil
 import preciseSource from '../../data/regions/sgg-precise.json' with { type: 'json' }
 import { allDistricts, getDistrict, regionBounds, regionContains, type Region, type RegionGeometry } from '../lib/regions'
 import type { RegionBounds } from './cacheRevalidation'
-import { getRegionMarkerBucket, readThroughRegionMarkers, type RegionMarkerRead } from './regionMarkerCache'
+import { getRegionMarkerBucket, readRegionMarkersOrFallback, RegionMarkerOriginError, type RegionMarkerRead } from './regionMarkerCache'
 
 const API_ORIGIN = process.env.TOILET_API_ORIGIN ?? 'https://api.geupddong.com'
 const preciseGeometry = new Map(preciseSource.features.map(feature => [feature.properties.sgg, feature.geometry]))
@@ -71,18 +71,25 @@ export async function getDistrictToiletsWithSource(provinceCode: string, distric
   if (!region) return { toilets: [], source: 'hit' }
   const { south, north, west, east } = regionBounds(region)
   const query = new URLSearchParams({ southLat: String(south), northLat: String(north), westLng: String(west), eastLng: String(east), zoom: '8' })
-  const bucket = process.env.REGION_MARKER_CACHE_ENABLED === 'true' ? await getRegionMarkerBucket() : null
   const fetchOrigin = async (shared: boolean) => {
-    const response = await fetch(`${API_ORIGIN}/api/v1/toilets?${query}`, {
-      ...(shared ? { cache: 'no-store' as const } : {
-        next: { revalidate: 2_592_000, tags: ['region-markers', `region-markers:${districtCode}`] },
-      }),
-      signal: AbortSignal.timeout(20000),
-    })
-    if (!response.ok) throw new Error(`Region toilets: HTTP ${response.status}`)
-    return sanitizeDistrictMarkers(await response.json(), region)
+    try {
+      const response = await fetch(`${API_ORIGIN}/api/v1/toilets?${query}`, {
+        ...(shared ? { cache: 'no-store' as const } : {
+          next: { revalidate: 2_592_000, tags: ['region-markers', `region-markers:${districtCode}`] },
+        }),
+        signal: AbortSignal.timeout(20000),
+      })
+      if (!response.ok) throw new Error(`Region toilets: HTTP ${response.status}`)
+      return sanitizeDistrictMarkers(await response.json(), region)
+    } catch (error) { throw new RegionMarkerOriginError('Region origin unavailable', { cause: error }) }
   }
-  if (bucket) return readThroughRegionMarkers({ bucket, districtCode, fetchOrigin: () => fetchOrigin(true) })
+  let bucket = null
+  if (process.env.REGION_MARKER_CACHE_ENABLED === 'true') {
+    try { bucket = await getRegionMarkerBucket() }
+    catch { return { toilets: await fetchOrigin(false), source: 'fallback' } }
+  }
+  if (bucket) return readRegionMarkersOrFallback({ bucket, districtCode, fetchOrigin: () => fetchOrigin(true) },
+    () => fetchOrigin(false))
   return { toilets: await fetchOrigin(false), source: 'miss' }
 }
 

@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import districts from '../data/regions/sgg.json' with { type: 'json' }
 
@@ -41,10 +41,15 @@ const report = args.refresh !== 'yes' && previous?.schema === 1 && previous.site
 report.targetCount = target.length
 const pending = target.filter(code => !report.succeeded[code])
 console.log(JSON.stringify({ type: 'start', site: base.origin, target: target.length, pending: pending.length, rps, concurrency }))
-let index = 0, nextAt = Date.now(), failures = 0
-async function save() {
-  await mkdir(dirname(checkpoint), { recursive: true })
-  await writeFile(checkpoint, `${JSON.stringify(report)}\n`)
+let index = 0, nextAt = Date.now(), failures = 0, lastSave = Promise.resolve()
+function save() {
+  lastSave = lastSave.then(async () => {
+    await mkdir(dirname(checkpoint), { recursive: true })
+    const temporary = `${checkpoint}.tmp`
+    await writeFile(temporary, `${JSON.stringify(report)}\n`)
+    await rename(temporary, checkpoint)
+  })
+  return lastSave
 }
 async function worker() {
   while (index < pending.length && failures < 5) {
@@ -59,8 +64,10 @@ async function worker() {
       if (!response.ok || !['hit', 'miss'].includes(response.headers.get('x-region-marker-cache')))
         throw new Error(`HTTP ${response.status}, cache=${response.headers.get('x-region-marker-cache')}`)
       const body = await response.json()
-      if (!Number.isSafeInteger(body.count) || body.count < 0) throw new Error('Invalid marker count')
-      report.succeeded[code] = { count: body.count, source: response.headers.get('x-region-marker-cache') }
+      if (!Number.isSafeInteger(body.count) || body.count < 0
+        || !Number.isSafeInteger(body.payloadBytes) || body.payloadBytes < 0) throw new Error('Invalid marker inventory')
+      report.succeeded[code] = { count: body.count, payloadBytes: body.payloadBytes,
+        source: response.headers.get('x-region-marker-cache') }
       delete report.failed[code]
     } catch (error) {
       failures++
@@ -75,5 +82,6 @@ await save()
 console.log(JSON.stringify({ type: 'done', site: base.origin, target: target.length,
   succeeded: Object.keys(report.succeeded).length, failed: Object.keys(report.failed).length,
   originReads: Object.values(report.succeeded).filter(row => row.source === 'miss').length,
+  payloadBytes: Object.values(report.succeeded).reduce((sum, row) => sum + (row.payloadBytes ?? 0), 0),
   checkpoint }))
 if (Object.keys(report.failed).length) process.exitCode = 1

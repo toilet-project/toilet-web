@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { invalidateRegionMarkers, readThroughRegionMarkers, regionMarkerGlobalKey,
+import { invalidateRegionMarkers, readThroughRegionMarkers, readRegionMarkersOrFallback,
+  RegionMarkerOriginError, regionMarkerFreshAge, regionMarkerGlobalKey,
   regionMarkerObjectKey } from '../src/server/regionMarkerCache.ts'
 
 class FakeR2 {
@@ -75,4 +76,36 @@ test('an origin failure does not silently serve an invalidated snapshot', async 
   await assert.rejects(readThroughRegionMarkers({ bucket, districtCode: code,
     fetchOrigin: async () => { throw new Error('origin unavailable') } }), /origin unavailable/)
   assert.equal(bucket.value(regionMarkerObjectKey(code)).state, 'invalidated')
+})
+
+test('expiry is spread across seven days, with a short stale retry window', async () => {
+  const bucket = new FakeR2(); let time = 1_000
+  const now = () => time
+  await readThroughRegionMarkers({ bucket, districtCode: code, now,
+    fetchOrigin: async () => [marker('previous')] })
+  assert.notEqual(regionMarkerFreshAge(code), regionMarkerFreshAge('11140'))
+  time += regionMarkerFreshAge(code) + 1
+  const stale = await readThroughRegionMarkers({ bucket, districtCode: code, now,
+    fetchOrigin: async () => { throw new RegionMarkerOriginError('offline') } })
+  assert.equal(stale.source, 'stale')
+  assert.equal(stale.toilets[0].name, 'previous')
+  const stillStale = await readThroughRegionMarkers({ bucket, districtCode: code, now,
+    fetchOrigin: async () => { throw new Error('should not retry immediately') } })
+  assert.equal(stillStale.source, 'stale')
+  await invalidateRegionMarkers(bucket, [code], now)
+  await assert.rejects(readThroughRegionMarkers({ bucket, districtCode: code, now,
+    fetchOrigin: async () => { throw new RegionMarkerOriginError('offline') } }), /offline/)
+})
+
+test('R2 outage falls back to the tagged origin path but origin outage does not retry it', async () => {
+  const bucket = { get: async () => { throw new Error('R2 unavailable') }, put: async () => null }
+  const fallback = await readRegionMarkersOrFallback({ bucket, districtCode: code,
+    fetchOrigin: async () => [marker('unused')] }, async () => [marker('API fallback')])
+  assert.equal(fallback.source, 'fallback')
+  assert.equal(fallback.toilets[0].name, 'API fallback')
+  let fallbackReads = 0
+  await assert.rejects(readRegionMarkersOrFallback({ bucket: new FakeR2(), districtCode: code,
+    fetchOrigin: async () => { throw new RegionMarkerOriginError('origin offline') } },
+  async () => { fallbackReads++; return [] }), /origin offline/)
+  assert.equal(fallbackReads, 0)
 })

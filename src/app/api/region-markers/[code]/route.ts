@@ -10,7 +10,8 @@ export async function GET(_request: Request, context: { params: Promise<{ code: 
       headers: { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' } })
   try {
     const result = await getDistrictToiletsWithSource(code.slice(0, 2), code)
-    return Response.json({ count: result.toilets.length }, { headers: {
+    return Response.json({ count: result.toilets.length,
+      payloadBytes: new TextEncoder().encode(JSON.stringify(result.toilets)).byteLength }, { headers: {
       'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex',
       'X-Region-Marker-Cache': result.source,
     } })

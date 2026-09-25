@@ -19,3 +19,8 @@ test('language-neutral atlas assets match the current region boundaries', async 
     assert.equal(await readFile(new URL(`../public${href}`, import.meta.url), 'utf8'), expected)
   }
 })
+
+test('hashed atlas assets have an immutable Workers Assets cache header', async () => {
+  const headers = await readFile(new URL('../public/_headers', import.meta.url), 'utf8')
+  assert.match(headers, /\/region-atlas\/\*\s+Cache-Control: public,max-age=31536000,immutable/)
+})

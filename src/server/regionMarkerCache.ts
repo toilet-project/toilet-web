@@ -3,8 +3,10 @@ import type { R2BucketLike, R2PutOnlyIf } from './sharedToiletCache'
 
 const SCHEMA = 1
 const PREFIX = `region-markers/v${SCHEMA}` // Shared by every WEB deployment and locale.
-const FRESH_MS = 30 * 24 * 60 * 60 * 1000
+const DAY_MS = 24 * 60 * 60 * 1000
+const STALE_EXTRA_MS = 7 * DAY_MS
 const LEASE_MS = 25_000
+const RETRY_MS = 60_000
 
 type State = 'data' | 'loading' | 'invalidated'
 type DistrictRecord = { schema: number; districtCode: string; revision: number; globalRevision: number;
@@ -12,7 +14,9 @@ type DistrictRecord = { schema: number; districtCode: string; revision: number; 
 type GlobalRecord = { schema: number; revision: number }
 type Loaded<T> = { record: T | null; etag: string } | null
 
-export type RegionMarkerRead = { toilets: ToiletMapItemResponse[]; source: 'hit' | 'miss' }
+export type RegionMarkerRead = { toilets: ToiletMapItemResponse[]; source: 'hit' | 'miss' | 'stale' | 'fallback' }
+export class RegionMarkerOriginError extends Error {}
+export function regionMarkerFreshAge(code: string) { return (30 + Number(code) % 7) * DAY_MS }
 export function regionMarkerObjectKey(code: string) { return `${PREFIX}/districts/${code}.json` }
 export function regionMarkerGlobalKey() { return `${PREFIX}/global.json` }
 function validCode(code: string) { return /^\d{5}$/.test(code) }
@@ -68,17 +72,22 @@ export async function readThroughRegionMarkers(options: { bucket: R2BucketLike; 
     const globalRevision = global?.record?.revision ?? 0
     const record = current?.record
     const sameGeneration = record?.globalRevision === globalRevision
-    if (record?.state === 'data' && sameGeneration && record.storedAt + FRESH_MS > now()) {
+    const freshAge = regionMarkerFreshAge(districtCode)
+    const staleAllowed = sameGeneration && record?.data && record.storedAt + freshAge + STALE_EXTRA_MS > now()
+    if (record?.state === 'data' && sameGeneration && record.storedAt + freshAge > now()) {
       if (((await loadGlobal(bucket))?.record?.revision ?? 0) === globalRevision)
         return { toilets: record.data!, source: 'hit' }
       continue
     }
     if (record?.state === 'loading' && sameGeneration && record.leaseUntil! > now()) {
+      if (staleAllowed && ((await loadGlobal(bucket))?.record?.revision ?? 0) === globalRevision)
+        return { toilets: record.data!, source: 'stale' }
       await pause(100)
       continue
     }
     const lease: DistrictRecord = { schema: SCHEMA, districtCode, revision: (record?.revision ?? 0) + 1,
-      globalRevision, state: 'loading', storedAt: now(), leaseUntil: now() + LEASE_MS }
+      globalRevision, state: 'loading', storedAt: record?.storedAt ?? now(), leaseUntil: now() + LEASE_MS,
+      ...(staleAllowed ? { data: record.data } : {}) }
     const acquired = await put(bucket, regionMarkerObjectKey(districtCode), lease, current)
     if (!acquired) continue
     try {
@@ -91,13 +100,30 @@ export async function readThroughRegionMarkers(options: { bucket: R2BucketLike; 
         return { toilets: data, source: 'miss' }
       // A concurrent invalidation won. Never return an older origin snapshot.
     } catch (error) {
-      const invalidated: DistrictRecord = { schema: SCHEMA, districtCode,
-        revision: lease.revision, globalRevision, state: 'invalidated', storedAt: now() }
-      if (await put(bucket, regionMarkerObjectKey(districtCode), invalidated,
-        { record: lease, etag: acquired.etag })) throw error
+      if (lease.data && lease.storedAt + freshAge + STALE_EXTRA_MS > now()) {
+        const backoff: DistrictRecord = { ...lease, leaseUntil: now() + RETRY_MS }
+        const saved = await put(bucket, regionMarkerObjectKey(districtCode), backoff,
+          { record: lease, etag: acquired.etag })
+        if (saved && ((await loadGlobal(bucket))?.record?.revision ?? 0) === globalRevision)
+          return { toilets: lease.data, source: 'stale' }
+      } else {
+        const invalidated: DistrictRecord = { schema: SCHEMA, districtCode,
+          revision: lease.revision, globalRevision, state: 'invalidated', storedAt: now() }
+        if (await put(bucket, regionMarkerObjectKey(districtCode), invalidated,
+          { record: lease, etag: acquired.etag })) throw error
+      }
     }
   }
   throw new Error('Region marker cache contention')
+}
+
+export async function readRegionMarkersOrFallback(options: Parameters<typeof readThroughRegionMarkers>[0],
+  fetchFallback: () => Promise<ToiletMapItemResponse[]>): Promise<RegionMarkerRead> {
+  try { return await readThroughRegionMarkers(options) }
+  catch (error) {
+    if (error instanceof RegionMarkerOriginError) throw error
+    return { toilets: await fetchFallback(), source: 'fallback' }
+  }
 }
 
 async function invalidateDistrict(bucket: R2BucketLike, code: string, now: () => number) {
