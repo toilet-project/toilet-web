@@ -1,6 +1,6 @@
 import {mkdir,writeFile} from 'node:fs/promises'
 import {dirname,resolve} from 'node:path'
-import {collectPublicMapToiletIds,normalizeBaseUrl,positiveInteger} from './cache/prewarm-lib.mjs'
+import {collectPublicDetailIds,normalizeBaseUrl,positiveInteger} from './cache/prewarm-lib.mjs'
 import {partitionToiletIds,refreshSharedToiletData} from './cache/shared-refresh-lib.mjs'
 
 function argumentsOf(values){
@@ -26,7 +26,7 @@ const catalogRequestTimeoutMs=positiveInteger(args['catalog-request-timeout-seco
 const cycleId=args['cycle-id']
 if(!cycleId||!/^[a-zA-Z0-9._-]{1,100}$/.test(cycleId))throw new Error('Explicit cycle ID required')
 const catalogBaseUrl=normalizeBaseUrl(args['catalog-base-url'])
-const allIds=await collectPublicMapToiletIds({baseUrl:catalogBaseUrl,requestTimeoutMs:catalogRequestTimeoutMs,retries})
+const allIds=await collectPublicDetailIds({baseUrl:catalogBaseUrl,requestTimeoutMs:catalogRequestTimeoutMs,retries})
 const ids=partitionToiletIds(allIds,partition,partitionCount)
 if(!ids.length)throw new Error('Selected refresh partition is empty')
 const checkpointPath=resolve(args.checkpoint||`.cache-refresh/${cycleId}-${partition}.json`)

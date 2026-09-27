@@ -9,8 +9,8 @@ import { getSharedToiletBucket, readThroughSharedToiletCache, sharedToiletCacheE
 async function fetchPublicToiletOrigin(id: number): Promise<ToiletDetailResponse | null> {
   const origin = process.env.TOILET_API_ORIGIN || 'https://api.geupddong.com'
   const response = await fetch(`${origin.replace(/\/$/, '')}/api/v1/toilets/${id}`, {
-    // The detail route is ISR. A no-store fetch here changes a statically
-    // rendered route to dynamic at runtime and Next.js rejects the request.
+    // Keep public source data cached even though detail documents now compose
+    // the current shell on each request. This also backs the R2 outage fallback.
     next: { revalidate: 2_592_000, tags: [`toilet:${id}`] }, signal: AbortSignal.timeout(10_000),
   })
   if (response.status === 404) return null
@@ -47,7 +47,7 @@ export const getToilet = cache(async (rawId: string): Promise<ToiletDetailRespon
           fetchOrigin: () => fetchPublicToiletOrigin(id) })
       } catch (error) {
         console.error('Shared toilet cache read-through failed', error)
-        // Keep serving through Next's existing one-hour cache while the
+        // Keep serving through Next's existing 30-day data cache while the
         // independent R2 cache is unavailable or rejects an origin response.
         return fetchPublicToiletOrigin(id)
       }

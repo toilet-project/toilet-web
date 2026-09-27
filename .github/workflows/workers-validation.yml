@@ -63,6 +63,8 @@ jobs:
       - run: pnpm exec opennextjs-cloudflare build --config ${{ matrix.config }}
       - if: matrix.target == 'production-candidate'
         run: node scripts/verify-region-worker-cold.mjs
+      - if: matrix.target == 'production-candidate'
+        run: node scripts/verify-detail-fragment-worker.mjs
       - run: node scripts/relocate-worker-wasm.mjs
       - run: node scripts/write-worker-release-manifest.mjs ${{ matrix.target }}
       # Deliberately no Cloudflare credentials, upload, resource creation or deployment.
@@ -73,9 +75,44 @@ jobs:
       - name: Package selected candidate runtime
         # Include ONLY the selected config: an indexable candidate must never
         # fall back to preview's default wrangler.jsonc when extracted.
-        run: tar -czf workers-${{ matrix.target }}.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs review-verification-proxy.mjs place-search-worker.mjs map-provider-worker.mjs package.json pnpm-lock.yaml pnpm-workspace.yaml ${{ matrix.config }} worker-release-manifest.json open-next.config.ts next.config.ts .next/BUILD_ID
+        run: tar -czf workers-${{ matrix.target }}.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs review-verification-proxy.mjs place-search-worker.mjs map-provider-worker.mjs package.json pnpm-lock.yaml pnpm-workspace.yaml ${{ matrix.config }} worker-release-manifest.json open-next.config.ts detail-incremental-cache.ts detail-cache-tags.ts next.config.ts .next/BUILD_ID
       - uses: actions/upload-artifact@v4
         with:
           name: workers-${{ matrix.target }}-${{ github.sha }}
           path: workers-${{ matrix.target }}.tar.gz
           retention-days: 3
+
+  detail-cache-cross-release:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v6.1.0
+        with:
+          version: 11.19.0
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: workers-preview-${{ github.sha }}
+          path: .fragment-proof/preview
+      - uses: actions/download-artifact@v4
+        with:
+          name: workers-production-candidate-${{ github.sha }}
+          path: .fragment-proof/production
+      - name: Extract the two independently compiled releases
+        run: |
+          tar -xzf .fragment-proof/preview/workers-preview.tar.gz -C .fragment-proof/preview
+          tar -xzf .fragment-proof/production/workers-production-candidate.tar.gz -C .fragment-proof/production
+      - name: Reuse body cache across releases without remote storage access
+        run: node scripts/verify-detail-fragment-worker.mjs .fragment-proof/preview .fragment-proof/production
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: detail-fragment-cross-release-${{ github.sha }}
+          path: detail-fragment-worker-report.json
+          if-no-files-found: ignore
+          retention-days: 14

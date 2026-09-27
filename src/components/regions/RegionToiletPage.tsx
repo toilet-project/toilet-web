@@ -7,17 +7,23 @@ import { getDistrict } from '../../lib/regions'
 import { codeFromRegionSegment, decodedRouteSegment } from '../../lib/urlName'
 import { parseRegionToiletSegment, regionToiletPath } from '../../lib/regionToiletPath'
 import { getToilet } from '../../server/toilets'
+import { getToiletPage } from '../../server/toiletPage'
 import { ToiletRouteBridge } from '../ToiletRouteBridge'
 import { localizedPlaceData } from '../../i18n/pageSeo'
 import { safeJsonLd } from '../../lib/seo'
 
-export async function loadRegionToilet(province: string, district: string, facility: string) {
+function regionFacilityId(province: string, district: string, facility: string) {
   province = decodedRouteSegment(province) ?? ''
   district = decodedRouteSegment(district) ?? ''
   facility = decodedRouteSegment(facility) ?? ''
   if (!getDistrict(codeFromRegionSegment(province, 2) ?? '', codeFromRegionSegment(district, 5) ?? '')) notFound()
   const id = parseRegionToiletSegment(facility)
   if (!id) notFound()
+  return id
+}
+
+export async function loadRegionToilet(province: string, district: string, facility: string) {
+  const id = regionFacilityId(province, district, facility)
   const detail = await getToilet(String(id))
   if (!detail) notFound()
   return detail
@@ -29,7 +35,11 @@ export async function regionToiletMetadata(province: string, district: string, f
 }
 
 export async function RegionToiletPage({ province, district, facility, locale }: { province: string; district: string; facility: string; locale: Locale }) {
-  const detail = await loadRegionToilet(province, district, facility)
+  // Start the public source and independent HTML read together, as on /toilet.
+  // Waiting for metadata's source first adds a second sequential R2 round trip.
+  const content = await getToiletPage(String(regionFacilityId(province, district, facility)), locale)
+  if (!content) notFound()
+  const { detail } = content
   province = decodedRouteSegment(province) ?? ''
   district = decodedRouteSegment(district) ?? ''
   facility = decodedRouteSegment(facility) ?? ''
@@ -38,5 +48,5 @@ export async function RegionToiletPage({ province, district, facility, locale }:
   const path = localizedPublicPath(canonicalPath, locale)!
   const structured = localizedPlaceData(detail, locale)
   return <>{structured && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(structured) }} />}
-    <ToiletRouteBridge detail={detail} locale={locale} path={path} /></>
+    <ToiletRouteBridge fragment={content.fragment} detail={detail} locale={locale} path={path} /></>
 }

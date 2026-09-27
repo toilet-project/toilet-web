@@ -5,10 +5,19 @@ import {mkdtemp,readFile,rm,writeFile} from 'node:fs/promises'
 import {tmpdir} from 'node:os'
 import {join} from 'node:path'
 import {promisify} from 'node:util'
-import {collectPublicMapToiletIds,collectPublicToiletIds,failedIdsFromCheckpoint,prewarmToiletPages,requestDetail} from '../scripts/cache/prewarm-lib.mjs'
+import {collectPublicMapToiletIds,collectPublicToiletIds,failedIdsFromCheckpoint,prewarmToiletPages,requestDetail,readDeploymentVersion} from '../scripts/cache/prewarm-lib.mjs'
 
 const response=(body,{status=200,headers={}}={})=>new Response(typeof body==='string'?body:JSON.stringify(body),{status,headers})
 const execFileAsync=promisify(execFile)
+
+test('shared-content releases refuse whole-page warming before any facility request',async()=>{
+  const paths=[]
+  await assert.rejects(readDeploymentVersion(async url=>{
+    paths.push(new URL(url).pathname)
+    return response({version:'new-release',detailCache:'shared-content-v1'})
+  },'https://preview.example'),/Whole-page prewarm is not supported/)
+  assert.deepEqual(paths,['/version.json'])
+})
 test('public IDs are collected from same-origin sitemap shards only',async()=>{
   const routes=new Map([
     ['https://preview.example/sitemap.xml','<sitemapindex><loc>https://preview.example/sitemap-toilets-0.xml</loc><loc>https://preview.example/pages-sitemap.xml</loc></sitemapindex>'],
