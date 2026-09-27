@@ -261,17 +261,27 @@ try {
   assert.equal(districtFirst.status,200)
   assert.match(await districtFirst.text(),/지역 지도 검증 화장실/)
   mapName='갱신된 지역 지도 화장실'
-  assert.match(await (await fetch(districtUrl)).text(),/지역 지도 검증 화장실/,'30-day district page remains cached until invalidation')
+  assert.match(await (await fetch(districtUrl)).text(),/지역 지도 검증 화장실/,'district data remains cached until invalidation')
   assert.equal((await invalidateRegion()).status,200)
   const districtChanged=await fetch(districtUrl)
   assert.equal(districtChanged.status,200)
   assert.match(await districtChanged.text(),/갱신된 지역 지도 화장실/)
   mapUnavailable=true
   const failedDistrict=await fetch(`${origin}${encodeURI('/regions/서울특별시-11/종로구-11110')}`)
-  assert.equal(failedDistrict.status,500,'an upstream failure must not cache a successful empty region page')
+  assert.equal(failedDistrict.status,200,'the streamed geographic shell remains available during a data failure')
+  assert.match(failedDistrict.headers.get('cache-control'),/no-store/,'the dynamic shell must not cache a failed directory')
+  assert.doesNotMatch(await failedDistrict.text(),/class="region-facility-directory"/)
+  const failedMarkers=await fetch(`${origin}/api/public/region-markers/11110?locale=ko`)
+  assert.equal(failedMarkers.status,503,'a data failure must not return a successful empty marker array')
+  assert.match(failedMarkers.headers.get('cache-control'),/no-store/)
+  await failedMarkers.text()
   mapUnavailable=false
   const recoveredDistrict=await fetch(`${origin}${encodeURI('/regions/서울특별시-11/종로구-11110')}`)
   assert.equal(recoveredDistrict.status,200,'the region page must recover when the upstream map does')
+  await recoveredDistrict.text()
+  const recoveredMarkers=await fetch(`${origin}/api/public/region-markers/11110?locale=ko`)
+  assert.equal(recoveredMarkers.status,200,'the marker route must retry after a data failure')
+  assert.ok(Array.isArray((await recoveredMarkers.json()).toilets))
   const oldSeoulUrl=`${origin}${encodeURI('/regions/서울특별시-11/종로구-11110')}`
   const newSeoulUrl=`${origin}${encodeURI('/regions/서울특별시-11/중구-11140')}`
   const oldSeoulEnUrl=`${origin}${localizedPublicPath(localizedRegionPath('en','11','11110'),'en')}`

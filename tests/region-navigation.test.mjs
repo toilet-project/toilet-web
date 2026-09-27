@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { allDistricts, districtAt, getDistrict, getProvince, localizedRegionPath, provinces, regionName, regionPath, regionSnapshot } from '../src/lib/regions.ts'
-import { regionContains, districtForToilet } from '../src/lib/regions.ts'
+import { regionBounds, regionContains, districtForToilet, polygonParts } from '../src/lib/regions.ts'
 import preciseDistricts from '../data/regions/sgg-precise.json' with { type: 'json' }
 import boundaryOverrides from '../data/regions/toilet-boundary-overrides.json' with { type: 'json' }
 import toiletDistrict from '../data/regions/toilet-district.json' with { type: 'json' }
@@ -94,6 +94,18 @@ test('the precise dataset and current snapshot cover the same 256 district codes
   assert.deepEqual(new Set(actual), expected)
   for (const [code] of Object.values(boundaryOverrides)) {
     if (code !== null) assert.ok(expected.has(code), code)
+  }
+})
+
+test('reused boundary envelopes preserve all precise polygons and island extents', () => {
+  for (const feature of preciseDistricts.features) {
+    const region = { ...getDistrict(feature.properties.sido, feature.properties.sgg), geometry: feature.geometry }
+    const points = polygonParts(region.geometry).flat(2)
+    const expected = { west: Math.min(...points.map(p => p[0])), south: Math.min(...points.map(p => p[1])),
+      east: Math.max(...points.map(p => p[0])), north: Math.max(...points.map(p => p[1])) }
+    assert.deepEqual(regionBounds(region), expected, feature.properties.sgg)
+    assert.strictEqual(regionBounds({ ...region, count: 0 }), regionBounds(region), 'metadata does not invalidate immutable geometry')
+    assert.ok(Object.isFrozen(regionBounds(region)), 'callers cannot corrupt a shared envelope')
   }
 })
 

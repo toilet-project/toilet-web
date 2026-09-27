@@ -63,10 +63,22 @@ export function polygonParts(geometry: RegionGeometry): Position[][][] {
   return geometry.type === 'Polygon' ? [geometry.coordinates as Position[][]] : geometry.coordinates as Position[][][]
 }
 
-export function regionBounds(region: Region): { west: number; south: number; east: number; north: number } {
-  const points = polygonParts(region.geometry).flat(2)
-  return { west: Math.min(...points.map(point => point[0])), south: Math.min(...points.map(point => point[1])),
-    east: Math.max(...points.map(point => point[0])), north: Math.max(...points.map(point => point[1])) }
+type Bounds = { west: number; south: number; east: number; north: number }
+// Boundary objects are immutable release data. Reuse their envelopes across
+// facility lookups without flattening every polygon for every facility.
+const boundsByGeometry = new WeakMap<RegionGeometry, Readonly<Bounds>>()
+
+export function regionBounds(region: Region): Readonly<Bounds> {
+  const cached = boundsByGeometry.get(region.geometry)
+  if (cached) return cached
+  let west = Infinity, south = Infinity, east = -Infinity, north = -Infinity
+  for (const rings of polygonParts(region.geometry)) for (const ring of rings) for (const [lng, lat] of ring) {
+    west = Math.min(west, lng); south = Math.min(south, lat)
+    east = Math.max(east, lng); north = Math.max(north, lat)
+  }
+  const bounds = Object.freeze({ west, south, east, north })
+  boundsByGeometry.set(region.geometry, bounds)
+  return bounds
 }
 
 function ringContains(ring: Position[], x: number, y: number) {

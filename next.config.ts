@@ -44,7 +44,8 @@ const config: NextConfig = {
   // Existing public images are served unchanged, without an image transformation subscription.
   images: { unoptimized: true },
   async headers() {
-    return [{ source: '/:path*', headers: [
+    return [{ source: '/region-boundaries/:file', headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }] },
+      { source: '/:path*', headers: [
       ...securityHeaders,
       ...(process.env.SITE_INDEXABLE === 'true' ? [] : [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }]),
     ] }]
