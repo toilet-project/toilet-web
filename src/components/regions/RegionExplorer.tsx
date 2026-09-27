@@ -30,6 +30,9 @@ export function RegionExplorer({ initialLocale, initialHref, initialDistrictCode
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
     const anchor = event.target instanceof Element ? event.target.closest('a[href]') : null
     if (!anchor || anchor.getAttribute('target') && anchor.getAttribute('target') !== '_self' || anchor.hasAttribute('download')) return
+    // The atlas owns its drag-versus-tap guard. Let its SVG handler run before
+    // navigating, otherwise releasing a drag over a region follows its link.
+    if (anchor.closest('svg.region-atlas')) return
     const next = regionNavigationTarget(anchor.getAttribute('href') ?? '')
     if (!next || next.locale !== locale) return
     event.preventDefault(); event.stopPropagation()
