@@ -1,0 +1,12 @@
+{
+  "brand": "Hangul Point",
+  "version": "1.0.0",
+  "selected": "C / HANGUL POINT: paired ㄷ, lower circle, right location point",
+  "sourceDirectory": "assets/brand/hangul-point-v1",
+  "sources": {
+    "symbol-green.svg": "02f40e3b00088348291dd55a1561015cfea6b1556550bd1672b6870dc3a34a7f",
+    "lockup-ko.svg": "9e85dd490845b8d74e490b7e9c666d5741b6e19150b4b4e8ef973161ea96a4d6",
+    "app-icon-square.svg": "dd3e55a36c04fdd789eba2c4393a4d742444e4eebf001513531a9551c99175e1",
+    "favicon-micro.svg": "9d41ff15f04a020156273574af57d97f618d27a1028493dc404dc6ab369b7b92"
+  }
+}

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1730" height="909" viewBox="0 0 1730 909">
+<rect width="1730" height="909" fill="#F6F8F1"/>
+<g fill="#E4EBD8"><path d="M1250 0h480v190c-110 45-204 22-253-36-56-66-160-41-227-154Z"/><path d="M0 586c118-38 186 7 231 82 40 68 145 112 241 103v138H0Z"/></g>
+<g fill="none" stroke="#FFFFFF" stroke-width="32"><path d="M-70 50 530 510 1120 960M290-70 820 390 1660 960M950-60 400 920M1680-50 1210 425 720 960M-60 385 520 355 1120 105 1800 470"/></g>
+<g fill="none" stroke="#DCE6CE" stroke-width="3" stroke-dasharray="13 17"><path d="M50 0c360 370-150 530 450 930M1290-40c-350 520 570 120 370 910"/></g>
+<defs><clipPath id="app-mask"><rect x="625" y="215" width="480" height="480" rx="106"/></clipPath></defs>
+<g clip-path="url(#app-mask)"><g transform="translate(625 215) scale(.46875)"><g transform="translate(0 0) scale(1)"><rect width="1024" height="1024" rx="0" fill="#17683A"/><g transform="translate(150 203.734375) scale(2.828125) translate(0 0)" color="#FFFFFF" fill="#FFFFFF">
+  
+  
+  <path d="M48 12H120Q124 12 124 16V54Q124 58 120 58H65Q60 58 60 63V87Q60 92 65 92H120Q124 92 124 96V132Q124 136 120 136H48C24 136 12 124 12 100V48C12 24 24 12 48 12Z"/>
+  <path d="M160 12H240Q244 12 244 16V54Q244 58 240 58H183Q178 58 178 63V87Q178 92 183 92H229Q244 92 244 107V134Q244 138 242 141L217 173Q212 179 208 173L190 141Q187 136 182 136H158C141 136 132 126 132 109V42Q132 12 160 12Z"/>
+  <circle cx="128" cy="176" r="30"/>
+</g></g></g></g>
+</svg>

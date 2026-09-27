@@ -63,9 +63,9 @@ test('all facility languages keep translated visible names/addresses and one phy
 })
 
 test('social image dimensions describe the actual asset, not an assumed OG size', () => {
-  const png = readFileSync(new URL('../public/og-image.png', import.meta.url))
   const metadata = socialMetadata('Title', 'Description', '/', 'ko')
   const [image] = metadata.openGraph.images
+  const png = readFileSync(new URL(`../public${image.url}`, import.meta.url))
   assert.equal(image.width, png.readUInt32BE(16))
   assert.equal(image.height, png.readUInt32BE(20))
   assert.ok(image.alt)
