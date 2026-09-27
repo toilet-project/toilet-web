@@ -1,6 +1,6 @@
 import {mkdir,writeFile} from 'node:fs/promises'
 import {dirname,resolve} from 'node:path'
-import {collectPublicToiletIds,failedIdsFromCheckpoint,normalizeBaseUrl,positiveInteger,prewarmToiletPages} from './cache/prewarm-lib.mjs'
+import {collectPublicToiletIds,failedIdsFromCheckpoint,normalizeBaseUrl,positiveInteger,prewarmToiletPages,readDeploymentVersion} from './cache/prewarm-lib.mjs'
 
 function argumentsOf(values){
   const parsed={}
@@ -23,9 +23,11 @@ const requestTimeoutMs=positiveInteger(args['request-timeout-seconds']||30,'requ
 const safeDeployment=deploymentId.replace(/[^a-zA-Z0-9._-]/g,'_')
 const checkpointPath=resolve(args.checkpoint||`.cache-prewarm/${safeDeployment}.json`)
 const mode=args['failed-from-checkpoint']?'failed':args.ids?'ids':args.shard!==undefined?'shard':'all'
-const ids=mode==='failed'
-  ? await failedIdsFromCheckpoint(checkpointPath,deploymentId)
-  : await collectPublicToiletIds({baseUrl,mode,ids:args.ids?.split(',')??[],shard:args.shard,requestTimeoutMs})
+const failed=mode==='failed'?await failedIdsFromCheckpoint(checkpointPath,deploymentId):null
+if(failed&&!failed.length) throw new Error('No failed toilet IDs found in the restored checkpoint')
+// Refuse the retired full-document strategy before crawling any sitemap/pages.
+if(await readDeploymentVersion(fetch,baseUrl,requestTimeoutMs)!==deploymentId) throw new Error('Deployment changed before prewarm')
+const ids=failed??await collectPublicToiletIds({baseUrl,mode,ids:args.ids?.split(',')??[],shard:args.shard,requestTimeoutMs})
 if(!ids.length) throw new Error(mode==='failed'?'No failed toilet IDs found in the restored checkpoint':'No public toilet IDs selected')
 const reportPath=resolve(args.report||`cache-prewarm-report-${safeDeployment}.json`)
 const requireFresh=Boolean(args['require-fresh'])

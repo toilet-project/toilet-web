@@ -3,84 +3,34 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { ToiletDetailResponse } from '../api/toilets'
-import { getDisplayAddress } from '../lib/address'
-import { regionLabel } from '../lib/toiletRoute'
-import { districtForToilet, getProvince, regionName, localizedRegionPath } from '../lib/regions'
-import { localizedPublicPath } from '../i18n/routes'
-import { visibleCounts, hasValue, formatOpenTime, formatPhoneNumber, formatInstallationDate, formatFacilityLocation, type CountItem } from '../lib/detailFormatting'
+import { detailPresentation } from '../lib/detailPresentation'
 import { TRANSIENT_NOTICE_MS } from '../lib/uiTiming'
 import { useLocale, useMessages } from '../i18n/context'
-import { localizeToiletDetail } from '../i18n/toiletTranslations'
 
 export function ToiletDetailContents({ toilet }: { toilet: ToiletDetailResponse }) {
-  const t = useMessages()
-  const locale = useLocale()
-  const display = localizeToiletDetail(toilet, locale)
-  const maleCounts = visibleCounts([
-    { label: t('detail.toilets'), count: display.maleToiletCount },
-    { label: t('detail.urinals'), count: display.maleUrinalCount },
-    { label: t('detail.accessibleToilets'), count: display.maleDisabledToiletCount },
-    { label: t('detail.accessibleUrinals'), count: display.maleDisabledUrinalCount },
-    { label: t('detail.childToilets'), count: display.maleChildToiletCount },
-    { label: t('detail.childUrinals'), count: display.maleChildUrinalCount },
-  ])
-  const femaleCounts = visibleCounts([
-    { label: t('detail.toilets'), count: display.femaleToiletCount },
-    { label: t('detail.accessibleToilets'), count: display.femaleDisabledToiletCount },
-    { label: t('detail.childToilets'), count: display.femaleChildToiletCount },
-  ])
-  const address = getDisplayAddress(display.roadAddress, display.jibunAddress)
-  const district = display.longitude != null && display.latitude != null ? districtForToilet(display.id, display.longitude, display.latitude) : null
-  const province = district ? getProvince(district.provinceCode) : null
-  const linkedRegion = district && province ? `${regionName(province, locale)} ${regionName(district, locale)}` : null
-
-  return (
-    <div className="card-details" tabIndex={0} aria-label={t('detail.title')}>
-      {address && <DetailRow className="detail-address" label={t('detail.address')} value={address} copyable />}
-      {linkedRegion && district ? <div className="detail-row detail-region-link"><dt>{t('detail.region')}</dt><dd><Link href={localizedPublicPath(localizedRegionPath(locale, district.provinceCode, district.code), locale)!}>{linkedRegion}<span aria-hidden="true">↗</span></Link></dd></div>
-        : regionLabel(display.region) && <DetailRow label={t('detail.region')} value={regionLabel(display.region)} />}
-      <DetailRow label={t('detail.openingDetails')} value={formatOpenTime(display, locale)} />
-      {hasValue(display.installationDate) && <DetailRow label={t('detail.installed')} value={formatInstallationDate(display.installationDate, locale)} />}
-      {(maleCounts.length > 0 || femaleCounts.length > 0) && <section className="detail-section">
-        <h2>{t('detail.capacity')}</h2>
-        <div className="capacity-groups">
-          {maleCounts.length > 0 && <CapacityGroup title={t('detail.male')} items={maleCounts} />}
-          {femaleCounts.length > 0 && <CapacityGroup title={t('detail.female')} items={femaleCounts} />}
-        </div>
-      </section>}
-      <section className="detail-section facility-section">
-        <h2>{t('detail.safety')}</h2>
-        <FacilityRow label={t('detail.bell')} available={display.hasEmergencyBell === 'Y'} location={display.emergencyBellLocation} />
-        <FacilityRow label="CCTV" available={display.hasCctv === 'Y'} />
-        <FacilityRow label={t('detail.diaper')} available={display.hasDiaperTable === 'Y'} location={display.diaperTableLocation} />
-      </section>
-      {hasValue(display.agencyName) && <DetailRow label={t('detail.agency')} value={display.agencyName} />}
-      {hasValue(display.phoneNumber) && <DetailRow label={t('detail.phone')} value={formatPhoneNumber(display.phoneNumber)} />}
-      {hasValue(display.dataBaseDate) && <DetailRow label={t('detail.dataDate')} value={display.dataBaseDate} />}
-    </div>
-  )
-}
-
-function CapacityGroup({ title, items }: { title: string; items: CountItem[] }) {
-  const locale = useLocale()
-  return <div className="capacity-group"><h3>{title}</h3><dl>{items.map(({ label, count }) => <div key={label}><dt>{label}</dt><dd>{count}{locale === 'ko' ? '대' : ''}</dd></div>)}</dl></div>
-}
-
-function FacilityRow({ label, available, location }: { label: string; available: boolean; location?: string }) {
-  const t = useMessages()
-  const locale = useLocale()
-  if (!available) {
-    return <div className="facility-row"><strong>{label}</strong><span className="facility-status is-unavailable">{t('detail.unavailable')}</span><span className="facility-location-placeholder" aria-hidden="true" /></div>
-  }
-
-  if (!hasValue(location ?? '')) {
-    return <div className="facility-row"><strong>{label}</strong><span className="facility-status">{t('detail.available')}</span><span className="facility-location-placeholder" aria-hidden="true" /></div>
-  }
-
-  return <details className="facility-row facility-row-expandable">
-    <summary><strong>{label}</strong><span className="facility-status">{t('detail.available')}</span><span className="facility-location-label">{t('detail.location')} <span className="facility-location-arrow" aria-hidden="true" /></span></summary>
-    <p>{t('detail.location')}: {formatFacilityLocation(location ?? '', locale)}</p>
-  </details>
+  const model = detailPresentation(toilet, useLocale())
+  return <div className="card-details" tabIndex={0} aria-label={model.title}>
+    {model.address.value && <DetailRow className="detail-address" {...model.address} copyable />}
+    {model.region.value && (model.region.href
+      ? <div className="detail-row detail-region-link"><dt>{model.region.label}</dt><dd><Link href={model.region.href}>{model.region.value}<span aria-hidden="true">↗</span></Link></dd></div>
+      : <DetailRow label={model.region.label} value={model.region.value} />)}
+    <DetailRow {...model.opening} />
+    {model.installed && <DetailRow {...model.installed} />}
+    {model.capacity.groups.length > 0 && <section className="detail-section"><h2>{model.capacity.title}</h2>
+      <div className="capacity-groups">{model.capacity.groups.map(group => <div className="capacity-group" key={group.title}>
+        <h3>{group.title}</h3><dl>{group.items.map(item => <div key={item.label}><dt>{item.label}</dt><dd>{item.count}{model.countSuffix}</dd></div>)}</dl>
+      </div>)}</div>
+    </section>}
+    <section className="detail-section facility-section"><h2>{model.safety.title}</h2>
+      {model.safety.items.map(item => item.location === null
+        ? <div className="facility-row" key={item.label}><strong>{item.label}</strong><span className={'facility-status' + (item.available ? '' : ' is-unavailable')}>{item.available ? model.safety.available : model.safety.unavailable}</span><span className="facility-location-placeholder" aria-hidden="true" /></div>
+        : <details className="facility-row facility-row-expandable" key={item.label}>
+          <summary><strong>{item.label}</strong><span className="facility-status">{model.safety.available}</span><span className="facility-location-label">{model.safety.location} <span className="facility-location-arrow" aria-hidden="true" /></span></summary>
+          <p>{model.safety.location}: {item.location}</p>
+        </details>)}
+    </section>
+    {model.other.map(row => <DetailRow key={row.label} {...row} />)}
+  </div>
 }
 
 export function DetailRow({ label, value, copyable = false, className = '' }: { label: string; value: string; copyable?: boolean; className?: string }) {

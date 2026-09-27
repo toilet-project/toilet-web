@@ -6,6 +6,8 @@ import Link from 'next/link'
 import type { ToiletDetailResponse } from '../api/toilets'
 import { useMapRouteContext } from './mapRouteContext'
 import { ToiletDetailContents } from './ToiletDetailContents'
+import { CachedToiletContents } from './CachedToiletContents'
+import type { DetailFragment } from '../server/detailFragmentCache'
 import { OriginalSourceBadge } from './OriginalSourceBadge'
 import { ToiletCommunityRow, ToiletReportEntry } from './ToiletCommunityRow'
 import { PublicReviews } from './reviews/PublicReviews'
@@ -17,7 +19,7 @@ import { toiletTypeLabel } from '../i18n/facilityLabels'
 import { message } from '../i18n/messages'
 import { localizeToiletDetail } from '../i18n/toiletTranslations'
 
-export function ToiletRouteBridge({ detail, locale = 'ko', path: overridePath }: { detail: ToiletDetailResponse | null; locale?: Locale; path?: string }) {
+export function ToiletRouteBridge({ detail, locale = 'ko', path: overridePath, fragment }: { fragment?: DetailFragment; detail: ToiletDetailResponse | null; locale?: Locale; path?: string }) {
   const { mounted, register } = useMapRouteContext()
   const path = overridePath ?? localizedPublicPath(detail ? toiletPath(detail.id) : '/', locale)!
   const t = (key: Parameters<typeof message>[1]) => message(locale, key)
@@ -37,7 +39,7 @@ export function ToiletRouteBridge({ detail, locale = 'ko', path: overridePath }:
       <div className="distance-from-current" aria-label={t('map.distanceLoading')}><span className="distance-label">{t('map.distanceFrom')}</span><strong className="distance-value">—</strong><span className="distance-caption">{t('map.straightLine')}</span></div>
       <div className="route-preview-community"><ToiletCommunityRow pendingReport pendingReview={reviewsEnabled} /></div>
       <PublicReviews toiletId={displayDetail.id} toiletName={displayDetail.name} toiletType={displayDetail.toiletType} />
-      <ToiletDetailContents toilet={displayDetail} />
+      {fragment ? <CachedToiletContents toilet={displayDetail} fragment={fragment} /> : <ToiletDetailContents toilet={displayDetail} />}
     </div>
   </aside></div>
 }

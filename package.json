@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/detail-fragment-version.mjs && next build",
     "start": "next start",
     "build:workers": "opennextjs-cloudflare build",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
@@ -24,7 +24,7 @@
     "cache:refresh-shared": "node scripts/refresh-shared-toilet-data.mjs",
     "cache:cleanup": "node scripts/cleanup-incremental-cache.mjs",
     "search:build-import": "node scripts/build-place-search-import.mjs",
-    "test": "node scripts/build-place-search-import.mjs && node --experimental-strip-types --test tests/*.test.mjs"
+    "test": "node scripts/detail-fragment-version.mjs --check && node scripts/build-place-search-import.mjs && node --experimental-strip-types --test tests/*.test.mjs"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "1.20.6",

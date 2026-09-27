@@ -7,6 +7,7 @@ import { getDistrict } from '../../lib/regions'
 import { codeFromRegionSegment, decodedRouteSegment } from '../../lib/urlName'
 import { parseRegionToiletSegment, regionToiletPath } from '../../lib/regionToiletPath'
 import { getToilet } from '../../server/toilets'
+import { getToiletPage } from '../../server/toiletPage'
 import { ToiletRouteBridge } from '../ToiletRouteBridge'
 import { localizedPlaceData } from '../../i18n/pageSeo'
 import { safeJsonLd } from '../../lib/seo'
@@ -35,8 +36,10 @@ export async function RegionToiletPage({ province, district, facility, locale }:
   facility = decodedRouteSegment(facility) ?? ''
   const canonicalPath = regionToiletPath(detail, locale)
   if (canonicalPath !== `/regions/${province}/${district}/toilet/${facility}`) permanentRedirect(encodeURI(localizedPublicPath(canonicalPath, locale)!))
+  const content = await getToiletPage(String(detail.id), locale)
+  if (!content) notFound()
   const path = localizedPublicPath(canonicalPath, locale)!
   const structured = localizedPlaceData(detail, locale)
   return <>{structured && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(structured) }} />}
-    <ToiletRouteBridge detail={detail} locale={locale} path={path} /></>
+    <ToiletRouteBridge fragment={content.fragment} detail={detail} locale={locale} path={path} /></>
 }

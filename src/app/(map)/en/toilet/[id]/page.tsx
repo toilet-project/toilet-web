@@ -3,13 +3,13 @@ import { localizedPlaceData } from '../../../../../i18n/pageSeo'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { getToilet } from '../../../../../server/toilets'
+import { getToiletPage } from '../../../../../server/toiletPage'
 import { ToiletRouteBridge } from '../../../../../components/ToiletRouteBridge'
 import { safeJsonLd } from '../../../../../lib/seo'
 import { ENGLISH_UI_ENABLED } from '../../../../../i18n/feature'
 
 type Props = { params: Promise<{ id: string }> }
-export const revalidate = 2_592_000
-export function generateStaticParams() { return [] }
+export const revalidate = 0 // Compose current shell; retain explicit data caches.
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!ENGLISH_UI_ENABLED) notFound()
@@ -21,8 +21,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function EnglishToiletPage({ params }: Props) {
   if (!ENGLISH_UI_ENABLED) notFound()
   // Same public origin data and revision-aware R2 object as the Korean page.
-  const detail = await getToilet((await params).id)
-  if (!detail) notFound()
+  const content = await getToiletPage((await params).id, 'en')
+  if (!content) notFound()
+  const { detail, fragment } = content
   return <><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(localizedPlaceData(detail, 'en')) }} />
-    <ToiletRouteBridge detail={detail} locale="en" /></>
+    <ToiletRouteBridge fragment={fragment} detail={detail} locale="en" /></>
 }

@@ -209,9 +209,9 @@ try {
     const cached = await fetch(`${origin}/toilet/900001`)
     await cached.text()
     assert.equal(cached.status,200)
-    assert.equal(cached.headers.get('x-nextjs-cache'),'HIT')
+    assert.notEqual(cached.headers.get('x-nextjs-cache'),'HIT', 'Deployment-bound full detail HTML must not be cached')
   }
-  assert.equal(counts.get('/api/v1/toilets/900001'),1,'metadata + page + cache HIT must share a single upstream request')
+  assert.equal(counts.get('/api/v1/toilets/900001'),1,'metadata and recomposed documents must reuse the explicitly cached public data')
   const invalidate = async(valid=true) => {
     const body=JSON.stringify({toiletIds:[900001]})
     const timestamp=String(Math.floor(Date.now()/1000))

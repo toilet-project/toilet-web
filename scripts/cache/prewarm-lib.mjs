@@ -105,6 +105,7 @@ export async function readDeploymentVersion(fetchImpl,baseUrl,requestTimeoutMs=3
   if(!response.ok) throw new Error(`Version check failed (${response.status})`)
   const value=await response.json()
   if(!value || typeof value.version!=='string' || !value.version) throw new Error('Invalid version response')
+  if(value.detailCache==='shared-content-v1') throw new Error('Whole-page prewarm is not supported by shared-content-v1; public data refresh remains independent of WEB releases')
   return value.version
 }
 export async function loadCheckpoint(path,deploymentId){
