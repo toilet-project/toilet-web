@@ -64,6 +64,7 @@ try{
     assert.ok(canonical);paths.push(path,new URL(canonical).pathname);await page(new URL(canonical).pathname)
   }
   const initial=await probe();assert.equal(initial.records.length,6);assert.equal(initial.pages.length,0)
+  assert.equal(initial.originDetailReads,1,'Cold source is fetched once for every locale and URL alias combined')
   await stop();await start(second)
   const versionB=(await(await fetch(origin+'/version.json')).json()).version
   if(roots.length)assert.notEqual(versionA,versionB,'Two actual builds required')
@@ -71,11 +72,12 @@ try{
   const reused=await probe()
   assert.deepEqual(reused.records,initial.records,'Different build must reuse fragment bytes and ETags')
   assert.deepEqual(reused.source,initial.source,'Source data must not refill on release change');assert.equal(reused.pages.length,0)
+  assert.equal(reused.originDetailReads,0,'A different release must not query the mini PC for cached public detail')
   await probe('POST');assert.match(await page('/toilet/13448'),/Cache boundary test address/)
   const changed=await probe();assert.equal(changed.records.length,6)
   assert.notEqual(changed.records.find(r=>r.key.includes('/ko/')).etag,initial.records.find(r=>r.key.includes('/ko/')).etag)
   for(const record of changed.records.filter(r=>!r.key.includes('/ko/')))assert.deepEqual(record,initial.records.find(r=>r.key===record.key))
-  const path='/_internal/cache/revalidate',body=JSON.stringify({version:2,events:[{toiletId:13448,revision:changed.source.revision+1,action:'PRIVATE',catalogChanged:false}]})
+  const path='/_internal/cache/revalidate',body=JSON.stringify({contractVersion:2,events:[{toiletId:13448,revision:changed.source.revision+1,action:'PRIVATE',catalogChanged:false}]})
   const timestamp=String(Math.floor(Date.now()/1000)),signature=createHmac('sha256',secret).update('v1\nPOST\n'+path+'\n'+timestamp+'\n'+body).digest('hex')
   const denied=await fetch(origin+path,{method:'POST',body,headers:{'content-type':'application/json'}});await denied.arrayBuffer();assert.equal(denied.status,401)
   const hidden=await fetch(origin+path,{method:'POST',body,headers:{'content-type':'application/json','x-cache-timestamp':timestamp,'x-cache-signature':signature},signal:AbortSignal.timeout(30000)})
@@ -86,7 +88,8 @@ try{
   }
   const report={passed:true,differentBuilds:Boolean(roots.length),versionA,versionB,locales:6,paths:paths.length,storedFragments:6,
     bodyBytes:initial.records.reduce((sum,row)=>sum+row.bytes,0),unchangedAfterRelease:true,publicDataUnchangedAfterRelease:true,
-    storedDetailDocuments:0,signedPrivateEvent:true,storage:'isolated local R2 only'}
+    storedDetailDocuments:0,initialOriginReads:initial.originDetailReads,originReadsAfterRelease:reused.originDetailReads,
+    signedPrivateEvent:true,storage:'isolated local R2 only'}
   await writeFile('detail-fragment-worker-report.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report))
 }finally{
   await stop();if(!resolve(state).startsWith(resolve(tmpdir())+sep))throw Error('Unsafe local test path')

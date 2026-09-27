@@ -1,4 +1,11 @@
 // Included only by the local integration harness. Not packaged/deployed.
+const originFetch=globalThis.fetch
+let originDetailReads=0
+globalThis.fetch=(input,init)=>{
+  const url=new URL(input instanceof Request?input.url:String(input))
+  if(url.hostname==='api.geupddong.com'&&url.pathname==='/api/v1/toilets/13448')originDetailReads++
+  return originFetch.call(globalThis,input,init)
+}
 export default {async fetch(request,env,ctx){
   const url=new URL(request.url)
   if(url.pathname!=='/__local-cache-proof')return handler.fetch(request,env,ctx)
@@ -18,7 +25,7 @@ export default {async fetch(request,env,ctx){
     for(const item of batch.objects){
       if(item.key.startsWith('toilet-content/v1/')){
         const value=await(await bucket.get(item.key)).json()
-        records.push({key:item.key,etag:item.etag,fingerprint:value.fingerprint,bytes:item.size})
+        records.push({key:item.key,etag:item.etag,uploaded:item.uploaded.toISOString(),fingerprint:value.fingerprint,bytes:item.size})
       }
       if(item.key.startsWith('incremental-cache/')){
         const value=await(await bucket.get(item.key)).json()
@@ -28,6 +35,6 @@ export default {async fetch(request,env,ctx){
     cursor=batch.truncated?batch.cursor:undefined
   }while(cursor)
   const object=await bucket.get(key),record=object?await object.json():null
-  return Response.json({records:records.sort((a,b)=>a.key.localeCompare(b.key)),pages,
+  return Response.json({records:records.sort((a,b)=>a.key.localeCompare(b.key)),pages,originDetailReads,
     source:object?{etag:object.etag,state:record.state,revision:record.revision}:null})
 }}
