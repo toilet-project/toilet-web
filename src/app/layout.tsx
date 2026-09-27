@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import type { ReactNode } from 'react'
 import { ServiceAnalytics } from '../components/ServiceAnalytics'
 import { LocaleDocument } from '../i18n/LocaleDocument'
+import { BRAND_ASSET_BASE, BRAND_MANIFEST_URL, BRAND_SOCIAL_IMAGE } from '../lib/brand'
 import '../index.css'
 import '../App.css'
 // Keep global override order deterministic on initial, cached and restored routes.
@@ -19,10 +20,16 @@ export const metadata: Metadata = {
   title: { default: '급똥 | 내 주변 공중화장실 찾기', template: '%s | 급똥' },
   description: '급똥은 현재 위치와 장소 검색으로 가까운 공중화장실의 위치, 개방시간, 편의시설을 확인하는 지도 서비스입니다.',
   applicationName: '급똥',
-  icons: { icon: '/favicon.svg?v=1', apple: '/favicon.svg?v=1' },
-  manifest: '/site.webmanifest',
-  openGraph: { type: 'website', locale: 'ko_KR', siteName: '급똥', images: ['/og-image.png'] },
-  twitter: { card: 'summary_large_image', images: ['/og-image.png'] },
+  icons: {
+    icon: [
+      { url: `${BRAND_ASSET_BASE}/favicon.svg`, type: 'image/svg+xml', sizes: 'any' },
+      { url: `${BRAND_ASSET_BASE}/favicon-32.png`, type: 'image/png', sizes: '32x32' },
+    ],
+    apple: [{ url: `${BRAND_ASSET_BASE}/apple-touch-icon.png`, type: 'image/png', sizes: '180x180' }],
+  },
+  manifest: BRAND_MANIFEST_URL,
+  openGraph: { type: 'website', locale: 'ko_KR', siteName: '급똥', images: [BRAND_SOCIAL_IMAGE] },
+  twitter: { card: 'summary_large_image', images: [BRAND_SOCIAL_IMAGE] },
   robots: process.env.SITE_INDEXABLE === 'true' ? { index: true, follow: true } : { index: false, follow: false },
 }
 

@@ -3,13 +3,14 @@ import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { ENGLISH_UI_ENABLED } from '../../../i18n/feature'
 import { englishHomeMetadata } from '../../../i18n/seo'
+import { BRAND_SOCIAL_IMAGE } from '../../../lib/brand'
 
 // Keep incomplete English pages out of search results until the full phase is accepted.
 export const metadata: Metadata = {
   title: { default: englishHomeMetadata.title, template: '%s | Geupddong' },
   description: englishHomeMetadata.description,
   applicationName: 'Geupddong',
-  openGraph: { locale: 'en_US', siteName: 'Geupddong', images: ['/og-image.png'] },
+  openGraph: { locale: 'en_US', siteName: 'Geupddong', images: [BRAND_SOCIAL_IMAGE] },
   robots: { index: false, follow: false },
 }
 

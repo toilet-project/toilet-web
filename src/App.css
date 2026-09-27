@@ -3,6 +3,9 @@
 .app-shell { min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto; background: #f6f8f5; }
 .topbar { min-height: 64px; display: flex; align-items: center; gap: 12px; padding: 0 24px; background: #fff; border-bottom: 1px solid #e3e8e1; }
 .brand { color: #17683a; font-family: 'Jua', sans-serif; font-size: 28px; font-weight: 400; letter-spacing: -0.04em; line-height: 1; text-decoration: none; }
+.brand-lockup { display: inline-flex; align-items: center; gap: .23em; vertical-align: middle; line-height: 1; }
+.brand-image { display: block; width: 3.15em; height: auto; }
+.brand-symbol { display: block; flex: 0 0 auto; width: 1.3em; height: 1.1375em; }
 .brand-wordmark { color: inherit; vertical-align: middle; }
 .brand-wordmark.is-korean { display: inline; }
 .brand-wordmark.is-english { display: inline-grid; grid-template-rows: repeat(2, auto); align-content: center; justify-items: start; gap: 4px; padding-top: .02em; font-family: 'Jua', sans-serif; line-height: .74; letter-spacing: 0; -webkit-text-stroke: .45px currentColor; text-rendering: geometricPrecision; text-shadow: .3px 0 currentColor, 0 .3px currentColor; }

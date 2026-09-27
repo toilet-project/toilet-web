@@ -6,13 +6,14 @@ import { getDisplayAddress } from '../lib/address.ts'
 import { placeData, SITE_ORIGIN, toiletMetadataText } from '../lib/seo.ts'
 import { regionToiletPath } from '../lib/regionToiletPath.ts'
 import { localizedPublicPath } from './routes.ts'
+import { BRAND_SOCIAL_IMAGE } from '../lib/brand.ts'
 
 import { homeCopy } from './homeCopy.ts'
 export { homeCopy } from './homeCopy.ts'
 
 const ogLocales: Record<Locale, string> = { ko: 'ko_KR', en: 'en_US', ja: 'ja_JP', 'zh-CN': 'zh_CN', 'zh-TW': 'zh_TW', 'zh-HK': 'zh_HK' }
 export function socialMetadata(title: string, description: string, path: string, locale: Locale): Pick<Metadata, 'openGraph' | 'twitter'> {
-  const images = [{ url: '/og-image.png', width: 1730, height: 909, alt: homeCopy[locale].heading }]
+  const images = [{ ...BRAND_SOCIAL_IMAGE, alt: homeCopy[locale].heading }]
   return {
     openGraph: { title, description, url: path, type: 'website', locale: ogLocales[locale], siteName: locale === 'ko' ? '급똥' : 'Geupddong', images },
     twitter: { title, description, card: 'summary_large_image', images },
