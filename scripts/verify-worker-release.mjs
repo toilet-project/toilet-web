@@ -16,6 +16,8 @@ const manifest = JSON.parse(await readFile(join(root,'worker-release-manifest.js
 const buildId = (await readFile(join(root,'.next/BUILD_ID'),'utf8')).trim()
 await access(join(root,'custom-worker.mjs'))
 await access(join(root,'worker-cache-policy.mjs'))
+for (const path of ['region-markers-worker.ts', 'src/lib/regionMarkerStore.ts', 'src/lib/regionDisplayItems.ts',
+  'src/i18n/toiletTranslations.ts', 'data/regions/boundary-assets.json']) await access(join(root, path))
 validateReleaseManifest(manifest,config,createHash('sha256').update(raw).digest('hex'),buildId,commit,target)
 validateWorkerConfig(config,target,{deploy:true,stage:target==='production-candidate'})
 console.log(JSON.stringify({verified:true,target,commit,buildId,publicRoutes:config.routes.length}))

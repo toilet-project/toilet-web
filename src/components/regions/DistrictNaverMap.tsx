@@ -31,11 +31,14 @@ function reloadOnceAfterMapFailure(locale: Locale, district: Region) {
   } catch { return false }
 }
 
-export function DistrictNaverMap({ district, toilets, locale, failed = false }: { district: Region; toilets: ToiletMapItemResponse[]; locale: Locale; failed?: boolean }) {
+export function DistrictNaverMap({ district, toilets, locale, failed = false, loading = false }: { district: Region; toilets: ToiletMapItemResponse[]; locale: Locale; failed?: boolean; loading?: boolean }) {
   const t = regionText(locale)
   const container = useRef<HTMLDivElement>(null)
   const [selected, setSelected] = useState<ToiletMapItemResponse[]>([])
   const [error, setError] = useState(false)
+  const latestToilets = useRef(toilets)
+  const redraw = useRef<(() => void) | null>(null)
+  useEffect(() => { latestToilets.current = toilets; redraw.current?.() }, [toilets])
   useEffect(() => {
     if (!container.current) return
     // A client-side link can reach this page after a map SDK was loaded in a
@@ -62,9 +65,8 @@ export function DistrictNaverMap({ district, toilets, locale, failed = false }: 
         strokeColor: '#08734b', strokeWeight: 2, strokeOpacity: .95, fillColor: '#56a47b', fillOpacity: 0, clickable: false,
       })
       const overlays: MapOverlay[] = []
-      const localized = toilets.map(toilet => localizeToiletMapItem(toilet, locale))
-      const points = groupToiletsByCoordinate(localized, locale)
       function drawMarkers() {
+        const points = groupToiletsByCoordinate(latestToilets.current.map(toilet => localizeToiletMapItem(toilet, locale)), locale)
         overlays.splice(0).forEach(overlay => overlay.setMap(null))
         const projection = map.getProjection()
         const clusters = clusterRegionPoints(points,
@@ -121,13 +123,14 @@ export function DistrictNaverMap({ district, toilets, locale, failed = false }: 
           content.addEventListener('click', event => {
             event.stopPropagation()
             const ids = new Set((point.toilets ?? [point]).map(toilet => toilet.id))
-            setSelected(toilets.filter(toilet => ids.has(toilet.id)))
+            setSelected(latestToilets.current.filter(toilet => ids.has(toilet.id)))
           })
           const overlay = createMapOverlay(map, { position: createMapCoordinate(map, point.latitude, point.longitude), content, yAnchor: 1, zIndex: 2 })
           overlay.setMap(map)
           overlays.push(overlay)
         }
       }
+      redraw.current = drawMarkers
       const removeIdle = addMapEventListener(map, 'idle', drawMarkers)
       const removeZoom = addMapEventListener(map, 'zoom_changed', () => { setSelected([]); drawMarkers() })
       const resize = new ResizeObserver(() => { map.relayout(); drawMarkers() })
@@ -138,7 +141,7 @@ export function DistrictNaverMap({ district, toilets, locale, failed = false }: 
       )
       drawMarkers()
       try { window.sessionStorage.removeItem(recoveryKey(locale, district)) } catch { /* Optional recovery guard. */ }
-      cleanup = () => { removeIdle(); removeZoom(); resize.disconnect(); overlays.forEach(overlay => overlay.setMap(null)); polygon.setMap(null); destroyMap(map) }
+      cleanup = () => { redraw.current = null; removeIdle(); removeZoom(); resize.disconnect(); overlays.forEach(overlay => overlay.setMap(null)); polygon.setMap(null); destroyMap(map) }
     }).catch(error => {
       if (abort.signal.aborted) return
       // Also cover a language switch racing with the SDK script's insertion.
@@ -149,12 +152,13 @@ export function DistrictNaverMap({ district, toilets, locale, failed = false }: 
       }
     })
     return () => { abort.abort(); cleanup?.() }
-  }, [district, toilets, locale, t])
+  }, [district, locale, t])
 
   return <div className="district-map-wrap">
     <div className="district-naver-map" ref={container} role="region" aria-label={`${regionName(district, locale)} · ${t.locationMap}`} />
     {(error || failed) && <p className="district-map-error" role="alert">{error ? t.mapError : t.error}</p>}
-    {!error && !failed && toilets.length === 0 && <p className="district-map-error" role="status">{t.empty}</p>}
-    {selected.length > 0 && <DistrictToiletSelection key={selected.map(toilet => toilet.id).join(':')} toilets={selected} locale={locale} onClose={() => setSelected([])} />}
+    {!error && !failed && loading && <p className="district-map-error" role="status">{t.loading}</p>}
+    {!error && !failed && !loading && toilets.length === 0 && <p className="district-map-error" role="status">{t.empty}</p>}
+    {selected.length > 0 && <DistrictToiletSelection key={selected.map(toilet => toilet.id).join(':')} toilets={selected} locale={locale} districtCode={district.code} onClose={() => setSelected([])} />}
   </div>
 }

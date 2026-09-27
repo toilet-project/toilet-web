@@ -58,6 +58,12 @@ try {
   assert.equal(markers.headers.get('x-region-marker-cache'), 'hit', 'First page should populate local R2')
   const body = await markers.json()
   assert.ok(body.count > 0)
+  const fast = await fetch(`${origin}/api/public/region-markers/11140?locale=en`)
+  assert.equal(fast.status, 200)
+  assert.equal(fast.headers.get('x-region-marker-path'), 'worker', 'Warm marker data bypasses Next rendering')
+  const display = await fast.json()
+  assert.equal(display.toilets.length, body.count)
+  assert.ok(display.toilets.every(item => typeof item.canonicalName === 'string' && !item.translations))
   console.log(JSON.stringify({ passed: true, district: '11140', firstPage: page.status,
     followupCache: markers.headers.get('x-region-marker-cache'), count: body.count }))
 } finally {

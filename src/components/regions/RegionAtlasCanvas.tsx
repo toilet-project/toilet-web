@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent, type FocusEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { preloadRegion } from '../../lib/regionNavigationClient'
 import { compactOverviewViewport, constrainAtlas, initialAtlasViewport, zoomAtlas, type AtlasPoint, type AtlasViewport } from '../../lib/regionAtlasViewport'
 import { placeAtlasLabels } from '../../lib/atlasLabelLayout'
 
@@ -16,7 +16,6 @@ export function RegionAtlasCanvas({ areas, width, height, assetHref, label, coun
 }) {
   const root = useRef<HTMLDivElement>(null)
   const svg = useRef<SVGSVGElement>(null)
-  const router = useRouter()
   const pointerType = useRef('mouse')
   const pointers = useRef(new Map<number, Pointer>())
   const prefetched = useRef(new Set<string>())
@@ -102,7 +101,7 @@ export function RegionAtlasCanvas({ areas, width, height, assetHref, label, coun
       preloadedOutlines.current.set(area.outlineHref, image)
       image.src = area.outlineHref
     }
-    router.prefetch(area.href)
+    preloadRegion(area.href)
   }
   function position(area: Area, clientX: number, clientY: number) {
     const bounds = root.current?.getBoundingClientRect()
@@ -166,7 +165,7 @@ export function RegionAtlasCanvas({ areas, width, height, assetHref, label, coun
           onClick={event => {
             if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
             event.preventDefault()
-            router.push(area.href)
+            window.history.pushState(null, '', area.href)
           }}>
           <use href={`${assetHref}#r-${area.code}`} strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
         </a>)}
@@ -176,7 +175,7 @@ export function RegionAtlasCanvas({ areas, width, height, assetHref, label, coun
           <a href={area.href} className={`region-atlas-label${area.emphasized ? ' is-emphasized' : ''}${selection?.area.code === area.code ? ' is-active' : ''}`} style={{ '--atlas-label-size': `${labelSize}px` } as CSSProperties}
             aria-label={`${area.name} · ${area.count} ${countLabel}`} title={`${area.name} · ${area.count} ${countLabel}`} tabIndex={-1}
             onPointerEnter={event => hover(event, area)} onPointerDown={() => prefetch(area)} onFocus={() => prefetch(area)}
-            onClick={event => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); router.push(area.href) } }}>
+            onClick={event => { if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) { event.preventDefault(); window.history.pushState(null, '', area.href) } }}>
             <strong>{area.mapName}</strong>{showCounts && <span>{area.count}</span>}
           </a>
         </foreignObject> })}

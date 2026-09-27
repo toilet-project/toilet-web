@@ -227,6 +227,12 @@ export async function createMap(
   return naverAdapter(raw)
 }
 
+/** Prepare the shared SDK while the visitor is choosing a district. */
+export async function prepareNaverMap(locale: Locale) {
+  const language = naverMapLanguageForLocale(locale)
+  if (!naverMapLanguageNeedsReload(loadedNaverMapLanguage(), language)) await loadNaverSdk(language)
+}
+
 export function createMapCoordinate(map: MapInstance, latitude: number, longitude: number): MapCoordinate {
   if (map.provider === 'kakao') return kakaoCoordinate(new window.kakao.maps.LatLng(latitude, longitude))
   const maps = window.naver?.maps

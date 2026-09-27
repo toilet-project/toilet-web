@@ -1,14 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { preloadRegion } from '../../lib/regionNavigationClient'
 import { useEffect, useId, useRef, useState } from 'react'
 
 export function RegionPicker({ areas, title, label, countLabel, closeLabel }: {
   areas: { code: string; name: string; count: string; href: string; outlineHref?: string }[]
   title: string; label: string; countLabel: string; closeLabel: string
 }) {
-  const router = useRouter()
   const picker = useRef<HTMLDetailsElement>(null), id = useId()
   const prefetched = useRef(new Set<string>())
   const preloadedOutlines = useRef(new Map<string, HTMLImageElement>())
@@ -21,7 +20,7 @@ export function RegionPicker({ areas, title, label, countLabel, closeLabel }: {
       preloadedOutlines.current.set(area.outlineHref, image)
       image.src = area.outlineHref
     }
-    router.prefetch(area.href)
+    preloadRegion(area.href)
   }
   function close(restoreFocus = true) {
     if (picker.current) picker.current.open = false
