@@ -79,6 +79,27 @@ export async function collectPublicMapToiletIds({fetchImpl=fetch,baseUrl,request
   if(new Set(ids).size!==ids.length) throw new Error('Duplicate public toilet catalog ID')
   return ids
 }
+// Detail refresh also includes public facilities that are absent from the map
+// (for example, records without coordinates). Read IDs, not the full map payload.
+export async function collectPublicDetailIds({fetchImpl=fetch,baseUrl,requestTimeoutMs=60_000,retries=3,waitImpl=wait}){
+  const root=new URL('/api/v1/toilets/sitemap/',baseUrl)
+  const read=async path=>JSON.parse(await checkedText(fetchImpl,new URL(path,root),requestTimeoutMs,retries,waitImpl))
+  const shards=await read('shards')
+  if(!Array.isArray(shards)||!shards.length||shards.length>100
+    ||shards.some(shard=>!Number.isSafeInteger(shard)||shard<0)||new Set(shards).size!==shards.length)
+    throw new Error('Invalid public detail shards')
+  const ids=new Set()
+  for(const shard of shards){
+    const values=await read(`ids?shard=${shard}`)
+    if(!Array.isArray(values)||values.some(id=>!Number.isSafeInteger(id)||id<1)) throw new Error('Invalid public detail IDs')
+    for(const id of values){
+      if(ids.has(id)) throw new Error('Duplicate public detail ID')
+      ids.add(id)
+    }
+  }
+  if(!ids.size) throw new Error('Empty public detail catalog')
+  return [...ids].sort((a,b)=>a-b)
+}
 export async function readDeploymentVersion(fetchImpl,baseUrl,requestTimeoutMs=30_000){
   const response=await fetchImpl(`${baseUrl}/version.json`,{cache:'no-store',headers:{'user-agent':'geupddong-cache-prewarm/1'},signal:requestSignal(requestTimeoutMs)})
   if(!response.ok) throw new Error(`Version check failed (${response.status})`)
