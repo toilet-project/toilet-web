@@ -7,4 +7,7 @@ export default defineCloudflareConfig({
   incrementalCache: r2IncrementalCache,
   queue: doQueue,
   tagCache: d1TagCache,
+  // Use the persisted HTML/RSC lifetime on cold Workers, before Next.js falls
+  // back to its process-local cache-control defaults for dynamic routes.
+  enableCacheInterception: true,
 })
