@@ -24,7 +24,8 @@
     "cache:refresh-shared": "node scripts/refresh-shared-toilet-data.mjs",
     "cache:cleanup": "node scripts/cleanup-incremental-cache.mjs",
     "search:build-import": "node scripts/build-place-search-import.mjs",
-    "test": "node scripts/detail-fragment-version.mjs --check && node scripts/build-place-search-import.mjs && node --experimental-strip-types --test tests/*.test.mjs"
+    "test": "node scripts/detail-fragment-version.mjs --check && node scripts/build-place-search-import.mjs && node --experimental-strip-types --test tests/*.test.mjs",
+    "brand:build": "node scripts/build-brand-assets.mjs"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "1.20.6",
@@ -39,6 +40,7 @@
     "aws4fetch": "1.0.20",
     "oxlint": "^1.75.0",
     "parse5": "^8.0.1",
+    "sharp": "0.35.4",
     "typescript": "~6.0.2",
     "wrangler": "4.129.0"
   }

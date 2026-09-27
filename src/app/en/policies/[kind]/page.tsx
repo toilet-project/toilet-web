@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { EnglishPolicyPage } from '../../../../components/EnglishPolicyPage'
 import { englishPolicyTitles, type EnglishPolicyKind } from '../../../../i18n/policyTranslation'
 import { ENGLISH_UI_ENABLED } from '../../../../i18n/feature'
+import { BRAND_SOCIAL_IMAGE } from '../../../../lib/brand'
 
 type Props = { params: Promise<{ kind: string }> }
 const isKind = (kind: string): kind is EnglishPolicyKind => Object.hasOwn(englishPolicyTitles, kind)
@@ -14,8 +15,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description = `${englishPolicyTitles[kind]} for Geupddong, a public restroom map for Korea. Read the English translation; the Korean policy is authoritative.`
   return { title: { absolute: title }, description,
     alternates: { canonical: `/en/policies/${kind}` }, robots: { index: false, follow: false },
-    openGraph: { title, description, type: 'website', locale: 'en_US', siteName: 'Geupddong', url: `/en/policies/${kind}`, images: ['/og-image.png'] },
-    twitter: { title, description, card: 'summary_large_image', images: ['/og-image.png'] } }
+    openGraph: { title, description, type: 'website', locale: 'en_US', siteName: 'Geupddong', url: `/en/policies/${kind}`, images: [BRAND_SOCIAL_IMAGE] },
+    twitter: { title, description, card: 'summary_large_image', images: [BRAND_SOCIAL_IMAGE] } }
 }
 export default async function Page({ params }: Props) {
   const { kind } = await params

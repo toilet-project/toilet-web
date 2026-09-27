@@ -1807,7 +1807,7 @@ function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () 
   return <div className="login-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section className="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-modal-title">
       <button type="button" className="login-modal-close" onClick={onClose} aria-label={t('auth.close')}>×</button>
-      <span className="brand login-brand" aria-label={locale === 'ko' ? '급똥' : 'Geupddong'}><BrandWordmark locale={locale} /></span>
+      <span className="brand login-brand" aria-label={locale === 'ko' ? '급똥' : 'Geupddong'}><BrandWordmark locale={locale} withSymbol /></span>
       <h1 id="login-modal-title">{title}</h1>
       <p>{description}</p>
       <button type="button" className="social-login google-login" onClick={() => startSocialLogin('google')}>{t('auth.google')}</button>

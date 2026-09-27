@@ -50,7 +50,8 @@ test('English branding and mobile facility rows remain compact without overlappi
   const logo = await source('../src/components/BrandWordmark.tsx')
   const css = await source('../src/App.css')
   assert.match(app, /<BrandWordmark locale=\{locale\} \/>/)
-  assert.match(mobile, /<BrandWordmark locale=\{locale\} \/>/)
+  // The compact map header stays text-only; the large login landing opts into the symbol.
+  assert.match(mobile, /<BrandWordmark locale=\{locale\} withSymbol \/>/)
   assert.match(logo, /<span>GEUP<\/span><span>DDONG<\/span>/)
   assert.match(css, /\.brand-wordmark\.is-english\s*\{[^}]*grid-template-rows: repeat\(2, auto\)/)
   assert.match(css, /\.brand-wordmark\.is-english\s*\{[^}]*gap: 4px[^}]*-webkit-text-stroke: \.45px currentColor/)

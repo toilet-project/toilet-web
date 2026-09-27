@@ -1,0 +1,4 @@
+# Keep approved SVG hashes and generated brand provenance stable across platforms.
+assets/brand/** text eol=lf
+public/brand/** -text
+public/favicon.svg text eol=lf
