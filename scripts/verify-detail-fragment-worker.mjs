@@ -49,7 +49,7 @@ async function page(path,rsc=false){
   assert.match(response.headers.get('cache-control')||'',/no-store/)
   assert.notEqual(response.headers.get('x-opennext-cache')||response.headers.get('x-nextjs-cache'),'HIT','Full detail documents must not persist')
   if(rsc){assert.match(response.headers.get('content-type'),/text\/x-component/);assert.doesNotMatch(body,/<!doctype html>/i)}
-  else {assert.match(body,/<h1[^>]*>[^<]+<\/h1>/);assert.match(body,/application\/ld\+json/);assert.match(body,/<link rel="canonical"/);assert.match(body,/hreflang=/);assert.match(body,/data-detail-fragment="[a-f0-9]{64}"/)}
+  else {assert.match(body,/<h1[^>]*>[^<]+<\/h1>/);assert.match(body,/application\/ld\+json/);assert.match(body,/<link rel="canonical"/);assert.match(body,/hreflang=/i);assert.match(body,/data-detail-fragment="[a-f0-9]{64}"/)}
   return body
 }
 try{
