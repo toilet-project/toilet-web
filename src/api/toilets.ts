@@ -114,7 +114,12 @@ export async function fetchToiletsInBounds(params: { southLat: number; northLat:
 }
 
 export async function fetchToiletDetail(toiletId: number, signal?: AbortSignal): Promise<ToiletDetailResponse> {
-  const response = await fetch(createApiUrl(`/api/v1/toilets/${toiletId}`), { signal })
+  // Both map detail views share the R2 data used by server-rendered detail pages.
+  // Synthetic review verification must remain isolated from real facility data.
+  const verification = process.env.NEXT_PUBLIC_REVIEW_API_ENABLED === 'true'
+    && process.env.NEXT_PUBLIC_API_BASE_URL === 'https://preview.geupddong.com/__review-verification'
+  const url = verification ? createApiUrl(`/api/v1/toilets/${toiletId}`) : `/api/public/toilets/${toiletId}`
+  const response = await fetch(url, { signal, credentials: 'omit', cache: 'no-store' })
   if (!response.ok) throw new Error(`화장실 상세 정보를 불러오지 못했습니다. (${response.status})`)
   const detail = await response.json() as ToiletDetailResponse
   if (detail.id !== toiletId || typeof detail.name !== 'string') throw new Error('화장실 상세 응답을 확인할 수 없습니다.')
