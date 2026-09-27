@@ -63,6 +63,7 @@ import type { MapRouteData } from './components/mapRouteContext'
 import { DESKTOP_LAYOUT_QUERY } from './lib/responsiveLayout'
 import { resolveDistanceReference, type DistanceSource } from './lib/distanceReference'
 import { initialMapLocation, isKoreanMapLocation, SEOUL_STATION } from './lib/mapStart'
+import { locationPermissionMessage } from './lib/locationPermission'
 import { TRANSIENT_NOTICE_MS } from './lib/uiTiming'
 import { warmOwnPhoto } from './lib/warmOwnPhoto'
 import { refreshSignupPhoto } from './lib/signupPhotoWarm'
@@ -365,10 +366,10 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   useLayoutEffect(() => { groupRef.current = selectedCoordinateGroup }, [selectedCoordinateGroup])
   useEffect(() => { onMounted() }, [onMounted])
 
-  const showLocationMessage = useCallback((message: string) => {
+  const showLocationMessage = useCallback((message: string, duration = TRANSIENT_NOTICE_MS) => {
     window.clearTimeout(locationMessageTimerRef.current)
     setLocationMessage(message)
-    locationMessageTimerRef.current = window.setTimeout(() => setLocationMessage(null), TRANSIENT_NOTICE_MS)
+    locationMessageTimerRef.current = window.setTimeout(() => setLocationMessage(null), duration)
   }, [])
   const showMobileZoomGuide = useCallback(() => {
     window.clearTimeout(mobileZoomGuideTimerRef.current)
@@ -1186,12 +1187,13 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
 
     if (!isInitialRequest) setIsLocating(true)
     try {
-      if ('permissions' in navigator) {
+      // A tap must reach the native request immediately. Permissions.query is
+      // advisory and must not suppress the browser/OS permission flow or defer
+      // the explicit request beyond the user's gesture.
+      if (isInitialRequest && 'permissions' in navigator) {
         const permission = await navigator.permissions.query({ name: 'geolocation' })
         if (!isCurrent()) return
         if (permission.state === 'denied') {
-          if (!isInitialRequest) trackEvent('nearby_search', { permission_state: 'denied', success: false })
-          if (!isInitialRequest) showLocationMessage('위치 권한이 거부되었습니다. 브라우저의 사이트 설정에서 위치를 허용해 주세요.')
           setIsLocating(false)
           return
         }
@@ -1227,11 +1229,12 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       (positionError) => {
         if (!isCurrent()) return
         const messageByCode: Record<number, string> = {
-          1: '위치 권한이 거부되었습니다. 브라우저 주소창의 위치 권한을 허용한 뒤 다시 시도해 주세요.',
+          1: locationPermissionMessage(navigator),
           2: '현재 위치를 확인할 수 없습니다. GPS·Wi‑Fi 연결을 확인해 주세요.',
           3: '위치 확인 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.',
         }
-        if (!isInitialRequest) showLocationMessage(messageByCode[positionError.code] ?? '현재 위치를 확인하지 못했습니다.')
+        if (!isInitialRequest) showLocationMessage(messageByCode[positionError.code] ?? '현재 위치를 확인하지 못했습니다.',
+          positionError.code === 1 ? 10_000 : TRANSIENT_NOTICE_MS)
         if (!isInitialRequest) trackEvent('nearby_search', {
           permission_state: positionError.code === 1 ? 'denied' : 'unavailable',
           success: false,
