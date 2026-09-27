@@ -1364,7 +1364,10 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           if (mapInteractionRef.current) {
             mapInteractionRef.current = false
             setIsMobileAreaListOpen(false)
-            if (window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) closeDetailCard()
+            // Zoom/drag without an open card must not navigate back to home.
+            // The refs also cover a selection whose detail route is still loading.
+            if (window.matchMedia(DESKTOP_LAYOUT_QUERY).matches
+              && (selectedToiletRef.current || groupRef.current)) closeDetailCard()
           }
           scheduleMapAreaLoad()
           positionSelectedCard()
