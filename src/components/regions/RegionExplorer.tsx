@@ -74,7 +74,7 @@ export function RegionExplorer({ initialLocale, initialHref, initialDistrictCode
   return <>
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(structured) }} />
     <main onClickCapture={navigate} className={`region-main${!province ? ' is-national' : ''}`}>
-      <nav className="region-breadcrumbs" aria-label="Breadcrumb">{breadcrumbs.map((item, index) => <span key={item.path}>{index > 0 && <span aria-hidden="true"> / </span>}{index === breadcrumbs.length - 1 ? <span aria-current="page">{item.name}</span> : <Link href={item.path}>{item.name}</Link>}</span>)}</nav>
+      <nav className="region-breadcrumbs" aria-label="Breadcrumb">{breadcrumbs.map((item, index) => <span key={item.path}>{index > 0 && <span aria-hidden="true"> / </span>}{index === breadcrumbs.length - 1 ? <span aria-current="page">{item.name}</span> : <Link href={item.path} prefetch={false}>{item.name}</Link>}</span>)}</nav>
       <div className="region-hero">
         <div className="region-hero-copy"><span className="region-eyebrow">{r.explore}</span>
           <div className="region-hero-heading"><h1>{title}</h1><span className="region-hero-count">{r.totalCount.replace('{count}', count)}</span></div>

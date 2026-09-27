@@ -43,7 +43,9 @@ export function preloadRegion(href: string) {
   const target = regionNavigationTarget(href)
   if (!target || typeof window === 'undefined') return
   const { province, district, locale } = target
-  if (province) void import('./mapProvider').then(module => module.prepareNaverMap(locale)).catch(() => {})
+  // Prepare while choosing a province too, so a quick province → district tap
+  // does not wait for configuration and the external SDK in series.
+  void import('./mapProvider').then(module => module.prepareNaverMap(locale)).catch(() => {})
   if (district) {
     void loadDistrictBoundary(district.code).catch(() => {})
     void loadDistrictMarkers(district.code, locale).catch(() => {})
