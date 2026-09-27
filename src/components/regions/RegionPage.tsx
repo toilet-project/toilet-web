@@ -47,7 +47,14 @@ async function DistrictDirectory({ locale, provinceCode, districtCode }: {
   locale: Locale; provinceCode: string; districtCode: string
 }) {
   const { getDistrictToilets } = await import('../../server/regions')
-  const toilets = await getDistrictToilets(provinceCode, districtCode)
+  // The geographic page exists even when its data service is unavailable.
+  // Keep the streamed map shell usable; its separate marker request exposes a
+  // retryable error. Failed reads are never stored as an empty district.
+  const toilets = await getDistrictToilets(provinceCode, districtCode).catch(error => {
+    console.error('Region directory unavailable', districtCode, error)
+    return null
+  })
+  if (!toilets) return null
   const r = regionText(locale)
   const facilityLinks = toilets.map(toilet => ({
     id: toilet.id,
