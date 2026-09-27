@@ -65,3 +65,27 @@ test('clusters count underlying facilities, keep membership and exclude off-scre
   assert.equal(expanded.length, 3)
   assert.equal(expanded.reduce((sum, group) => sum + group.count, 0), 6)
 })
+
+test('panning the NAVER overlay pane reveals new facilities without a zoom reset', () => {
+  const points = [
+    { id: 1, longitude: 100, latitude: 100, count: 1 },
+    { id: 2, longitude: 700, latitude: 800, count: 2 },
+    { id: 3, longitude: 724, latitude: 802, count: 1 },
+    { id: 4, longitude: -400, latitude: -500, count: 1 },
+  ]
+  const project = p => ({ x: p.longitude, y: p.latitude })
+  const ids = clusters => clusters.flatMap(cluster => cluster.items.map(p => p.id)).sort()
+  for (const cellSize of [0, 76]) {
+    const before = clusterRegionPoints(points, project, 400, 600, cellSize, { x: 200, y: 300 })
+    assert.deepEqual(ids(before), [1])
+    const afterPan = clusterRegionPoints(points, project, 400, 600, cellSize, { x: 700, y: 800 })
+    assert.deepEqual(ids(afterPan), [2, 3], 'newly visible facilities replace the previous viewport')
+    assert.equal(afterPan.reduce((sum, cluster) => sum + cluster.count, 0), 3)
+    assert.equal(afterPan.length, cellSize ? 1 : 2)
+    const resetProject = p => ({ x: p.longitude - 900, y: p.latitude + 1600 })
+    assert.deepEqual(clusterRegionPoints(points, resetProject, 400, 600, cellSize, { x: -200, y: 2400 }), afterPan,
+      'the same viewport is independent of the overlay pane origin')
+    assert.deepEqual(ids(clusterRegionPoints(points, project, 400, 600, cellSize, { x: -350, y: -450 })), [4])
+    assert.deepEqual(clusterRegionPoints(points, project, 400, 600, cellSize, { x: 200, y: 300 }), before)
+  }
+})

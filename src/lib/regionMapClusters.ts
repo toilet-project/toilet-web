@@ -1,9 +1,14 @@
 type Point = { latitude: number; longitude: number; count: number }
 
-export function clusterRegionPoints<T extends Point>(points: T[], project: (point: T) => { x: number; y: number }, width: number, height: number, cellSize: number) {
+export function clusterRegionPoints<T extends Point>(points: T[], project: (point: T) => { x: number; y: number }, width: number, height: number, cellSize: number,
+  projectedCenter = { x: width / 2, y: height / 2 }) {
   const cells = new Map<string, T[]>()
   points.forEach((point, index) => {
-    const { x, y } = project(point)
+    const projected = project(point)
+    // NAVER offsets are relative to the movable overlay pane. Its origin does
+    // not reset after a pan, so visibility and the grid need viewport pixels.
+    const x = projected.x - projectedCenter.x + width / 2
+    const y = projected.y - projectedCenter.y + height / 2
     if (x < -64 || y < -64 || x > width + 64 || y > height + 64) return
     const key = cellSize > 0 ? `${Math.floor(x / cellSize)}:${Math.floor(y / cellSize)}` : `${index}`
     const cell = cells.get(key)

@@ -9,7 +9,7 @@ import { regionSeoCopy } from '../../i18n/regionSeoCopy'
 import { socialMetadata } from '../../i18n/pageSeo'
 import { safeJsonLd, SITE_ORIGIN } from '../../lib/seo'
 import { localizeToiletMapItem } from '../../i18n/toiletTranslations'
-import { regionToiletPath } from '../../lib/regionToiletPath'
+import { regionToiletPathForDistrict } from '../../lib/regionToiletPath'
 import { regionDisplayItems } from '../../lib/regionDisplayItems'
 import { districtsIn, getDistrict, getProvince, localizedRegionPath, provinces, regionName, regionSnapshot, type Region } from '../../lib/regions'
 import outlineAssets from '../../../data/regions/outline-assets.json' with { type: 'json' }
@@ -66,7 +66,9 @@ async function DistrictContents({ locale, provinceCode, districtCode, district }
   const facilityLinks = toilets.map(toilet => ({
     id: toilet.id,
     name: localizeToiletMapItem(toilet, locale).name,
-    href: localizedPublicPath(regionToiletPath(toilet, locale), locale)!,
+    // The durable dataset is already clipped to this precise district. Avoid
+    // repeating nationwide polygon searches for every SEO facility link.
+    href: localizedPublicPath(regionToiletPathForDistrict(toilet, locale, districtCode), locale)!,
   })).sort((left, right) => left.name.localeCompare(right.name, locale) || left.id - right.id)
   return <><DistrictNaverMap district={district} toilets={regionDisplayItems(toilets, locale)} locale={locale} />
     {facilityLinks.length > 0 && <details className="region-facility-directory"><summary>{r.restroomList} ({facilityLinks.length.toLocaleString(locale)})</summary>

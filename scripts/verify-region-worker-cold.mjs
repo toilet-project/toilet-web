@@ -51,6 +51,8 @@ try {
   const html = await page.text()
   assert.equal(page.status, 200, `Cold district render failed:\n${logs}`)
   assert.match(html, /<h1[^>]*>/)
+  assert.match(html, /region-facility-directory/, 'Cold district keeps its server-rendered SEO directory')
+  assert.match(html, /11140\/toilet\/\d+-/, 'Facility links retain the precise district URL')
   const markers = await fetch(`${origin}/api/region-markers/11140`, { signal: AbortSignal.timeout(15_000) })
   assert.equal(markers.status, 200, `Marker cache read failed:\n${logs}`)
   assert.equal(markers.headers.get('x-region-marker-cache'), 'hit', 'First page should populate local R2')

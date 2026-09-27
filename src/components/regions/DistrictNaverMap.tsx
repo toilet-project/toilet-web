@@ -67,7 +67,10 @@ export function DistrictNaverMap({ district, toilets, locale, failed = false }: 
       function drawMarkers() {
         overlays.splice(0).forEach(overlay => overlay.setMap(null))
         const projection = map.getProjection()
-        const clusters = clusterRegionPoints(points, point => projection.pointFromCoords(createMapCoordinate(map, point.latitude, point.longitude)), element.clientWidth, element.clientHeight, map.getLevel() > 2 ? 76 : 0)
+        const clusters = clusterRegionPoints(points,
+          point => projection.pointFromCoords(createMapCoordinate(map, point.latitude, point.longitude)),
+          element.clientWidth, element.clientHeight, map.getLevel() > 2 ? 76 : 0,
+          projection.pointFromCoords(map.getCenter()))
         for (const cluster of clusters) {
           if (cluster.items.length > 1) {
             const content = document.createElement('button')

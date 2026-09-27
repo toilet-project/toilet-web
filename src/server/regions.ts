@@ -7,14 +7,16 @@ import { getRegionMarkerBucket, readRegionMarkersOrFallback, RegionMarkerOriginE
 
 const API_ORIGIN = process.env.TOILET_API_ORIGIN ?? 'https://api.geupddong.com'
 const preciseGeometry = new Map(preciseSource.features.map(feature => [feature.properties.sgg, feature.geometry]))
-const preciseDistricts = allDistricts().flatMap(district => {
-  const geometry = preciseGeometry.get(district.code)
-  return geometry ? [{ region: { ...district, geometry: geometry as RegionGeometry },
-    bounds: regionBounds({ ...district, geometry: geometry as RegionGeometry }) }] : []
-})
+let preciseDistricts: { region: Region; bounds: RegionBounds }[] | undefined
 
 /** Conservative envelope matching uses the same precise boundaries as district map clipping. */
 export function districtCodesOverlappingBounds(bounds: RegionBounds): string[] {
+  // Only invalidation needs the nationwide index. A normal district cache hit
+  // should not calculate all 256 precise envelopes before reading its data.
+  preciseDistricts ??= allDistricts().flatMap(district => {
+    const region = getPreciseDistrict(district.provinceCode, district.code)
+    return region ? [{ region, bounds: regionBounds(region) }] : []
+  })
   const point = bounds.west === bounds.east && bounds.south === bounds.north
   return preciseDistricts.filter(({ region, bounds: district }) => point
     ? regionContains(region, bounds.west, bounds.south)
