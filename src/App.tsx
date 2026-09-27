@@ -1172,7 +1172,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     )
   }, [updateCurrentLocation])
 
-  const moveToCurrentLocation = useCallback(async (isInitialRequest = false) => {
+  const moveToCurrentLocation = useCallback((isInitialRequest = false) => {
     const map = mapRef.current
     if (!map) return
     const request = referenceRequestGate.begin()
@@ -1186,22 +1186,10 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     }
 
     if (!isInitialRequest) setIsLocating(true)
-    try {
-      // A tap must reach the native request immediately. Permissions.query is
-      // advisory and must not suppress the browser/OS permission flow or defer
-      // the explicit request beyond the user's gesture.
-      if (isInitialRequest && 'permissions' in navigator) {
-        const permission = await navigator.permissions.query({ name: 'geolocation' })
-        if (!isCurrent()) return
-        if (permission.state === 'denied') {
-          setIsLocating(false)
-          return
-        }
-      }
-    } catch {
-      // Permissions API를 지원하지 않는 브라우저는 Geolocation 요청으로 바로 진행한다.
-    }
-
+    // Let the browser decide permission for both the initial request and a tap.
+    // A preflight Permissions.query can suppress the actual native request;
+    // avoiding its await also preserves the explicit tap's user activation.
+    // Native denial remains respected, and initial failures stay silent.
     if (!isCurrent()) return
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
