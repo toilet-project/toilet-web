@@ -12,7 +12,10 @@ export default {
     if (placeSearch) return placeSearch
     const verification = await reviewVerificationResponse(request, env)
     if (verification) return verification
-    return protectNavigationResponse(request, await handler.fetch(request, env, ctx))
+    const response = await handler.fetch(request, env, ctx)
+    // OpenNext initializes this from the compiled deploymentId during fetch.
+    // Never use the client's x-deployment-id to identify a server response.
+    return protectNavigationResponse(request, response, process.env.DEPLOYMENT_ID)
   },
 }
 export { DOQueueHandler } from './.open-next/worker.js'

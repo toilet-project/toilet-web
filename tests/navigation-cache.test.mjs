@@ -91,6 +91,49 @@ test('immutable CSS/JS and ordinary API responses retain their cache policy', ()
   }
 })
 
+test('cached Flight restores the compiled deployment id, never the requesting client id', async () => {
+  const request = new Request(origin, { headers: { RSC: '1', 'x-deployment-id': 'previous-client' } })
+  const input = new Response('cached-flight', { headers: {
+    'content-type': 'text/x-component; charset=utf-8', 'x-opennext-cache': 'HIT', Vary: 'RSC',
+  } })
+  const response = protectNavigationResponse(request, input, 'current-worker')
+  assert.equal(response.headers.get('x-nextjs-deployment-id'), 'current-worker')
+  assert.equal(response.headers.get('x-opennext-cache'), 'HIT')
+  assert.equal(response.headers.get('vary'), 'RSC')
+  assert.equal(await response.text(), 'cached-flight')
+  assert.match(response.headers.get('cache-control'), /no-store/)
+})
+
+test('existing Flight deployment id is preserved, including a genuine version mismatch', () => {
+  const input = new Response('flight', { headers: {
+    'content-type': 'text/x-component', 'x-nextjs-deployment-id': 'previous-worker',
+  } })
+  const response = protectNavigationResponse(new Request(origin), input, 'current-worker')
+  assert.equal(response.headers.get('x-nextjs-deployment-id'), 'previous-worker')
+})
+
+test('missing or invalid compiled id cannot be replaced with a client-supplied id', () => {
+  const request = new Request(origin, { headers: { RSC: '1', 'x-deployment-id': 'spoofed' } })
+  for (const id of [undefined, null, '', 'bad\r\nheader', 'a'.repeat(201)]) {
+    const input = new Response('flight', { headers: { 'content-type': 'text/x-component' } })
+    assert.equal(protectNavigationResponse(request, input, id).headers.has('x-nextjs-deployment-id'), false)
+  }
+})
+
+test('deployment restoration excludes HTML, APIs, errors, redirects and server actions', () => {
+  for (const { method = 'GET', status = 200, type } of [
+    { type: 'text/html' }, { type: 'application/json' },
+    { status: 500, type: 'text/x-component' }, { status: 307, type: 'text/x-component' },
+    { method: 'POST', type: 'text/x-component' },
+  ]) {
+    const request = new Request(origin, { method, headers: { RSC: '1' } })
+    const input = new Response('body', { status, headers: { 'content-type': type } })
+    const response = protectNavigationResponse(request, input, 'current-worker')
+    assert.equal(response.status, status)
+    assert.equal(response.headers.has('x-nextjs-deployment-id'), false)
+  }
+})
+
 test('navigation snapshot targets only internal map routes, never auth or external URLs', () => {
   assert.equal(mapNavigationPath('/toilet/13531?_rsc=key', origin), '/toilet/13531')
   assert.equal(mapNavigationPath('/', origin), '/')

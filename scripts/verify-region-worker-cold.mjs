@@ -27,6 +27,25 @@ try {
   }
   assert.ok(ready, `Worker dev did not start:\n${logs}`)
 
+  const { version } = await (await fetch(`${origin}/version.json`)).json()
+  assert.ok(version && version !== 'development')
+  // Exercise the real compiled Worker, including the static-cache response
+  // that used to omit Next's deployment identity and force document reloads.
+  for (const path of ['/', '/en', '/regions', '/en/regions']) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const flight = await fetch(`${origin}${path}?_rsc=wheel-regression`, {
+        headers: { RSC: '1', 'x-deployment-id': 'stale-client-must-not-be-echoed' },
+        signal: AbortSignal.timeout(15_000),
+      })
+      assert.equal(flight.status, 200, `${path}: Flight failed`)
+      assert.match(flight.headers.get('content-type'), /^text\/x-component/)
+      assert.equal(flight.headers.get('x-nextjs-deployment-id'), version, `${path}: missing/wrong deployment id`)
+      assert.match(flight.headers.get('cache-control'), /no-store/)
+      assert.ok((await flight.text()).length > 0)
+    }
+  }
+  console.log(JSON.stringify({ passed: true, flightNavigation: '8 cold/warm static responses', version }))
+
   const district = '/regions/%EC%84%9C%EC%9A%B8%ED%8A%B9%EB%B3%84%EC%8B%9C-11/%EC%A4%91%EA%B5%AC-11140'
   const page = await fetch(`${origin}${district}`, { signal: AbortSignal.timeout(30_000) })
   const html = await page.text()
