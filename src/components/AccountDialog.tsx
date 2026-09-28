@@ -1,4 +1,5 @@
 import { useLocale, useMessages } from '../i18n/context'
+import { maskEmail } from '../lib/emailPrivacy'
 import { useEffect, useRef, useState } from 'react'
 import { fetchPolicyConsentStatus, fetchWithdrawalOptions, withdrawAccount, type AuthProfile, type PolicyAgreement, type WithdrawalOptions } from '../api/auth'
 import { AccountErasureNotice } from './AccountErasureNotice'
@@ -44,7 +45,7 @@ export function AccountDialog({ profile, onClose, onWithdrawn, embedded = false 
   }
   const panel = <section className={embedded ? 'account-embedded' : 'account-dialog'} role={embedded ? undefined : 'dialog'} aria-modal={embedded ? undefined : true} aria-labelledby="account-title" aria-busy={isSubmitting}>
       {embedded ? <HistoryHeading title={t('account.manage')} id="account-title" onClose={onClose} closeDisabled={isSubmitting} /> : <><button type="button" className="login-modal-close" disabled={isSubmitting} onClick={onClose} aria-label={t('account.close')}>×</button><p>{t('account.brand')}</p><h1 id="account-title">{t('auth.account')}</h1></>}
-      <dl className="account-profile-details"><div><dt>{t('account.name')}</dt><dd>{profile.displayName || t('account.noName')}</dd></div><div><dt>{t('account.email')}</dt><dd>{profile.email || t('account.notProvided')}</dd></div></dl>
+      <dl className="account-profile-details"><div><dt>{t('account.name')}</dt><dd>{profile.displayName || t('account.noName')}</dd></div><div><dt>{t('account.email')}</dt><dd>{maskEmail(profile.email) || t('account.notProvided')}</dd></div></dl>
       <section className="account-agreements-inline" aria-labelledby="agreement-title"><h2 id="agreement-title">{t('account.agreements')}</h2>{agreementsLoading ? <p role="status">{t('account.agreementsLoading')}</p> : agreements.length === 0 ? !error && <p>{t('account.agreementsEmpty')}</p> : agreements.map((agreement) => <PolicyDisclosure key={`${agreement.key}-${agreement.version}-${agreement.contentPath}`} title={policyTitle(locale, agreement.key, agreement.title)} meta={t('account.agreedAt', { date: accountDate(agreement.agreedAt, locale, true), version: agreement.version })} contentPath={agreement.contentPath} version={agreement.version} />)}</section>
       {!confirming && <button type="button" className="account-withdraw" onClick={() => void openWithdrawal()}>{t('account.withdraw')}</button>}
       {confirming && <div className="account-confirm"><strong>{t('account.withdrawTitle')}</strong>
