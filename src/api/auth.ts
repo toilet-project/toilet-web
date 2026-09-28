@@ -1,4 +1,5 @@
 import { createApiUrl } from '../config/api'
+import { maskEmail } from '../lib/emailPrivacy'
 import { socialLoginPath } from '../lib/oauthReturn'
 import { lifecycleErrorMessage, recoveryReceipt, withdrawalReceipt } from '../lib/accountLifecycle'
 import { fetchSessionRead } from './session'
@@ -48,7 +49,7 @@ export async function getCurrentUser(): Promise<AuthProfile | null> {
   if (response.status === 401) return null
   if (!response.ok) throw new Error('로그인 상태를 확인하지 못했습니다.')
   const profile = await response.json() as AuthProfile & { profilePhoto?: unknown }
-  return { ...profile, profilePhoto: profile.profilePhoto == null ? profile.profilePhoto : decodePhoto(profile.profilePhoto) }
+  return { ...profile, email: maskEmail(profile.email), profilePhoto: profile.profilePhoto == null ? profile.profilePhoto : decodePhoto(profile.profilePhoto) }
 }
 
 export function startSocialLogin(provider: 'google' | 'kakao') {

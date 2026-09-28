@@ -23,7 +23,7 @@ export function ProfileMenu({ profile, onLogout }: { profile: AuthProfile; onLog
   const account = (view?: string) => `${localizedPublicPath('/account', locale)!}${view ? `?view=${view}` : ''}`
   return <div className="profile-menu" ref={root}>
     <button type="button" className="profile-menu-trigger" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(value => !value)}>
-      <span className="profile-menu-avatar"><OwnPhoto state={profile.profilePhoto ?? null} fallback={<span aria-hidden="true">{(profile.displayName || profile.email || 'G').slice(0, 1).toUpperCase()}</span>} /></span>
+      <span className="profile-menu-avatar"><OwnPhoto state={profile.profilePhoto ?? null} fallback={<span aria-hidden="true">{(profile.displayName || 'G').slice(0, 1).toUpperCase()}</span>} /></span>
       <span className="profile-menu-name">{profile.displayName || t('account.defaultName')}</span>
       <svg className="profile-menu-chevron" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m5 7 5 5 5-5" /></svg>
     </button>
