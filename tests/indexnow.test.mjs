@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   INDEXNOW_ENDPOINT, INDEXNOW_KEY, INDEXNOW_KEY_PATH, buildIndexNowPayload, canonicalIndexNowPaths,
-  indexNowUrls, notifyIndexNowForEvents, submitIndexNow,
+  indexNowFailureInfo, indexNowUrls, notifyIndexNowForEvents, submitIndexNow,
 } from '../src/server/indexNow.ts'
 
 const detail = {
@@ -51,6 +51,29 @@ test('submission retries transient failures and never sends rejected paths', asy
   assert.equal(requests.length, 2)
   assert.equal(requests[0].url, INDEXNOW_ENDPOINT)
   assert.deepEqual(JSON.parse(requests[0].init.body).urlList, ['https://geupddong.com/toilet/177'])
+})
+
+test('submission uses the documented endpoint and reports HTTP failure without URLs or key', async () => {
+  assert.equal(INDEXNOW_ENDPOINT, 'https://api.indexnow.org/indexnow')
+  await assert.rejects(submitIndexNow(['/toilet/177'], async () => new Response('', { status: 403 })), error => {
+    assert.deepEqual(indexNowFailureInfo(error), { reason: 'http', status: 403 })
+    assert.ok(!JSON.stringify(indexNowFailureInfo(error)).includes(INDEXNOW_KEY))
+    assert.ok(!JSON.stringify(indexNowFailureInfo(error)).includes('/toilet/177'))
+    return true
+  })
+})
+
+test('network and timeout failures remain distinguishable after bounded retries', async () => {
+  let requests = 0
+  const result = submitIndexNow(['/toilet/177'], async () => {
+    requests++
+    throw new DOMException('timed out', 'TimeoutError')
+  }, async () => {})
+  await assert.rejects(result, error => {
+    assert.deepEqual(indexNowFailureInfo(error), { reason: 'timeout', status: null })
+    return true
+  })
+  assert.equal(requests, 3)
 })
 
 test('UPSERT resolves canonical paths while DELETE submits stable removal aliases', async () => {

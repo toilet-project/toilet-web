@@ -5,7 +5,7 @@ import { SITE_ORIGIN } from '../lib/seo.ts'
 import type { ToiletDetailResponse } from '../api/toilets.ts'
 import type { ToiletCacheEvent } from './sharedToiletCache.ts'
 
-export const INDEXNOW_ENDPOINT = 'https://api.indexnow.org/IndexNow'
+export const INDEXNOW_ENDPOINT = 'https://api.indexnow.org/indexnow'
 export const INDEXNOW_KEY = '237e18b19a2de7283207a1343afffb4dbf4dc12e24af2c9208999c2238df9c24'
 export const INDEXNOW_KEY_PATH = `/${INDEXNOW_KEY}.txt`
 const INDEXNOW_MAX_URLS = 10_000
@@ -14,6 +14,23 @@ const INDEXNOW_RETRIES = 2
 const DETAIL_CONCURRENCY = 4
 
 type FetchLike = typeof fetch
+
+export class IndexNowSubmissionError extends Error {
+  readonly reason: 'http' | 'timeout' | 'network'
+  readonly status: number | null
+  constructor(reason: 'http' | 'timeout' | 'network', status: number | null = null) {
+    super(`IndexNow submission failed (${reason}${status === null ? '' : ` ${status}`})`)
+    this.name = 'IndexNowSubmissionError'
+    this.reason = reason
+    this.status = status
+  }
+}
+
+export function indexNowFailureInfo(error: unknown) {
+  return error instanceof IndexNowSubmissionError
+    ? { reason: error.reason, status: error.status }
+    : { reason: 'unexpected', status: null, errorName: error instanceof Error ? error.name : typeof error }
+}
 
 export function indexNowEnabled() {
   return process.env.SITE_INDEXABLE === 'true' && process.env.INDEXNOW_ENABLED === 'true'
@@ -67,17 +84,19 @@ export async function submitIndexNow(paths: Iterable<string>, fetchImpl: FetchLi
         signal: AbortSignal.timeout(INDEXNOW_TIMEOUT_MS),
       })
     } catch (error) {
-      if (attempt === INDEXNOW_RETRIES) throw error
+      if (attempt === INDEXNOW_RETRIES) {
+        throw new IndexNowSubmissionError(error instanceof Error && error.name === 'TimeoutError' ? 'timeout' : 'network')
+      }
       await wait(250 * (2 ** attempt))
       continue
     }
     if (response.ok) return { submitted: payload.urlList.length, status: response.status }
     if (!retryable(response.status) || attempt === INDEXNOW_RETRIES) {
-      throw new Error(`IndexNow rejected URL update (${response.status})`)
+      throw new IndexNowSubmissionError('http', response.status)
     }
     await wait(250 * (2 ** attempt))
   }
-  throw new Error('IndexNow submission failed')
+  throw new IndexNowSubmissionError('network')
 }
 
 export function canonicalIndexNowPaths(detail: ToiletDetailResponse) {
@@ -132,7 +151,8 @@ export async function scheduleIndexNowNotification(events: readonly ToiletCacheE
     ctx.waitUntil(notifyIndexNowForEvents(events).then(result => {
       console.info('IndexNow URL update accepted', result)
     }).catch(error => {
-      console.error('IndexNow URL update failed', error)
+      // Keep the failure actionable without logging the key or submitted URLs.
+      console.error('IndexNow URL update failed', indexNowFailureInfo(error))
     }))
     return true
   } catch (error) {
