@@ -11,7 +11,8 @@ import { SUPPORTED_LOCALES } from '../../../../i18n/locale'
 import { getDistrict, localizedRegionPath } from '../../../../lib/regions'
 import { districtCodesOverlappingBounds } from '../../../../server/regions'
 import type { ScopedToiletCacheEvent } from '../../../../server/cacheRevalidation'
-import { scheduleIndexNowNotification } from '../../../../server/indexNow'
+import { indexNowEnabled, scheduleIndexNowNotification } from '../../../../server/indexNow'
+import { scheduleIndexNowRegionNotification } from '../../../../server/indexNowRegion'
 
 export const runtime = 'nodejs'
 const headers = { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow' }
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
       process.env.MAP_CLUSTER_CACHE_ENABLED === 'true'
         ? getMapCellBucket().then(bucket => bucket ? invalidateMapClusterCache(bucket) : Promise.resolve())
         : Promise.resolve(),
-      persistRegionMarkerInvalidation(districtCodes),
+      persistRegionMarkerInvalidation(districtCodes, indexNowEnabled() && districtCodes !== null),
     ])
     for (const id of ids) {
       revalidateTag(`toilet:${id}`, { expire: 0 })
@@ -70,7 +71,12 @@ export async function POST(request: Request) {
     }
     if (persisted.some(result => result.status === 'rejected')) throw new Error('Cache persistence failed')
     // Search discovery is best effort and must never delay or reject the cache outbox acknowledgement.
-    await scheduleIndexNowNotification(authenticated.events)
+    const previousDetails = persisted[1].status === 'fulfilled' && persisted[1].value instanceof Map
+      ? persisted[1].value : new Map()
+    const previousDistricts = persisted[4].status === 'fulfilled' && persisted[4].value instanceof Map
+      ? persisted[4].value : new Map()
+    await Promise.all([scheduleIndexNowNotification(authenticated.events, previousDetails),
+      scheduleIndexNowRegionNotification(previousDistricts)])
     const acknowledgement = authenticated.protocol === 'v1'
       ? { ok: true, acceptedIds: ids }
       : { ok: true, acceptedEvents: authenticated.events.map(({ toiletId, revision }) => ({ toiletId, revision })) }

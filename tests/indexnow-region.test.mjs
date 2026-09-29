@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { changedDistrictIndexNowPaths } from '../src/server/indexNowRegion.ts'
+import { changedDistrictIndexNowPaths, notifyIndexNowForRegionChanges } from '../src/server/indexNowRegion.ts'
 import { regionDirectoryEntries } from '../src/lib/regionDirectory.ts'
+import { invalidateRegionMarkers, regionMarkerObjectKey } from '../src/lib/regionMarkerStore.ts'
 
 const district = '11110'
 const first = { id: 177, name: '사직주유소', latitude: 37.575, longitude: 126.968,
@@ -44,4 +45,58 @@ test('projection uses the exact localized name and canonical link rendered by th
   assert.equal(entry.name, 'Sajik Gas Station')
   assert.match(entry.href, /^\/en\/regions\/seoul-11\/jongno-gu-11110\/toilet\/177-/)
   assert.throws(() => changedDistrictIndexNowPaths('00000', [], []), /Unknown district/)
+})
+
+test('invalidation captures only the fresh district before-image it already reads', async () => {
+  const objects = new Map([[regionMarkerObjectKey(district), { etag: 'one', value: JSON.stringify({
+    schema: 1, districtCode: district, revision: 1, globalRevision: 0,
+    state: 'data', storedAt: Date.now(), data: [first],
+  }) }]])
+  let sequence = 1
+  const bucket = {
+    get: async key => objects.has(key) ? { etag: objects.get(key).etag,
+      json: async () => JSON.parse(objects.get(key).value) } : null,
+    put: async (key, value, options) => {
+      if (options?.onlyIf?.etagMatches && objects.get(key)?.etag !== options.onlyIf.etagMatches) return null
+      const stored = { etag: `etag-${++sequence}`, value }; objects.set(key, stored); return stored
+    },
+  }
+  const snapshots = new Map()
+  await invalidateRegionMarkers(bucket, [district, '11140'], Date.now,
+    (code, markers) => snapshots.set(code, markers))
+  assert.deepEqual(snapshots.get(district), [first])
+  assert.equal(snapshots.has('11140'), false)
+})
+
+test('a signed-region before-image yields only changed canonical district URLs', async () => {
+  const requests = []
+  const result = await notifyIndexNowForRegionChanges(new Map([[district, [first]]]),
+    async () => [{ ...first, name: '새 이름' }], async (url, init) => {
+      requests.push({ url: String(url), init })
+      return new Response('', { status: 202 })
+    })
+  assert.deepEqual(result, { submitted: 5, status: 202 })
+  const urls = JSON.parse(requests[0].init.body).urlList
+  assert.ok(urls.every(url => new URL(url).pathname.includes('/regions/')))
+  assert.ok(!urls.some(url => new URL(url).pathname.startsWith('/en/')))
+})
+
+test('an unavailable refreshed district is skipped, never treated as empty', async () => {
+  let requests = 0
+  const original = console.error
+  console.error = () => {}
+  try {
+    const result = await notifyIndexNowForRegionChanges(new Map([[district, [first]]]),
+      async () => { throw new Error('origin unavailable') }, async () => { requests++; throw new Error('unexpected') })
+    assert.deepEqual(result, { submitted: 0, status: null })
+    assert.equal(requests, 0)
+  } finally { console.error = original }
+})
+
+test('regional submission uses the bounded retry path after a transient IndexNow failure', async () => {
+  let attempts = 0
+  const result = await notifyIndexNowForRegionChanges(new Map([[district, [first]]]),
+    async () => [], async () => new Response('', { status: ++attempts === 1 ? 503 : 202 }))
+  assert.deepEqual(result, { submitted: 6, status: 202 })
+  assert.equal(attempts, 2)
 })

@@ -3,6 +3,9 @@ import { SUPPORTED_LOCALES } from '../i18n/locale.ts'
 import { localizedPublicPath } from '../i18n/routes.ts'
 import { regionDirectoryEntries } from '../lib/regionDirectory.ts'
 import { getDistrict, localizedRegionPath } from '../lib/regions.ts'
+import { indexNowEnabled, indexNowFailureInfo, submitIndexNow } from './indexNow.ts'
+
+export type RegionDirectorySnapshots = Map<string, ToiletMapItemResponse[]>
 
 /** Compare only the server-rendered directory, not unrelated marker fields. */
 export function changedDistrictIndexNowPaths(districtCode: string,
@@ -15,4 +18,47 @@ export function changedDistrictIndexNowPaths(districtCode: string,
     if (JSON.stringify(previous) === JSON.stringify(current)) return []
     return [localizedPublicPath(localizedRegionPath(locale, districtCode.slice(0, 2), districtCode), locale)!]
   })
+}
+
+export async function notifyIndexNowForRegionChanges(snapshots: RegionDirectorySnapshots,
+  loadCurrent: (code: string) => Promise<ToiletMapItemResponse[]>, fetchImpl: typeof fetch = fetch) {
+  const entries = [...snapshots]
+  const changes: string[][] = new Array(entries.length)
+  let cursor = 0
+  await Promise.all(Array.from({ length: Math.min(4, entries.length) }, async () => {
+    while (cursor < entries.length) {
+      const index = cursor++
+      const [code, previous] = entries[index]
+      try {
+        const current = await loadCurrent(code)
+        changes[index] = changedDistrictIndexNowPaths(code, previous, current)
+      } catch (error) {
+        // A failed refresh must not turn an unknown district into an empty one.
+        console.error('IndexNow district comparison skipped', { districtCode: code,
+          errorName: error instanceof Error ? error.name : typeof error })
+        changes[index] = []
+      }
+    }
+  }))
+  return submitIndexNow(changes.flat(), fetchImpl)
+}
+
+export async function scheduleIndexNowRegionNotification(snapshots: RegionDirectorySnapshots) {
+  if (!indexNowEnabled() || snapshots.size === 0) return false
+  try {
+    const [{ getCloudflareContext }, { getDistrictToilets }] = await Promise.all([
+      import('@opennextjs/cloudflare'), import('./regions.ts'),
+    ])
+    const { ctx } = await getCloudflareContext({ async: true })
+    ctx.waitUntil(notifyIndexNowForRegionChanges(snapshots,
+      code => getDistrictToilets(code.slice(0, 2), code)).then(result => {
+      console.info('IndexNow district URL update accepted', result)
+    }).catch(error => {
+      console.error('IndexNow district URL update failed', indexNowFailureInfo(error))
+    }))
+    return true
+  } catch (error) {
+    console.error('IndexNow district scheduling failed', { errorName: error instanceof Error ? error.name : typeof error })
+    return false
+  }
 }

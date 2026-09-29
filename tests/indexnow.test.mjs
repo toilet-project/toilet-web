@@ -29,6 +29,13 @@ test('payload contains only same-origin public detail URLs and deduplicates them
   assert.equal(buildIndexNowPayload(['/api/private']), null)
 })
 
+test('only a known canonical district route is eligible for regional notification', () => {
+  assert.deepEqual(indexNowUrls(['/en/regions/seoul-11/jongno-gu-11110',
+    '/en/regions/wrong-11/jongno-gu-11110', '/en/regions/seoul-11/jongno-gu-11110?draft=1',
+    '/en/regions/seoul-11', '/admin/regions/seoul-11/jongno-gu-11110']),
+  ['https://geupddong.com/en/regions/seoul-11/jongno-gu-11110'])
+})
+
 test('canonical paths include only locales with complete current translations', () => {
   const paths = canonicalIndexNowPaths(detail)
   assert.equal(paths.length, 4)
@@ -76,7 +83,7 @@ test('network and timeout failures remain distinguishable after bounded retries'
   assert.equal(requests, 3)
 })
 
-test('UPSERT resolves canonical paths while DELETE submits stable removal aliases', async () => {
+test('UPSERT resolves canonical paths while DELETE uses known former canonical URLs', async () => {
   const requests = []
   const fetchImpl = async (url, init = {}) => {
     requests.push({ url: String(url), init })
@@ -86,12 +93,13 @@ test('UPSERT resolves canonical paths while DELETE submits stable removal aliase
   const result = await notifyIndexNowForEvents([
     { toiletId: 177, revision: 2, action: 'UPSERT', catalogChanged: true },
     { toiletId: 178, revision: 3, action: 'DELETE', catalogChanged: true },
-  ], fetchImpl)
-  assert.deepEqual(result, { submitted: 10, status: 202 })
+  ], fetchImpl, new Map([[178, { ...detail, id: 178 }]]))
+  assert.deepEqual(result, { submitted: 8, status: 202 })
   const payload = JSON.parse(requests.at(-1).init.body)
-  assert.equal(payload.urlList.length, 10)
+  assert.equal(payload.urlList.length, 8)
   assert.ok(payload.urlList.some(url => new URL(url).pathname.startsWith('/en/regions/')))
-  assert.equal(payload.urlList.at(-1), 'https://geupddong.com/zh-hk/toilet/178')
+  assert.ok(payload.urlList.some(url => new URL(url).pathname.includes('/toilet/178-')))
+  assert.ok(!payload.urlList.some(url => /\/toilet\/178$/.test(new URL(url).pathname)))
 })
 
 test('one unavailable UPSERT does not suppress another event in the signed batch', async () => {
@@ -107,10 +115,35 @@ test('one unavailable UPSERT does not suppress another event in the signed batch
     const result = await notifyIndexNowForEvents([
       { toiletId: 177, revision: 2, action: 'UPSERT', catalogChanged: false },
       { toiletId: 178, revision: 3, action: 'PRIVATE', catalogChanged: true },
-    ], fetchImpl)
-    assert.deepEqual(result, { submitted: 6, status: 202 })
+    ], fetchImpl, new Map([[178, { ...detail, id: 178 }]]))
+    assert.deepEqual(result, { submitted: 4, status: 202 })
     assert.equal(requests.filter(request => request.url === INDEXNOW_ENDPOINT).length, 1)
   } finally {
     console.error = originalError
   }
+})
+
+test('renamed UPSERT submits former and current canonical URLs once each', async () => {
+  const requests = []
+  const fetchImpl = async (url, init = {}) => {
+    requests.push({ url: String(url), init })
+    if (String(url).includes('/api/v1/toilets/177')) return Response.json({ ...detail, name: '새 이름' })
+    return new Response('', { status: 202 })
+  }
+  const result = await notifyIndexNowForEvents([
+    { toiletId: 177, revision: 4, action: 'UPSERT', catalogChanged: true },
+  ], fetchImpl, new Map([[177, detail]]))
+  assert.equal(result.submitted, 5)
+  const urls = JSON.parse(requests.at(-1).init.body).urlList
+  assert.equal(new Set(urls).size, 5)
+  assert.ok(urls.some(url => decodeURI(url).includes('/toilet/177-새-이름')))
+})
+
+test('deletion without a trustworthy before-image submits no guessed URL', async () => {
+  let requests = 0
+  const result = await notifyIndexNowForEvents([
+    { toiletId: 177, revision: 5, action: 'DELETE', catalogChanged: true },
+  ], async () => { requests++; throw new Error('unexpected submission') })
+  assert.deepEqual(result, { submitted: 0, status: null })
+  assert.equal(requests, 0)
 })

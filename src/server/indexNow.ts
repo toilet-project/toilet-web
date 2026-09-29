@@ -1,6 +1,8 @@
 import { indexableFacilityLocales } from '../i18n/facilitySeo.ts'
-import { localizedPublicPath, localizedToiletPaths, parseLocalizedPublicPath } from '../i18n/routes.ts'
+import { localizedPublicPath, parseLocalizedPublicPath } from '../i18n/routes.ts'
 import { regionToiletPath } from '../lib/regionToiletPath.ts'
+import { getDistrict, localizedRegionPath } from '../lib/regions.ts'
+import { codeFromRegionSegment } from '../lib/urlName.ts'
 import { SITE_ORIGIN } from '../lib/seo.ts'
 import type { ToiletDetailResponse } from '../api/toilets.ts'
 import type { ToiletCacheEvent } from './sharedToiletCache.ts'
@@ -43,11 +45,22 @@ function isIndexableDetailPath(path: string) {
     || /^\/regions\/.+\/toilet\/[1-9]\d*-.+$/u.test(parsed.path)
 }
 
-/** Keep IndexNow input on this site's public, canonicalizable detail routes only. */
+function isCanonicalDistrictPath(path: string) {
+  const parsed = parseLocalizedPublicPath(path)
+  if (!parsed || parsed.suffix) return false
+  const parts = parsed.path.split('/')
+  if (parts.length !== 4 || parts[1] !== 'regions') return false
+  const provinceCode = codeFromRegionSegment(parts[2], 2)
+  const districtCode = codeFromRegionSegment(parts[3], 5)
+  return Boolean(provinceCode && districtCode && getDistrict(provinceCode, districtCode)
+    && parsed.path === localizedRegionPath(parsed.locale, provinceCode, districtCode))
+}
+
+/** Keep IndexNow input on this site's known public canonical routes only. */
 export function indexNowUrls(paths: Iterable<string>) {
   const urls = new Set<string>()
   for (const path of paths) {
-    if (!isIndexableDetailPath(path)) continue
+    if (!isIndexableDetailPath(path) && !isCanonicalDistrictPath(path)) continue
     const url = new URL(encodeURI(path), SITE_ORIGIN)
     if (url.origin !== SITE_ORIGIN || url.search || url.hash) continue
     urls.add(url.href)
@@ -127,12 +140,15 @@ async function mapConcurrent<T, R>(values: readonly T[], concurrency: number, ma
   return output
 }
 
-export async function notifyIndexNowForEvents(events: readonly ToiletCacheEvent[], fetchImpl: FetchLike = fetch) {
+export async function notifyIndexNowForEvents(events: readonly ToiletCacheEvent[], fetchImpl: FetchLike = fetch,
+  previousDetails: ReadonlyMap<number, ToiletDetailResponse> = new Map()) {
   const paths = (await mapConcurrent(events, DETAIL_CONCURRENCY, async event => {
-    if (event.action !== 'UPSERT') return [...localizedToiletPaths(event.toiletId)]
+    const previous = previousDetails.get(event.toiletId)
+    const formerPaths = previous ? canonicalIndexNowPaths(previous) : []
+    if (event.action !== 'UPSERT') return formerPaths
     try {
       const detail = await fetchCurrentDetail(event.toiletId, fetchImpl)
-      return detail ? canonicalIndexNowPaths(detail) : []
+      return [...formerPaths, ...(detail ? canonicalIndexNowPaths(detail) : [])]
     } catch (error) {
       // One unavailable detail must not suppress notifications for the rest of the signed batch.
       console.error('IndexNow detail lookup skipped', { toiletId: event.toiletId, error })
@@ -143,12 +159,13 @@ export async function notifyIndexNowForEvents(events: readonly ToiletCacheEvent[
 }
 
 /** Schedule a best-effort notification without changing cache-invalidation acknowledgement. */
-export async function scheduleIndexNowNotification(events: readonly ToiletCacheEvent[]) {
+export async function scheduleIndexNowNotification(events: readonly ToiletCacheEvent[],
+  previousDetails: ReadonlyMap<number, ToiletDetailResponse> = new Map()) {
   if (!indexNowEnabled()) return false
   try {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare')
     const { ctx } = await getCloudflareContext({ async: true })
-    ctx.waitUntil(notifyIndexNowForEvents(events).then(result => {
+    ctx.waitUntil(notifyIndexNowForEvents(events, fetch, previousDetails).then(result => {
       console.info('IndexNow URL update accepted', result)
     }).catch(error => {
       // Keep the failure actionable without logging the key or submitted URLs.
