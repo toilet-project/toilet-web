@@ -12,7 +12,7 @@ import { getDistrict, localizedRegionPath } from '../../../../lib/regions'
 import { districtCodesOverlappingBounds } from '../../../../server/regions'
 import type { ScopedToiletCacheEvent } from '../../../../server/cacheRevalidation'
 import { indexNowEnabled, scheduleIndexNowNotification } from '../../../../server/indexNow'
-import { scheduleIndexNowRegionNotification } from '../../../../server/indexNowRegion'
+import { canNotifyIndexNowDistricts, scheduleIndexNowRegionNotification } from '../../../../server/indexNowRegion'
 
 export const runtime = 'nodejs'
 const headers = { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow' }
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
       process.env.MAP_CLUSTER_CACHE_ENABLED === 'true'
         ? getMapCellBucket().then(bucket => bucket ? invalidateMapClusterCache(bucket) : Promise.resolve())
         : Promise.resolve(),
-      persistRegionMarkerInvalidation(districtCodes, indexNowEnabled() && districtCodes !== null),
+      persistRegionMarkerInvalidation(districtCodes, indexNowEnabled() && canNotifyIndexNowDistricts(districtCodes)),
     ])
     for (const id of ids) {
       revalidateTag(`toilet:${id}`, { expire: 0 })

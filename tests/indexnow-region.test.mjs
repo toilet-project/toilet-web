@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { changedDistrictIndexNowPaths, notifyIndexNowForRegionChanges } from '../src/server/indexNowRegion.ts'
+import { canNotifyIndexNowDistricts, changedDistrictIndexNowPaths,
+  notifyIndexNowForRegionChanges } from '../src/server/indexNowRegion.ts'
 import { regionDirectoryEntries } from '../src/lib/regionDirectory.ts'
 import { invalidateRegionMarkers, regionMarkerObjectKey } from '../src/lib/regionMarkerStore.ts'
 
@@ -8,6 +9,14 @@ const district = '11110'
 const first = { id: 177, name: '사직주유소', latitude: 37.575, longitude: 126.968,
   translations: { en: { name: 'Sajik Gas Station', roadAddress: '1 Sajik-ro' } } }
 const second = { id: 178, name: '공중화장실', latitude: 37.58, longitude: 126.97 }
+
+test('broad or unscoped mutations cannot start an unbounded background region scan', () => {
+  assert.equal(canNotifyIndexNowDistricts(null), false)
+  assert.equal(canNotifyIndexNowDistricts([]), false)
+  assert.equal(canNotifyIndexNowDistricts([district]), true)
+  assert.equal(canNotifyIndexNowDistricts(Array.from({ length: 4 }, (_, i) => String(11110 + i))), true)
+  assert.equal(canNotifyIndexNowDistricts(Array.from({ length: 5 }, (_, i) => String(11110 + i))), false)
+})
 
 test('unchanged rendered directory does not notify for ordering or non-directory marker changes', () => {
   assert.deepEqual(changedDistrictIndexNowPaths(district, [first, second], [

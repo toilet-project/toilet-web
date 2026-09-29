@@ -6,6 +6,13 @@ import { getDistrict, localizedRegionPath } from '../lib/regions.ts'
 import { indexNowEnabled, indexNowFailureInfo, submitIndexNow } from './indexNow.ts'
 
 export type RegionDirectorySnapshots = Map<string, ToiletMapItemResponse[]>
+// A signed cache delivery may cover 24 districts. waitUntil is too short for
+// that many origin reads plus IndexNow retries; broad deliveries stay cache-only.
+const MAX_INDEXNOW_DISTRICTS_PER_DELIVERY = 4
+
+export function canNotifyIndexNowDistricts(codes: readonly string[] | null) {
+  return codes !== null && codes.length > 0 && codes.length <= MAX_INDEXNOW_DISTRICTS_PER_DELIVERY
+}
 
 /** Compare only the server-rendered directory, not unrelated marker fields. */
 export function changedDistrictIndexNowPaths(districtCode: string,
@@ -46,12 +53,12 @@ export async function notifyIndexNowForRegionChanges(snapshots: RegionDirectoryS
 export async function scheduleIndexNowRegionNotification(snapshots: RegionDirectorySnapshots) {
   if (!indexNowEnabled() || snapshots.size === 0) return false
   try {
-    const [{ getCloudflareContext }, { getDistrictToilets }] = await Promise.all([
+    const [{ getCloudflareContext }, { getCurrentDistrictToiletsForIndexNow }] = await Promise.all([
       import('@opennextjs/cloudflare'), import('./regions.ts'),
     ])
     const { ctx } = await getCloudflareContext({ async: true })
     ctx.waitUntil(notifyIndexNowForRegionChanges(snapshots,
-      code => getDistrictToilets(code.slice(0, 2), code)).then(result => {
+      code => getCurrentDistrictToiletsForIndexNow(code.slice(0, 2), code)).then(result => {
       console.info('IndexNow district URL update accepted', result)
     }).catch(error => {
       console.error('IndexNow district URL update failed', indexNowFailureInfo(error))
