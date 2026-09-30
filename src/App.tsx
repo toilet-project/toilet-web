@@ -1,5 +1,6 @@
 'use client'
 import { homeCopy } from './i18n/homeCopy'
+import { MapLoadingState } from './components/MapStartup'
 import { PublicReviews, PublicReviewsLoading } from './components/reviews/PublicReviews'
 
 
@@ -363,7 +364,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     else { setIsMyReportsOpen(false); setMobileTab('account'); setMobileAccountView('reports') }
   }, [])
   useLayoutEffect(() => { groupRef.current = selectedCoordinateGroup }, [selectedCoordinateGroup])
-  useEffect(() => { onMounted() }, [onMounted])
+  // Replace the server shell before painting; two full-height screens must never coexist.
+  useLayoutEffect(() => { onMounted() }, [onMounted])
 
   const showLocationMessage = useCallback((message: string) => {
     window.clearTimeout(locationMessageTimerRef.current)
@@ -1619,6 +1621,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       <section className="map-section" aria-label={t('map.title')}>
         <div className="map-stage" inert={!isDesktop && mobileTab !== 'map'} style={!isDesktop && mobileTab !== 'map' ? { visibility: 'hidden' } : undefined}>
         <div ref={mapContainerRef} className="map" />
+        {!isMapReady && !isMapSwitching && !error && <MapLoadingState locale={locale} />}
         <div className={`map-provider-transition${isMapSwitching ? ' is-visible' : ''}`} role={isMapSwitching ? 'status' : undefined} aria-hidden={!isMapSwitching}>
           <span className="map-provider-transition-spinner" aria-hidden="true" />
           <span>{t('map.switching')}</span>

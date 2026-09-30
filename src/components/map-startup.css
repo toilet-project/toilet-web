@@ -1,0 +1,19 @@
+/* The first HTML reserves the final map geometry, without a splash or shimmer. */
+.map-startup { height: 100svh; min-height: 0; overflow: hidden; }
+.map-startup .map-section { min-height: 0; background: #f6f8f5; }
+.map-startup .place-search-input:disabled { opacity: 1; -webkit-text-fill-color: #65736a; }
+.map-startup-account { display: flex; align-items: center; justify-content: flex-end; flex: 0 0 190px; gap: 12px; margin-left: auto; }
+.map-startup-account span, .map-startup-account i { display: block; height: 34px; border-radius: 12px; background: #f2f5f3; }
+.map-startup-account span { width: 96px; }
+.map-startup-account i { width: 40px; }
+.map-startup-status { position: absolute; z-index: 5; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; color: #536b5d; background: #f6f8f5; font-size: 14px; pointer-events: none; }
+.map-startup-spinner { width: 20px; height: 20px; flex: 0 0 auto; border: 2px solid #dce8df; border-top-color: #26734e; border-radius: 50%; animation: map-startup-spin 1s linear infinite; }
+@keyframes map-startup-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .map-startup-spinner { animation: none; } }
+@media (min-width: 641px) and (max-width: 1100px) { .map-startup-account { flex-basis: 120px; } .map-startup-account span { width: 68px; } }
+@media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (pointer: coarse) {
+  .map-startup-account { flex: 0 0 44px; }
+  .map-startup-account span { display: none; }
+  .map-startup-account i { width: 36px; }
+  .map-startup-navigation button:disabled { opacity: 1; }
+}

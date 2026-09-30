@@ -97,6 +97,13 @@ try {
     await delay(100)
   }
   const first = await fetch(`${origin}/toilet/900001`)
+  const home = await fetch(origin)
+  assert.equal(home.status, 200)
+  const homeHtml = await home.text()
+  assert.match(homeHtml, /class="app-shell has-mobile-navigation map-startup"/, 'first HTML contains the map frame before JavaScript')
+  assert.match(homeHtml, /class="map-startup-status" role="status"/, 'SDK loading has a visible, accessible status')
+  assert.match(homeHtml, /<h1[^>]*>내 주변 공중·개방 화장실 찾기<\/h1>/, 'home heading remains in server HTML')
+  assert.doesNotMatch(homeHtml, /home-initial-content/, 'the separate introductory screen must not flash before the map')
   const reviewPreview = await fetch(`${origin}/review-preview`)
   assert.equal(reviewPreview.status, indexable ? 404 : 200, 'review design preview must not be published on production')
   const reviewPreviewHtml = await reviewPreview.text()
