@@ -1,6 +1,6 @@
 'use client'
 
-import { HomeIntro } from './HomeIntro'
+import { MapStartup } from './MapStartup'
 import { useLayoutEffect } from 'react'
 import Link from 'next/link'
 import type { ToiletDetailResponse } from '../api/toilets'
@@ -29,7 +29,7 @@ export function ToiletRouteBridge({ detail, locale = 'ko', path: overridePath, f
 
   // Visible initial card, then the same data/component in the existing interactive map card.
   if (mounted) return null
-  if (!detail || !displayDetail) return <main className="home-initial-content"><HomeIntro locale={locale} /></main>
+  if (!detail || !displayDetail) return <MapStartup locale={locale} />
   return <div className="route-card-stage"><aside className="place-card initial-route-card route-preview-card" aria-label={t('detail.title')}>
     <Link href={localizedPublicPath('/', locale)!} className="close-button" aria-label={t('common.close')}>×</Link>
     <button type="button" className="mobile-card-handle" disabled aria-expanded={false}>{t('detail.show')}</button>
