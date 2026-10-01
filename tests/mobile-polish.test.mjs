@@ -129,7 +129,11 @@ test('future toilet metrics are placeholders in a 44px row, with a labeled repor
 test('group report action sits beside hours, apart from collapse; metrics and single-card behavior remain', async () => {
   const app = await source('../src/App.tsx')
   const inline = app.slice(app.indexOf('function CoordinateGroupInlineDetails'), app.indexOf('function CompactFacilityStatus'))
-  assert.match(inline, /className="coordinate-opening-row"><p className="open-time">\{formatOpenTime\(display, locale\)\}<\/p>\{onReport && <ToiletReportEntry iconOnly onClick=\{onReport\} \/>\}<\/div>\s*<ToiletCommunityRow onReview=\{onReview\}/)
+  const openingActions = inline.slice(inline.indexOf('<div className="coordinate-opening-row"><p'), inline.indexOf('<ToiletCommunityRow onReview='))
+  assert.ok(openingActions.includes('formatOpenTime(display, locale)'))
+  const reportIndex = openingActions.indexOf('<ToiletReportEntry iconOnly onClick={onReport}')
+  assert.ok(reportIndex > openingActions.indexOf('formatOpenTime(display, locale)'))
+  assert.ok(openingActions.indexOf('<ToiletEngagement toiletId={display.id}') > reportIndex)
   assert.match(inline, /<ToiletReportEntry iconOnly disabled \/>/)
   assert.doesNotMatch(app, /review-group-title-row/)
   assert.equal((inline.match(/<ToiletCommunityRow/g) || []).length, 2)
