@@ -8,5 +8,9 @@
 .engagement-error{flex-basis:100%;font-size:11px;color:#986142}.engagement-error button{border:0;background:none;text-decoration:underline;color:inherit;font:inherit;cursor:pointer}
 .crowding-basis{display:block;font-size:10px!important;line-height:1.4;color:#71867b;font-weight:450;margin-top:3px;white-space:normal}
 .crowding-metric strong{white-space:nowrap}.crowding-metric.is-clear strong{color:#1f805c}.crowding-metric.is-wait strong{color:#966528}
+@media (max-width:640px), (max-width:1024px) and (max-height:500px) and (pointer:coarse){
+  /* Reserve the added engagement row and review basis without clipping the congestion value. */
+  .has-mobile-navigation .place-card:not(.mobile-card-expanded):has(.toilet-engagement){max-height:min(340px,calc(100% - 80px))}
+}
 .engagement-preview-tools{position:fixed;right:12px;top:76px;z-index:6000;max-width:280px;padding:9px 12px;border:1px solid #dfcd95;border-radius:10px;background:#fff9e9;color:#765a21;font-size:12px;box-shadow:0 2px 8px #0001}
 .engagement-preview-tools summary{cursor:pointer;font-weight:700}.engagement-preview-tools p{line-height:1.6}.engagement-preview-tools div,.engagement-preview-tools nav{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}.engagement-preview-tools button,.engagement-preview-tools a{border:1px solid #ded7be;background:white;padding:6px 8px;border-radius:6px;font:inherit;color:inherit;cursor:pointer}
