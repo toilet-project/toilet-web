@@ -6,7 +6,7 @@
 .toilet-community-metric { position: relative; display: flex; flex: 1 1 auto; height: 44px; min-width: 0; padding-right: 10px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 5px; text-align: left; }
 .toilet-community-metric + .toilet-community-metric { padding-left: 10px; }
 .toilet-community-metric + .toilet-community-metric::before { content: ''; position: absolute; left: 0; top: 12px; width: 1px; height: 20px; background: #e6ece8; }
-.toilet-community-metric > span { display: flex; align-items: center; gap: 4px; color: #69796f; font-size: 11px; line-height: 13px; white-space: nowrap; }
+.toilet-community-metric > span { display: flex; align-items: center; gap: 4px; min-height: 15px; color: #69796f; font-size: 11px; line-height: 13px; white-space: nowrap; }
 .toilet-community-metric > span svg { width: 13px; height: 13px; flex-shrink: 0; }
 .toilet-community-row .toilet-community-metric strong { display: flex; align-items: center; gap: 4px; color: #24382e; font-size: 14px; font-weight: 700; line-height: 16px; white-space: nowrap; }
 .toilet-community-metric small { color: #69796f; font-size: 11px; font-weight: 400; }

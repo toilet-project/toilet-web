@@ -2,6 +2,8 @@
 import { homeCopy } from './i18n/homeCopy'
 import { MapLoadingState } from './components/MapStartup'
 import { PublicReviews, PublicReviewsLoading } from './components/reviews/PublicReviews'
+import { ToiletEngagement, type EngagementProps } from './components/ToiletEngagement'
+import { EngagementPreviewTools } from './components/EngagementPreviewTools'
 
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
@@ -52,6 +54,7 @@ import { getDisplayAddress } from './lib/address'
 import { ToiletDetailContents, DetailRow } from './components/ToiletDetailContents'
 import { OriginalSourceBadge } from './components/OriginalSourceBadge'
 import { ToiletCommunityRow, ToiletReportEntry } from './components/ToiletCommunityRow'
+import { ToiletCardHeader } from './components/ToiletCardHeader'
 import { REVIEW_DESIGN_PREVIEW, type PreviewReviewSummary, type ReviewEntryState } from './components/reviews/useIntegratedReviewPreview'
 import { REVIEW_API_ENABLED, REVIEW_UI_ENABLED, useReviews } from './components/reviews/useReviews'
 import { readReviewTestToilet } from './lib/reviewTestToilet'
@@ -405,6 +408,15 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     },
   }, { embedded: !isDesktop, toiletId: expandedCoordinateToilet?.id ?? selectedToilet?.id, contextKey: `${selectedToilet?.id}:${expandedCoordinateToilet?.id}:${mobileTab}:${testToiletHash}`, onOpen: () => { if (!isDesktop) { setMobileTab('account'); setMobileAccountView('reviews') } }, onClose: () => setMobileAccountView('home') })
   const openedIncomingReview = useRef(false)
+  const engagementProps: EngagementProps = {
+    owner: authProfile?.status === 'ACTIVE' && !authProfile.consentRequired ? authProfile.userId : null,
+    active: isDesktop || mobileTab === 'map',
+    requireLogin: () => {
+      if (isAuthLoading) { showLocationMessage('로그인 상태를 확인하고 있어요. 잠시 후 다시 눌러 주세요.'); return }
+      if (authProfile?.consentRequired) { showLocationMessage('필수 약관 동의를 먼저 완료해 주세요.'); return }
+      setLoginPurpose('general'); setIsLoginDialogOpen(true)
+    },
+  }
   useEffect(() => {
     if (isAuthLoading || !authProfile || openedIncomingReview.current || window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) return
     const query = new URLSearchParams(window.location.search)
@@ -1550,6 +1562,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
 
   return (
     <main data-review-design-preview={REVIEW_DESIGN_PREVIEW || undefined} data-review-api={REVIEW_API_ENABLED || undefined} className={`app-shell${!isDesktop ? ' has-mobile-navigation' : ''}${!isDesktop && mobileTab !== 'map' ? ' is-mobile-page' : ''}`}>
+      <EngagementPreviewTools />
       <AppUpdateNotice blocked={Boolean(reviewPreview.active || reportTarget || isLoginDialogOpen || isAccountOpen || isMyReportsOpen || isNotificationsOpen || mobileTab !== 'map' || placeSearchKeyword || selectedCoordinateGroup || isMobileAreaListVisible || authProfile?.consentRequired)}
         beforeReload={() => {
           const map = mapRef.current
@@ -1689,9 +1702,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         {locationMessage && <p className="location-message" role="status">{mapSystemNotice(locationMessage, locale)}</p>}
         {displayToiletDetail && !toiletCoordinates(displayToiletDetail) && !displaySelectedToilet && !displaySelectedCoordinateGroup && (
           <aside className="place-card initial-route-card" aria-label={t('detail.title')}>
-            <button type="button" className="close-button" onClick={closeDetailCard} aria-label={t('common.close')}>×</button>
-            <OriginalSourceBadge toilet={displayToiletDetail} locale={locale} />
-            <h1>{displayToiletDetail.name}</h1>
+            <ToiletCardHeader onClose={closeDetailCard} closeLabel={t('common.close')}><span className="card-label">{toiletTypeLabel(displayToiletDetail.toiletType, locale)}</span><OriginalSourceBadge toilet={displayToiletDetail} locale={locale} /></ToiletCardHeader>
+            <div className="review-card-title-row"><h1>{displayToiletDetail.name}</h1><div className="toilet-card-actions"><ToiletEngagement toiletId={displayToiletDetail.id} {...engagementProps} /></div></div>
             <p>{t('map.noCoordinates')}</p>
             <p className="open-time">{formatOpenTime(displayToiletDetail, locale)}</p>
             {REVIEW_UI_ENABLED && <ToiletCommunityRow onReview={() => reviewPreview.open(displayToiletDetail)} reviewEntry={reviewPreview.entryState(displayToiletDetail.id)} previewSummary={reviewPreview.summary(displayToiletDetail.id)} />}
@@ -1706,7 +1718,6 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
             aria-live="polite"
             style={placeCardPosition ? { left: placeCardPosition.left, top: placeCardPosition.top } : undefined}
           >
-            <button type="button" className="close-button" onClick={closeDetailCard} aria-label={t('common.close')}>×</button>
             <button type="button" className="mobile-card-handle"
               onTouchStart={event => cardHandleGesture.start(event.touches)}
               onTouchMove={event => cardHandleGesture.move(event.touches)}
@@ -1719,9 +1730,17 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
               }} aria-expanded={isMobileCardExpanded}>
               {t(isMobileCardExpanded ? 'map.collapse' : 'detail.show')}
             </button>
+            <ToiletCardHeader onClose={closeDetailCard} closeLabel={t('common.close')}
+              report={REVIEW_UI_ENABLED && <ToiletReportEntry disabled={!displayToiletDetail || displaySelectedToilet.id === testToilet?.id} onClick={() => { if (displayToiletDetail) openReport({ toilet: displayToiletDetail, latitude: displaySelectedToilet.latitude, longitude: displaySelectedToilet.longitude }) }} />}>
+              <span className="card-label">{toiletTypeLabel(displayToiletDetail?.toiletType || displaySelectedToilet.toiletType, locale)}</span><OriginalSourceBadge toilet={displayToiletDetail} locale={locale} />
+            </ToiletCardHeader>
             <div className="place-card-summary">
-              <div className="card-label-row"><span className="card-label">{toiletTypeLabel(displayToiletDetail?.toiletType || displaySelectedToilet.toiletType, locale)}</span><OriginalSourceBadge toilet={displayToiletDetail} locale={locale} /></div>
-              {REVIEW_UI_ENABLED ? <div className="review-card-title-row"><h1>{displayToiletDetail?.name || displaySelectedToilet.name}</h1><ToiletReportEntry disabled={!displayToiletDetail || displaySelectedToilet.id === testToilet?.id} onClick={() => { if (displayToiletDetail) openReport({ toilet: displayToiletDetail, latitude: displaySelectedToilet.latitude, longitude: displaySelectedToilet.longitude }) }} /></div> : <h1>{displayToiletDetail?.name || displaySelectedToilet.name}</h1>}
+              <div className="review-card-title-row">
+                <h1>{displayToiletDetail?.name || displaySelectedToilet.name}</h1>
+                <div className="toilet-card-actions">
+                  {displayToiletDetail && <ToiletEngagement toiletId={displayToiletDetail.id} {...engagementProps} />}
+                </div>
+              </div>
             </div>
             <div ref={cardScrollRef} className="card-scroll-content">
               {displayToiletDetail ? <p className="open-time">{displayToiletDetail.id === testToilet?.id ? t('map.reviewTestNotice') : formatOpenTime(displayToiletDetail, locale)}</p> : isDetailLoading && <LoadingOpenTime />}
@@ -1740,16 +1759,16 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         )}
         {displaySelectedCoordinateGroup && (
           <aside className="coordinate-group-card" aria-live="polite" aria-label={t('map.groupList')}>
-            <button type="button" className="close-button" onClick={closeDetailCard} aria-label={t('map.closeList')}>×</button>
             <header className="coordinate-group-header">
-              <div className="coordinate-group-meta-row">
+              <ToiletCardHeader onClose={closeDetailCard} closeLabel={t('map.closeList')}
+                report={expandedCoordinateToilet && (!isDesktop || REVIEW_UI_ENABLED) && <ToiletReportEntry disabled={toiletDetail?.id !== expandedCoordinateToilet.id} onClick={() => { if (toiletDetail?.id === expandedCoordinateToilet.id) openReport({ toilet: toiletDetail, latitude: expandedCoordinateToilet.latitude, longitude: expandedCoordinateToilet.longitude }) }} />}>
                 <div className="coordinate-group-labels">
                   <span className="card-label">{[...new Set(displaySelectedCoordinateGroup.toilets.map(item => toiletTypeLabel(item.toiletType, locale)))].join(' · ')}</span>
                   {displaySelectedCoordinateGroup.displayGroupName && <span className="coordinate-group-admin-badge" title={t('map.adminHint')}>{t('map.admin')}<svg viewBox="0 0 12 12" aria-hidden="true"><path d="m2.5 6.2 2.2 2.2 4.8-4.8" /></svg></span>}
                   {locale !== 'ko' && (/[가-힣]/.test(displaySelectedCoordinateGroup.displayGroupName ?? '') || displaySelectedCoordinateGroup.toilets.some(item => /[가-힣]/.test(item.name))) && <small className="source-language-badge">{t('detail.originalKorean')}</small>}
                 </div>
-                {distanceToCoordinateGroup && <p className="coordinate-group-distance">{distanceReferenceLabel} <strong>{distanceToCoordinateGroup}</strong></p>}
-              </div>
+              </ToiletCardHeader>
+              {distanceToCoordinateGroup && <div className="coordinate-group-meta-row"><p className="coordinate-group-distance">{distanceReferenceLabel} <strong>{distanceToCoordinateGroup}</strong></p></div>}
               {displaySelectedCoordinateGroup.displayGroupName && <h2 className="coordinate-group-display-name">{displaySelectedCoordinateGroup.displayGroupName}</h2>}
               <p className="coordinate-group-description">{t('map.expandHint')}</p>
             </header>
@@ -1762,17 +1781,18 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
                     <span className="coordinate-group-name">{toilet.name || t('map.unnamed')}</span>
                     <span className="coordinate-group-toggle-label">{t(isExpanded ? 'map.collapse' : 'map.expand')}</span>
                   </button>
-                  {isExpanded && <CoordinateGroupInlineDetails
+                  {isExpanded && <>
+                    <CoordinateGroupInlineDetails
                     toilet={toiletDetail}
+                    engagement={toiletDetail?.id === toilet.id ? engagementProps : undefined}
                     isLoading={isDetailLoading}
                     error={detailError}
                     onRetry={retryDetail}
-                    onReport={isDesktop && !REVIEW_UI_ENABLED ? undefined : () => { if (toiletDetail?.id === toilet.id) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }}
                     pendingReview={REVIEW_UI_ENABLED && !toiletDetail}
                     onReview={REVIEW_UI_ENABLED && toiletDetail?.id === toilet.id ? () => reviewPreview.open(toiletDetail) : undefined}
                     reviewEntry={reviewPreview.entryState(toilet.id)}
                     previewSummary={REVIEW_UI_ENABLED ? reviewPreview.summary(toilet.id) : undefined}
-                  />}
+                  /></>}
                 </div>
               })}
             </div>
@@ -1824,10 +1844,10 @@ function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () 
   </div>
 }
 
-function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRetry, onReview, pendingReview, previewSummary, reviewEntry }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onReport?: () => void; onRetry: () => void; onReview?: () => void; pendingReview?: boolean; previewSummary?: PreviewReviewSummary; reviewEntry?: ReviewEntryState }) {
+function CoordinateGroupInlineDetails({ toilet, isLoading, error, onRetry, onReview, pendingReview, previewSummary, reviewEntry, engagement }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onRetry: () => void; onReview?: () => void; pendingReview?: boolean; previewSummary?: PreviewReviewSummary; reviewEntry?: ReviewEntryState; engagement?: EngagementProps }) {
   const t = useMessages()
   const locale = useLocale()
-  if (isLoading && !toilet) return <div className="coordinate-inline-details"><div className="coordinate-opening-row"><LoadingOpenTime />{onReport && <ToiletReportEntry iconOnly disabled />}</div><ToiletCommunityRow pendingReview={pendingReview} /><PublicReviewsLoading /><DetailLoadingFields inline /></div>
+  if (isLoading && !toilet) return <div className="coordinate-inline-details"><div className="coordinate-opening-row"><LoadingOpenTime /></div><ToiletCommunityRow pendingReview={pendingReview} /><PublicReviewsLoading /><DetailLoadingFields inline /></div>
   if (error) return <div className="coordinate-inline-details"><p className="detail-error" role="alert">{t('detail.error')}</p><button type="button" className="detail-retry" onClick={onRetry}>{t('common.retry')}</button></div>
   if (!toilet) return null
 
@@ -1836,7 +1856,7 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
 
   return <div className="coordinate-inline-details">
     <OriginalSourceBadge toilet={display} locale={locale} />
-    <div className="coordinate-opening-row"><p className="open-time">{formatOpenTime(display, locale)}</p>{onReport && <ToiletReportEntry iconOnly onClick={onReport} />}</div>
+    <div className="coordinate-opening-row"><p className="open-time">{formatOpenTime(display, locale)}</p><div className="toilet-card-actions">{engagement && <ToiletEngagement toiletId={display.id} {...engagement} />}</div></div>
     <ToiletCommunityRow onReview={onReview} reviewEntry={reviewEntry} previewSummary={previewSummary} />
     <PublicReviews toiletId={display.id} toiletName={display.name} toiletType={display.toiletType} summary={previewSummary} />
     {address && <DetailRow className="coordinate-inline-address" label={t('detail.address')} value={address} copyable />}

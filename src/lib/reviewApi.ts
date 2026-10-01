@@ -1,11 +1,12 @@
 import type { Review, ReviewInput } from './review'
 import type { HistoryRange } from './history'
+import { decodeCrowding, type ReviewCrowding } from './reviewCrowding.ts'
 
 export type StoredReview = Review & { version: number; canManage: boolean; editableUntil: string; authorDisplayName: string; authorPhotoVersion: string | null }
 export type ReviewPosition = { latitude: number; longitude: number; accuracyMeters: number; measuredAt: string }
 export type ReviewCreationStatus = { canCreate: boolean; existingReviewId: string | null; nextAllowedAt: string | null }
 export type ReviewPage = { items: StoredReview[]; nextCursor: string | null; hasMore: boolean }
-export type ReviewSummary = { count: number; rating: number | null; averageRating: number | null; paperPercent: number | null; paperSampleCount: number; latestWaitMinutes: number | null; latestWaitAt: string | null }
+export type ReviewSummary = { count: number; rating: number | null; averageRating: number | null; paperPercent: number | null; paperSampleCount: number; latestWaitMinutes: number | null; latestWaitAt: string | null; crowding?: ReviewCrowding }
 export class ReviewApiError extends Error {
   readonly code: string
   readonly existingReviewId: string | null
@@ -119,8 +120,9 @@ export function createReviewApi({ url, read, request = (...args) => fetch(...arg
         || !(r.paperPercent === null || finite(r.paperPercent, 0, 100)) || !integer(r.paperSampleCount, 0)
         || !(r.latestWaitMinutes === null || integer(r.latestWaitMinutes, 0, 60) && r.latestWaitMinutes % 10 === 0)
         || !(r.latestWaitAt === null || stamp(r.latestWaitAt))) throw malformed()
+      const crowding = decodeCrowding(r.crowding)
       return { count: r.count, rating: r.rating, averageRating: r.averageRating, paperPercent: r.paperPercent,
-        paperSampleCount: r.paperSampleCount, latestWaitMinutes: r.latestWaitMinutes, latestWaitAt: r.latestWaitAt }
+        paperSampleCount: r.paperSampleCount, latestWaitMinutes: r.latestWaitMinutes, latestWaitAt: r.latestWaitAt, ...(crowding ? { crowding } : {}) }
     },
   }
 }
