@@ -14,5 +14,10 @@ export function decodeCrowding(value: unknown): ReviewCrowding | undefined {
   return { status: r.status, waitLowerBound: r.waitLowerBound, sampleCount: r.sampleCount, zeroWaitCount: r.zeroWaitCount, averageWaitMinutes: r.averageWaitMinutes, windowDays: r.windowDays, latestReviewAt: r.latestReviewAt }
 }
 export function crowdingLabel(value: ReviewCrowding, locale: Locale) {
-  return engagementMessage(locale, value.status === 'CLEAR' ? 'clear' : value.status === 'UNDER_FIVE' ? 'underFive' : value.status === 'WAIT' ? 'wait' : 'unknown', { n: value.waitLowerBound ?? 0 })
+  return engagementMessage(locale, value.status === 'CLEAR' || value.status === 'UNDER_FIVE' ? 'clear' : value.status === 'WAIT' ? 'wait' : 'unknown', { n: value.waitLowerBound ?? 0 })
+}
+export function crowdingTone(value: ReviewCrowding) {
+  if (value.status === 'UNKNOWN') return 'unknown'
+  if (value.status === 'CLEAR' || value.status === 'UNDER_FIVE') return 'clear'
+  return (value.waitLowerBound ?? 0) >= 15 ? 'high-wait' : (value.waitLowerBound ?? 0) >= 10 ? 'medium-wait' : 'low-wait'
 }

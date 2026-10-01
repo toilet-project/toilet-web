@@ -69,10 +69,10 @@ const items = [
         await page.locator('.mobile-map-zoom-guide').waitFor({ state: 'hidden' })
       }
       await openGroup()
-      const expanded = page.locator('.coordinate-group-item.is-expanded'), action = page.locator('.coordinate-group-card > .review-card-report')
+      const expanded = page.locator('.coordinate-group-item.is-expanded'), action = page.locator('.coordinate-group-card .toilet-card-header .review-card-report')
       await action.waitFor()
       assert.equal(await action.isDisabled(), true, 'loading details cannot start a report')
-      try { await page.waitForFunction(() => document.querySelector('.coordinate-group-card > .review-card-report')?.disabled === false, null, { timeout: 5000 }) }
+      try { await page.waitForFunction(() => document.querySelector('.coordinate-group-card .toilet-card-header .review-card-report')?.disabled === false, null, { timeout: 5000 }) }
       catch (error) { await page.screenshot({ path: path.join(output, `group-report-loading-failure-${width}.png`) }); throw error }
       assert.equal(await page.locator('.coordinate-group-card').getByRole('button', { name: '정보 제공하기', exact: true }).count(), 1, 'one header report targets the expanded item')
       assert.equal(await expanded.locator('.coordinate-group-item-toggle .review-card-report').count(), 0)
@@ -87,8 +87,8 @@ const items = [
         assert.deepEqual(await chromeStyle(), { border: '0px', background: 'rgba(0, 0, 0, 0)' }, 'hover does not restore a box')
         await page.mouse.move(0, 0)
       }
-      const button = await action.boundingBox(), close = await page.locator('.coordinate-group-card > .close-button').boundingBox()
-      assert.equal(button.width, 44); assert.equal(button.height, 44)
+      const button = await action.boundingBox(), close = await page.locator('.coordinate-group-card .toilet-card-header .close-button').boundingBox()
+      assert.equal(button.width, 32); assert.equal(button.height, 32); assert.equal(await action.evaluate(el => getComputedStyle(el, '::before').top), '-6px')
       assert.ok(close.x - button.x - button.width >= 11 && Math.abs(button.y - close.y) < 1, 'siren aligns left of close with clear spacing')
       assert.equal(await expanded.evaluate(el => el.scrollWidth > el.clientWidth), false)
       await page.screenshot({ path: path.join(output, `group-report-entry-${width}.png`) })
@@ -106,7 +106,7 @@ const items = [
       await page.getByRole('button', { name: '목록 닫기', exact: true }).click()
       if (width < 600) await page.locator('.mobile-area-list-button').click()
       await page.locator(width < 600 ? '.mobile-area-list-item' : '.desktop-area-list-item').filter({ hasText: '단일 카드 시험' }).click()
-      const single = page.locator('.place-card > .review-card-report')
+      const single = page.locator('.place-card .toilet-card-header .review-card-report')
       await single.waitFor()
       await page.waitForFunction(() => document.querySelector('.place-card .review-card-report')?.disabled === false)
       assert.equal(await single.innerText(), '', 'single-card report is icon-only')
@@ -114,7 +114,7 @@ const items = [
       assert.equal(await single.evaluate(el => getComputedStyle(el).borderTopWidth), '0px')
       assert.equal(await single.evaluate(el => getComputedStyle(el).backgroundColor), 'rgba(0, 0, 0, 0)')
       if (width > 600) {
-        const close = page.locator('.place-card > .close-button')
+        const close = page.locator('.place-card .toilet-card-header .close-button')
         const aligned = async () => {
           const a = await single.boundingBox(), b = await close.boundingBox()
           assert.ok(b.x - a.x - a.width >= 11 && Math.abs(a.y - b.y) < 1, 'report and close remain aligned above the scroll body')
@@ -130,9 +130,9 @@ const items = [
       page.on('pageerror', error => errors.push(error.message))
       await page.goto(origin + '/', { waitUntil: 'networkidle' })
       await openGroup()
-      try { await page.waitForFunction(() => document.querySelector('.coordinate-group-card > .review-card-report')?.disabled === false) }
+      try { await page.waitForFunction(() => document.querySelector('.coordinate-group-card .toilet-card-header .review-card-report')?.disabled === false) }
       catch (error) { await page.screenshot({ path: path.join(output, `group-report-guest-failure-${width}.png`) }); throw error }
-      await page.locator('.coordinate-group-card > .review-card-report').click()
+      await page.locator('.coordinate-group-card .toilet-card-header .review-card-report').click()
       await page.getByRole('dialog', { name: '로그인 · 간편가입', exact: true }).waitFor()
       assert.equal(await page.locator('.report-modal').count(), 0, 'signed-out report still requires login')
       assert.equal(writes, 0); assert.deepEqual(errors, [])

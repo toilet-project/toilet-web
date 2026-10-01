@@ -6,7 +6,7 @@ const copy = {
   unavailable: ['내 좋아요 상태를 불러오지 못했어요', 'Could not load your like status', '自分のいいねを取得できません', '无法加载您的点赞状态', '無法載入您的按讚狀態'],
   failed: ['저장 여부를 확인하지 못했어요. 다시 확인해 주세요.', 'Could not confirm the change. Please check again.', '変更を確認できません。再確認してください。', '无法确认是否已保存，请重试。', '無法確認是否已儲存，請重試。'],
   retry: ['다시 확인', 'Retry', '再確認', '重试', '重試'],
-  clear: ['원활', 'No wait', '待ちなし', '顺畅', '順暢'],
+  clear: ['원활', 'Low wait', '空いている', '顺畅', '順暢'],
   unknown: ['정보 없음', 'No data', '情報なし', '暂无数据', '暫無資料'],
   underFive: ['5분 미만', 'Under 5 min', '5分未満', '少于5分钟', '少於5分鐘'],
   wait: ['{n}분 이상', '{n}+ min', '{n}分以上', '{n}分钟以上', '{n}分鐘以上'],

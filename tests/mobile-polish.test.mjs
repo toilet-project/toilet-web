@@ -28,7 +28,7 @@ test('coordinate group keeps its title visible while only the detail list scroll
   assert.doesNotMatch(app, /item\.offsetTop - list\.offsetTop/)
   assert.match(app, /coordinate-group-admin-badge[^>]*>\{t\('map.admin'\)\}<svg[^>]*aria-hidden="true"/)
   assert.match(css, /\.coordinate-group-admin-badge\s*\{[^}]*font-size: 10px/)
-  assert.match(app, /className="coordinate-group-meta-row"[\s\S]*className="coordinate-group-labels"[\s\S]*className="coordinate-group-distance"[\s\S]*coordinate-group-display-name/)
+  assert.match(app, /className="coordinate-group-labels"[\s\S]*className="coordinate-group-meta-row"[\s\S]*className="coordinate-group-distance"[\s\S]*coordinate-group-display-name/)
   assert.match(css, /\.coordinate-group-meta-row\s*\{[^}]*display: flex[^}]*justify-content: space-between[^}]*padding-right: 28px/)
   assert.doesNotMatch(css, /\.coordinate-group-distance\s*\{[^}]*position: absolute/)
 })

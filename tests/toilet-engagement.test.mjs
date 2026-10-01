@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { createViewRecorder, createEngagementApi, decodeCounts, decodeLike, observeDetailView } from '../src/lib/toiletEngagement.ts'
-import { decodeCrowding, crowdingLabel } from '../src/lib/reviewCrowding.ts'
+import { decodeCrowding, crowdingLabel, crowdingTone } from '../src/lib/reviewCrowding.ts'
 
 const memory = () => { const map = new Map(); return { getItem: k => map.get(k) ?? null, setItem: (k, v) => map.set(k, v) } }
 test('view receipts deduplicate refresh, language changes, concurrent mounts, and retry the same event after a lost response', async () => {
@@ -58,5 +58,15 @@ test('crowding labels use the average bucket and explain sample period in every 
   assert.equal(crowdingLabel(decodeCrowding(sample), 'ko'), '15분 이상')
   for (const locale of ['ko','en','ja','zh-CN','zh-TW','zh-HK']) assert.ok(crowdingLabel(sample, locale).includes('15'))
   assert.equal(crowdingLabel({ ...sample, status: 'CLEAR', waitLowerBound: 0 }, 'ko'), '원활')
+  for (const [locale, label] of Object.entries({ ko: '원활', en: 'Low wait', ja: '空いている', 'zh-CN': '顺畅', 'zh-TW': '順暢', 'zh-HK': '順暢' })) {
+    assert.equal(crowdingLabel({ ...sample, status: 'CLEAR', waitLowerBound: 0, averageWaitMinutes: 3.7 }, locale), label)
+    assert.equal(crowdingLabel({ ...sample, status: 'UNDER_FIVE', waitLowerBound: 0 }, locale), label)
+    for (const n of [5,10,15,60]) assert.ok(crowdingLabel({ ...sample, waitLowerBound: n }, locale).includes(String(n)))
+  }
+  assert.equal(crowdingTone({ ...sample, status: 'CLEAR', waitLowerBound: 0 }), 'clear')
+  assert.equal(crowdingTone({ ...sample, waitLowerBound: 5 }), 'low-wait')
+  assert.equal(crowdingTone({ ...sample, waitLowerBound: 10 }), 'medium-wait')
+  assert.equal(crowdingTone(sample), 'high-wait')
+  assert.equal(crowdingTone({ ...sample, status: 'UNKNOWN' }), 'unknown')
   assert.throws(() => decodeCrowding({ ...sample, sampleCount: 0 })); assert.throws(() => decodeCrowding({ ...sample, waitLowerBound: 12 }))
 })

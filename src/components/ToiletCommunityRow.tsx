@@ -1,6 +1,6 @@
 'use client'
 import { useMessages, useLocale } from '../i18n/context'
-import { crowdingLabel as reviewCrowdingLabel } from '../lib/reviewCrowding'
+import { crowdingLabel as reviewCrowdingLabel, crowdingTone } from '../lib/reviewCrowding'
 import { engagementMessage } from '../i18n/engagementMessages'
 import { useId, useRef } from 'react'
 import { ReviewIcon } from './reviews/ReviewDialog'
@@ -20,7 +20,7 @@ export function ToiletCommunityRow({ onReport, pendingReport = false, onReview, 
     <div className="toilet-community-metric" aria-label={previewSummary ? `${t('metric.rating')}: ${previewSummary.rating}` : t('metric.pending')} title={previewSummary ? real ? t('metric.reviews', { count: previewSummary.count }) : t('metric.preview') : t('metric.pending')}>
       <span><ReviewIcon name="star" className="metric-star" size={16} />{t('metric.rating')}</span><strong>{previewSummary?.rating ?? '—'} <small>/ {hasReview ? '5' : '5.0'}</small></strong>
     </div>
-    <div className={`toilet-community-metric crowding-metric${recentCrowding?.status === 'CLEAR' ? ' is-clear' : recentCrowding?.status === 'WAIT' ? ' is-wait' : ''}`} aria-label={previewSummary ? `${t('metric.crowding')}: ${crowdingLabel}` : t('metric.pending')} title={recentCrowding ? `${engagementMessage(locale, 'basis', { days: recentCrowding.windowDays, n: recentCrowding.sampleCount })}. ${engagementMessage(locale, 'tendency')}` : t(real ? 'metric.waitHint' : 'metric.pending')}>
+    <div className={`toilet-community-metric crowding-metric${recentCrowding ? ` is-${crowdingTone(recentCrowding)}` : ''}`} aria-label={previewSummary ? `${t('metric.crowding')}: ${crowdingLabel}` : t('metric.pending')} title={recentCrowding ? `${engagementMessage(locale, 'basis', { days: recentCrowding.windowDays, n: recentCrowding.sampleCount })}. ${engagementMessage(locale, 'tendency')}` : t(real ? 'metric.waitHint' : 'metric.pending')}>
       <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /><circle cx="9" cy="7" r="4" /></svg>{t('metric.crowding')}</span><strong className={previewSummary ? undefined : 'metric-pending'}>{previewSummary ? crowdingLabel : t('metric.pending')}</strong>
     </div>
     <div className="toilet-community-metric" aria-label={previewSummary ? `${t('metric.paper')}: ${previewSummary.paper === null ? t('metric.unknown') : `${previewSummary.paper}%`}` : t('metric.pending')} title={t(real ? 'metric.paperHint' : 'metric.pending')}>

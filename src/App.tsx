@@ -54,6 +54,7 @@ import { getDisplayAddress } from './lib/address'
 import { ToiletDetailContents, DetailRow } from './components/ToiletDetailContents'
 import { OriginalSourceBadge } from './components/OriginalSourceBadge'
 import { ToiletCommunityRow, ToiletReportEntry } from './components/ToiletCommunityRow'
+import { ToiletCardHeader } from './components/ToiletCardHeader'
 import { REVIEW_DESIGN_PREVIEW, type PreviewReviewSummary, type ReviewEntryState } from './components/reviews/useIntegratedReviewPreview'
 import { REVIEW_API_ENABLED, REVIEW_UI_ENABLED, useReviews } from './components/reviews/useReviews'
 import { readReviewTestToilet } from './lib/reviewTestToilet'
@@ -1701,8 +1702,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         {locationMessage && <p className="location-message" role="status">{mapSystemNotice(locationMessage, locale)}</p>}
         {displayToiletDetail && !toiletCoordinates(displayToiletDetail) && !displaySelectedToilet && !displaySelectedCoordinateGroup && (
           <aside className="place-card initial-route-card" aria-label={t('detail.title')}>
-            <button type="button" className="close-button" onClick={closeDetailCard} aria-label={t('common.close')}>×</button>
-            <OriginalSourceBadge toilet={displayToiletDetail} locale={locale} />
+            <ToiletCardHeader onClose={closeDetailCard} closeLabel={t('common.close')}><span className="card-label">{toiletTypeLabel(displayToiletDetail.toiletType, locale)}</span><OriginalSourceBadge toilet={displayToiletDetail} locale={locale} /></ToiletCardHeader>
             <div className="review-card-title-row"><h1>{displayToiletDetail.name}</h1><div className="toilet-card-actions"><ToiletEngagement toiletId={displayToiletDetail.id} {...engagementProps} /></div></div>
             <p>{t('map.noCoordinates')}</p>
             <p className="open-time">{formatOpenTime(displayToiletDetail, locale)}</p>
@@ -1718,8 +1718,6 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
             aria-live="polite"
             style={placeCardPosition ? { left: placeCardPosition.left, top: placeCardPosition.top } : undefined}
           >
-            <button type="button" className="close-button" onClick={closeDetailCard} aria-label={t('common.close')}>×</button>
-            {REVIEW_UI_ENABLED && <ToiletReportEntry disabled={!displayToiletDetail || displaySelectedToilet.id === testToilet?.id} onClick={() => { if (displayToiletDetail) openReport({ toilet: displayToiletDetail, latitude: displaySelectedToilet.latitude, longitude: displaySelectedToilet.longitude }) }} />}
             <button type="button" className="mobile-card-handle"
               onTouchStart={event => cardHandleGesture.start(event.touches)}
               onTouchMove={event => cardHandleGesture.move(event.touches)}
@@ -1732,8 +1730,11 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
               }} aria-expanded={isMobileCardExpanded}>
               {t(isMobileCardExpanded ? 'map.collapse' : 'detail.show')}
             </button>
+            <ToiletCardHeader onClose={closeDetailCard} closeLabel={t('common.close')}
+              report={REVIEW_UI_ENABLED && <ToiletReportEntry disabled={!displayToiletDetail || displaySelectedToilet.id === testToilet?.id} onClick={() => { if (displayToiletDetail) openReport({ toilet: displayToiletDetail, latitude: displaySelectedToilet.latitude, longitude: displaySelectedToilet.longitude }) }} />}>
+              <span className="card-label">{toiletTypeLabel(displayToiletDetail?.toiletType || displaySelectedToilet.toiletType, locale)}</span><OriginalSourceBadge toilet={displayToiletDetail} locale={locale} />
+            </ToiletCardHeader>
             <div className="place-card-summary">
-              <div className="card-label-row"><span className="card-label">{toiletTypeLabel(displayToiletDetail?.toiletType || displaySelectedToilet.toiletType, locale)}</span><OriginalSourceBadge toilet={displayToiletDetail} locale={locale} /></div>
               <div className="review-card-title-row">
                 <h1>{displayToiletDetail?.name || displaySelectedToilet.name}</h1>
                 <div className="toilet-card-actions">
@@ -1758,17 +1759,16 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         )}
         {displaySelectedCoordinateGroup && (
           <aside className="coordinate-group-card" aria-live="polite" aria-label={t('map.groupList')}>
-            <button type="button" className="close-button" onClick={closeDetailCard} aria-label={t('map.closeList')}>×</button>
-            {expandedCoordinateToilet && (!isDesktop || REVIEW_UI_ENABLED) && <ToiletReportEntry disabled={toiletDetail?.id !== expandedCoordinateToilet.id} onClick={() => { if (toiletDetail?.id === expandedCoordinateToilet.id) openReport({ toilet: toiletDetail, latitude: expandedCoordinateToilet.latitude, longitude: expandedCoordinateToilet.longitude }) }} />}
             <header className="coordinate-group-header">
-              <div className="coordinate-group-meta-row">
+              <ToiletCardHeader onClose={closeDetailCard} closeLabel={t('map.closeList')}
+                report={expandedCoordinateToilet && (!isDesktop || REVIEW_UI_ENABLED) && <ToiletReportEntry disabled={toiletDetail?.id !== expandedCoordinateToilet.id} onClick={() => { if (toiletDetail?.id === expandedCoordinateToilet.id) openReport({ toilet: toiletDetail, latitude: expandedCoordinateToilet.latitude, longitude: expandedCoordinateToilet.longitude }) }} />}>
                 <div className="coordinate-group-labels">
                   <span className="card-label">{[...new Set(displaySelectedCoordinateGroup.toilets.map(item => toiletTypeLabel(item.toiletType, locale)))].join(' · ')}</span>
                   {displaySelectedCoordinateGroup.displayGroupName && <span className="coordinate-group-admin-badge" title={t('map.adminHint')}>{t('map.admin')}<svg viewBox="0 0 12 12" aria-hidden="true"><path d="m2.5 6.2 2.2 2.2 4.8-4.8" /></svg></span>}
                   {locale !== 'ko' && (/[가-힣]/.test(displaySelectedCoordinateGroup.displayGroupName ?? '') || displaySelectedCoordinateGroup.toilets.some(item => /[가-힣]/.test(item.name))) && <small className="source-language-badge">{t('detail.originalKorean')}</small>}
                 </div>
-                {distanceToCoordinateGroup && <p className="coordinate-group-distance">{distanceReferenceLabel} <strong>{distanceToCoordinateGroup}</strong></p>}
-              </div>
+              </ToiletCardHeader>
+              {distanceToCoordinateGroup && <div className="coordinate-group-meta-row"><p className="coordinate-group-distance">{distanceReferenceLabel} <strong>{distanceToCoordinateGroup}</strong></p></div>}
               {displaySelectedCoordinateGroup.displayGroupName && <h2 className="coordinate-group-display-name">{displaySelectedCoordinateGroup.displayGroupName}</h2>}
               <p className="coordinate-group-description">{t('map.expandHint')}</p>
             </header>
