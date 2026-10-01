@@ -1,16 +1,12 @@
-.toilet-engagement{display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;margin:6px 0 2px;color:#678075;font-size:12px;min-height:36px}
-.toilet-engagement svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
-.toilet-views,.toilet-like{display:inline-flex;align-items:center;gap:5px}
-.toilet-engagement strong{font-variant-numeric:tabular-nums;font-size:13px;font-weight:750;color:#2b4c3c}
-.toilet-like{appearance:none;border:1px solid #dce9e2;border-radius:20px;background:#fff;padding:7px 11px;min-height:36px;color:#587468;font:inherit;cursor:pointer}
-.toilet-like:hover{background:#f1f8f4;border-color:#abcbbc}.toilet-like.is-liked{color:#147553;background:#edf8f1;border-color:#badcc7}.toilet-like.is-liked svg{fill:currentColor}
-.toilet-like:focus-visible{outline:3px solid #91bea8;outline-offset:2px}.toilet-like:disabled{cursor:wait;opacity:.55}
-.engagement-error{flex-basis:100%;font-size:11px;color:#986142}.engagement-error button{border:0;background:none;text-decoration:underline;color:inherit;font:inherit;cursor:pointer}
+.toilet-card-actions{display:flex;align-items:center;gap:2px;flex:none}
+.toilet-engagement{display:inline-flex;align-items:center;flex:0 0 44px}
+.toilet-like{appearance:none;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:10px;border:0;border-radius:11px;background:transparent;color:#df4354;font:inherit;cursor:pointer}
+.toilet-like svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.toilet-like.is-liked svg{fill:currentColor}
+@media (hover:hover){.toilet-like:hover{background:#fff0f2}}
+.toilet-like:focus-visible{outline:3px solid #eda0ac;outline-offset:2px}.toilet-like:disabled{cursor:wait;opacity:.55}
+.engagement-error{position:fixed;z-index:6100;right:20px;bottom:calc(96px + env(safe-area-inset-bottom));max-width:min(320px,calc(100% - 40px));padding:12px 16px;border-radius:12px;background:#fff5ef;color:#804a35;box-shadow:0 4px 20px #233a2d26;font-size:12px;line-height:1.6}.engagement-error button{min-height:32px;border:0;background:none;text-decoration:underline;color:inherit;font:inherit;cursor:pointer}
 .crowding-basis{display:block;font-size:10px!important;line-height:1.4;color:#71867b;font-weight:450;margin-top:3px;white-space:normal}
 .crowding-metric strong{white-space:nowrap}.crowding-metric.is-clear strong{color:#1f805c}.crowding-metric.is-wait strong{color:#966528}
-@media (max-width:640px), (max-width:1024px) and (max-height:500px) and (pointer:coarse){
-  /* Reserve the added engagement row and review basis without clipping the congestion value. */
-  .has-mobile-navigation .place-card:not(.mobile-card-expanded):has(.toilet-engagement){max-height:min(340px,calc(100% - 80px))}
-}
 .engagement-preview-tools{position:fixed;right:12px;top:76px;z-index:6000;max-width:280px;padding:9px 12px;border:1px solid #dfcd95;border-radius:10px;background:#fff9e9;color:#765a21;font-size:12px;box-shadow:0 2px 8px #0001}
 .engagement-preview-tools summary{cursor:pointer;font-weight:700}.engagement-preview-tools p{line-height:1.6}.engagement-preview-tools div,.engagement-preview-tools nav{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}.engagement-preview-tools button,.engagement-preview-tools a{border:1px solid #ded7be;background:white;padding:6px 8px;border-radius:6px;font:inherit;color:inherit;cursor:pointer}

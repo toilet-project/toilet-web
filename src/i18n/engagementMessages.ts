@@ -3,7 +3,7 @@ const copy = {
   views: ['조회', 'Views', '閲覧', '浏览', '瀏覽'],
   like: ['좋아요', 'Like', 'いいね', '赞', '讚'],
   unlike: ['좋아요 취소', 'Unlike', 'いいねを取り消す', '取消赞', '取消讚'],
-  unavailable: ['조회수·좋아요를 불러오지 못했어요', 'Could not load views and likes', '閲覧数・いいねを取得できません', '无法加载浏览和赞', '無法載入瀏覽和讚'],
+  unavailable: ['내 좋아요 상태를 불러오지 못했어요', 'Could not load your like status', '自分のいいねを取得できません', '无法加载您的点赞状态', '無法載入您的按讚狀態'],
   failed: ['저장 여부를 확인하지 못했어요. 다시 확인해 주세요.', 'Could not confirm the change. Please check again.', '変更を確認できません。再確認してください。', '无法确认是否已保存，请重试。', '無法確認是否已儲存，請重試。'],
   retry: ['다시 확인', 'Retry', '再確認', '重试', '重試'],
   clear: ['원활', 'No wait', '待ちなし', '顺畅', '順暢'],
