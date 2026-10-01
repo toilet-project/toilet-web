@@ -4,6 +4,25 @@ import { readFileSync } from 'node:fs'
 import { reviewVerificationResponse } from '../review-verification-proxy.mjs'
 const base = 'https://preview.geupddong.com/__review-verification'
 const env = () => ({ SITE_INDEXABLE: 'false', REVIEW_VERIFICATION_ORIGIN: 'https://synthetic-only-fixture.trycloudflare.com', REVIEW_VERIFICATION_EXPIRES_AT: new Date(Date.now() + 3600000).toISOString() })
+
+test('engagement mutations use only synthetic identities and require same-origin writes', async () => {
+  const original = globalThis.fetch, calls = []
+  globalThis.fetch = async (url, options) => { calls.push({ url, options }); return Response.json({ liked: true }) }
+  try {
+    for (const method of ['PUT', 'DELETE']) {
+      const url = base + '/api/v1/engagement/toilets/1/like'
+      assert.equal((await reviewVerificationResponse(new Request(url, { method }), env())).status, 403)
+      assert.equal((await reviewVerificationResponse(new Request(url, { method, headers: { Origin: 'https://preview.geupddong.com', Cookie: 'access=real; engagement-preview-actor=2', Authorization: 'Bearer real' } }), env())).status, 200)
+      const call = calls.at(-1)
+      assert.equal(call.options.headers.get('X-Engagement-Fixture-Actor'), '2')
+      assert.equal(call.options.headers.get('Cookie'), null)
+      assert.equal(call.options.headers.get('Authorization'), null)
+      assert.equal(call.options.body, undefined)
+    }
+    await reviewVerificationResponse(new Request(base + '/api/v1/toilets/1/engagement', { headers: { Cookie: 'engagement-preview-actor=999', 'X-Engagement-Fixture-Actor': '1' } }), env())
+    assert.equal(calls.at(-1).options.headers.get('X-Engagement-Fixture-Actor'), 'anonymous')
+  } finally { globalThis.fetch = original }
+})
 test('temporary proxy is inaccessible on production, absent configuration, expiration or non-allowlisted paths', async () => {
   assert.equal(await reviewVerificationResponse(new Request('https://geupddong.com/'), {}), null)
   for (const config of [{}, { ...env(), SITE_INDEXABLE: 'true' }, { ...env(), REVIEW_VERIFICATION_EXPIRES_AT: '2000-01-01' }, { ...env(), REVIEW_VERIFICATION_ORIGIN: 'https://api.geupddong.com' }]) {

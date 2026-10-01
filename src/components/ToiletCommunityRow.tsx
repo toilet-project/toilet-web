@@ -1,5 +1,7 @@
 'use client'
-import { useMessages } from '../i18n/context'
+import { useMessages, useLocale } from '../i18n/context'
+import { crowdingLabel as reviewCrowdingLabel } from '../lib/reviewCrowding'
+import { engagementMessage } from '../i18n/engagementMessages'
 import { useId, useRef } from 'react'
 import { ReviewIcon } from './reviews/ReviewDialog'
 import { ReviewEntryHint } from './reviews/ReviewEntryHint'
@@ -7,8 +9,9 @@ import type { PreviewReviewSummary, ReviewEntryState } from './reviews/useIntegr
 
 export function ToiletCommunityRow({ onReport, pendingReport = false, onReview, pendingReview = false, previewSummary, reviewEntry }: { onReport?: () => void; pendingReport?: boolean; onReview?: () => void; pendingReview?: boolean; previewSummary?: PreviewReviewSummary; reviewEntry?: ReviewEntryState }) {
   const t = useMessages()
+  const locale = useLocale(), recentCrowding = previewSummary?.crowding
   const crowding = previewSummary?.congestion
-  const crowdingLabel = crowding === '원활' ? t('metric.clear') : crowding === '대기' ? t('metric.wait') : crowding === '혼잡' ? t('metric.busy') : t('metric.unknown')
+  const crowdingLabel = recentCrowding ? reviewCrowdingLabel(recentCrowding, locale) : crowding === '원활' ? t('metric.clear') : crowding === '대기' ? t('metric.wait') : crowding === '혼잡' ? t('metric.busy') : t('metric.unknown')
   const hasReview = Boolean(onReview || pendingReview)
   const checking = reviewEntry?.status === 'checking', retry = reviewEntry?.status === 'retry'
   const reviewButton = useRef<HTMLButtonElement>(null), hintId = useId()
@@ -17,8 +20,9 @@ export function ToiletCommunityRow({ onReport, pendingReport = false, onReview, 
     <div className="toilet-community-metric" aria-label={previewSummary ? `${t('metric.rating')}: ${previewSummary.rating}` : t('metric.pending')} title={previewSummary ? real ? t('metric.reviews', { count: previewSummary.count }) : t('metric.preview') : t('metric.pending')}>
       <span><ReviewIcon name="star" className="metric-star" size={16} />{t('metric.rating')}</span><strong>{previewSummary?.rating ?? '—'} <small>/ {hasReview ? '5' : '5.0'}</small></strong>
     </div>
-    <div className="toilet-community-metric" aria-label={previewSummary ? `${t('metric.crowding')}: ${crowdingLabel}` : t('metric.pending')} title={t(real ? 'metric.waitHint' : 'metric.pending')}>
+    <div className={`toilet-community-metric crowding-metric${recentCrowding?.status === 'CLEAR' ? ' is-clear' : recentCrowding?.status === 'WAIT' ? ' is-wait' : ''}`} aria-label={previewSummary ? `${t('metric.crowding')}: ${crowdingLabel}` : t('metric.pending')} title={recentCrowding ? engagementMessage(locale, 'tendency') : t(real ? 'metric.waitHint' : 'metric.pending')}>
       <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /><circle cx="9" cy="7" r="4" /></svg>{t('metric.crowding')}</span><strong className="metric-pending">{previewSummary ? crowdingLabel : t('metric.pending')}</strong>
+      {recentCrowding && <small className="crowding-basis">{engagementMessage(locale, 'basis', { days: recentCrowding.windowDays, n: recentCrowding.sampleCount })}</small>}
     </div>
     <div className="toilet-community-metric" aria-label={previewSummary ? `${t('metric.paper')}: ${previewSummary.paper === null ? t('metric.unknown') : `${previewSummary.paper}%`}` : t('metric.pending')} title={t(real ? 'metric.paperHint' : 'metric.pending')}>
       <span><svg className="metric-paper" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><ellipse cx="6" cy="9" rx="3" ry="6" /><path d="M6 3h10c2.8 0 5 2.7 5 6v12H9V9M6 15h3M6 8v2M12 16h1m3 0h1" /></svg>{t('metric.paper')}</span><strong>{previewSummary?.paper ?? '—'}<small>%</small></strong>

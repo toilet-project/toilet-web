@@ -35,6 +35,9 @@ const config: NextConfig = {
     // Production requires all four exact build-time gates above; runtime URLs cannot enable it.
     NEXT_PUBLIC_REVIEW_API_ENABLED: reviewApiEnabled ? 'true' : 'false',
     NEXT_PUBLIC_PUBLIC_REVIEW_API_ENABLED: publicReviewApiEnabled ? 'true' : 'false',
+    // Explicit release gate. Preview writes use an isolated verification backend only.
+    NEXT_PUBLIC_TOILET_ENGAGEMENT_ENABLED: process.env.TOILET_ENGAGEMENT_ENABLED === 'true'
+      && (reviewPreviewApi || reviewProductionApi) ? 'true' : 'false',
   },
   distDir: process.env.NEXT_BUILD_DIR || '.next',
   poweredByHeader: false,
