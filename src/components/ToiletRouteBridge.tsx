@@ -6,6 +6,7 @@ import Link from 'next/link'
 import type { ToiletDetailResponse } from '../api/toilets'
 import { useMapRouteContext } from './mapRouteContext'
 import { ToiletDetailContents } from './ToiletDetailContents'
+import { ToiletShareLink } from './ToiletShareLink'
 import { CachedToiletContents } from './CachedToiletContents'
 import type { DetailFragment } from '../server/detailFragmentCache'
 import { OriginalSourceBadge } from './OriginalSourceBadge'
@@ -40,6 +41,7 @@ export function ToiletRouteBridge({ detail, locale = 'ko', path: overridePath, f
       <div className="route-preview-community"><ToiletCommunityRow pendingReport pendingReview={reviewsEnabled} /></div>
       <PublicReviews toiletId={displayDetail.id} toiletName={displayDetail.name} toiletType={displayDetail.toiletType} />
       {fragment ? <CachedToiletContents toilet={displayDetail} fragment={fragment} /> : <ToiletDetailContents toilet={displayDetail} />}
+      <ToiletShareLink key={displayDetail.id} toiletId={displayDetail.id} />
     </div>
   </aside></div>
 }

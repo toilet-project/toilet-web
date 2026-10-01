@@ -50,6 +50,7 @@ import { AccountRecoveryDialog } from './components/AccountRecoveryDialog'
 import { fetchUnreadNotificationCount } from './api/notifications'
 import { getDisplayAddress } from './lib/address'
 import { ToiletDetailContents, DetailRow } from './components/ToiletDetailContents'
+import { ToiletShareLink } from './components/ToiletShareLink'
 import { OriginalSourceBadge } from './components/OriginalSourceBadge'
 import { ToiletCommunityRow, ToiletReportEntry } from './components/ToiletCommunityRow'
 import { REVIEW_DESIGN_PREVIEW, type PreviewReviewSummary, type ReviewEntryState } from './components/reviews/useIntegratedReviewPreview'
@@ -1697,6 +1698,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
             {REVIEW_UI_ENABLED && <ToiletCommunityRow onReview={() => reviewPreview.open(displayToiletDetail)} reviewEntry={reviewPreview.entryState(displayToiletDetail.id)} previewSummary={reviewPreview.summary(displayToiletDetail.id)} />}
             <PublicReviews toiletId={displayToiletDetail.id} toiletName={displayToiletDetail.name} toiletType={displayToiletDetail.toiletType} summary={reviewPreview.summary(displayToiletDetail.id)} />
             <ToiletDetailContents toilet={displayToiletDetail} />
+            <ToiletShareLink key={displayToiletDetail.id} toiletId={displayToiletDetail.id} />
           </aside>
         )}
         {displaySelectedToilet && (
@@ -1735,6 +1737,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
               {displayToiletDetail && (displayToiletDetail.id === testToilet?.id
                 ? <div className="card-details"><p>{t('map.reviewTestDescription')}</p></div>
                 : <ToiletDetailContents toilet={displayToiletDetail} />)}
+              {displayToiletDetail && displayToiletDetail.id !== testToilet?.id && <ToiletShareLink key={displayToiletDetail.id} toiletId={displayToiletDetail.id} />}
             </div>
           </aside>
         )}
@@ -1840,6 +1843,7 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
     <ToiletCommunityRow onReview={onReview} reviewEntry={reviewEntry} previewSummary={previewSummary} />
     <PublicReviews toiletId={display.id} toiletName={display.name} toiletType={display.toiletType} summary={previewSummary} />
     {address && <DetailRow className="coordinate-inline-address" label={t('detail.address')} value={address} copyable />}
+    <ToiletShareLink key={display.id} toiletId={display.id} />
     <section className="coordinate-inline-section coordinate-inline-capacity-section" aria-label={t('detail.capacity')}>
       <h2>{t('detail.capacity')}</h2>
       <dl className="coordinate-inline-capacity">

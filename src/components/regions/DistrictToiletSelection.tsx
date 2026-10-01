@@ -12,6 +12,7 @@ import { regionToiletPath, regionToiletPathForDistrict } from '../../lib/regionT
 import type { RegionMarkerItem } from '../../lib/regionDisplayItems'
 import { formatOpenTime } from '../../lib/detailFormatting'
 import { ToiletDetailContents } from '../ToiletDetailContents'
+import { ToiletShareLink } from '../ToiletShareLink'
 import { OriginalSourceBadge } from '../OriginalSourceBadge'
 import { PublicReviews } from '../reviews/PublicReviews'
 import { regionText } from './regionText'
@@ -70,6 +71,7 @@ export function DistrictToiletSelection({ toilets, locale, districtCode, onClose
         {desktop && loaded && <>
           <PublicReviews toiletId={loaded.id} toiletName={loaded.name} toiletType={loaded.toiletType} />
           <ToiletDetailContents toilet={loaded} />
+          <ToiletShareLink key={loaded.id} toiletId={loaded.id} />
         </>}
       </div>
       <Link className="district-selection-link" href={localizedPublicPath(detailPath, locale)!}>{t('detail.show')}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg></Link>

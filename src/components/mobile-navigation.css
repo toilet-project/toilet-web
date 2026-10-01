@@ -1,4 +1,10 @@
 .mobile-navigation, .mobile-header-actions, .mobile-page { display: none; }
+.toilet-share-links { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:12px 0; }
+.toilet-share-links button { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:40px; padding:8px 12px; border:1px solid #dce8e0; border-radius:10px; background:#fff; color:#236d4a; font:inherit; font-size:12px; cursor:pointer; }
+.toilet-share-links button:hover { background:#f2f8f4; }
+.toilet-share-links button:disabled { opacity:.55; cursor:wait; }
+.toilet-share-links [role=status] { flex-basis:100%; font-size:12px; color:#426450; }
+.toilet-share-links [role=status]:empty { display:none; }
 .login-modal > .login-brand { display: block; font-size: 34px; font-weight: 400; line-height: 1; margin: 4px 0 18px; }
 /* Disable double-tap smart zoom on controls, not the map's pinch gestures. */
 .toilet-marker, .coordinate-group-marker, .cluster-marker, .mobile-card-handle { touch-action: manipulation; }
