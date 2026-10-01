@@ -54,6 +54,8 @@ jobs:
       SITE_INDEXABLE: 'true'
       REVIEW_API_ENABLED: 'true'
       REVIEW_PRODUCTION_APPROVED: 'true'
+      TOILET_ENGAGEMENT_ENABLED: 'true'
+      ENGLISH_UI_RELEASE: 'true'
       # Candidate validation only; this workflow never deploys or activates the feature.
       NEXT_PUBLIC_PROFILE_PHOTO_ENABLED: 'true'
     steps:

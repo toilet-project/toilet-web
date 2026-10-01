@@ -76,7 +76,7 @@ test('Korean original policy returns to the language of the referring map', () =
 test('Asian reading translations cover each current policy section and preserve numerical limits', () => {
   assert.equal(termsSections.length, 7)
   assert.equal(locationSections.length, 4)
-  assert.equal(privacySections.length, 10)
+  assert.equal(privacySections.length, 11)
   for (const sections of [termsSections, privacySections, locationSections]) for (const section of sections) {
     for (const text of [section.title, ...section.blocks.flatMap(block => block.type === 'p' ? [block.text] : block.type === 'ul' ? block.items : block.items.flat())]) {
       assert.equal(text.length, 3)
