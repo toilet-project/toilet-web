@@ -1,10 +1,10 @@
 .toilet-card-actions{display:flex;align-items:center;gap:2px;flex:none}
 .toilet-engagement{display:inline-flex;align-items:center;flex:0 0 44px}
-.toilet-like{appearance:none;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:10px;border:0;border-radius:11px;background:transparent;color:#df4354;font:inherit;cursor:pointer}
+.toilet-like{appearance:none;display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;padding:10px;border:0;border-radius:11px;background:transparent;color:#17683a;font:inherit;cursor:pointer}
 .toilet-like svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
-.toilet-like.is-liked svg{fill:currentColor}
-@media (hover:hover){.toilet-like:hover{background:#fff0f2}}
-.toilet-like:focus-visible{outline:3px solid #eda0ac;outline-offset:2px}.toilet-like:disabled{cursor:wait;opacity:.55}
+.toilet-like.is-liked{color:#df4354}.toilet-like.is-liked svg{fill:currentColor}
+@media (hover:hover){.toilet-like:hover{background:#edf6ef}.toilet-like.is-liked:hover{background:#fff0f2}}
+.toilet-like:focus-visible{outline:3px solid #91bea8;outline-offset:2px}.toilet-like:disabled{cursor:wait;opacity:.55}
 .engagement-error{position:fixed;z-index:6100;right:20px;bottom:calc(96px + env(safe-area-inset-bottom));max-width:min(320px,calc(100% - 40px));padding:12px 16px;border-radius:12px;background:#fff5ef;color:#804a35;box-shadow:0 4px 20px #233a2d26;font-size:12px;line-height:1.6}.engagement-error button{min-height:32px;border:0;background:none;text-decoration:underline;color:inherit;font:inherit;cursor:pointer}
 .crowding-metric strong{white-space:nowrap}.crowding-metric.is-clear strong{color:#1f805c}.crowding-metric.is-wait strong{color:#966528}
 .engagement-preview-tools{position:fixed;right:12px;top:76px;z-index:6000;max-width:280px;padding:9px 12px;border:1px solid #dfcd95;border-radius:10px;background:#fff9e9;color:#765a21;font-size:12px;box-shadow:0 2px 8px #0001}

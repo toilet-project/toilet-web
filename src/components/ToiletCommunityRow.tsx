@@ -33,7 +33,7 @@ export function ToiletCommunityRow({ onReport, pendingReport = false, onReview, 
   </div>
 }
 
-export function ToiletReportEntry({ onClick, disabled = false, iconOnly = false }: { onClick?: () => void; disabled?: boolean; iconOnly?: boolean }) {
+export function ToiletReportEntry({ onClick, disabled = false }: { onClick?: () => void; disabled?: boolean }) {
   const t = useMessages()
-  return <button type="button" className={`review-card-report${iconOnly ? ' is-icon-only' : ''}`} onClick={onClick} disabled={disabled} aria-label={t('metric.reportHint')} title={t('metric.reportHint')}><ReviewIcon name="siren" size={iconOnly ? 20 : 18} />{!iconOnly && <span>{t('metric.report')}</span>}</button>
+  return <button type="button" className="review-card-report" onClick={onClick} disabled={disabled} aria-label={t('metric.reportHint')} title={t('metric.reportHint')}><ReviewIcon name="siren" size={18} /></button>
 }

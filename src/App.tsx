@@ -1719,6 +1719,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
             style={placeCardPosition ? { left: placeCardPosition.left, top: placeCardPosition.top } : undefined}
           >
             <button type="button" className="close-button" onClick={closeDetailCard} aria-label={t('common.close')}>×</button>
+            {REVIEW_UI_ENABLED && <ToiletReportEntry disabled={!displayToiletDetail || displaySelectedToilet.id === testToilet?.id} onClick={() => { if (displayToiletDetail) openReport({ toilet: displayToiletDetail, latitude: displaySelectedToilet.latitude, longitude: displaySelectedToilet.longitude }) }} />}
             <button type="button" className="mobile-card-handle"
               onTouchStart={event => cardHandleGesture.start(event.touches)}
               onTouchMove={event => cardHandleGesture.move(event.touches)}
@@ -1736,7 +1737,6 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
               <div className="review-card-title-row">
                 <h1>{displayToiletDetail?.name || displaySelectedToilet.name}</h1>
                 <div className="toilet-card-actions">
-                  {REVIEW_UI_ENABLED && <ToiletReportEntry disabled={!displayToiletDetail || displaySelectedToilet.id === testToilet?.id} onClick={() => { if (displayToiletDetail) openReport({ toilet: displayToiletDetail, latitude: displaySelectedToilet.latitude, longitude: displaySelectedToilet.longitude }) }} />}
                   {displayToiletDetail && <ToiletEngagement toiletId={displayToiletDetail.id} {...engagementProps} />}
                 </div>
               </div>
@@ -1759,6 +1759,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         {displaySelectedCoordinateGroup && (
           <aside className="coordinate-group-card" aria-live="polite" aria-label={t('map.groupList')}>
             <button type="button" className="close-button" onClick={closeDetailCard} aria-label={t('map.closeList')}>×</button>
+            {expandedCoordinateToilet && (!isDesktop || REVIEW_UI_ENABLED) && <ToiletReportEntry disabled={toiletDetail?.id !== expandedCoordinateToilet.id} onClick={() => { if (toiletDetail?.id === expandedCoordinateToilet.id) openReport({ toilet: toiletDetail, latitude: expandedCoordinateToilet.latitude, longitude: expandedCoordinateToilet.longitude }) }} />}
             <header className="coordinate-group-header">
               <div className="coordinate-group-meta-row">
                 <div className="coordinate-group-labels">
@@ -1787,7 +1788,6 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
                     isLoading={isDetailLoading}
                     error={detailError}
                     onRetry={retryDetail}
-                    onReport={isDesktop && !REVIEW_UI_ENABLED ? undefined : () => { if (toiletDetail?.id === toilet.id) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }}
                     pendingReview={REVIEW_UI_ENABLED && !toiletDetail}
                     onReview={REVIEW_UI_ENABLED && toiletDetail?.id === toilet.id ? () => reviewPreview.open(toiletDetail) : undefined}
                     reviewEntry={reviewPreview.entryState(toilet.id)}
@@ -1844,10 +1844,10 @@ function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () 
   </div>
 }
 
-function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRetry, onReview, pendingReview, previewSummary, reviewEntry, engagement }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onReport?: () => void; onRetry: () => void; onReview?: () => void; pendingReview?: boolean; previewSummary?: PreviewReviewSummary; reviewEntry?: ReviewEntryState; engagement?: EngagementProps }) {
+function CoordinateGroupInlineDetails({ toilet, isLoading, error, onRetry, onReview, pendingReview, previewSummary, reviewEntry, engagement }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onRetry: () => void; onReview?: () => void; pendingReview?: boolean; previewSummary?: PreviewReviewSummary; reviewEntry?: ReviewEntryState; engagement?: EngagementProps }) {
   const t = useMessages()
   const locale = useLocale()
-  if (isLoading && !toilet) return <div className="coordinate-inline-details"><div className="coordinate-opening-row"><LoadingOpenTime />{onReport && <ToiletReportEntry iconOnly disabled />}</div><ToiletCommunityRow pendingReview={pendingReview} /><PublicReviewsLoading /><DetailLoadingFields inline /></div>
+  if (isLoading && !toilet) return <div className="coordinate-inline-details"><div className="coordinate-opening-row"><LoadingOpenTime /></div><ToiletCommunityRow pendingReview={pendingReview} /><PublicReviewsLoading /><DetailLoadingFields inline /></div>
   if (error) return <div className="coordinate-inline-details"><p className="detail-error" role="alert">{t('detail.error')}</p><button type="button" className="detail-retry" onClick={onRetry}>{t('common.retry')}</button></div>
   if (!toilet) return null
 
@@ -1856,7 +1856,7 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
 
   return <div className="coordinate-inline-details">
     <OriginalSourceBadge toilet={display} locale={locale} />
-    <div className="coordinate-opening-row"><p className="open-time">{formatOpenTime(display, locale)}</p><div className="toilet-card-actions">{onReport && <ToiletReportEntry iconOnly onClick={onReport} />}{engagement && <ToiletEngagement toiletId={display.id} {...engagement} />}</div></div>
+    <div className="coordinate-opening-row"><p className="open-time">{formatOpenTime(display, locale)}</p><div className="toilet-card-actions">{engagement && <ToiletEngagement toiletId={display.id} {...engagement} />}</div></div>
     <ToiletCommunityRow onReview={onReview} reviewEntry={reviewEntry} previewSummary={previewSummary} />
     <PublicReviews toiletId={display.id} toiletName={display.name} toiletType={display.toiletType} summary={previewSummary} />
     {address && <DetailRow className="coordinate-inline-address" label={t('detail.address')} value={address} copyable />}
