@@ -24,7 +24,7 @@ function distanceInMetres(from: Position, to: LikedToilet) {
   return 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
-export function LikedToiletsPanel({ owner, onClose, onSessionExpired }: { owner: string; onClose: () => void; onSessionExpired: () => void }) {
+export function LikedToiletsPanel({ owner, onClose, onSessionExpired, onOpenToilet }: { owner: string; onClose: () => void; onSessionExpired: () => void; onOpenToilet?: (item: LikedToilet) => void }) {
   const t = useMessages(), locale = useLocale(), router = useRouter()
   const [sort, setSort] = useState<LikeSort>('newest')
   const [position, setPosition] = useState<Position | null>(null)
@@ -128,7 +128,7 @@ export function LikedToiletsPanel({ owner, onClose, onSessionExpired }: { owner:
         const translations = Object.fromEntries(Object.entries(item.translations).map(([language, name]) => [language, { name, roadAddress: null, jibunAddress: null }]))
         const name = localizeToilet({ name: item.name, translations }, locale).name
         return <article key={item.id} className="liked-row"><ToiletListItem id={item.id} name={name} type={item.toiletType} count={1} distance={distanceLabel(item)} distanceBelow active={false}
-          onSelect={() => router.push(localizedPublicPath(toiletPath(item.id), locale)!)} />
+          onSelect={() => onOpenToilet ? onOpenToilet(item) : router.push(localizedPublicPath(toiletPath(item.id), locale)!, { scroll: false })} />
           <button type="button" className="liked-row-unlike" aria-label={t('liked.unlikeNamed', { name })} title={t('liked.unlike')} disabled={busyId !== null} onClick={() => unlike(item.id)}>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" /></svg>
           </button></article>
