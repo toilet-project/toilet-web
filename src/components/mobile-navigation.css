@@ -3,8 +3,8 @@
 /* Disable double-tap smart zoom on controls, not the map's pinch gestures. */
 .toilet-marker, .coordinate-group-marker, .cluster-marker, .mobile-card-handle { touch-action: manipulation; }
 .toilet-community-row { display: flex; container-type: inline-size; align-items: center; box-sizing: border-box; height: 44px; margin: 8px 0 2px; background: transparent; }
-.toilet-community-metric { position: relative; display: flex; flex: 1 1 auto; height: 44px; min-width: 0; padding-right: 10px; flex-direction: column; align-items: flex-start; justify-content: center; gap: 5px; text-align: left; }
-.toilet-community-metric + .toilet-community-metric { padding-left: 10px; }
+/* Balance the three columns and center each label/value on the same axis. */
+.toilet-community-metric { position: relative; display: flex; flex: 1 1 0; box-sizing: border-box; height: 44px; min-width: 0; padding-inline: 4px; flex-direction: column; align-items: center; justify-content: center; gap: 5px; text-align: center; }
 .toilet-community-metric + .toilet-community-metric::before { content: ''; position: absolute; left: 0; top: 12px; width: 1px; height: 20px; background: #e6ece8; }
 .toilet-community-metric > span { display: flex; align-items: center; gap: 4px; min-height: 15px; color: #69796f; font-size: 11px; line-height: 13px; white-space: nowrap; }
 .toilet-community-metric > span svg { width: 13px; height: 13px; flex-shrink: 0; }
@@ -18,7 +18,6 @@
 .toilet-community-row .report-icon-button:hover { background: #edf6ef; }
 /* Desktop cards have three balanced information columns and no empty action slot. */
 .toilet-community-row.is-readonly .toilet-community-metric { flex: 1 1 0; }
-.toilet-community-row.is-readonly .toilet-community-metric:last-child { padding-right: 0; }
 .toilet-community-row.is-readonly .toilet-community-metric > span { font-size: 12px; line-height: 14px; }
 .coordinate-inline-details > .toilet-community-row { margin-top: 8px; margin-bottom: 8px; }
 .toilet-community-row .report-icon-button:disabled { cursor: default; opacity: .55; background: transparent; }
@@ -29,12 +28,10 @@
 @media (min-width: 641px) and (pointer: fine), (min-width: 641px) and (pointer: none), (min-width: 641px) and (min-height: 501px), (min-width: 1025px) {
   .route-preview-community .report-icon-button { display: none !important; }
   .route-preview-community .toilet-community-metric { flex: 1 1 0; }
-  .route-preview-community .toilet-community-metric:last-of-type { padding-right: 0; }
   .route-preview-community .toilet-community-metric > span { font-size: 12px; line-height: 14px; }
 }
 @container (max-width: 240px) {
-  .toilet-community-metric { padding-right: 4px; }
-  .toilet-community-metric + .toilet-community-metric { padding-left: 4px; }
+  .toilet-community-metric { padding-inline: 2px; }
   .toilet-community-row .report-entry-button.report-icon-button { margin-left: 4px; }
 }
 @media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (pointer: coarse) {
