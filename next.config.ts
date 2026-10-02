@@ -30,6 +30,8 @@ const publicReviewApiEnabled = reviewApiEnabled || process.env.SITE_INDEXABLE ==
 const config: NextConfig = {
   deploymentId: process.env.NEXT_DEPLOYMENT_ID,
   env: {
+    NEXT_PUBLIC_REPORT_REDESIGN_PREVIEW: process.env.SITE_INDEXABLE === 'false'
+      && process.env.REPORT_REDESIGN_PREVIEW === 'true' && reviewLivePreviewApi ? 'true' : 'false',
     NEXT_PUBLIC_ENGLISH_UI_ENABLED: (process.env.SITE_INDEXABLE === 'false' && process.env.ENGLISH_UI_PREVIEW === 'true')
       || (process.env.SITE_INDEXABLE === 'true' && process.env.ENGLISH_UI_RELEASE === 'true') ? 'true' : 'false',
     NEXT_PUBLIC_APP_VERSION: process.env.NEXT_DEPLOYMENT_ID || 'development',

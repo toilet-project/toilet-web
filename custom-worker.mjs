@@ -1,12 +1,15 @@
 import handler from './.open-next/worker.js'
 import { protectNavigationResponse } from './worker-cache-policy.mjs'
 import { reviewVerificationResponse } from './review-verification-proxy.mjs'
+import { reportPreviewResponse } from './report-preview-proxy.mjs'
 import { placeSearchResponse } from './place-search-worker.mjs'
 import { mapProviderConfigResponse } from './map-provider-worker.mjs'
 import { regionMarkersResponse } from './region-markers-worker.ts'
 
 export default {
   async fetch(request, env, ctx) {
+    const reportPreview = await reportPreviewResponse(request, env)
+    if (reportPreview) return reportPreview
     const regionMarkers = await regionMarkersResponse(request, env)
     if (regionMarkers) return regionMarkers
     const mapProviderConfig = mapProviderConfigResponse(request, env)

@@ -215,6 +215,35 @@
 .report-complete p { color: #66736b; font-size: 14px; }
 .report-complete-actions { display: grid; grid-template-columns: 1fr 1.35fr; gap: 9px; margin-top: 18px; }
 .report-complete-actions .report-submit { margin-top: 0; }
+.quick-report { width: min(100%, 440px); }
+.quick-report .report-modal-toolbar { min-height: 54px; padding-block: 8px; }
+.quick-report .report-modal-step-title { margin: 0; font-size: 14px; }
+.quick-report .report-modal-content { padding: 16px 20px 14px; }
+.quick-report-target { display: grid; gap: 5px; margin-bottom: 16px; }
+.quick-report-target > span { font-size: 11px; color: #77877e; }
+.quick-report-target > strong { color: #253e32; font-size: 15px; line-height: 1.45; overflow-wrap: anywhere; }
+.quick-report-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.quick-report-options button { display: grid; gap: 6px; align-content: start; min-height: 116px; padding: 16px 13px; border: 1px solid #e1e9e4; border-radius: 14px; background: #fcfdfc; text-align: left; cursor: pointer; color: #28734f; }
+.quick-report-options button:hover { border-color: #84b89b; background: #f3f9f5; }
+.quick-report-options strong { margin-top: 4px; color: #294235; font-size: 14px; }
+.quick-report-options span { color: #748279; font-size: 11px; line-height: 1.4; word-break: keep-all; }
+.quick-report button:focus-visible { outline: 2px solid #28734f; outline-offset: 3px; }
+.quick-report button:disabled { opacity: .45; cursor: default; }
+.quick-report-map { height: clamp(165px, 30svh, 230px); margin-top: 0; border-radius: 12px; }
+.quick-report-question { margin: 18px 0 0; text-align: center; font-size: 16px; color: #294235; line-height: 1.5; }
+.quick-report-guide { margin: 0 0 12px; font-size: 13px; color: #53685c; }
+.quick-report-address { margin: 10px 0; font-size: 12px; color: #607568; line-height: 1.5; overflow-wrap: anywhere; }
+.quick-report-hours { margin: 0; padding: 4px 14px; border-radius: 12px; background: #f4f8f5; }
+.quick-report-hours > div { padding: 12px 0; }
+.quick-report-hours > div + div { border-top: 1px solid #dfe9e2; }
+.quick-report-hours dt { font-size: 11px; color: #718277; }
+.quick-report-hours dd { margin: 5px 0 0; font-size: 15px; font-weight: 700; color: #294235; line-height: 1.5; }
+.quick-report-hours small { margin-left: 6px; font-size: 10px; font-weight: 400; }
+.quick-report .report-field { font-weight: 500; }
+.quick-report .report-field input { font-size: 16px; padding: 9px 11px; }
+.quick-report .report-submit, .quick-report .report-edit-button { min-height: 42px; font-size: 13px; }
+.quick-report-preview { margin: 14px 0 0; text-align: center; font-size: 10px; color: #8c9990; }
+.quick-map-error { position: absolute; inset: 0; display: grid; place-items: center; background: #f4f8f5; color: #7b493f; font-size: 13px; }
 .card-details { max-height: 324px; margin-top: 16px; padding-top: 16px; flex: 0 1 auto; overflow-y: auto; border-top: 1px solid #e8ede9; overscroll-behavior: contain; }
 .detail-section { margin-top: 18px; }
 .card-details > .detail-row:first-child { margin-top: 0; }

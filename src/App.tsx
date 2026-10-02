@@ -44,6 +44,8 @@ import {
 import { searchPlaces } from './lib/placeSearch'
 import type { PlaceSearchResult } from './lib/placeSearchTypes'
 import { ToiletReportModal } from './components/ToiletReportModal'
+import { QuickReportModal } from './components/QuickReportModal'
+import { QUICK_REPORTS_ENABLED } from './api/quickReports'
 import { MyReportsPanel } from './components/MyReportsPanel'
 import { NotificationMenu } from './components/NotificationMenu'
 import { PolicyConsentModal } from './components/PolicyConsentModal'
@@ -502,6 +504,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const openReport = useCallback((target: ReportTarget) => {
     if (target.toilet.id < 0) return // Browser fixtures cannot enter the real report/auth-resume flow.
     trackEvent('report_start', { source: 'toilet_detail' })
+    if (QUICK_REPORTS_ENABLED) { setReportTarget(target); return }
     if (!authProfile) {
       try { window.sessionStorage.setItem(PENDING_REPORT_TARGET_KEY, JSON.stringify(target)) } catch { /* 저장소 사용 불가 환경에서도 로그인은 계속 제공한다. */ }
       setLoginPurpose('report')
@@ -1864,7 +1867,9 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           onOpenLikedToilet={openLikedToilet}
           onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setMobileAccountView('settings')} onWithdrawn={handleWithdrawn} onLogout={handleLogout} onCountChange={refreshNotificationCount} onOpenReport={showReportHistory}
           beforeLogin={tab => { try { window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, tab) } catch { /* 로그인은 계속 제공 */ } }} />}
-        {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); showReportHistory() }} />}
+        {reportTarget && (QUICK_REPORTS_ENABLED
+          ? <QuickReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} />
+          : <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); showReportHistory() }} />)}
         {reviewPreview.modal}
         {authProfile && isDesktop && isMyReportsOpen && <MyReportsPanel key={`reports-${authProfile.userId}`} onSessionExpired={handleSessionExpired} initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
