@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { ToiletDetailResponse } from '../api/toilets'
-import { submitQuickReport, type QuickReportRequest, type QuickReportType } from '../api/quickReports'
+import { QUICK_REPORTS_PREVIEW, submitQuickReport, type QuickReportRequest, type QuickReportType } from '../api/quickReports'
+import type { ReportIdentity } from '../lib/quickReportTransport'
 import { useLocale, useMessages } from '../i18n/context'
 import { quickReportMessage } from '../i18n/quickReportMessages'
 import { attachReportViewport } from '../lib/reportViewport'
@@ -56,7 +57,7 @@ function ReportMap({ initial, fixed, onPoint, onReady }: { initial: Point; fixed
   </div>
 }
 
-export function QuickReportModal({ toilet, latitude, longitude, onClose }: { toilet: ToiletDetailResponse; latitude: number; longitude: number; onClose: () => void }) {
+export function QuickReportModal({ toilet, latitude, longitude, identity, onClose }: { toilet: ToiletDetailResponse; latitude: number; longitude: number; identity: ReportIdentity; onClose: () => void }) {
   const locale = useLocale(), t = useMessages()
   const q = (key: Parameters<typeof quickReportMessage>[1]) => quickReportMessage(locale, key)
   const [kind, setKind] = useState<Kind | null>(null)
@@ -109,7 +110,7 @@ export function QuickReportModal({ toilet, latitude, longitude, onClose }: { toi
     // Preserve the key when a response is lost; edited proposals receive a fresh key.
     if (submission.current?.body !== body) submission.current = { body, id: crypto.randomUUID() }
     flight.current = true; setBusy(true); setError(null)
-    try { const result = await submitQuickReport(request, submission.current!.id); setReceipt(result.id) }
+    try { const result = await submitQuickReport(request, submission.current!.id, identity); setReceipt(result.id) }
     catch (failure) {
       const status = (failure as { status?: number }).status
       setError(status === 429 ? q('limited') : locale === 'ko' && failure instanceof Error && !/^[A-Z_]+$/.test(failure.message) ? failure.message : q('failed'))
@@ -143,7 +144,7 @@ export function QuickReportModal({ toilet, latitude, longitude, onClose }: { toi
         {!receipt && (kind === 'missing' || kind === 'closed') && <div className="report-confirm-actions"><button type="button" className="report-edit-button" disabled={busy} onClick={back}>{q('no')}</button><button type="button" className="report-submit" disabled={busy || (kind === 'missing' && !mapReady)} onClick={() => void submit()}>{q(busy ? 'sending' : 'yes')}</button></div>}
         {error && <p className="report-error" role="alert">{error}</p>}
         {receipt && <div className="report-complete"><span aria-hidden="true">✓</span><h3>{q('complete')}</h3><p>{q('review')}</p><small>#{receipt}</small><button type="button" className="report-submit" onClick={close}>{q('done')}</button></div>}
-        <p className="quick-report-preview">{q('preview')}</p>
+        {QUICK_REPORTS_PREVIEW && <p className="quick-report-preview">{q('preview')}</p>}
       </div>
     </section>
   </dialog>, document.body)

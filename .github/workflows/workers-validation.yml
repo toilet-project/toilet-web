@@ -45,6 +45,7 @@ jobs:
       REVIEW_API_ENABLED: ${{ matrix.review_api_enabled }}
       REVIEW_PRODUCTION_APPROVED: ${{ matrix.review_production_approved }}
       TOILET_ENGAGEMENT_ENABLED: ${{ matrix.target == 'production-candidate' && 'true' || 'false' }}
+      REPORT_REDESIGN_RELEASE: ${{ matrix.target == 'production-candidate' && 'true' || 'false' }}
       NEXT_PUBLIC_PROFILE_PHOTO_ENABLED: ${{ matrix.profile_photo_enabled }}
       NEXT_DEPLOYMENT_ID: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.target }}
     steps:

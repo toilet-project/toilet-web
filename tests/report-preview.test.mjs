@@ -30,7 +30,7 @@ test('proxy forwards only bounded proposals, never login credentials, and never 
     assert.equal((await reportPreviewResponse(request({ body: 'x'.repeat(8193) }), env())).status, 413)
   } finally { globalThis.fetch = previous }
 })
-test('new design preserves native modal and leaves production client writes gated off', () => {
+test('new design preserves native modal and gates production client separately', () => {
   const ui = readFileSync(new URL('../src/components/QuickReportModal.tsx', import.meta.url), 'utf8')
   const client = readFileSync(new URL('../src/api/quickReports.ts', import.meta.url), 'utf8')
   assert.match(ui, /node\.showModal\(\)/)
@@ -40,6 +40,8 @@ test('new design preserves native modal and leaves production client writes gate
   assert.match(ui, /onClick=\{back\}>\{q\('no'\)\}/)
   assert.match(ui, /flight\.current/)
   assert.match(ui, /timeZone: 'Asia\/Seoul'/)
-  assert.match(client, /window\.location\.hostname !== 'preview\.geupddong\.com'/)
+  assert.match(client, /reportDestination\(window\.location\.hostname/)
+  assert.match(client, /NEXT_PUBLIC_REPORT_REDESIGN_RELEASE/)
+  assert.match(ui, /QUICK_REPORTS_PREVIEW &&/)
   assert.doesNotMatch(client, /api\.geupddong\.com/)
 })

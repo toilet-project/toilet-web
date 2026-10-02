@@ -93,6 +93,7 @@ jobs:
       SITE_INDEXABLE: 'true'
       REVIEW_API_ENABLED: 'true'
       REVIEW_PRODUCTION_APPROVED: 'true'
+      REPORT_REDESIGN_RELEASE: 'true'
       TOILET_ENGAGEMENT_ENABLED: 'true'
       ENGLISH_UI_RELEASE: 'true'
       # Candidate validation only; this workflow never deploys or activates the feature.
