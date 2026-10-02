@@ -164,7 +164,9 @@
 .detail-error { margin: 14px 0 0; color: #b42318; font-size: 14px; line-height: 1.5; }
 .report-entry-button { width: 100%; margin-top: 14px; min-height: 40px; border: 1px solid #bcd8c3; border-radius: 10px; background: #f2faf4; color: #17683a; font-size: 13px; font-weight: 800; cursor: pointer; }
 .report-entry-button:hover { background: #e7f5ea; }
-.report-modal-backdrop { position: fixed; z-index: 30; top: var(--report-viewport-top, 0px); right: 0; left: 0; height: var(--report-viewport-height, 100dvh); display: grid; place-items: center; padding: 20px; background: rgb(15 29 19 / 52%); overscroll-behavior: none; }
+.report-modal-backdrop { position: fixed; z-index: 30; top: var(--report-viewport-top, 0px); right: 0; bottom: auto; left: 0; width: 100%; max-width: none; height: var(--report-viewport-height, 100dvh); max-height: none; margin: 0; border: 0; display: grid; place-items: center; padding: 20px; background: transparent; color: inherit; overscroll-behavior: none; }
+.report-modal-backdrop:not([open]) { display: none; }
+.report-modal-backdrop::backdrop { background: rgb(15 29 19 / 52%); }
 .report-modal { position: relative; display: flex; flex-direction: column; width: min(100%, 480px); min-height: 0; max-height: min(760px, calc(var(--report-viewport-height, 100svh) - 40px)); overflow: hidden; border-radius: 20px; background: #fff; box-shadow: 0 24px 60px rgb(12 29 18 / 35%); }
 .report-modal-content { min-height: 0; padding: 4px 28px 28px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
 .report-modal-toolbar { display: grid; flex: 0 0 auto; grid-template-columns: 36px minmax(0, 1fr) 36px; align-items: center; gap: 8px; min-height: 60px; padding: 12px 14px; border-bottom: 1px solid #edf2ee; }
