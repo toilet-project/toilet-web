@@ -13,7 +13,7 @@ const LIKES_ENABLED = process.env.NEXT_PUBLIC_TOILET_ENGAGEMENT_ENABLED === 'tru
 export function AccountWorkspaceFrame({ profile, view, onLogout, children }: { profile: AuthProfile; view: string; onLogout: () => void; children: ReactNode }) {
   const locale = useLocale(), t = useMessages()
   const base = localizedPublicPath('/account', locale)!
-  return <div className="account-workspace">
+  return <div className={`account-workspace${view !== 'notifications' ? ' account-controls' : ''}`}>
     <nav className="account-workspace-rail" aria-label={t('nav.account')}>
       <div className="account-workspace-profile"><span className="account-workspace-avatar"><OwnPhoto state={profile.profilePhoto ?? null} fallback={<span>{(profile.displayName || 'G')[0]}</span>} /></span><strong>{profile.displayName || t('account.defaultName')}</strong></div>
       {LIKES_ENABLED && <Link href={`${base}?view=likes`} aria-current={view === 'likes' ? 'page' : undefined}><HeaderIcon name="likes" /><span>{t('nav.myLikes')}</span></Link>}
