@@ -5,6 +5,7 @@ import { useLayoutEffect } from 'react'
 import type { ToiletDetailResponse } from '../api/toilets'
 import { useMapRouteContext } from './mapRouteContext'
 import { ToiletDetailContents } from './ToiletDetailContents'
+import { ToiletShareLink } from './ToiletShareLink'
 import { CachedToiletContents } from './CachedToiletContents'
 import type { DetailFragment } from '../server/detailFragmentCache'
 import { OriginalSourceBadge } from './OriginalSourceBadge'
@@ -32,7 +33,7 @@ export function ToiletRouteBridge({ detail, locale = 'ko', path: overridePath, f
   if (!detail || !displayDetail) return <MapStartup locale={locale} />
   return <div className="route-card-stage"><aside className="place-card initial-route-card route-preview-card" aria-label={t('detail.title')}>
     <button type="button" className="mobile-card-handle" disabled aria-expanded={false}>{t('detail.show')}</button>
-    <ToiletCardHeader closeHref={localizedPublicPath('/', locale)!} closeLabel={t('common.close')} report={reviewsEnabled && <ToiletReportEntry disabled />}><span className="card-label">{toiletTypeLabel(displayDetail.toiletType, locale)}</span><OriginalSourceBadge toilet={displayDetail} locale={locale} /></ToiletCardHeader>
+    <ToiletCardHeader closeHref={localizedPublicPath('/', locale)!} closeLabel={t('common.close')} report={reviewsEnabled && <ToiletReportEntry disabled />} share={<ToiletShareLink key={displayDetail.id} toiletId={displayDetail.id} />}><span className="card-label">{toiletTypeLabel(displayDetail.toiletType, locale)}</span><OriginalSourceBadge toilet={displayDetail} locale={locale} /></ToiletCardHeader>
     <div className="place-card-summary">{reviewsEnabled ? <div className="review-card-title-row"><h1>{displayDetail.name}</h1></div> : <h1>{displayDetail.name}</h1>}</div>
     <div className="card-scroll-content">
       <p className="open-time">{formatOpenTime(displayDetail, locale)}</p>

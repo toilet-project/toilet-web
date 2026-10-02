@@ -43,6 +43,44 @@ jobs:
           name: workers-review-verification-${{ github.sha }}
           path: workers-review-verification.tar.gz
           retention-days: 1
+  live-data-preview:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      NEXT_PUBLIC_API_BASE_URL: https://api.geupddong.com
+      NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY: ${{ secrets.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY || 'build-validation-placeholder' }}
+      NEXT_DEPLOYMENT_ID: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-preview
+      SITE_INDEXABLE: 'false'
+      REVIEW_API_ENABLED: 'true'
+      REVIEW_LIVE_PREVIEW_APPROVED: 'true'
+      TOILET_ENGAGEMENT_ENABLED: 'true'
+      ENGLISH_UI_PREVIEW: 'true'
+      NEXT_PUBLIC_PROFILE_PHOTO_ENABLED: 'true'
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v6.1.0
+        with:
+          version: 11.19.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run lint
+      - run: pnpm run typecheck
+      - run: pnpm test
+      # Build only. No credentials, automatic deployment or real member writes in CI.
+      # Publishing this artifact uses the existing preview domain/API origin allowlist.
+      - run: pnpm exec opennextjs-cloudflare build --config wrangler.jsonc
+      - run: node scripts/relocate-worker-wasm.mjs
+      - run: node scripts/write-worker-release-manifest.mjs preview
+      - run: pnpm exec wrangler deploy --dry-run --config wrangler.jsonc
+      - run: tar -czf workers-live-data-preview.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs detail-incremental-cache.ts detail-cache-tags.ts region-markers-worker.ts src/lib/regionMarkerStore.ts src/lib/regionDisplayItems.ts src/i18n/toiletTranslations.ts data/regions/boundary-assets.json review-verification-proxy.mjs place-search-worker.mjs map-provider-worker.mjs package.json pnpm-lock.yaml pnpm-workspace.yaml wrangler.jsonc worker-release-manifest.json open-next.config.ts next.config.ts .next/BUILD_ID
+      - uses: actions/upload-artifact@v4
+        with:
+          name: workers-live-data-preview-${{ github.sha }}
+          path: workers-live-data-preview.tar.gz
+          retention-days: 3
   production-candidate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
