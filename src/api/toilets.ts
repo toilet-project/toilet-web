@@ -20,6 +20,7 @@ export type ToiletMapItemResponse = {
   displayGroupName?: string | null
   displayGroupTranslations?: Record<string, string>
   translations?: ToiletTranslations
+  filterFlags?: number
 }
 
 export type ToiletMapSearchResponse = {
@@ -88,8 +89,20 @@ export type ToiletDetailResponse = {
   translations?: ToiletTranslations
 }
 
-export async function fetchToiletsInBounds(params: { southLat: number; northLat: number; westLng: number; eastLng: number; zoom: number; includeList?: boolean }, signal?: AbortSignal): Promise<ToiletMapSearchResponse> {
-  const query = new URLSearchParams(Object.entries(params).map(([key, value]) => [key, String(value)]))
+export async function fetchToiletsInBounds(params: { southLat: number; northLat: number; westLng: number; eastLng: number; zoom: number; includeList?: boolean; filterFlags?: number; likedIds?: number[] }, signal?: AbortSignal): Promise<ToiletMapSearchResponse> {
+  if ((params.filterFlags ?? 0) !== 0 || params.likedIds !== undefined) {
+    // Personal selection IDs must not enter URL/access logs or a shared response cache.
+    // Failure must remain visible: falling back to an unfiltered map is misleading.
+    const response = await fetch('/api/map-filter-area', { method: 'POST', signal, credentials: 'omit', cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) })
+    if (!response.ok) throw new Error(`화장실 조건 조회에 실패했습니다. (${response.status})`)
+    const payload = await response.json() as Partial<ToiletMapSearchResponse>
+    if (!payload.meta || !['MARKER', 'CLUSTER'].includes(payload.meta.display_type)
+      || !Array.isArray(payload.toilets) || !Array.isArray(payload.clusters)) throw new Error('화장실 조건 응답을 확인할 수 없습니다.')
+    return payload as ToiletMapSearchResponse
+  }
+  const query = new URLSearchParams(Object.entries(params)
+    .filter(([key]) => key !== 'filterFlags' && key !== 'likedIds').map(([key, value]) => [key, String(value)]))
   const cachedClusters = !params.includeList && mapClusterZoomSupported(params.zoom)
     && process.env.NEXT_PUBLIC_MAP_CLUSTER_CACHE_ENABLED === 'true'
   const cells = mapCellZoomSupported(params.zoom) && process.env.NEXT_PUBLIC_MAP_CELL_CACHE_ENABLED === 'true'

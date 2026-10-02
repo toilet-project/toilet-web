@@ -4,6 +4,9 @@ import { MapLoadingState } from './components/MapStartup'
 import { PublicReviews, PublicReviewsLoading } from './components/reviews/PublicReviews'
 import { ToiletEngagement, type EngagementProps } from './components/ToiletEngagement'
 import { EngagementPreviewTools } from './components/EngagementPreviewTools'
+import { MapFilterBar } from './components/MapFilterBar'
+import { useMapFilterLikes } from './components/useMapFilterLikes'
+import { mapFilterCopy } from './i18n/mapFilterCopy'
 
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
@@ -82,6 +85,7 @@ const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
 const CLUSTER_GRID_SIZE = 84
 const MAX_LIST_ZOOM_LEVEL = 6
+const MAP_FILTERS_ENABLED = process.env.NEXT_PUBLIC_MAP_FILTERS_ENABLED === 'true'
 
 type SelectedToilet = ToiletMapItem
 type SelectedCoordinateGroup = { latitude: number; longitude: number; toilets: ToiletMapItem[]; displayGroupName?: string }
@@ -221,6 +225,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const locationRequestRef = useRef<AbortController | null>(null)
   const requestSequenceRef = useRef(0)
   const mapRequestAbortRef = useRef<AbortController | null>(null)
+  const mobileListAbortRef = useRef<AbortController | null>(null)
   const mapInteractionRef = useRef(false)
   const markerClickUntilRef = useRef(0)
   const selectedToiletRef = useRef<SelectedToilet | null>(initialSelected)
@@ -331,6 +336,17 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null)
   const currentUserRef = useRef<string | null>(null)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const [mapFilterFlags, setMapFilterFlags] = useState(0)
+  const [mapFilterOwner, setMapFilterOwner] = useState<string | null>(null)
+  const activeFilterOwner = !isAuthLoading && authProfile?.status === 'ACTIVE' && !authProfile.consentRequired ? authProfile.userId : null
+  const isMyMapFilter = Boolean(MAP_FILTERS_ENABLED && activeFilterOwner && mapFilterOwner === activeFilterOwner)
+  const mapFilterLikes = useMapFilterLikes(isMyMapFilter ? activeFilterOwner : null)
+  const mapFilterRequestRef = useRef<{ filterFlags: number; likedIds?: number[]; blocked: boolean; error: boolean }>({ filterFlags: 0, blocked: false, error: false })
+  const hasMapFilters = MAP_FILTERS_ENABLED && (mapFilterFlags !== 0 || isMyMapFilter)
+  const filterCopy = mapFilterCopy[locale]
+  useLayoutEffect(() => {
+    if (mapFilterOwner && mapFilterOwner !== activeFilterOwner) setMapFilterOwner(null)
+  }, [activeFilterOwner, mapFilterOwner])
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false)
   const [loginPurpose, setLoginPurpose] = useState<LoginPurpose>('general')
   const [isMyReportsOpen, setIsMyReportsOpen] = useState(false)
@@ -693,7 +709,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         })()
     const mapBounds = {
       left: containerRect.left - sectionRect.left + MAP_EDGE_GAP,
-      top: containerRect.top - sectionRect.top + MAP_EDGE_GAP,
+      top: containerRect.top - sectionRect.top + MAP_EDGE_GAP + (MAP_FILTERS_ENABLED ? 48 : 0),
       right: containerRect.right - sectionRect.left - MAP_EDGE_GAP,
       bottom: containerRect.bottom - sectionRect.top - MAP_EDGE_GAP,
     }
@@ -956,6 +972,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   useEffect(() => {
     const selected = selectedToilet ?? expandedCoordinateToilet
     const displaySelected = selected ? localizeToiletMapItem(selected, locale) : null
+    if (hasMapFilters && !result?.toilets.some(toilet => toilet.id === displaySelected?.id)) return
     const map = mapRef.current
     if (!isMapReady || !displaySelected || displaySelected.id === testToilet?.id || !map || toiletMarkerElementsRef.current.has(displaySelected.id)) return
     // A directly linked toilet can be absent from the current clustered/bounds response.
@@ -982,7 +999,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     })
     overlay.setMap(map)
     return () => overlay.setMap(null)
-  }, [selectedToilet, expandedCoordinateToilet, result, isMapReady, locale, suppressMapClickFromMarker, testToilet])
+  }, [selectedToilet, expandedCoordinateToilet, result, isMapReady, locale, suppressMapClickFromMarker, testToilet, hasMapFilters])
 
   const renderResult = useCallback((map: MapInstance, response: ToiletMapSearchResponse) => {
     clearOverlays()
@@ -1099,9 +1116,13 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const loadMapArea = useCallback(async () => {
     const map = mapRef.current
     if (!map) return
+    const filters = mapFilterRequestRef.current
+    if (filters.blocked) { setIsLoading(!filters.error); return }
 
     const requestSequence = ++requestSequenceRef.current
     mapRequestAbortRef.current?.abort()
+    mobileListAbortRef.current?.abort()
+    setIsMobileAreaListLoading(false)
     const controller = new AbortController()
     mapRequestAbortRef.current = controller
     const bounds = map.getBounds()
@@ -1117,6 +1138,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         eastLng: northEast.getLng(),
         zoom: map.getLevel(),
         includeList: window.matchMedia(DESKTOP_LAYOUT_QUERY).matches && map.getLevel() <= MAX_LIST_ZOOM_LEVEL,
+        ...(MAP_FILTERS_ENABLED ? { filterFlags: filters.filterFlags, likedIds: filters.likedIds } : {}),
       }, controller.signal)
 
       if (requestSequence !== requestSequenceRef.current) return
@@ -1136,6 +1158,28 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       }
     }
   }, [renderResult])
+
+  const mapFilterInitialized = useRef(false)
+  useLayoutEffect(() => {
+    if (!MAP_FILTERS_ENABLED) return
+    mapFilterRequestRef.current = {
+      filterFlags: mapFilterFlags,
+      likedIds: isMyMapFilter ? mapFilterLikes.ids ?? undefined : undefined,
+      blocked: isMyMapFilter && mapFilterLikes.ids === null,
+      error: isMyMapFilter && mapFilterLikes.error,
+    }
+    // Change the query, not the SDK: keep its camera and event listeners intact.
+    // Remove the previous result before paint so unfiltered/private rows never masquerade as the new filter.
+    requestSequenceRef.current++
+    mapRequestAbortRef.current?.abort()
+    mobileListAbortRef.current?.abort()
+    window.clearTimeout(mapLoadTimerRef.current)
+    clearOverlays()
+    if (mapFilterInitialized.current && (selectedToiletRef.current || groupRef.current)) closeDetailCard()
+    mapFilterInitialized.current = true
+    setResult(null); setMobileAreaToilets(null); setIsMobileAreaListLoading(false); setError(null)
+    void loadMapArea()
+  }, [mapFilterFlags, isMyMapFilter, mapFilterLikes.ids, mapFilterLikes.error, clearOverlays, loadMapArea, closeDetailCard])
 
   useEffect(() => {
     if (!error || !result) return
@@ -1475,6 +1519,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       disposed = true
       controller.abort()
       mapRequestAbortRef.current?.abort()
+      mobileListAbortRef.current?.abort()
       referenceRequestGate.invalidate()
       locationRequestRef.current?.abort()
       locationRequestRef.current = null
@@ -1559,6 +1604,12 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     const southWest = bounds.getSouthWest()
     const northEast = bounds.getNorthEast()
     setIsMobileAreaListLoading(true)
+    mobileListAbortRef.current?.abort()
+    const controller = new AbortController()
+    mobileListAbortRef.current = controller
+    const requestSequence = requestSequenceRef.current
+    const filters = mapFilterRequestRef.current
+    if (filters.blocked) { setIsMobileAreaListLoading(false); return }
     try {
       const response = await fetchToiletsInBounds({
         southLat: southWest.getLat(),
@@ -1567,12 +1618,15 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         eastLng: northEast.getLng(),
         zoom: map.getLevel(),
         includeList: true,
-      })
+        ...(MAP_FILTERS_ENABLED ? { filterFlags: filters.filterFlags, likedIds: filters.likedIds } : {}),
+      }, controller.signal)
+      if (controller.signal.aborted || requestSequence !== requestSequenceRef.current) return
       setMobileAreaToilets(response.toilets)
     } catch {
+      if (controller.signal.aborted || requestSequence !== requestSequenceRef.current) return
       setMobileAreaToilets([])
     } finally {
-      setIsMobileAreaListLoading(false)
+      if (mobileListAbortRef.current === controller) { mobileListAbortRef.current = null; setIsMobileAreaListLoading(false) }
     }
   }, [closeDetailCard, isMobileAreaListVisible, result, showMobileZoomGuide])
 
@@ -1689,8 +1743,20 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       </header>
 
       <section className="map-section" aria-label={t('map.title')}>
-        <div className="map-stage" inert={!isDesktop && mobileTab !== 'map'} style={!isDesktop && mobileTab !== 'map' ? { visibility: 'hidden' } : undefined}>
+        <div className={`map-stage${MAP_FILTERS_ENABLED ? ' has-map-filters' : ''}`} inert={!isDesktop && mobileTab !== 'map'} style={!isDesktop && mobileTab !== 'map' ? { visibility: 'hidden' } : undefined}>
         <div ref={mapContainerRef} className="map" />
+        {MAP_FILTERS_ENABLED && <MapFilterBar locale={locale} flags={mapFilterFlags} mine={isMyMapFilter}
+          onFlagsChange={setMapFilterFlags}
+          onMineChange={selected => {
+            if (!selected) { setMapFilterOwner(null); return }
+            if (!activeFilterOwner) { engagementProps.requireLogin(); return }
+            setMapFilterOwner(activeFilterOwner)
+          }}
+          listButton={!isDesktop ? <button className={`mobile-area-list-button${isMobileAreaListVisible ? ' is-open' : ''}${isLoading ? ' is-loading' : ''}`} type="button" onClick={() => void toggleMobileAreaList()} aria-expanded={isMobileAreaListVisible} aria-busy={isLoading} disabled={isLoading || !result}>{isMobileAreaListVisible ? t('map.closeList') : result ? t('map.area', { count: result.meta.total_count.toLocaleString(locale) }) : t('map.list')}</button> : undefined} />}
+        {hasMapFilters && (isLoading || mapFilterLikes.error || error || result?.meta.total_count === 0) && <div className="map-filter-status" role="status" aria-live="polite">
+          <span>{isLoading ? filterCopy.loading : mapFilterLikes.error || error ? filterCopy.error : filterCopy.empty}</span>
+          {!isLoading && (mapFilterLikes.error || error) && <button type="button" onClick={() => mapFilterLikes.error ? mapFilterLikes.retry() : void loadMapArea()}>{filterCopy.retry}</button>}
+        </div>}
         {!isMapReady && !isMapSwitching && !error && <MapLoadingState locale={locale} />}
         <div className={`map-provider-transition${isMapSwitching ? ' is-visible' : ''}`} role={isMapSwitching ? 'status' : undefined} aria-hidden={!isMapSwitching}>
           <span className="map-provider-transition-spinner" aria-hidden="true" />
@@ -1709,8 +1775,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           <div className="map-hud" aria-live="polite">
             {isLoading && <span className="map-loading-message">{t('map.loading')}</span>}
             {!isLoading && result && <span className="map-area-count">{t('map.area', { count: result.meta.total_count.toLocaleString(locale) })}{result.meta.display_type === 'CLUSTER' ? t('map.clustered') : ''}</span>}
-            {result && <button className={`mobile-area-list-button${isMobileAreaListVisible ? ' is-open' : ''}${isLoading ? ' is-loading' : ''}`} type="button" onClick={() => void toggleMobileAreaList()} aria-expanded={isMobileAreaListVisible} aria-busy={isLoading} disabled={isLoading}>{isLoading ? t('map.loading') : isMobileAreaListVisible ? t('map.closeList') : t('map.area', { count: result.meta.total_count.toLocaleString(locale) })}</button>}
-            {error && !result && <span className="error-message">{mapSystemNotice(error, locale)}</span>}
+            {!MAP_FILTERS_ENABLED && result && <button className={`mobile-area-list-button${isMobileAreaListVisible ? ' is-open' : ''}${isLoading ? ' is-loading' : ''}`} type="button" onClick={() => void toggleMobileAreaList()} aria-expanded={isMobileAreaListVisible} aria-busy={isLoading} disabled={isLoading}>{isLoading ? t('map.loading') : isMobileAreaListVisible ? t('map.closeList') : t('map.area', { count: result.meta.total_count.toLocaleString(locale) })}</button>}
+            {error && !result && !hasMapFilters && <span className="error-message">{mapSystemNotice(error, locale)}</span>}
           </div>
           <button className={`location-button${hasMapCard ? ' is-with-card' : ''}`} type="button" onClick={() => void moveToCurrentLocation()} disabled={isLocating}>
             {isLocating ? t('map.checking') : t('map.currentLocation')}

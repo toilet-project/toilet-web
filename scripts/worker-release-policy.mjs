@@ -21,6 +21,8 @@ export function validateWorkerConfig(config, target, {deploy = false, stage = fa
     production ? 'Production shared cache must stay enabled after cutover' : 'Preview shared cache must remain disabled'
   )
   if (production) {
+    assert.notEqual(config.vars?.MAP_FILTER_PREVIEW_SOURCE_ENABLED, 'true', 'Preview filter snapshots must never back production')
+    assert.notEqual(config.vars?.MAP_FILTERS_ENABLED, 'true', 'Map filters remain preview-only pending source API release')
     assert.equal(config.vars?.SHARED_TOILET_CACHE_FRESH_SECONDS, '2592000', 'Production detail data must stay fresh for 30 days')
     assert.equal(config.vars?.SHARED_TOILET_CACHE_STALE_SECONDS, '3196800', 'Production stale fallback must cover seven additional days')
     assert.equal(config.vars?.SHARED_TOILET_CACHE_NEGATIVE_SECONDS, '300', 'Production negative cache must stay short')

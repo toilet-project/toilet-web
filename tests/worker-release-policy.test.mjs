@@ -75,3 +75,11 @@ test('IndexNow is isolated from preview and enabled only in production',()=>{
   assert.equal(preview.vars.INDEXNOW_ENABLED,'false')
   assert.equal(production.vars.INDEXNOW_ENABLED,'true')
 })
+
+test('map filter preview source cannot be enabled in a production candidate',()=>{
+  assert.equal(preview.vars.MAP_FILTERS_ENABLED,'true')
+  assert.equal(preview.vars.MAP_FILTER_PREVIEW_SOURCE_ENABLED,'true')
+  for (const flag of ['MAP_FILTERS_ENABLED','MAP_FILTER_PREVIEW_SOURCE_ENABLED']) {
+    assert.throws(()=>validateWorkerConfig({...production,vars:{...production.vars,[flag]:'true'}},'production-candidate'))
+  }
+})

@@ -30,6 +30,8 @@ const publicReviewApiEnabled = reviewApiEnabled || process.env.SITE_INDEXABLE ==
 const config: NextConfig = {
   deploymentId: process.env.NEXT_DEPLOYMENT_ID,
   env: {
+    NEXT_PUBLIC_MAP_FILTERS_ENABLED: process.env.SITE_INDEXABLE === 'false'
+      && process.env.MAP_FILTERS_PREVIEW === 'true' ? 'true' : 'false',
     NEXT_PUBLIC_REPORT_REDESIGN_RELEASE: process.env.REPORT_REDESIGN_RELEASE === 'true'
       && reviewProductionApi ? 'true' : 'false',
     NEXT_PUBLIC_REPORT_REDESIGN_PREVIEW: process.env.SITE_INDEXABLE === 'false'
