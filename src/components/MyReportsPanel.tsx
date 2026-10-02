@@ -117,7 +117,7 @@ export function MyReportsPanel({ onClose, onSessionExpired, initialExpandedId = 
               <dl>
                 {['COORDINATE_CORRECTION', 'NEW_FACILITY', 'FACILITY_MISSING'].includes(report.reportType) && <div><dt>{t('report.address')}</dt><dd>{getDisplayAddress(report.roadAddress, report.jibunAddress) && originalTag}{getDisplayAddress(report.roadAddress, report.jibunAddress) || t('map.noAddress')}</dd></div>}
                 {report.reportType === 'OPEN_TIME_CORRECTION' && <div><dt>{t('report.openTime')}</dt><dd>{report.openTime && originalTag}{report.openTime || t('common.noInfo')}</dd></div>}
-                {report.reason && <div><dt>{t('report.reason')}</dt><dd>{originalTag}{report.reason}</dd></div>}
+                {report.reason && <div><dt>{t('report.reason')}</dt><dd>{report.reason && originalTag}{report.reason}</dd></div>}
                 {report.observedAt && <div><dt>{quickReportMessage(locale, 'observed')}</dt><dd>{formatDate(report.observedAt)} · KST</dd></div>}
                 {report.reviewedAt && <div><dt>{t('report.reviewedAt')}</dt><dd>{formatDate(report.reviewedAt)}</dd></div>}
               </dl>
