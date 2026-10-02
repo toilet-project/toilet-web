@@ -6,6 +6,7 @@ import { fetchSessionRead } from '../api/session'
 import { useLocale } from '../i18n/context'
 import { engagementMessage } from '../i18n/engagementMessages'
 import { createEngagementApi, createViewRecorder, EngagementError, observeDetailView } from '../lib/toiletEngagement'
+import { likedListView } from '../lib/likedListView'
 import './toilet-engagement.css'
 
 const enabled = process.env.NEXT_PUBLIC_TOILET_ENGAGEMENT_ENABLED === 'true'
@@ -58,6 +59,7 @@ function EngagementRow({ toiletId, owner, active, requireLogin }: EngagementProp
     busy.current = true;setWriting(true);setError('')
     try {
       const result = await api.setLike(toiletId, !liked)
+      likedListView.changed(owner, result.liked)
       if (!live.current) return
       setLiked(result.liked)
     } catch (e) {

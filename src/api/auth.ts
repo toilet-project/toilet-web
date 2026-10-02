@@ -6,6 +6,7 @@ import { fetchSessionRead } from './session'
 import { decodePhoto, type PhotoState } from '../lib/profilePhoto'
 import { saveLanguageLoginReturn } from '../i18n/loginReturn'
 import { ENGLISH_UI_ENABLED } from '../i18n/feature'
+import { likedListView } from '../lib/likedListView'
 
 export type AuthProfile = {
   userId: string
@@ -46,9 +47,11 @@ export type PolicyConsentStatus = {
 export async function getCurrentUser(): Promise<AuthProfile | null> {
   const response = await fetchSessionRead(createApiUrl('/api/v1/auth/me'))
 
-  if (response.status === 401) return null
+  if (response.status === 401) { likedListView.clear(); return null }
   if (!response.ok) throw new Error('로그인 상태를 확인하지 못했습니다.')
   const profile = await response.json() as AuthProfile & { profilePhoto?: unknown }
+  if (profile.status === 'ACTIVE' && !profile.consentRequired) likedListView.identify(profile.userId)
+  else likedListView.clear()
   return { ...profile, email: maskEmail(profile.email), profilePhoto: profile.profilePhoto == null ? profile.profilePhoto : decodePhoto(profile.profilePhoto) }
 }
 
@@ -64,6 +67,7 @@ export async function logout() {
     method: 'POST', credentials: 'include',
   })
   if (!response.ok) throw new Error('로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.')
+  likedListView.clear()
 }
 
 export class AuthExpiredError extends Error {}
@@ -114,7 +118,9 @@ export async function withdrawAccount(retainForRecovery: boolean, consentVersion
     body: JSON.stringify({ retainForRecovery, consentVersion }),
   })
   const receipt: unknown = response.status === 200 ? await response.json() : undefined
-  return withdrawalReceipt(response.status, retainForRecovery, receipt)
+  const result = withdrawalReceipt(response.status, retainForRecovery, receipt)
+  likedListView.clear()
+  return result
 }
 
 export type RecoveryStatus = { purgeAfter: string; displayName: string | null }
