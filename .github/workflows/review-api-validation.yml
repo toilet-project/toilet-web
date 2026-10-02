@@ -15,9 +15,11 @@ jobs:
       NEXT_TELEMETRY_DISABLED: '1'
       NEXT_PUBLIC_API_BASE_URL: https://preview.geupddong.com/__review-verification
       NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY: ${{ secrets.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY || 'build-validation-placeholder' }}
-      NEXT_DEPLOYMENT_ID: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-review-verification
+      NEXT_DEPLOYMENT_ID: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-preview
       SITE_INDEXABLE: 'false'
       REVIEW_API_ENABLED: 'true'
+      TOILET_ENGAGEMENT_ENABLED: 'true'
+      ENGLISH_UI_PREVIEW: 'true'
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.0.0
@@ -35,7 +37,7 @@ jobs:
       - run: node scripts/relocate-worker-wasm.mjs
       - run: node scripts/write-worker-release-manifest.mjs preview
       - run: pnpm exec wrangler deploy --dry-run --config wrangler.jsonc
-      - run: tar -czf workers-review-verification.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs region-markers-worker.ts src/lib/regionMarkerStore.ts src/lib/regionDisplayItems.ts src/i18n/toiletTranslations.ts data/regions/boundary-assets.json review-verification-proxy.mjs place-search-worker.mjs map-provider-worker.mjs package.json pnpm-lock.yaml wrangler.jsonc worker-release-manifest.json open-next.config.ts next.config.ts .next/BUILD_ID
+      - run: tar -czf workers-review-verification.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs detail-incremental-cache.ts detail-cache-tags.ts region-markers-worker.ts src/lib/regionMarkerStore.ts src/lib/regionDisplayItems.ts src/i18n/toiletTranslations.ts data/regions/boundary-assets.json review-verification-proxy.mjs place-search-worker.mjs map-provider-worker.mjs package.json pnpm-lock.yaml wrangler.jsonc worker-release-manifest.json open-next.config.ts next.config.ts .next/BUILD_ID
       - uses: actions/upload-artifact@v4
         with:
           name: workers-review-verification-${{ github.sha }}
@@ -48,10 +50,12 @@ jobs:
       NEXT_TELEMETRY_DISABLED: '1'
       NEXT_PUBLIC_API_BASE_URL: https://api.geupddong.com
       NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY: ${{ secrets.NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY || 'build-validation-placeholder' }}
-      NEXT_DEPLOYMENT_ID: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-review-production-candidate
+      NEXT_DEPLOYMENT_ID: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-production-candidate
       SITE_INDEXABLE: 'true'
       REVIEW_API_ENABLED: 'true'
       REVIEW_PRODUCTION_APPROVED: 'true'
+      TOILET_ENGAGEMENT_ENABLED: 'true'
+      ENGLISH_UI_RELEASE: 'true'
       # Candidate validation only; this workflow never deploys or activates the feature.
       NEXT_PUBLIC_PROFILE_PHOTO_ENABLED: 'true'
     steps:

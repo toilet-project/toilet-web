@@ -57,7 +57,10 @@ export function DistrictToiletSelection({ toilets, locale, districtCode, onClose
   function choose(id: number | null) { setFailed(false); setDetail(null); setActiveId(id) }
 
   return <aside className={`district-map-selection${active ? ' is-facility' : ''}`} aria-label={t('detail.title')}>
-    <button type="button" className="region-selection-close" onClick={onClose} aria-label={r.closeSelection}>×</button>
+    <div className="district-selection-actions">
+      {active && <ToiletShareLink key={active.id} toiletId={active.id} />}
+      <button type="button" className="region-selection-close" onClick={onClose} aria-label={r.closeSelection}>×</button>
+    </div>
     {active && display ? <>
       <header className="district-selection-heading">
         {toilets.length > 1 && <button type="button" className="district-selection-back" onClick={() => choose(null)}>{t('common.back')}</button>}
@@ -71,7 +74,6 @@ export function DistrictToiletSelection({ toilets, locale, districtCode, onClose
         {desktop && loaded && <>
           <PublicReviews toiletId={loaded.id} toiletName={loaded.name} toiletType={loaded.toiletType} />
           <ToiletDetailContents toilet={loaded} />
-          <ToiletShareLink key={loaded.id} toiletId={loaded.id} />
         </>}
       </div>
       <Link className="district-selection-link" href={localizedPublicPath(detailPath, locale)!}>{t('detail.show')}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg></Link>

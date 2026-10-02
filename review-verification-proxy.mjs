@@ -12,16 +12,20 @@ export async function reviewVerificationResponse(request, env) {
   if (!/^https:\/\/[a-z0-9]+(?:-[a-z0-9]+)+\.trycloudflare\.com$/.test(env.REVIEW_VERIFICATION_ORIGIN ?? '')) return reject(503, 'REVIEW_VERIFICATION_CONFIG_INVALID')
   const path = url.pathname.slice(prefix.length)
   const read = request.method === 'GET' && (/^\/api\/v1\/reviews(?:\/me|\/creation-status|\/[1-9]\d*)?$/.test(path)
-    || /^\/api\/v1\/toilets(?:\/[1-9]\d*(?:\/reviews(?:\/summary)?)?)?$/.test(path)
+    || /^\/api\/v1\/toilets(?:\/[1-9]\d*(?:\/reviews(?:\/summary)?|\/engagement)?)?$/.test(path)
+    || /^\/api\/v1\/engagement\/toilets\/[1-9]\d*\/like$/.test(path)
     || ['/api/v1/auth/me', '/api/v1/notifications/unread-count'].includes(path))
   const write = (request.method === 'POST' && (/^\/api\/v1\/reviews(?:\/[1-9]\d*\/detach-author)?$/.test(path)))
     || request.method === 'PATCH' && /^\/api\/v1\/reviews\/[1-9]\d*$/.test(path)
+    || request.method === 'POST' && /^\/api\/v1\/toilets\/[1-9]\d*\/views$/.test(path)
+    || ['PUT', 'DELETE'].includes(request.method) && /^\/api\/v1\/engagement\/toilets\/[1-9]\d*\/like$/.test(path)
   if (!read && !write) return reject(403)
   if (write && request.headers.get('Origin') !== url.origin) return reject(403)
-  if (write && !request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return reject(415)
+  const bodyless = write && ['PUT', 'DELETE'].includes(request.method)
+  if (write && !bodyless && !request.headers.get('Content-Type')?.toLowerCase().startsWith('application/json')) return reject(415)
   if (url.search.length > 1000) return reject(400)
   let body
-  if (write) {
+  if (write && !bodyless) {
     // Read with a strict cap; no request/response bodies or coordinates are logged.
     const reader = request.body?.getReader()
     if (!reader) return reject(400)
@@ -32,6 +36,8 @@ export async function reviewVerificationResponse(request, env) {
     for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.length }
   }
   const forwarded = new Headers({ Accept: 'application/json', 'X-Review-Verification': 'synthetic-only' })
+  const fixtureActor = (request.headers.get('Cookie') || '').split(';').map(v => v.trim()).find(v => v.startsWith('engagement-preview-actor='))?.split('=')[1]
+  forwarded.set('X-Engagement-Fixture-Actor', ['1', '2', 'anonymous'].includes(fixtureActor) ? fixtureActor : 'anonymous')
   if (write) forwarded.set('Content-Type', 'application/json')
   const idempotency = request.headers.get('Idempotency-Key')
   if (idempotency && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(idempotency)) forwarded.set('Idempotency-Key', idempotency)

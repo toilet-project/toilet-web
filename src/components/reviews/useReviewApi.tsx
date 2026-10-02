@@ -241,5 +241,5 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
 }
 function summaryValue(value: Awaited<ReturnType<typeof reviewApi.summary>>): PreviewReviewSummary {
   return { count: value.count, rating: value.rating === null ? '—' : String(value.rating), paper: value.paperPercent,
-    congestion: value.latestWaitMinutes === null ? '정보 없음' : value.latestWaitMinutes === 0 ? '원활' : '대기', source: 'api' }
+    congestion: value.latestWaitMinutes === null ? '정보 없음' : value.latestWaitMinutes === 0 ? '원활' : '대기', crowding: value.crowding, source: 'api' }
 }
