@@ -1,4 +1,16 @@
 .mobile-navigation, .mobile-header-actions, .mobile-page { display: none; }
+.toilet-share-trigger { position:relative; display:grid; flex:none; place-items:center; width:32px; height:32px; padding:0; border:0; border-radius:8px; background:transparent; color:#556158; cursor:pointer; }
+.toilet-share-trigger::before { position:absolute; inset:-6px; content:''; }
+.toilet-share-trigger:hover, .toilet-share-trigger[aria-expanded=true] { background:#edf5ef; color:#17683a; }
+.toilet-share-trigger:focus-visible, .toilet-share-menu button:focus-visible { outline:2px solid #39855b; outline-offset:2px; }
+.toilet-share-menu { position:fixed; z-index:1600; box-sizing:border-box; width:208px; max-width:calc(100vw - 16px); padding:6px; overflow-y:auto; overscroll-behavior:contain; border:1px solid #dce8e0; border-radius:12px; background:#fff; color:#25382d; box-shadow:0 8px 28px #1c422925; }
+.toilet-share-menu button { display:flex; align-items:center; gap:10px; width:100%; min-height:44px; padding:10px; border:0; border-radius:8px; background:transparent; color:inherit; text-align:left; font:inherit; font-size:13px; cursor:pointer; }
+.toilet-share-menu button:hover, .toilet-share-menu button:focus { background:#f2f8f4; }
+.toilet-share-menu button[aria-disabled=true] { opacity:.55; cursor:wait; }
+.toilet-share-menu svg { flex:none; }
+.toilet-share-status { padding:8px 10px 6px; color:#236d4a; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
+.toilet-share-status:empty { display:none; }
+.place-card.is-review-list-open .toilet-share-trigger { display:none; }
 .login-modal > .login-brand { display: block; font-size: 34px; font-weight: 400; line-height: 1; margin: 4px 0 18px; }
 /* Disable double-tap smart zoom on controls, not the map's pinch gestures. */
 .toilet-marker, .coordinate-group-marker, .cluster-marker, .mobile-card-handle { touch-action: manipulation; }
