@@ -1,0 +1,68 @@
+/* Account-only density: keep shared map, inbox, login and dialog controls unchanged. */
+.account-controls {
+  --account-control-height: 32px;
+  --account-control-radius: 8px;
+  --account-control-line: 18px;
+}
+.account-controls .liked-toolbar { gap: 8px; margin-bottom: 12px; }
+.account-controls .liked-sort-field select {
+  box-sizing: border-box;
+  min-height: var(--account-control-height);
+  padding: 6px 30px 6px 10px;
+  border-radius: var(--account-control-radius);
+  font-size: 12px;
+  line-height: var(--account-control-line);
+}
+.account-controls .liked-sort-field svg { right: 9px; width: 14px; height: 14px; }
+.account-controls .history-list .history-periods button,
+.account-controls .history-list .my-reports-filters button {
+  position: relative;
+  box-sizing: border-box;
+  min-height: var(--account-control-height);
+  padding: 6px 10px;
+  border-radius: var(--account-control-radius);
+  font-size: 12px;
+  line-height: var(--account-control-line);
+}
+.account-controls .history-list .history-periods .history-date-toggle { width: 32px; flex-basis: 32px; padding: 0; }
+.account-controls .history-date-toggle svg { width: 18px; height: 18px; }
+.account-controls .history-range-caption { margin-top: 10px; }
+.account-controls .history-list .my-reports-filters { gap: 6px; }
+.account-controls .history-date-inputs { gap: 8px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(64px, .65fr); }
+.account-controls .history-date-inputs button { min-height: 44px; border-radius: var(--account-control-radius); }
+.account-controls .history-date-field { gap: 2px; padding: 5px 9px; }
+.account-controls .history-date-inputs .history-date-apply { padding: 6px 10px; line-height: var(--account-control-line); }
+.account-controls .history-list .history-more,
+.account-controls .history-list .history-review-actions button,
+.account-controls .history-list .my-reports-retry-button,
+.account-controls .mobile-profile-form button:not(.profile-photo-switch) {
+  position: relative;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: var(--account-control-radius);
+  font-size: 12px;
+  line-height: var(--account-control-line);
+}
+.account-controls .history-review-actions .history-review-remove { width: 36px; height: 36px; flex-basis: 36px; padding: 0; }
+.account-controls .history-list .history-more { margin-top: 14px; }
+.account-controls .mobile-profile-form input { min-height: 42px; padding-block: 8px; } /* Keep 16px input text: avoid iOS focus zoom. */
+.account-controls .mobile-account-links button { min-height: 56px; padding-block: 10px; }
+.account-controls .account-workspace-rail > a,
+.account-controls .account-workspace-rail > button { min-height: 44px; padding-block: 10px; }
+.account-controls .account-embedded .policy-disclosure-toggle { min-height: 56px; padding-block: 9px; }
+.account-controls .account-embedded .account-confirm button { min-height: 40px; padding: 8px 12px; line-height: var(--account-control-line); }
+/* Narrow/touch screens: a 32px surface, but a 44px native-select hit area.
+   Text buttons extend vertically only, so adjacent filters never overlap. */
+@media (max-width: 767px), (pointer: coarse) {
+  .account-controls .history-filter-shell.is-embedded .my-reports-filters { padding-block: 6px; } /* Horizontal scrolling must not clip the extended touch area. */
+  .account-controls .liked-sort-field::before { position: absolute; inset: 6px 0; border: 1px solid #dce8df; border-radius: var(--account-control-radius); background: #f7faf8; content: ''; pointer-events: none; }
+  .account-controls .liked-sort-field select { position: relative; min-height: 44px; padding-block: 12px; border-color: transparent; background: transparent; }
+  .account-controls .liked-sort-field svg { z-index: 1; }
+  .account-controls .history-list .history-periods button::before,
+  .account-controls .history-list .my-reports-filters button::before { position: absolute; inset: -6px 0; content: ''; }
+  .account-controls .history-list .history-more::before,
+  .account-controls .history-list .history-review-actions button::before,
+  .account-controls .history-list .my-reports-retry-button::before,
+  .account-controls .mobile-profile-form button:not(.profile-photo-switch)::before { position: absolute; inset: -4px 0; content: ''; }
+}
