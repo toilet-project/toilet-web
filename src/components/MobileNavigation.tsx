@@ -7,6 +7,7 @@ import { MyReportsPanel } from './MyReportsPanel'
 import { NotificationPanel } from './NotificationPanel'
 import { HistoryScrollTop } from './HistoryScrollTop'
 import { AccountDialog } from './AccountDialog'
+import { LikedToiletsPanel } from './LikedToiletsPanel'
 import Link from 'next/link'
 import { useMessages, useLocale } from '../i18n/context'
 import { accountError } from '../i18n/accountLabels'
@@ -14,13 +15,15 @@ import { localizedPublicPath } from '../i18n/routes'
 import { BrandWordmark } from './BrandWordmark'
 
 export type MobileTab = 'map' | 'notifications' | 'account'
-export type MobileAccountView = 'home' | 'reports' | 'reviews' | 'settings'
-type IconName = MobileTab | 'community' | 'regions' | 'settings'
+export type MobileAccountView = 'home' | 'likes' | 'reports' | 'reviews' | 'settings'
+type IconName = MobileTab | 'community' | 'regions' | 'settings' | 'likes'
+const LIKES_ENABLED = process.env.NEXT_PUBLIC_TOILET_ENGAGEMENT_ENABLED === 'true'
 
 function Icon({ name }: { name: IconName }) {
   const paths = {
     map: <><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Z" /><path d="M9 3v16M15 5v16" /></>,
     community: <><path d="M20 11a8 8 0 0 1-8 8H7l-4 2 1-5a8 8 0 1 1 16-5Z" /><path d="M8 9h8M8 13h5" /></>,
+    likes: <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" />,
     regions: <><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Z" /><path d="M9 3v16M15 5v16" /><path d="M12 9a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4Z" /></>,
     notifications: <><path d="M18 9a6 6 0 0 0-12 0c0 6-2 6-2 8h16c0-2-2-2-2-8M10 21h4" /></>,
     account: <><circle cx="12" cy="7.5" r="3.5" /><path d="M5 21v-2a7 7 0 0 1 14 0v2" /></>,
@@ -91,12 +94,13 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
   </section>
 }
 
-export function MobilePage({ tab, profile, loading, unread, onProfile, onReports, onAccount, onLogout, onCountChange, onOpenReport, beforeLogin, onSessionExpired, onReviews, accountView = 'home', onBackAccount, reviewPage, focusedReportId, onWithdrawn }: {
+export function MobilePage({ tab, profile, loading, unread, onProfile, onReports, onAccount, onLogout, onCountChange, onOpenReport, beforeLogin, onSessionExpired, onLikes, onReviews, accountView = 'home', onBackAccount, reviewPage, focusedReportId, onWithdrawn }: {
   tab: Exclude<MobileTab, 'map'>; profile: AuthProfile | null; loading: boolean; unread: number;
   onProfile: (profile: AuthProfile) => void; onReports: () => void; onAccount: () => void; onLogout: () => void; onCountChange: () => void; onOpenReport: (reportId: number) => void;
   beforeLogin: (tab: MobileTab) => void;
   onSessionExpired: () => void;
   onWithdrawn: (message: string) => void;
+  onLikes?: () => void;
   onReviews?: () => void;
   accountView?: MobileAccountView; onBackAccount: () => void; reviewPage?: ReactNode; focusedReportId?: number | null;
 }) {
@@ -107,12 +111,13 @@ export function MobilePage({ tab, profile, loading, unread, onProfile, onReports
   return <section ref={page} className={`mobile-page${historyPage ? ' is-history-page' : ''}`} aria-label={t(tab === 'account' ? 'nav.account' : 'nav.notifications')}>
     {loading ? <p className="mobile-page-loading" role="status">{t('common.loading')}</p> : !profile ? <LoginLanding onLogin={provider => { beforeLogin(tab); startSocialLogin(provider) }} />
       : tab === 'account' && accountView === 'reports' ? <MyReportsPanel key={`account-reports-${profile.userId}-${focusedReportId ?? 'list'}`} embedded onSessionExpired={onSessionExpired} initialExpandedId={focusedReportId} onClose={onBackAccount} onBack={onBackAccount} />
+      : tab === 'account' && accountView === 'likes' && LIKES_ENABLED ? <LikedToiletsPanel key={profile.userId} owner={profile.userId} onClose={onBackAccount} onSessionExpired={onSessionExpired} />
       : tab === 'account' && accountView === 'reviews' && onReviews ? reviewPage
       : tab === 'account' && accountView === 'settings' ? <AccountDialog key={profile.userId} embedded profile={profile} onClose={onBackAccount} onWithdrawn={onWithdrawn} />
       : tab === 'account' ? <>
       <header className="mobile-page-heading"><h1>{t('nav.account')}</h1></header>
       <ProfileCard key={profile.userId} profile={profile} onProfile={onProfile} onSessionExpired={onSessionExpired} />
-      <div className="mobile-account-links">{onReviews && <button type="button" onClick={onReviews}><Icon name="community" /><span>{t('nav.myReviews')}</span><span aria-hidden="true">›</span></button>}<button type="button" onClick={onReports}><Icon name="community" /><span>{t('nav.myReports')}</span><span aria-hidden="true">›</span></button><button type="button" onClick={onAccount}><Icon name="settings" /><span>{t('account.settings')}</span><span aria-hidden="true">›</span></button></div>
+      <div className="mobile-account-links">{LIKES_ENABLED && onLikes && <button type="button" onClick={onLikes}><Icon name="likes" /><span>{t('nav.myLikes')}</span><span aria-hidden="true">›</span></button>}{onReviews && <button type="button" onClick={onReviews}><Icon name="community" /><span>{t('nav.myReviews')}</span><span aria-hidden="true">›</span></button>}<button type="button" onClick={onReports}><Icon name="community" /><span>{t('nav.myReports')}</span><span aria-hidden="true">›</span></button><button type="button" onClick={onAccount}><Icon name="settings" /><span>{t('account.settings')}</span><span aria-hidden="true">›</span></button></div>
       <div className="mobile-account-support"><PolicyLinks /><button type="button" className="mobile-logout" onClick={onLogout}>{t('auth.logout')}</button></div>
     </> : <NotificationPanel key={profile.userId} embedded unread={unread} onSessionExpired={onSessionExpired} onCountChange={onCountChange} onOpenReport={onOpenReport} onClose={() => {}} />}
     {historyPage && !loading && profile && <HistoryScrollTop key={`${accountView}-${profile.userId}`} container={page} />}
