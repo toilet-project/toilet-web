@@ -63,6 +63,7 @@ import { DetailLoadingFields, LoadingOpenTime } from './components/ToiletCardLoa
 import { hasValue, formatOpenTime, formatFacilityLocation, formatLastUpdatedAt } from './lib/detailFormatting'
 import { BrandWordmark } from './components/BrandWordmark'
 import { toiletCoordinates } from './lib/toiletRoute'
+import type { LikedToilet } from './lib/toiletEngagement'
 import { groupToiletsByCoordinate, representativeToilet, type ToiletMapItem, type MapPoint } from './lib/toiletGrouping'
 import type { MapRouteData } from './components/mapRouteContext'
 import { DESKTOP_LAYOUT_QUERY } from './lib/responsiveLayout'
@@ -342,6 +343,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   })
   const [mobileTab, setMobileTab] = useState<MobileTab>(incomingMobileView?.tab ?? 'map')
   const [mobileAccountView, setMobileAccountView] = useState<MobileAccountView>(incomingMobileView?.view ?? 'home')
+  const [likedMapTarget, setLikedMapTarget] = useState<LikedToilet | null>(null)
   useEffect(() => {
     if (isDesktop || mobileTab === 'map' || mobileAccountView === 'reviews') return
     const screen = mobileTab === 'notifications' ? 'notifications'
@@ -708,6 +710,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   }, [])
 
   const closeDetailCard = useCallback(() => {
+    setLikedMapTarget(null)
     preserveGroupOnHomeRef.current = false
     setIsMobileAreaListOpen(false)
     resetDetailCard()
@@ -1561,6 +1564,32 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     if (!window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) map.panTo(position)
   }, [groupedAreaToilets, openCoordinateGroup, selectToilet])
 
+  const openLikedToilet = useCallback((item: LikedToilet) => {
+    setMobileTab('map')
+    setMobileAccountView('home')
+    setIsPlaceSearchFocused(false)
+    setIsMobileAreaListOpen(false)
+    const point = toiletCoordinates(item)
+    if (point) selectToilet(item.id, item.name, point.latitude, point.longitude, false, item.toiletType)
+    else { resetDetailCard(); onNavigate(item.id) }
+    setLikedMapTarget(item)
+  }, [selectToilet, resetDetailCard, onNavigate])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!likedMapTarget || !isMapReady || !map || mobileTab !== 'map') return
+    // The account panel has just hidden the map. Wait for its visible layout,
+    // then focus this explicit selection without changing history navigation.
+    const frame = window.requestAnimationFrame(() => {
+      const point = toiletCoordinates(likedMapTarget)
+      map.relayout()
+      if (point) map.panTo(createMapCoordinate(map, point.latitude, point.longitude))
+      setIsMobileCardExpanded(true)
+      setLikedMapTarget(null)
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [likedMapTarget, isMapReady, mobileTab])
+
   return (
     <main data-review-design-preview={REVIEW_DESIGN_PREVIEW || undefined} data-review-api={REVIEW_API_ENABLED || undefined} className={`app-shell${!isDesktop ? ' has-mobile-navigation' : ''}${!isDesktop && mobileTab !== 'map' ? ' is-mobile-page' : ''}`}>
       <EngagementPreviewTools />
@@ -1808,6 +1837,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           onSessionExpired={handleSessionExpired}
           onReviews={REVIEW_UI_ENABLED ? reviewPreview.openMine : undefined}
           onLikes={() => setMobileAccountView('likes')}
+          onOpenLikedToilet={openLikedToilet}
           onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setMobileAccountView('settings')} onWithdrawn={handleWithdrawn} onLogout={handleLogout} onCountChange={refreshNotificationCount} onOpenReport={showReportHistory}
           beforeLogin={tab => { try { window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, tab) } catch { /* 로그인은 계속 제공 */ } }} />}
         {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); showReportHistory() }} />}
@@ -1824,7 +1854,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         </section></div>}
         {!isAuthLoading && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('recovery') === 'required' && <AccountRecoveryDialog />}
       </section>
-      {isDesktop ? <SiteFooter homeIntro={route.path === localizedPublicPath('/', locale)} /> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { reviewPreview.close(); setMobileAccountView('home'); setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
+      {isDesktop ? <SiteFooter homeIntro={route.path === localizedPublicPath('/', locale)} /> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { setLikedMapTarget(null); reviewPreview.close(); setMobileAccountView('home'); setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
     </main>
   )
 }

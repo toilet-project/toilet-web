@@ -8,6 +8,7 @@ import { NotificationPanel } from './NotificationPanel'
 import { HistoryScrollTop } from './HistoryScrollTop'
 import { AccountDialog } from './AccountDialog'
 import { LikedToiletsPanel } from './LikedToiletsPanel'
+import type { LikedToilet } from '../lib/toiletEngagement'
 import Link from 'next/link'
 import { useMessages, useLocale } from '../i18n/context'
 import { accountError } from '../i18n/accountLabels'
@@ -94,13 +95,14 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
   </section>
 }
 
-export function MobilePage({ tab, profile, loading, unread, onProfile, onReports, onAccount, onLogout, onCountChange, onOpenReport, beforeLogin, onSessionExpired, onLikes, onReviews, accountView = 'home', onBackAccount, reviewPage, focusedReportId, onWithdrawn }: {
+export function MobilePage({ tab, profile, loading, unread, onProfile, onReports, onAccount, onLogout, onCountChange, onOpenReport, beforeLogin, onSessionExpired, onLikes, onOpenLikedToilet, onReviews, accountView = 'home', onBackAccount, reviewPage, focusedReportId, onWithdrawn }: {
   tab: Exclude<MobileTab, 'map'>; profile: AuthProfile | null; loading: boolean; unread: number;
   onProfile: (profile: AuthProfile) => void; onReports: () => void; onAccount: () => void; onLogout: () => void; onCountChange: () => void; onOpenReport: (reportId: number) => void;
   beforeLogin: (tab: MobileTab) => void;
   onSessionExpired: () => void;
   onWithdrawn: (message: string) => void;
   onLikes?: () => void;
+  onOpenLikedToilet: (item: LikedToilet) => void;
   onReviews?: () => void;
   accountView?: MobileAccountView; onBackAccount: () => void; reviewPage?: ReactNode; focusedReportId?: number | null;
 }) {
@@ -111,7 +113,7 @@ export function MobilePage({ tab, profile, loading, unread, onProfile, onReports
   return <section ref={page} className={`mobile-page${historyPage ? ' is-history-page' : ''}`} aria-label={t(tab === 'account' ? 'nav.account' : 'nav.notifications')}>
     {loading ? <p className="mobile-page-loading" role="status">{t('common.loading')}</p> : !profile ? <LoginLanding onLogin={provider => { beforeLogin(tab); startSocialLogin(provider) }} />
       : tab === 'account' && accountView === 'reports' ? <MyReportsPanel key={`account-reports-${profile.userId}-${focusedReportId ?? 'list'}`} embedded onSessionExpired={onSessionExpired} initialExpandedId={focusedReportId} onClose={onBackAccount} onBack={onBackAccount} />
-      : tab === 'account' && accountView === 'likes' && LIKES_ENABLED ? <LikedToiletsPanel key={profile.userId} owner={profile.userId} onClose={onBackAccount} onSessionExpired={onSessionExpired} />
+      : tab === 'account' && accountView === 'likes' && LIKES_ENABLED ? <LikedToiletsPanel key={profile.userId} owner={profile.userId} onClose={onBackAccount} onSessionExpired={onSessionExpired} onOpenToilet={onOpenLikedToilet} />
       : tab === 'account' && accountView === 'reviews' && onReviews ? reviewPage
       : tab === 'account' && accountView === 'settings' ? <AccountDialog key={profile.userId} embedded profile={profile} onClose={onBackAccount} onWithdrawn={onWithdrawn} />
       : tab === 'account' ? <>
