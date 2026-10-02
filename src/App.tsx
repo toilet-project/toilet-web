@@ -70,6 +70,7 @@ import { DESKTOP_LAYOUT_QUERY } from './lib/responsiveLayout'
 import { resolveDistanceReference, type DistanceSource } from './lib/distanceReference'
 import { initialMapLocation, isKoreanMapLocation, SEOUL_STATION } from './lib/mapStart'
 import { TRANSIENT_NOTICE_MS } from './lib/uiTiming'
+import { BrowserLocationError, requestBrowserLocation } from './lib/browserLocation'
 import { warmOwnPhoto } from './lib/warmOwnPhoto'
 import { refreshSignupPhoto } from './lib/signupPhotoWarm'
 import { prefetchPublicReviews, PUBLIC_REVIEW_API_ENABLED } from './lib/publicReviewPrefetch'
@@ -214,6 +215,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const searchLocationOverlayRef = useRef<MapOverlay | null>(null)
   const referencePointOverlayRef = useRef<MapOverlay | null>(null)
   const locationWatchIdRef = useRef<number | null>(null)
+  const locationWatchGeneration = useRef(0)
+  const locationRequestRef = useRef<AbortController | null>(null)
   const requestSequenceRef = useRef(0)
   const mapRequestAbortRef = useRef<AbortController | null>(null)
   const mapInteractionRef = useRef(false)
@@ -643,6 +646,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     if (!map) return
 
     referenceRequestGate.invalidate()
+    locationRequestRef.current?.abort()
     setIsLocating(false)
     setMapCenter(coordinates)
     setDistanceSource(source)
@@ -1177,88 +1181,107 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     }
   }, [updateReferencePoint])
 
+  const stopCurrentLocationWatch = useCallback(() => {
+    locationWatchGeneration.current++
+    if (locationWatchIdRef.current != null) navigator.geolocation?.clearWatch(locationWatchIdRef.current)
+    locationWatchIdRef.current = null
+  }, [])
+
   const startCurrentLocationWatch = useCallback(() => {
     if (!navigator.geolocation || locationWatchIdRef.current != null) return
-
+    const watch = ++locationWatchGeneration.current
     locationWatchIdRef.current = navigator.geolocation.watchPosition(
-      ({ coords }) => updateCurrentLocation({ latitude: coords.latitude, longitude: coords.longitude }, false),
+      ({ coords }) => { if (watch === locationWatchGeneration.current) updateCurrentLocation({ latitude: coords.latitude, longitude: coords.longitude }, false) },
       () => {
-        // 최초 위치 확인은 버튼 요청에서 안내한다. 이후 갱신 실패는 사용자 흐름을 방해하지 않는다.
+        // A failed/suspended watch must not block the next explicit request or tab resume.
+        if (watch === locationWatchGeneration.current) stopCurrentLocationWatch()
       },
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 0 },
     )
-  }, [updateCurrentLocation])
+  }, [stopCurrentLocationWatch, updateCurrentLocation])
 
-  const moveToCurrentLocation = useCallback(async (isInitialRequest = false) => {
+  const moveToCurrentLocation = useCallback(async (isInitialRequest = false, preserveViewport = false) => {
     const map = mapRef.current
     if (!map) return
     const request = referenceRequestGate.begin()
     const isCurrent = () => referenceRequestGate.isCurrent(request) && mapRef.current === map
+    locationRequestRef.current?.abort()
+    stopCurrentLocationWatch()
+    const controller = new AbortController()
+    locationRequestRef.current = controller
 
     if (!navigator.geolocation) {
+      locationRequestRef.current = null
       if (!isInitialRequest) trackEvent('nearby_search', { permission_state: 'unsupported', success: false })
       if (!isInitialRequest) showLocationMessage('이 브라우저에서는 현재 위치를 지원하지 않습니다.')
       setIsLocating(false)
       return
     }
 
-    if (!isInitialRequest) setIsLocating(true)
+    setIsLocating(!isInitialRequest)
     try {
-      if ('permissions' in navigator) {
-        const permission = await navigator.permissions.query({ name: 'geolocation' })
-        if (!isCurrent()) return
-        if (permission.state === 'denied') {
-          if (!isInitialRequest) trackEvent('nearby_search', { permission_state: 'denied', success: false })
-          if (!isInitialRequest) showLocationMessage('위치 권한이 거부되었습니다. 브라우저의 사이트 설정에서 위치를 허용해 주세요.')
-          setIsLocating(false)
-          return
+      // Do not await Permissions.query: a suspended permissions promise can leave the button locked.
+      const { coords } = await requestBrowserLocation(navigator.geolocation, controller.signal)
+      if (!isCurrent()) return
+      const coordinates = { latitude: coords.latitude, longitude: coords.longitude }
+      if (!isKoreanMapLocation(coordinates)) {
+        updateCurrentLocation(coordinates, false)
+        if (!isInitialRequest) {
+          updateReferencePoint(SEOUL_STATION)
+          map.setLevel(6)
+          map.panTo(createMapCoordinate(map, SEOUL_STATION.latitude, SEOUL_STATION.longitude))
+          showLocationMessage(t('map.outsideKorea'))
+          trackEvent('nearby_search', { permission_state: 'granted', success: false })
         }
+        return
       }
-    } catch {
-      // Permissions API를 지원하지 않는 브라우저는 Geolocation 요청으로 바로 진행한다.
+      updateCurrentLocation(coordinates, !preserveViewport)
+      if (!isInitialRequest) trackEvent('nearby_search', { permission_state: 'granted', success: true })
+      startCurrentLocationWatch()
+      window.clearTimeout(locationMessageTimerRef.current)
+      setLocationMessage(null)
+    } catch (reason) {
+      if (!isCurrent() || controller.signal.aborted) return
+      const code = reason instanceof BrowserLocationError ? reason.code : 2
+      const messageByCode: Record<number, string> = {
+        1: '위치 권한이 거부되었습니다. 브라우저 주소창의 위치 권한을 허용한 뒤 다시 시도해 주세요.',
+        2: '현재 위치를 확인할 수 없습니다. GPS·Wi‑Fi 연결을 확인해 주세요.',
+        3: '위치 확인 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.',
+      }
+      if (!isInitialRequest) showLocationMessage(messageByCode[code] ?? '현재 위치를 확인하지 못했습니다.')
+      if (!isInitialRequest) trackEvent('nearby_search', {
+        permission_state: code === 1 ? 'denied' : 'unavailable',
+        success: false,
+      })
+    } finally {
+      if (locationRequestRef.current === controller) {
+        locationRequestRef.current = null
+        setIsLocating(false)
+      }
     }
+  }, [showLocationMessage, startCurrentLocationWatch, stopCurrentLocationWatch, updateCurrentLocation, updateReferencePoint, referenceRequestGate, t])
 
-    if (!isCurrent()) return
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        if (!isCurrent()) return
-        const coordinates = { latitude: coords.latitude, longitude: coords.longitude }
-        if (!isKoreanMapLocation(coordinates)) {
-          updateCurrentLocation(coordinates, false)
-          if (!isInitialRequest) {
-            updateReferencePoint(SEOUL_STATION)
-            map.setLevel(6)
-            map.panTo(createMapCoordinate(map, SEOUL_STATION.latitude, SEOUL_STATION.longitude))
-            showLocationMessage(t('map.outsideKorea'))
-            trackEvent('nearby_search', { permission_state: 'granted', success: false })
-          }
-          setIsLocating(false)
-          return
-        }
-        updateCurrentLocation(coordinates, true)
-        if (!isInitialRequest) trackEvent('nearby_search', { permission_state: 'granted', success: true })
-        startCurrentLocationWatch()
-        window.clearTimeout(locationMessageTimerRef.current)
-        setLocationMessage(null)
+  useEffect(() => {
+    const resumeLocation = () => {
+      if (document.visibilityState !== 'visible' || !mapRef.current || locationRequestRef.current) return
+      if (liveMapStateRef.current.distanceSource === 'current-location') void moveToCurrentLocation(true, true)
+    }
+    const visibility = () => {
+      if (document.visibilityState === 'hidden') {
+        locationRequestRef.current?.abort()
+        locationRequestRef.current = null
+        referenceRequestGate.invalidate()
+        stopCurrentLocationWatch()
         setIsLocating(false)
-      },
-      (positionError) => {
-        if (!isCurrent()) return
-        const messageByCode: Record<number, string> = {
-          1: '위치 권한이 거부되었습니다. 브라우저 주소창의 위치 권한을 허용한 뒤 다시 시도해 주세요.',
-          2: '현재 위치를 확인할 수 없습니다. GPS·Wi‑Fi 연결을 확인해 주세요.',
-          3: '위치 확인 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.',
-        }
-        if (!isInitialRequest) showLocationMessage(messageByCode[positionError.code] ?? '현재 위치를 확인하지 못했습니다.')
-        if (!isInitialRequest) trackEvent('nearby_search', {
-          permission_state: positionError.code === 1 ? 'denied' : 'unavailable',
-          success: false,
-        })
-        setIsLocating(false)
-      },
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
-    )
-  }, [showLocationMessage, startCurrentLocationWatch, updateCurrentLocation, updateReferencePoint, referenceRequestGate, t])
+      } else resumeLocation()
+    }
+    window.addEventListener('pageshow', resumeLocation)
+    document.addEventListener('visibilitychange', visibility)
+    return () => {
+      window.removeEventListener('pageshow', resumeLocation)
+      document.removeEventListener('visibilitychange', visibility)
+    }
+  }, [moveToCurrentLocation, referenceRequestGate, stopCurrentLocationWatch])
 
   const moveToSearchPlace = useCallback((place: PlaceSearchResult) => {
     const map = mapRef.current
@@ -1411,10 +1434,11 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         }))
         resizeObserver = new ResizeObserver(() => { if (!disposed) relayoutPreservingCenter(map, settledViewportCenter) })
         resizeObserver.observe(container)
+        // Location recovery is independent of the map-data request and preserves the restored camera.
+        if (!disposed && !snapshot && !initialRouteRef.current.detail && (!resume || usedFallback) && !testToilet) void moveToCurrentLocation(true)
+        else if (!disposed && !usedFallback && (snapshot?.source ?? resume?.source) === 'current-location') void moveToCurrentLocation(true, true)
         await loadMapArea()
         if (snapshot) window.requestAnimationFrame(() => { if (!disposed) setIsMapSwitching(false) })
-        if (!disposed && !snapshot && !initialRouteRef.current.detail && (!resume || usedFallback) && !testToilet) void moveToCurrentLocation(true)
-        if (!disposed && !usedFallback && resume?.source === 'current-location') startCurrentLocationWatch()
       } catch (caughtError) {
         if (disposed) return
         // Browser Back/Forward can bypass the language menu. Recover the same
@@ -1449,6 +1473,9 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       controller.abort()
       mapRequestAbortRef.current?.abort()
       referenceRequestGate.invalidate()
+      locationRequestRef.current?.abort()
+      locationRequestRef.current = null
+      setIsLocating(false)
       requestSequenceRef.current += 1
       const activeMap = mapRef.current
       if (activeMap) {
@@ -1470,10 +1497,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       currentLocationOverlayRef.current?.setMap(null)
       searchLocationOverlayRef.current?.setMap(null)
       referencePointOverlayRef.current?.setMap(null)
-      if (locationWatchIdRef.current != null) {
-        navigator.geolocation?.clearWatch(locationWatchIdRef.current)
-        locationWatchIdRef.current = null
-      }
+      stopCurrentLocationWatch()
       resizeObserver?.disconnect()
       if (activeMap) destroyMap(activeMap)
       // The SDK owns this empty React div. Remove its DOM when dev HMR/Strict Mode disposes it.
@@ -1481,7 +1505,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       window.clearTimeout(mapLoadTimerRef.current)
       window.clearTimeout(locationMessageTimerRef.current)
     }
-  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, startCurrentLocationWatch, referenceRequestGate, testToilet, mapRuntimeKey])
+  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, stopCurrentLocationWatch, referenceRequestGate, testToilet, mapRuntimeKey])
 
   const distanceReference = resolveDistanceReference(distanceSource, mapCenter, currentLocation)
   const displaySelectedToilet = selectedToilet ? localizeToiletMapItem(selectedToilet, locale) : null
