@@ -4,6 +4,7 @@
 .liked-sort-field svg { position: absolute; right: 10px; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; pointer-events: none; }
 .liked-total { margin-left: auto; color: #8a978d; font-size: 11px; white-space: nowrap; }
 .liked-notice { margin: 0 0 14px; color: #8b765d; font-size: 11px; line-height: 1.5; }
+.liked-notice button { border: 0; padding: 6px; background: transparent; color: #315c40; font: inherit; text-decoration: underline; cursor: pointer; }
 .liked-list { overflow: hidden; border: 1px solid #e2ebe5; border-radius: 16px; background: #fff; }
 .liked-row { position: relative; }
 .liked-row + .liked-row { border-top: 1px solid #edf1ee; }
