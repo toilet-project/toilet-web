@@ -106,7 +106,7 @@ test('compact navigation retains readable labels, touch targets and safe-area pa
   assert.match(css, /\.mobile-navigation button, \.mobile-navigation a\s*\{[^}]*font-size: 11px/)
 })
 
-test('future toilet metrics are placeholders in a 44px row, with a labeled report action', async () => {
+test('toilet metrics center labels and values in equal columns, with a separate 44px action', async () => {
   const app = await source('../src/components/ToiletCommunityRow.tsx')
   const css = await source('../src/components/mobile-navigation.css')
   for (const key of ['metric.rating', 'metric.crowding', 'metric.paper', 'metric.pending']) assert.ok(app.includes(key))
@@ -114,11 +114,12 @@ test('future toilet metrics are placeholders in a 44px row, with a labeled repor
   assert.match(app, /<span>\{t\('metric.report'\)\}<\/span>/)
   assert.match(css, /\.toilet-community-row\s*\{[^}]*height: 44px/)
   assert.match(css, /\.toilet-community-row\s*\{[^}]*display: flex/)
-  assert.match(css, /\.toilet-community-metric\s*\{[^}]*align-items: flex-start[^}]*text-align: left/)
-  assert.match(css, /\.toilet-community-metric\s*\{[^}]*flex: 1 1 auto/)
+  assert.match(css, /\.toilet-community-metric\s*\{[^}]*align-items: center[^}]*text-align: center/)
+  assert.match(css, /\.toilet-community-metric\s*\{[^}]*flex: 1 1 0[^}]*box-sizing: border-box[^}]*padding-inline: 4px/)
+  assert.doesNotMatch(css, /\.toilet-community-metric[^{}]*\{[^}]*padding-(?:left|right):/)
   assert.match(css, /\.report-entry-button\.report-icon-button\s*\{[^}]*flex: 0 0 44px[^}]*margin: 0 0 0 12px/)
   assert.match(css, /\.toilet-community-row\s*\{[^}]*container-type: inline-size/)
-  assert.match(css, /@container \(max-width: 240px\)[\s\S]*padding-right: 4px[\s\S]*padding-left: 4px[\s\S]*margin-left: 4px/)
+  assert.match(css, /@container \(max-width: 240px\)[\s\S]*padding-inline: 2px[\s\S]*margin-left: 4px/)
   assert.match(css, /\.toilet-community-row\s*\{[^}]*background: transparent/)
   assert.match(css, /toilet-community-metric::before[^}]*width: 1px/)
   assert.match(css, /metric-star\s*\{ color: #b88524/)
