@@ -1,4 +1,15 @@
 import type { Locale } from './locale'
+
+// Preview source exported at 2026-10-02T16:47:22.485Z (October 3 in Korea).
+export const mapFilterPreviewSourceCopy: Record<Locale, string> = {
+  ko: '프리뷰 · 10월 3일 공개 데이터 기준',
+  en: 'Preview · Public data as of Oct 3',
+  ja: 'プレビュー · 10月3日時点の公開データ',
+  'zh-CN': '预览 · 10月3日公开数据',
+  'zh-TW': '預覽 · 10月3日公開資料',
+  'zh-HK': '預覽 · 10月3日公開資料',
+}
+
 type Copy = { filters: string; mine: string; member: string; hours: string; cctv: string; diaper: string; bell: string; reset: string; explanation: string; loading: string; error: string; retry: string; empty: string }
 export const mapFilterCopy: Record<Locale, Copy> = {
   ko: { filters: '검색 조건', mine: '내 화장실', member: '좋아요한 화장실 · 회원 전용', hours: '24시간', cctv: 'CCTV', diaper: '기저귀', bell: '비상벨', reset: '초기화', explanation: '선택한 조건을 모두 갖춘 화장실만 표시해요. 정보가 확인되지 않은 시설은 제외돼요.', loading: '조건에 맞는 화장실을 찾고 있어요', error: '필터 결과를 불러오지 못했어요.', retry: '다시 시도', empty: '이 지역에 조건을 만족하는 화장실이 없어요.' },

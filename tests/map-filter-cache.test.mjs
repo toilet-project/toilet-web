@@ -131,6 +131,17 @@ test('preview real snapshot feeds markers and clusters with no detail N+1 or pro
     assert.equal(calls.length, 1)
     const clusters = await readMapFilterArea(bucket, { ...input, includeList: false, zoom: 12, filterFlags: 15 })
     assert.equal(clusters.response.meta.total_count, 1)
+    for (const zoom of [7, 8, 9]) for (const includeList of [false, true]) {
+      const wide = await readMapFilterArea(bucket, { bounds: { south: 36.8, north: 37.8, west: 126, east: 127.5 },
+        zoom, includeList, filterFlags: 1 })
+      assert.equal(wide.response.meta.display_type, 'CLUSTER')
+      assert.equal(wide.response.meta.map_level, zoom)
+      assert.equal(wide.response.meta.total_count, 2)
+      assert.equal(wide.response.clusters.reduce((total, cluster) => total + cluster.count, 0), 2)
+      assert.equal(wide.originReads, 0)
+      assert.deepEqual(wide.response.toilets, [])
+    }
+    assert.equal(calls.length, 1, 'wide viewports never fan out full marker or cell calls')
     const readCount = bucket.reads
     assert.equal((await readMapFilterArea(bucket, { ...input, likedIds: [] })).response.meta.total_count, 0)
     assert.equal(bucket.reads, readCount)

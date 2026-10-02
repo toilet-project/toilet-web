@@ -16,7 +16,7 @@ test('all 16 AND combinations produce the same marker, cluster and viewport coun
     const filtered = filterMapMarkers([...markers, markers[0]], { ...input, filterFlags: mask })
     assert.deepEqual(filtered.toilets.map(marker => marker.id), expected)
     assert.equal(filtered.meta.total_count, expected.length)
-    for (let zoom = 10; zoom <= 14; zoom++) {
+    for (let zoom = 7; zoom <= 14; zoom++) {
       const clustered = filterMapClusters(points, { ...input, zoom, filterFlags: mask })
       assert.equal(clustered.meta.total_count, expected.length)
       assert.equal(clustered.clusters.reduce((sum, item) => sum + item.count, 0), expected.length)

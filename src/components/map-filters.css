@@ -12,6 +12,7 @@
 .map-filter-settings.has-filters { border-color: #78a88c; background: #ecf7ef; }
 .map-filter-options { position: absolute; top: 49px; left: 50%; width: min(300px, calc(100vw - 24px)); padding: 13px; border: 1px solid #dce7df; border-radius: 13px; background: #fff; box-shadow: 0 8px 25px rgb(29 55 38 / 16%); transform: translateX(-50%); pointer-events: auto; }
 .map-filter-options p { margin: 0 0 10px; color: #667b6d; font-size: 12px; line-height: 1.55; }
+.map-filter-options .map-filter-source-note { color: #829186; font-size: 11px; }
 .map-filter-options button { padding: 5px 10px; border: 1px solid #d8e3dc; border-radius: 7px; background: #f5f9f6; color: #26764e; font-size: 12px; font-weight: 650; }
 .map-filter-options button:disabled { opacity: .45; }
 .map-filter-list-action { display: none; flex: 0 0 auto; pointer-events: auto; }

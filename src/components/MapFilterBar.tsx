@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Locale } from '../i18n/locale'
-import { mapFilterCopy } from '../i18n/mapFilterCopy'
+import { mapFilterCopy, mapFilterPreviewSourceCopy } from '../i18n/mapFilterCopy'
 import './map-filters.css'
 
 function Icon({ name }: { name: 'filters' | 'mine' | 'hours' | 'cctv' | 'diaper' | 'bell' }) {
@@ -18,6 +18,9 @@ export function MapFilterBar({ locale, flags, mine, onFlagsChange, onMineChange,
   locale: Locale; flags: number; mine: boolean; onFlagsChange: (flags: number) => void; onMineChange: (mine: boolean) => void; listButton?: ReactNode
 }) {
   const copy = mapFilterCopy[locale], [open, setOpen] = useState(false)
+  // This dated snapshot notice belongs only to the explicit preview host, never production.
+  const showPreviewSource = process.env.NEXT_PUBLIC_MAP_FILTERS_ENABLED === 'true'
+    && typeof window !== 'undefined' && window.location.hostname === 'preview.geupddong.com'
   const root = useRef<HTMLDivElement>(null), strip = useRef<HTMLDivElement>(null)
   const drag = useRef<{ id: number; start: number; scroll: number; moved: boolean } | null>(null)
   const suppressClick = useRef(false)
@@ -61,6 +64,6 @@ export function MapFilterBar({ locale, flags, mine, onFlagsChange, onMineChange,
       </div>
     </div>
     {listButton && <div className="map-filter-list-action">{listButton}</div>}
-    {open && <div className="map-filter-options" id="map-filter-options"><p>{copy.explanation}</p><button type="button" disabled={!flags && !mine} onClick={() => { onFlagsChange(0); onMineChange(false); setOpen(false) }}>{copy.reset}</button></div>}
+    {open && <div className="map-filter-options" id="map-filter-options"><p>{copy.explanation}</p>{showPreviewSource && <p className="map-filter-source-note">{mapFilterPreviewSourceCopy[locale]}</p>}<button type="button" disabled={!flags && !mine} onClick={() => { onFlagsChange(0); onMineChange(false); setOpen(false) }}>{copy.reset}</button></div>}
   </div>
 }

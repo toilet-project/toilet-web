@@ -71,7 +71,10 @@ export function filterMapClusters(points: MapFilterPoint[], input: MapFilterInpu
       && latitude >= south && latitude <= north && longitude >= west && longitude <= east)
       coordinates.push([latitude, longitude])
   }
-  return clusterBinsInBounds(buildClusterBins(coordinates), input.bounds, input.zoom)
+  // Wide desktop/tablet viewports at zoom 7–9 can exceed the bounded cell fanout.
+  // Reuse the finest overview grid rather than fetching unbounded full markers.
+  const result = clusterBinsInBounds(buildClusterBins(coordinates), input.bounds, Math.max(10, input.zoom))
+  return { ...result, meta: { ...result.meta, map_level: input.zoom } }
 }
 
 // The preview snapshot is not an authority for names/current public visibility.

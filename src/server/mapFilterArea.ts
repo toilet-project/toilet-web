@@ -39,10 +39,14 @@ export async function readMapFilterArea(bucket: R2BucketLike, input: MapFilterIn
   const empty = () => clustered ? filterMapClusters([], input) : filterMapMarkers([], input)
   const bounds = clippedBounds(input.bounds)
   if (!bounds || input.likedIds?.length === 0) return { response: empty(), originReads: 0, source: 'empty' }
+  const cells = cellsForBounds(bounds)
+  // Lists are only offered through zoom 6. A wide 7–9 viewport must not fan out
+  // across hundreds of cells or fail simply because the device has a large screen.
+  const wideIntermediateViewport = input.zoom >= 7 && !cells
   const preview = mapFilterPreviewEnabled()
   let source: MapFilterSource | undefined
   if (preview) source = await readPreviewMapFilterSource(bucket)
-  if (clustered) {
+  if (clustered || wideIntermediateViewport) {
     source ??= await readThroughMapFilterSource({ bucket })
     return { response: filterMapClusters(source.points, input), originReads: source.source === 'miss' ? 1 : 0,
       sourceDate: source.sourceDate, source: source.source }
@@ -52,7 +56,6 @@ export async function readMapFilterArea(bucket: R2BucketLike, input: MapFilterIn
     if (markers.some(marker => !validFilterFlags(marker.filterFlags))) throw new Error('Map filter API not ready')
     return markers
   }
-  const cells = cellsForBounds(bounds)
   let markers: ToiletMapItemResponse[] = []
   let originReads = 0
   if (cells) {
