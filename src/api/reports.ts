@@ -1,6 +1,7 @@
 import { createApiUrl } from '../config/api'
 import { fetchSessionRead } from './session'
 import { AuthExpiredError } from './auth'
+import type { QuickReportType } from './quickReports'
 
 export type CreateToiletReportRequest = {
   toiletId: number
@@ -16,9 +17,9 @@ export type ToiletReportStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLE
 
 export type ToiletReport = {
   id: number
-  toiletId: number
+  toiletId: number | null
   toiletName: string
-  reportType: 'COORDINATE_CORRECTION' | 'OPEN_TIME_CORRECTION'
+  reportType: QuickReportType | 'OPEN_TIME_CORRECTION'
   latitude?: number | null
   longitude?: number | null
   roadAddress?: string | null
@@ -29,6 +30,7 @@ export type ToiletReport = {
   reviewNote?: string | null
   createdAt: string
   reviewedAt?: string | null
+  observedAt?: string | null
 }
 
 export async function createToiletReport(request: CreateToiletReportRequest) {

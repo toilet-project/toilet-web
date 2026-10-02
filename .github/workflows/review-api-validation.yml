@@ -37,7 +37,7 @@ jobs:
       - run: node scripts/relocate-worker-wasm.mjs
       - run: node scripts/write-worker-release-manifest.mjs preview
       - run: pnpm exec wrangler deploy --dry-run --config wrangler.jsonc
-      - run: tar -czf workers-review-verification.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs detail-incremental-cache.ts detail-cache-tags.ts region-markers-worker.ts src/lib/regionMarkerStore.ts src/lib/regionDisplayItems.ts src/i18n/toiletTranslations.ts data/regions/boundary-assets.json review-verification-proxy.mjs place-search-worker.mjs map-provider-worker.mjs package.json pnpm-lock.yaml wrangler.jsonc worker-release-manifest.json open-next.config.ts next.config.ts .next/BUILD_ID
+      - run: tar -czf workers-review-verification.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs detail-incremental-cache.ts detail-cache-tags.ts region-markers-worker.ts src/lib/regionMarkerStore.ts src/lib/regionDisplayItems.ts src/i18n/toiletTranslations.ts data/regions/boundary-assets.json review-verification-proxy.mjs report-preview-proxy.mjs place-search-worker.mjs map-provider-worker.mjs package.json pnpm-lock.yaml wrangler.jsonc worker-release-manifest.json open-next.config.ts next.config.ts .next/BUILD_ID
       - uses: actions/upload-artifact@v4
         with:
           name: workers-review-verification-${{ github.sha }}
@@ -54,6 +54,7 @@ jobs:
       SITE_INDEXABLE: 'false'
       REVIEW_API_ENABLED: 'true'
       REVIEW_LIVE_PREVIEW_APPROVED: 'true'
+      REPORT_REDESIGN_PREVIEW: 'true'
       TOILET_ENGAGEMENT_ENABLED: 'true'
       ENGLISH_UI_PREVIEW: 'true'
       NEXT_PUBLIC_PROFILE_PHOTO_ENABLED: 'true'
@@ -75,7 +76,7 @@ jobs:
       - run: node scripts/relocate-worker-wasm.mjs
       - run: node scripts/write-worker-release-manifest.mjs preview
       - run: pnpm exec wrangler deploy --dry-run --config wrangler.jsonc
-      - run: tar -czf workers-live-data-preview.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs detail-incremental-cache.ts detail-cache-tags.ts region-markers-worker.ts src/lib/regionMarkerStore.ts src/lib/regionDisplayItems.ts src/i18n/toiletTranslations.ts data/regions/boundary-assets.json review-verification-proxy.mjs place-search-worker.mjs map-provider-worker.mjs package.json pnpm-lock.yaml pnpm-workspace.yaml wrangler.jsonc worker-release-manifest.json open-next.config.ts next.config.ts .next/BUILD_ID
+      - run: tar -czf workers-live-data-preview.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs detail-incremental-cache.ts detail-cache-tags.ts region-markers-worker.ts src/lib/regionMarkerStore.ts src/lib/regionDisplayItems.ts src/i18n/toiletTranslations.ts data/regions/boundary-assets.json review-verification-proxy.mjs report-preview-proxy.mjs place-search-worker.mjs map-provider-worker.mjs package.json pnpm-lock.yaml pnpm-workspace.yaml wrangler.jsonc worker-release-manifest.json open-next.config.ts next.config.ts .next/BUILD_ID
       - uses: actions/upload-artifact@v4
         with:
           name: workers-live-data-preview-${{ github.sha }}
@@ -92,6 +93,7 @@ jobs:
       SITE_INDEXABLE: 'true'
       REVIEW_API_ENABLED: 'true'
       REVIEW_PRODUCTION_APPROVED: 'true'
+      REPORT_REDESIGN_RELEASE: 'true'
       TOILET_ENGAGEMENT_ENABLED: 'true'
       ENGLISH_UI_RELEASE: 'true'
       # Candidate validation only; this workflow never deploys or activates the feature.
@@ -112,7 +114,7 @@ jobs:
       - run: node scripts/relocate-worker-wasm.mjs
       - run: node scripts/write-worker-release-manifest.mjs production-candidate
       - run: pnpm exec wrangler deploy --dry-run --config wrangler.production.jsonc
-      - run: tar -czf workers-review-production-candidate.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs region-markers-worker.ts src/lib/regionMarkerStore.ts src/lib/regionDisplayItems.ts src/i18n/toiletTranslations.ts data/regions/boundary-assets.json review-verification-proxy.mjs place-search-worker.mjs map-provider-worker.mjs package.json pnpm-lock.yaml wrangler.production.jsonc worker-release-manifest.json open-next.config.ts next.config.ts .next/BUILD_ID
+      - run: tar -czf workers-review-production-candidate.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs region-markers-worker.ts src/lib/regionMarkerStore.ts src/lib/regionDisplayItems.ts src/i18n/toiletTranslations.ts data/regions/boundary-assets.json review-verification-proxy.mjs report-preview-proxy.mjs place-search-worker.mjs map-provider-worker.mjs package.json pnpm-lock.yaml wrangler.production.jsonc worker-release-manifest.json open-next.config.ts next.config.ts .next/BUILD_ID
       - uses: actions/upload-artifact@v4
         with:
           name: workers-review-production-candidate-${{ github.sha }}
