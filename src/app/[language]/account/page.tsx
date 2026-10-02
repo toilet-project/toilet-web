@@ -10,6 +10,6 @@ export default async function Page({ params, searchParams }: Props) {
   if (!['en', 'ja', 'zh-cn', 'zh-tw', 'zh-hk'].includes((await params).language)) notFound()
   const { view, report } = await searchParams
   const reportId = report && /^\d+$/.test(report) && Number.isSafeInteger(Number(report)) && Number(report) > 0 ? Number(report) : null
-  const selected: AccountView = view === 'reviews' || view === 'reports' || view === 'settings' || view === 'notifications' ? view : 'home'
+  const selected: AccountView = view === 'likes' || view === 'reviews' || view === 'reports' || view === 'settings' || view === 'notifications' ? view : 'home'
   return <div className="region-site-shell is-account-page"><SiteHeader path="/account" /><main className="account-page-main"><AccountWorkspace view={selected} reportId={reportId} /></main><SiteFooter /></div>
 }

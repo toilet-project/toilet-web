@@ -1,0 +1,16 @@
+.liked-toolbar { display: flex; align-items: center; gap: 10px; margin: 0 0 16px; color: #77897d; font-size: 12px; }
+.liked-sort-field { position: relative; display: inline-flex; align-items: center; min-width: 0; }
+.liked-sort-field select { max-width: min(190px, 45vw); min-height: 38px; padding: 7px 34px 7px 12px; appearance: none; border: 1px solid #dce8df; border-radius: 10px; background: #f7faf8; color: #315c40; font: inherit; font-weight: 650; cursor: pointer; }
+.liked-sort-field svg { position: absolute; right: 10px; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; pointer-events: none; }
+.liked-total { margin-left: auto; color: #8a978d; font-size: 11px; white-space: nowrap; }
+.liked-notice { margin: 0 0 14px; color: #8b765d; font-size: 11px; line-height: 1.5; }
+.liked-list { overflow: hidden; border: 1px solid #e2ebe5; border-radius: 16px; background: #fff; }
+.liked-row { position: relative; }
+.liked-row + .liked-row { border-top: 1px solid #edf1ee; }
+.liked-row .toilet-list-item { min-height: 96px; padding-right: 70px; border-bottom: 0; }
+.liked-row .toilet-list-distance.is-below { display: block; color: #668471; font-size: 11px; }
+.liked-row-unlike { position: absolute; top: 13px; right: 12px; display: grid; place-items: center; width: 42px; height: 42px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #df4354; cursor: pointer; }
+.liked-row-unlike svg { width: 20px; height: 20px; fill: currentColor; stroke: currentColor; stroke-width: 1.5; }
+.liked-row-unlike:disabled { opacity: .45; cursor: wait; }
+.liked-row-unlike:focus-visible, .liked-sort-field select:focus-visible { outline: 3px solid #81b995; outline-offset: 2px; }
+@media(max-width:640px) { .liked-row .toilet-list-item { padding-right: 64px; }.liked-toolbar { margin-top: 4px; } }
