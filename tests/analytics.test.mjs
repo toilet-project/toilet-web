@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   buildAnalyticsAcquisition,
+  entryNavigationType,
   resultCountBucket,
   resolveAnalyticsAcquisition,
   sanitizeAnalyticsPagePath,
@@ -24,11 +25,13 @@ test('initial acquisition keeps only a referrer host and short UTM dimensions', 
   assert.deepEqual(buildAnalyticsAcquisition(
     'https://geupddong.com/?utm_source=Kakao&utm_medium=Social&utm_campaign=private-campaign',
     'https://search.naver.com/search.naver?query=%EB%B9%84%EB%B0%80',
-  ), { referrerHost: 'search.naver.com', utmSource: 'kakao', utmMedium: 'social' })
+  ), { referrerHost: 'search.naver.com', utmSource: 'kakao', utmMedium: 'social', acquisitionEvidence: 'UTM', entryNavigation: 'UNKNOWN' })
   assert.deepEqual(buildAnalyticsAcquisition('https://geupddong.com/', ''), {
     referrerHost: undefined,
     utmSource: undefined,
     utmMedium: undefined,
+    acquisitionEvidence: 'NO_REFERRER',
+    entryNavigation: 'UNKNOWN',
   })
 })
 
@@ -46,7 +49,26 @@ test('session acquisition stays fixed after an in-app route change', () => {
     '{broken',
     'https://geupddong.com/?utm_source=kakao&utm_medium=social',
     '',
-  ), { referrerHost: undefined, utmSource: 'kakao', utmMedium: 'social' })
+  ), { referrerHost: undefined, utmSource: 'kakao', utmMedium: 'social', acquisitionEvidence: 'UTM', entryNavigation: 'UNKNOWN' })
+})
+
+test('entry clues distinguish observed evidence without inventing direct or bookmark attribution', () => {
+  const page = 'https://geupddong.com/en/regions'
+  for (const [referrer, expected] of [['', 'NO_REFERRER'], ['https://geupddong.com/', 'INTERNAL'], ['https://search.naver.com/?private=query', 'REFERRER'], ['malformed-private-input', 'INVALID_REFERRER']]) {
+    const result = buildAnalyticsAcquisition(page, referrer, 'RELOAD')
+    assert.equal(result.acquisitionEvidence, expected)
+    assert.equal(result.entryNavigation, 'RELOAD')
+    assert.equal(JSON.stringify(result).includes('private'), false)
+  }
+  assert.deepEqual(['navigate', 'reload', 'back_forward', 'prerender', 'other', undefined].map(value => entryNavigationType(value)), ['NAVIGATE', 'RELOAD', 'HISTORY', 'PRERENDER', 'UNKNOWN', 'UNKNOWN'])
+  assert.equal(entryNavigationType('reload', true), 'CONTINUATION')
+  for (const stored of ['{}', JSON.stringify({ acquisitionEvidence: 'bookmark', entryNavigation: 'private' })]) {
+    const result = resolveAnalyticsAcquisition(stored, page, '', 'RELOAD')
+    assert.equal(result.acquisitionEvidence, 'UNRECORDED')
+    assert.equal(result.entryNavigation, 'UNKNOWN')
+  }
+  const first = buildAnalyticsAcquisition(page, '', 'NAVIGATE')
+  assert.deepEqual(resolveAnalyticsAcquisition(JSON.stringify(first), page, '', 'RELOAD'), first)
 })
 
 test('event parameters retain only short allowlisted dimensions', () => {

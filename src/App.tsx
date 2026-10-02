@@ -52,6 +52,7 @@ import { AccountRecoveryDialog } from './components/AccountRecoveryDialog'
 import { fetchUnreadNotificationCount } from './api/notifications'
 import { getDisplayAddress } from './lib/address'
 import { ToiletDetailContents, DetailRow } from './components/ToiletDetailContents'
+import { ToiletShareLink } from './components/ToiletShareLink'
 import { OriginalSourceBadge } from './components/OriginalSourceBadge'
 import { ToiletCommunityRow, ToiletReportEntry } from './components/ToiletCommunityRow'
 import { ToiletCardHeader } from './components/ToiletCardHeader'
@@ -1702,7 +1703,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         {locationMessage && <p className="location-message" role="status">{mapSystemNotice(locationMessage, locale)}</p>}
         {displayToiletDetail && !toiletCoordinates(displayToiletDetail) && !displaySelectedToilet && !displaySelectedCoordinateGroup && (
           <aside className="place-card initial-route-card" aria-label={t('detail.title')}>
-            <ToiletCardHeader onClose={closeDetailCard} closeLabel={t('common.close')}><span className="card-label">{toiletTypeLabel(displayToiletDetail.toiletType, locale)}</span><OriginalSourceBadge toilet={displayToiletDetail} locale={locale} /></ToiletCardHeader>
+            <ToiletCardHeader onClose={closeDetailCard} closeLabel={t('common.close')} share={<ToiletShareLink key={displayToiletDetail.id} toiletId={displayToiletDetail.id} />}><span className="card-label">{toiletTypeLabel(displayToiletDetail.toiletType, locale)}</span><OriginalSourceBadge toilet={displayToiletDetail} locale={locale} /></ToiletCardHeader>
             <div className="review-card-title-row"><h1>{displayToiletDetail.name}</h1><div className="toilet-card-actions"><ToiletEngagement toiletId={displayToiletDetail.id} {...engagementProps} /></div></div>
             <p>{t('map.noCoordinates')}</p>
             <p className="open-time">{formatOpenTime(displayToiletDetail, locale)}</p>
@@ -1731,6 +1732,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
               {t(isMobileCardExpanded ? 'map.collapse' : 'detail.show')}
             </button>
             <ToiletCardHeader onClose={closeDetailCard} closeLabel={t('common.close')}
+              share={displaySelectedToilet.id !== testToilet?.id && <ToiletShareLink key={displaySelectedToilet.id} toiletId={displaySelectedToilet.id} />}
               report={REVIEW_UI_ENABLED && <ToiletReportEntry disabled={!displayToiletDetail || displaySelectedToilet.id === testToilet?.id} onClick={() => { if (displayToiletDetail) openReport({ toilet: displayToiletDetail, latitude: displaySelectedToilet.latitude, longitude: displaySelectedToilet.longitude }) }} />}>
               <span className="card-label">{toiletTypeLabel(displayToiletDetail?.toiletType || displaySelectedToilet.toiletType, locale)}</span><OriginalSourceBadge toilet={displayToiletDetail} locale={locale} />
             </ToiletCardHeader>
@@ -1761,6 +1763,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           <aside className="coordinate-group-card" aria-live="polite" aria-label={t('map.groupList')}>
             <header className="coordinate-group-header">
               <ToiletCardHeader onClose={closeDetailCard} closeLabel={t('map.closeList')}
+                share={expandedCoordinateToilet && <ToiletShareLink key={expandedCoordinateToilet.id} toiletId={expandedCoordinateToilet.id} />}
                 report={expandedCoordinateToilet && (!isDesktop || REVIEW_UI_ENABLED) && <ToiletReportEntry disabled={toiletDetail?.id !== expandedCoordinateToilet.id} onClick={() => { if (toiletDetail?.id === expandedCoordinateToilet.id) openReport({ toilet: toiletDetail, latitude: expandedCoordinateToilet.latitude, longitude: expandedCoordinateToilet.longitude }) }} />}>
                 <div className="coordinate-group-labels">
                   <span className="card-label">{[...new Set(displaySelectedCoordinateGroup.toilets.map(item => toiletTypeLabel(item.toiletType, locale)))].join(' · ')}</span>
