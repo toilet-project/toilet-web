@@ -9,9 +9,8 @@
 .liked-row + .liked-row { border-top: 1px solid #edf1ee; }
 .liked-row .toilet-list-item { min-height: 96px; padding-right: 70px; border-bottom: 0; }
 .liked-row .toilet-list-distance.is-below { display: block; color: #668471; font-size: 11px; }
-.liked-row-unlike { position: absolute; top: 13px; right: 12px; display: grid; place-items: center; width: 42px; height: 42px; padding: 0; border: 0; border-radius: 12px; background: #fff2f3; color: #df4354; cursor: pointer; }
+.liked-row-unlike { position: absolute; top: 13px; right: 12px; display: grid; place-items: center; width: 42px; height: 42px; padding: 0; border: 0; border-radius: 12px; background: transparent; color: #df4354; cursor: pointer; }
 .liked-row-unlike svg { width: 20px; height: 20px; fill: currentColor; stroke: currentColor; stroke-width: 1.5; }
 .liked-row-unlike:disabled { opacity: .45; cursor: wait; }
 .liked-row-unlike:focus-visible, .liked-sort-field select:focus-visible { outline: 3px solid #81b995; outline-offset: 2px; }
-@media(hover:hover) { .liked-row-unlike:hover { background: #ffe4e7; } }
 @media(max-width:640px) { .liked-row .toilet-list-item { padding-right: 64px; }.liked-toolbar { margin-top: 4px; } }
