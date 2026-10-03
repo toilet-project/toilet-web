@@ -25,8 +25,8 @@ test('mobile list and settings keep fixed rounded-rectangle geometry outside the
   for (const property of ['width: 90px;', 'min-width: 90px;', 'max-width: 90px;', 'height: 44px;', 'min-height: 44px;', 'border-radius: 13px;'])
     assert.ok(listRule.includes(property))
   assert.match(mobile, /\.map-filter-settings \{ border-radius: 11px; \}/)
-  assert.match(mobile, /\.map-filter-controls \{[^}]*border-radius: 17px 0 0 17px;/)
-  assert.match(mobile, /\.map-filter-controls \{[^}]*border-right: 0;/)
+  assert.match(mobile, /\.map-filter-controls \{[^}]*border: 0; border-radius: 0;/)
+  assert.match(mobile, /\.map-filter-controls \{[^}]*padding: 5px 0 5px 7px;/)
   assert.match(mobile, /\.map-filter-toolbar \{[^}]*right: 0;/)
   const iconRule = mobile.match(/\.map-filter-list-action \.mobile-area-list-button::before \{([^}]+)\}/)?.[1]
   assert.ok(iconRule)
@@ -35,14 +35,15 @@ test('mobile list and settings keep fixed rounded-rectangle geometry outside the
   assert.ok(iconRule.includes('justify-content: center;'))
 })
 
-test('both layouts keep a visible filter surface, larger chips and clear space for map overlays', () => {
+test('desktop retains its surface while mobile shows only individual chips and preserves overlay spacing', () => {
   const css = readFileSync(new URL('../src/components/map-filters.css', import.meta.url), 'utf8')
   const surface = css.match(/\.map-filter-controls \{([^}]+)\}/)?.[1]
   assert.match(surface, /background: rgb\(255 255 255 \/ 98%\);/)
   assert.match(surface, /border: 1px solid #d6dbe1;/)
   assert.match(surface, /box-shadow: 0 5px 18px/)
   const mobile = css.slice(css.indexOf('@media (max-width: 640px)'))
-  assert.doesNotMatch(mobile, /background: transparent|box-shadow: none/)
+  assert.match(mobile, /\.map-filter-controls \{[^}]*background: transparent; box-shadow: none;/)
+  assert.match(css, /\.map-filter-chip \{[^}]*border: 1px solid #dce1e7;[^}]*background: #fff; box-shadow:/)
   assert.match(css, /\.map-filter-chip \{[^}]*height: 38px;/)
   assert.match(mobile, /\.map-filter-status \{ top: 70px;/)
   assert.match(mobile, /\.map-stage.has-map-filters \.map-hud \{ top: 70px; \}/)

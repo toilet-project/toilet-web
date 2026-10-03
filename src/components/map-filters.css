@@ -65,7 +65,7 @@ input:checked + .map-filter-selection-mark svg { opacity: 1; }
 }
 @media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (pointer: coarse) {
   .map-filter-toolbar { top: 9px; left: 9px; right: 0; justify-content: flex-start; gap: 8px; }
-  .map-filter-controls { flex: 1 1 auto; gap: 7px; border-right: 0; border-radius: 17px 0 0 17px; padding: 4px 0 4px 6px; }
+  .map-filter-controls { flex: 1 1 auto; gap: 7px; border: 0; border-radius: 0; padding: 5px 0 5px 7px; background: transparent; box-shadow: none; }
   .map-filter-chip { height: 38px; font-size: 13px; }
   .map-filter-list-action { display: flex; }
   .map-filter-list-action .mobile-area-list-button { box-sizing: border-box; width: 90px; min-width: 90px; max-width: 90px; height: 44px; min-height: 44px; justify-content: center; gap: 3px; padding: 0 5px; border: 1px solid #b9cfc1; border-radius: 13px; background: #fff; box-shadow: 0 4px 14px rgb(24 45 32 / 16%), 0 1px 3px rgb(24 45 32 / 8%); color: #245438; font-size: 12px; font-weight: 750; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }
