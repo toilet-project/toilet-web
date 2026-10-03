@@ -39,7 +39,7 @@ test('both layouts keep a visible filter surface, larger chips and clear space f
   const css = readFileSync(new URL('../src/components/map-filters.css', import.meta.url), 'utf8')
   const surface = css.match(/\.map-filter-controls \{([^}]+)\}/)?.[1]
   assert.match(surface, /background: rgb\(255 255 255 \/ 98%\);/)
-  assert.match(surface, /border: 1px solid #c3d4c8;/)
+  assert.match(surface, /border: 1px solid #d6dbe1;/)
   assert.match(surface, /box-shadow: 0 5px 18px/)
   const mobile = css.slice(css.indexOf('@media (max-width: 640px)'))
   assert.doesNotMatch(mobile, /background: transparent|box-shadow: none/)
@@ -55,11 +55,31 @@ test('compact filter tiles retain native checkbox semantics, visible selection a
   assert.equal((component.match(/type="checkbox"/g) ?? []).length, 3)
   assert.equal((component.match(/<SelectionMark \/>/g) ?? []).length, 3)
   assert.match(component, /className="map-filter-selection-mark" aria-hidden="true"/)
-  assert.match(css, /\.map-filter-option-wide \{ grid-column: 1 \/ -1;/)
+  assert.match(css, /\.map-filter-options-grid \{[^}]*repeat\(3, minmax\(0, 1fr\)\)/)
+  assert.match(component, /className="map-filter-accessibility-options" data-filter-tone="accessible"/)
   assert.match(css, /\.map-filter-option:has\(input:focus-visible\)/)
   assert.match(css, /\.map-filter-gender-option:has\(input:focus-visible\)/)
   assert.match(css, /input:checked \+ \.map-filter-selection-mark svg \{ opacity: 1;/)
-  assert.match(css, /width: min\(304px, calc\(100vw - 24px\)\)/)
+  assert.match(css, /width: min\(312px, calc\(100vw - 24px\)\)/)
   assert.match(css, /\.map-filter-options \{ left: auto; right: 12px; \}/)
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)/)
+})
+
+test('filter tones retain readable selected text and bolder icons without changing filter keys', () => {
+  const css = readFileSync(new URL('../src/components/map-filters.css', import.meta.url), 'utf8')
+  const component = readFileSync(new URL('../src/components/MapFilterBar.tsx', import.meta.url), 'utf8')
+  const luminance = hex => hex.match(/[\da-f]{2}/gi).map(value => parseInt(value, 16) / 255)
+    .map(value => value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4)
+    .reduce((sum, value, i) => sum + value * [0.2126, 0.7152, 0.0722][i], 0)
+  const contrast = (a, b) => (Math.max(luminance(a), luminance(b)) + 0.05) / (Math.min(luminance(a), luminance(b)) + 0.05)
+  const tones = [...css.matchAll(/\[data-filter-tone="(\w+)"\] \{ --filter-accent: (#[\da-f]{6}); --filter-soft: (#[\da-f]{6});/g)]
+  assert.deepEqual(tones.map(match => match[1]), ['mine', 'hours', 'cctv', 'diaper', 'bell', 'accessible'])
+  for (const [, key, accent, soft] of tones) {
+    assert.ok(contrast(accent, soft) >= 4.5, `${key} selected text`)
+    assert.ok(contrast(accent, '#ffffff') >= 4.5, `${key} icon and check`)
+  }
+  assert.match(component, /strokeWidth="2.2"/)
+  assert.match(css, /\.map-filter-chip \{[^}]*font-size: 13px; font-weight: 750;/)
+  assert.match(css, /\.map-filter-chip svg \{ width: 18px; height: 18px;/)
+  assert.match(css, /\.map-filter-chip\[aria-pressed="true"\] \{[^}]*color: var\(--filter-accent\)/)
 })
