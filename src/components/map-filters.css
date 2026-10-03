@@ -1,5 +1,5 @@
 .map-filter-toolbar { position: absolute; z-index: 7; top: 14px; left: calc(var(--desktop-area-list-width, 0px) + 12px); right: 12px; display: flex; justify-content: center; align-items: center; gap: 7px; pointer-events: none; }
-.map-filter-controls { display: flex; min-width: 0; max-width: 100%; align-items: center; gap: 5px; border: 1px solid #cbdacf; border-radius: 999px; padding: 5px 12px; background: rgb(255 255 255 / 98%); box-shadow: 0 3px 14px rgb(29 55 38 / 16%); pointer-events: auto; }
+.map-filter-controls { display: flex; min-width: 0; max-width: 100%; align-items: center; gap: 5px; border: 1px solid rgb(190 211 197 / 80%); border-radius: 999px; padding: 5px 12px; background: rgb(232 240 234 / 90%); box-shadow: 0 3px 12px rgb(29 55 38 / 12%); backdrop-filter: blur(8px); pointer-events: auto; }
 .map-filter-settings-action { flex: 0 0 auto; padding: 5px 0; }
 .map-filter-scroll { flex: 1 1 auto; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; pointer-events: auto; touch-action: pan-x; }
 .map-filter-scroll::-webkit-scrollbar { display: none; }
@@ -28,7 +28,7 @@
 }
 @media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (pointer: coarse) {
   .map-filter-toolbar { top: 9px; left: 9px; right: 0; justify-content: flex-start; gap: 10px; }
-  .map-filter-controls { flex: 1 1 auto; gap: 10px; border: 0; border-radius: 0; padding: 0; background: transparent; box-shadow: none; }
+  .map-filter-controls { flex: 1 1 auto; gap: 10px; border: 0; border-radius: 0; padding: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
   .map-filter-chip { height: 34px; font-size: 12px; }
   .map-filter-list-action { display: flex; }
   .map-filter-list-action .mobile-area-list-button { box-sizing: border-box; width: 100px; min-width: 100px; max-width: 100px; min-height: 34px; justify-content: center; gap: 4px; padding: 0 7px; border-radius: 10px; font-size: 12px; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums; }

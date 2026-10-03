@@ -26,6 +26,7 @@ test('mobile list and settings keep fixed rounded-rectangle geometry outside the
     assert.ok(listRule.includes(property))
   assert.match(mobile, /\.map-filter-settings \{ border-radius: 10px; \}/)
   assert.match(mobile, /\.map-filter-controls \{[^}]*padding: 0;/)
+  assert.match(mobile, /\.map-filter-controls \{[^}]*backdrop-filter: none;/)
   assert.match(mobile, /\.map-filter-toolbar \{[^}]*right: 0;/)
   const iconRule = mobile.match(/\.map-filter-list-action \.mobile-area-list-button::before \{([^}]+)\}/)?.[1]
   assert.ok(iconRule)
