@@ -1,6 +1,6 @@
 import type { Locale } from './locale'
 
-// Preview source exported at 2026-10-02T16:47:22.485Z (October 3 in Korea).
+// Five-condition preview source exported on October 3 in Korea.
 export const mapFilterPreviewSourceCopy: Record<Locale, string> = {
   ko: '프리뷰 · 10월 3일 공개 데이터 기준',
   en: 'Preview · Public data as of Oct 3',
@@ -15,6 +15,7 @@ const accessibleCopy: Record<Locale, string> = {
   ko: '장애인 화장실', en: 'Accessible restroom', ja: '車いす対応トイレ',
   'zh-CN': '无障碍厕所', 'zh-TW': '無障礙廁所', 'zh-HK': '無障礙洗手間',
 }
+const listCopy: Record<Locale, string> = { ko: '목록', en: 'List', ja: '一覧', 'zh-CN': '列表', 'zh-TW': '列表', 'zh-HK': '列表' }
 const baseCopy: Record<Locale, Copy> = {
   ko: { filters: '검색 조건', mine: '내 화장실', member: '좋아요한 화장실 · 회원 전용', hours: '24시간', cctv: 'CCTV', diaper: '기저귀', bell: '비상벨', reset: '초기화', explanation: '선택한 조건을 모두 갖춘 화장실만 표시해요. 정보가 확인되지 않은 시설은 제외돼요.', loading: '조건에 맞는 화장실을 찾고 있어요', error: '필터 결과를 불러오지 못했어요.', retry: '다시 시도', empty: '이 지역에 조건을 만족하는 화장실이 없어요.' },
   en: { filters: 'Filters', mine: 'My restrooms', member: 'Liked restrooms · Sign-in required', hours: '24 hours', cctv: 'CCTV', diaper: 'Diaper table', bell: 'Emergency bell', reset: 'Reset', explanation: 'Matches every selected condition. Facilities with unconfirmed information are excluded.', loading: 'Finding matching restrooms', error: 'Could not load filtered results.', retry: 'Retry', empty: 'No restrooms match these filters in this area.' },
@@ -24,4 +25,4 @@ const baseCopy: Record<Locale, Copy> = {
   'zh-HK': { filters: '篩選', mine: '我的洗手間', member: '已收藏的洗手間 · 需登入', hours: '24小時', cctv: '閉路電視', diaper: '尿片更換台', bell: '緊急求助鐘', reset: '重設', explanation: '只顯示符合所有已選條件的洗手間，不包括相關資料尚未確認的設施。', loading: '正在尋找符合條件的洗手間', error: '無法載入篩選結果。', retry: '重試', empty: '此區域沒有符合篩選條件的洗手間。' },
 }
 export const mapFilterCopy = Object.fromEntries(Object.entries(baseCopy).map(([locale, copy]) =>
-  [locale, { ...copy, accessible: accessibleCopy[locale as Locale] }])) as Record<Locale, Copy & { accessible: string }>
+  [locale, { ...copy, accessible: accessibleCopy[locale as Locale], list: listCopy[locale as Locale] }])) as Record<Locale, Copy & { accessible: string; list: string }>

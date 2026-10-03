@@ -33,6 +33,7 @@ export function MapFilterBar({ locale, flags, mine, onFlagsChange, onMineChange,
     return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape) }
   }, [open])
   return <div className="map-filter-toolbar" ref={root}>
+    {listButton && <div className="map-filter-list-action">{listButton}</div>}
     <div className="map-filter-scroll" ref={strip} role="group" aria-label={copy.filters}
       onPointerDown={event => {
         if (event.pointerType !== 'mouse' || event.button !== 0) return
@@ -64,7 +65,6 @@ export function MapFilterBar({ locale, flags, mine, onFlagsChange, onMineChange,
           <button className={`map-filter-chip${key === 'accessible' ? ' map-filter-icon-only' : ''}`} key={key} type="button" aria-label={copy[key]} title={copy[key]} aria-pressed={(flags & bit) === bit} onClick={() => onFlagsChange(flags ^ bit)}><Icon name={key} />{key !== 'accessible' && <span>{copy[key]}</span>}</button>)}
       </div>
     </div>
-    {listButton && <div className="map-filter-list-action">{listButton}</div>}
     {open && <div className="map-filter-options" id="map-filter-options"><p>{copy.explanation}</p>{showPreviewSource && <p className="map-filter-source-note">{mapFilterPreviewSourceCopy[locale]}</p>}<button type="button" disabled={!flags && !mine} onClick={() => { onFlagsChange(0); onMineChange(false); setOpen(false) }}>{copy.reset}</button></div>}
   </div>
 }

@@ -25,7 +25,7 @@
   .map-stage.has-map-filters .place-card.initial-route-card { top: 67px; bottom: auto; }
 }
 @media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (pointer: coarse) {
-  .map-filter-toolbar { top: 9px; left: 9px; right: 9px; justify-content: flex-start; }
+  .map-filter-toolbar { top: 9px; left: 9px; right: 0; justify-content: flex-start; gap: 10px; }
   .map-filter-scroll { flex: 1 1 auto; border: 0; border-radius: 0; padding: 0; background: transparent; box-shadow: none; }
   .map-filter-chips { padding: 5px 2px; }
   .map-filter-chip { height: 34px; font-size: 12px; }
