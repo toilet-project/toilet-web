@@ -21,6 +21,7 @@ export type ToiletMapItemResponse = {
   displayGroupTranslations?: Record<string, string>
   translations?: ToiletTranslations
   filterFlags?: number
+  filterSchema?: number
 }
 
 export type ToiletMapSearchResponse = {

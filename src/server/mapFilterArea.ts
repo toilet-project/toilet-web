@@ -1,7 +1,7 @@
 import type { ToiletMapItemResponse, ToiletMapSearchResponse } from '../api/toilets'
 import { cellsForBounds, type MapBounds } from '../lib/mapCells.ts'
 import { mapClusterZoomSupported } from '../lib/mapClusters.ts'
-import { enrichPreviewFilterMarkers, filterMapClusters, filterMapMarkers, validFilterFlags,
+import { enrichPreviewFilterMarkers, filterMapClusters, filterMapMarkers, completeFilterMarker,
   type MapFilterInput } from '../lib/mapFilters.ts'
 import { fetchMapCellOrigin, sanitizeMapCellOriginResponse } from './mapCellCache.ts'
 import { mapFilterPreviewEnabled, readPreviewMapFilterSource, readThroughFilterCell,
@@ -53,7 +53,7 @@ export async function readMapFilterArea(bucket: R2BucketLike, input: MapFilterIn
   }
   const enrich = (markers: ToiletMapItemResponse[]) => {
     if (preview) return enrichPreviewFilterMarkers(markers, source!.points)
-    if (markers.some(marker => !validFilterFlags(marker.filterFlags))) throw new Error('Map filter API not ready')
+    if (markers.some(marker => !completeFilterMarker(marker))) throw new Error('Map filter API not ready')
     return markers
   }
   let markers: ToiletMapItemResponse[] = []

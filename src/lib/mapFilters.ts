@@ -3,14 +3,19 @@ import type { MapBounds } from './mapCells'
 import { buildClusterBins, clusterBinsInBounds, validClusterBounds } from './mapClusters.ts'
 
 // Public, affirmative attributes only. Unknown values never satisfy a condition.
-export const MAP_FILTER_FLAGS = { open24h: 1, cctv: 2, diaper: 4, emergencyBell: 8, accessible: 16 } as const
+export const MAP_FILTER_SCHEMA = 3
+export const MAP_FILTER_FLAGS = { open24h: 1, cctv: 2, diaper: 4, emergencyBell: 8, accessible: 16, accessibleMale: 32, accessibleFemale: 64 } as const
 export const MAX_MAP_FILTER_LIKED_IDS = 10_000
 export type MapFilterPoint = [id: number, latitude: number, longitude: number, flags: number]
 export type MapFilterInput = { bounds: MapBounds; zoom: number; includeList: boolean;
   filterFlags: number; likedIds?: number[] }
 
 export function validFilterFlags(value: unknown): value is number {
-  return Number.isInteger(value) && Number(value) >= 0 && Number(value) <= 31
+  return Number.isInteger(value) && Number(value) >= 0 && Number(value) <= 127
+}
+
+export function completeFilterMarker(marker: { filterFlags?: unknown; filterSchema?: unknown }): boolean {
+  return marker.filterSchema === MAP_FILTER_SCHEMA && validFilterFlags(marker.filterFlags)
 }
 
 export function matchesMapFilters(flags: unknown, mask: number): boolean {
@@ -84,6 +89,6 @@ export function enrichPreviewFilterMarkers(markers: ToiletMapItemResponse[], poi
   return markers.flatMap(marker => {
     const point = index.get(marker.id)
     return point && Math.abs(marker.latitude - point[1]) < 0.00001 && Math.abs(marker.longitude - point[2]) < 0.00001
-      ? [{ ...marker, filterFlags: point[3] }] : []
+      ? [{ ...marker, filterFlags: point[3], filterSchema: MAP_FILTER_SCHEMA }] : []
   })
 }

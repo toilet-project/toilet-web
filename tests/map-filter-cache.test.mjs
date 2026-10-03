@@ -34,18 +34,20 @@ class FakeR2 {
   value(key) { const bytes = this.objects.get(key).value; return JSON.parse((key.endsWith('.gz') ? gunzipSync(bytes) : bytes).toString()) }
 }
 const cell = { x: 2540, y: 750 }
-const marker = (flags = 31) => ({ id: 1, name: 'real source fixture', latitude: 37.525, longitude: 127.025, filterFlags: flags })
-const points = [[1, 37.525, 127.025, 31], [2, 37.55, 127.06, 1]]
+const marker = (flags = 127) => ({ id: 1, name: 'real source fixture', latitude: 37.525, longitude: 127.025, filterFlags: flags, filterSchema: 3 })
+const points = [[1, 37.525, 127.025, 127], [2, 37.55, 127.06, 1]]
 const input = { bounds: { south: 37.51, north: 37.54, west: 127.01, east: 127.04 }, zoom: 8, includeList: true, filterFlags: 1 }
 const event = { toiletId: 1, revision: 2, action: 'UPSERT', catalogChanged: false, regionScopeComplete: true,
   regionBounds: { south: 37.525, north: 37.525, west: 127.025, east: 127.025 } }
 
-test('five-condition cells use v3 and preserve both unfiltered v1 and old four-condition v2', async () => {
+test('gender-aware cells use v4 and preserve unfiltered v1 and old v2/v3 cells', async () => {
   const bucket = new FakeR2()
   await readThroughMapCell({ bucket, cell, fetchOrigin: async () => [{ ...marker(), name: 'original' }] })
   const original = Buffer.from(bucket.objects.get(mapCellObjectKey(cell)).value)
   await bucket.put('map-cells/v2/cells/750/2540.json', JSON.stringify({ data: [marker(15)] }))
   const previousFilters = Buffer.from(bucket.objects.get('map-cells/v2/cells/750/2540.json').value)
+  await bucket.put('map-cells/v3/cells/750/2540.json', JSON.stringify({ data: [marker(31)] }))
+  const previousAccessible = Buffer.from(bucket.objects.get('map-cells/v3/cells/750/2540.json').value)
   let reads = 0
   const fetchOrigin = async () => { reads++; return [marker()] }
   await Promise.all(Array.from({ length: 10 }, () => readThroughFilterCell({ bucket, cell, fetchOrigin })))
@@ -55,10 +57,11 @@ test('five-condition cells use v3 and preserve both unfiltered v1 and old four-c
   assert.equal(reads, 2)
   assert.deepEqual(bucket.objects.get(mapCellObjectKey(cell)).value, original)
   assert.deepEqual(bucket.objects.get('map-cells/v2/cells/750/2540.json').value, previousFilters)
-  assert.equal(bucket.value('map-cells/v3/cells/750/2540.json').data[0].filterFlags, 31)
+  assert.deepEqual(bucket.objects.get('map-cells/v3/cells/750/2540.json').value, previousAccessible)
+  assert.equal(bucket.value('map-cells/v4/cells/750/2540.json').data[0].filterFlags, 127)
 })
 
-test('preview snapshot replacement forces v3 refill instead of retaining old flags', async () => {
+test('preview snapshot replacement forces v4 refill instead of retaining old flags', async () => {
   const bucket = new FakeR2(); let reads = 0
   const read = (date, flags) => readThroughFilterCell({ bucket, cell, previewSourceDate: date,
     fetchOrigin: async () => { reads++; return [marker(flags)] } })
@@ -106,9 +109,13 @@ test('filter source signing binds the new exact API path and rejects missing con
     assert.equal(options.headers['X-Map-Cluster-Signature'], createHmac('sha256', process.env.CACHE_REVALIDATION_SECRET)
       .update(`v1\nGET\n/api/v1/toilets/map-filter-points\n${timestamp}`).digest('hex'))
     assert.equal(options.cache, 'no-store')
-    return Response.json(points)
+    return Response.json(points, { headers: { 'X-Map-Filter-Schema': '3' } })
   }
-  try { assert.deepEqual(await fetchMapFilterSourceOrigin(), points) }
+  try {
+    assert.deepEqual(await fetchMapFilterSourceOrigin(), points)
+    globalThis.fetch = async () => Response.json(points)
+    await assert.rejects(fetchMapFilterSourceOrigin(), /contract not ready/)
+  }
   finally { globalThis.fetch = fetch; if (previous === undefined) delete process.env.CACHE_REVALIDATION_SECRET; else process.env.CACHE_REVALIDATION_SECRET = previous }
 })
 
@@ -118,7 +125,7 @@ test('preview real snapshot feeds markers and clusters with no detail N+1 or pro
   process.env.MAP_FILTER_PREVIEW_SOURCE_ENABLED = 'true'; process.env.SITE_INDEXABLE = 'false'
   const bucket = new FakeR2(); const calls = []
   const exportedAt = '2026-10-03T03:00:00Z'
-  await bucket.put(MAP_FILTER_PREVIEW_SOURCE_KEY, JSON.stringify({ schema: 2, exportedAt, points }))
+  await bucket.put(MAP_FILTER_PREVIEW_SOURCE_KEY, JSON.stringify({ schema: 3, exportedAt, points }))
   globalThis.fetch = async url => {
     calls.push(String(url))
     assert.match(String(url), /\/api\/v1\/toilets\/map-cell\?/)
@@ -127,7 +134,8 @@ test('preview real snapshot feeds markers and clusters with no detail N+1 or pro
   try {
     const first = await readMapFilterArea(bucket, { ...input, likedIds: [1] })
     assert.equal(first.response.meta.total_count, 1)
-    assert.equal(first.response.toilets[0].filterFlags, 31)
+    assert.equal(first.response.toilets[0].filterFlags, 127)
+    assert.equal(first.response.toilets[0].filterSchema, 3)
     assert.equal(first.sourceDate, exportedAt)
     const second = await readMapFilterArea(bucket, { ...input, filterFlags: 15 })
     assert.equal(second.originReads, 0)
@@ -148,8 +156,8 @@ test('preview real snapshot feeds markers and clusters with no detail N+1 or pro
     const readCount = bucket.reads
     assert.equal((await readMapFilterArea(bucket, { ...input, likedIds: [] })).response.meta.total_count, 0)
     assert.equal(bucket.reads, readCount)
-    assert.deepEqual([...bucket.objects.keys()].sort(), ['map-cells/v3/cells/750/2540.json', MAP_FILTER_PREVIEW_SOURCE_KEY].sort())
-    assert.ok(!JSON.stringify(bucket.value('map-cells/v3/cells/750/2540.json')).includes('likedIds'))
+    assert.deepEqual([...bucket.objects.keys()].sort(), ['map-cells/v4/cells/750/2540.json', MAP_FILTER_PREVIEW_SOURCE_KEY].sort())
+    assert.ok(!JSON.stringify(bucket.value('map-cells/v4/cells/750/2540.json')).includes('likedIds'))
     process.env.SITE_INDEXABLE = 'true'
     assert.throws(mapFilterPreviewEnabled, /not allowed/)
     await assert.rejects(readPreviewMapFilterSource(bucket), /not allowed/)
@@ -165,12 +173,22 @@ test('old preview snapshot schema fails closed even if all its flags are numeric
   const previous = { source: process.env.MAP_FILTER_PREVIEW_SOURCE_ENABLED, indexable: process.env.SITE_INDEXABLE }
   process.env.MAP_FILTER_PREVIEW_SOURCE_ENABLED = 'true'; process.env.SITE_INDEXABLE = 'false'
   try {
-    const bucket = new FakeR2()
-    await bucket.put(MAP_FILTER_PREVIEW_SOURCE_KEY, JSON.stringify({ schema: 1, exportedAt: '2026-10-03T03:00:00Z', points }))
-    await assert.rejects(readPreviewMapFilterSource(bucket), /Invalid preview filter snapshot/)
+    for (const schema of [1, 2]) {
+      const bucket = new FakeR2()
+      await bucket.put(MAP_FILTER_PREVIEW_SOURCE_KEY, JSON.stringify({ schema, exportedAt: '2026-10-03T03:00:00Z', points }))
+      await assert.rejects(readPreviewMapFilterSource(bucket), /Invalid preview filter snapshot/)
+    }
   } finally {
     for (const [key, value] of [['MAP_FILTER_PREVIEW_SOURCE_ENABLED', previous.source], ['SITE_INDEXABLE', previous.indexable]]) {
       if (value === undefined) delete process.env[key]; else process.env[key] = value
     }
   }
+})
+
+test('old API markers cannot masquerade as complete gender metadata', async () => {
+  const bucket = new FakeR2()
+  await assert.rejects(readThroughFilterCell({ bucket, cell,
+    fetchOrigin: async () => [{ ...marker(31), filterSchema: undefined }] }), /Incomplete/)
+  const result = await readThroughFilterCell({ bucket, cell, fetchOrigin: async () => [marker()] })
+  assert.equal(result.toilets[0].filterFlags, 127)
 })
