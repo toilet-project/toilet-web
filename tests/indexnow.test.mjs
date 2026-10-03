@@ -15,16 +15,22 @@ const detail = {
   },
 }
 
+const canonicalPath = canonicalIndexNowPaths(detail)[0]
+const englishPath = canonicalIndexNowPaths(detail)[1]
+const canonicalUrl = new URL(canonicalPath, 'https://geupddong.com').href
+const englishUrl = new URL(englishPath, 'https://geupddong.com').href
+
 test('payload contains only same-origin public detail URLs and deduplicates them', () => {
-  const paths = ['/toilet/177', '/toilet/177', '/en/toilet/177', '/api/v1/toilets/177',
-    '/admin/toilets/177', '/login', '/toilet/177?preview=1', '//evil.example/toilet/177']
+  const paths = [canonicalPath, canonicalPath, englishPath, '/api/v1/toilets/177',
+    '/admin/toilets/177', '/login', `${canonicalPath}?preview=1`, '//evil.example/toilet/177',
+    '/toilet/177', '/en/toilet/177', '/en/regions/wrong-11/jongno-gu-11110/toilet/177-name']
   assert.deepEqual(indexNowUrls(paths), [
-    'https://geupddong.com/toilet/177', 'https://geupddong.com/en/toilet/177',
+    canonicalUrl, englishUrl,
   ])
   assert.deepEqual(buildIndexNowPayload(paths), {
     host: 'geupddong.com', key: INDEXNOW_KEY,
     keyLocation: `https://geupddong.com${INDEXNOW_KEY_PATH}`,
-    urlList: ['https://geupddong.com/toilet/177', 'https://geupddong.com/en/toilet/177'],
+    urlList: [canonicalUrl, englishUrl],
   })
   assert.equal(buildIndexNowPayload(['/api/private']), null)
 })
@@ -53,16 +59,16 @@ test('submission retries transient failures and never sends rejected paths', asy
     requests.push({ url, init })
     return new Response('', { status: statuses.shift() })
   }
-  const result = await submitIndexNow(['/toilet/177', '/_internal/cache/revalidate'], fetchImpl, async () => {})
+  const result = await submitIndexNow([canonicalPath, '/_internal/cache/revalidate'], fetchImpl, async () => {})
   assert.deepEqual(result, { submitted: 1, status: 202 })
   assert.equal(requests.length, 2)
   assert.equal(requests[0].url, INDEXNOW_ENDPOINT)
-  assert.deepEqual(JSON.parse(requests[0].init.body).urlList, ['https://geupddong.com/toilet/177'])
+  assert.deepEqual(JSON.parse(requests[0].init.body).urlList, [canonicalUrl])
 })
 
 test('submission uses the documented endpoint and reports HTTP failure without URLs or key', async () => {
   assert.equal(INDEXNOW_ENDPOINT, 'https://api.indexnow.org/indexnow')
-  await assert.rejects(submitIndexNow(['/toilet/177'], async () => new Response('', { status: 403 })), error => {
+  await assert.rejects(submitIndexNow([canonicalPath], async () => new Response('', { status: 403 })), error => {
     assert.deepEqual(indexNowFailureInfo(error), { reason: 'http', status: 403 })
     assert.ok(!JSON.stringify(indexNowFailureInfo(error)).includes(INDEXNOW_KEY))
     assert.ok(!JSON.stringify(indexNowFailureInfo(error)).includes('/toilet/177'))
@@ -72,7 +78,7 @@ test('submission uses the documented endpoint and reports HTTP failure without U
 
 test('network and timeout failures remain distinguishable after bounded retries', async () => {
   let requests = 0
-  const result = submitIndexNow(['/toilet/177'], async () => {
+  const result = submitIndexNow([canonicalPath], async () => {
     requests++
     throw new DOMException('timed out', 'TimeoutError')
   }, async () => {})
@@ -81,6 +87,19 @@ test('network and timeout failures remain distinguishable after bounded retries'
     return true
   })
   assert.equal(requests, 3)
+})
+
+test('noindex numeric routes and facilities without a mapped district never trigger a submission', async () => {
+  assert.deepEqual(canonicalIndexNowPaths({ ...detail, latitude: null, longitude: null }), [])
+  const result = await submitIndexNow(['/toilet/177', '/en/toilet/177'], async () => {
+    throw new Error('noindex route must not reach the search engine')
+  })
+  assert.deepEqual(result, { submitted: 0, status: null })
+})
+
+test('unexpected error diagnostics never serialize exception messages or cause URLs', () => {
+  const error = new Error(`private URL ${canonicalUrl} key ${INDEXNOW_KEY}`, { cause: { url: canonicalUrl } })
+  assert.deepEqual(indexNowFailureInfo(error), { reason: 'unexpected', status: null, errorName: 'Error' })
 })
 
 test('UPSERT resolves canonical paths while DELETE uses known former canonical URLs', async () => {

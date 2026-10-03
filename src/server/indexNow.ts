@@ -1,6 +1,6 @@
 import { indexableFacilityLocales } from '../i18n/facilitySeo.ts'
 import { localizedPublicPath, parseLocalizedPublicPath } from '../i18n/routes.ts'
-import { regionToiletPath } from '../lib/regionToiletPath.ts'
+import { parseRegionToiletSegment, regionToiletPath } from '../lib/regionToiletPath.ts'
 import { getDistrict, localizedRegionPath } from '../lib/regions.ts'
 import { codeFromRegionSegment } from '../lib/urlName.ts'
 import { SITE_ORIGIN } from '../lib/seo.ts'
@@ -41,8 +41,9 @@ export function indexNowEnabled() {
 function isIndexableDetailPath(path: string) {
   const parsed = parseLocalizedPublicPath(path)
   if (!parsed || parsed.suffix) return false
-  return /^\/toilet\/[1-9]\d*$/.test(parsed.path)
-    || /^\/regions\/.+\/toilet\/[1-9]\d*-.+$/u.test(parsed.path)
+  const parts = parsed.path.split('/')
+  return parts.length === 6 && parts[4] === 'toilet' && parseRegionToiletSegment(parts[5]) !== null
+    && isCanonicalDistrictPath(localizedPublicPath(parts.slice(0, 4).join('/'), parsed.locale)!)
 }
 
 function isCanonicalDistrictPath(path: string) {
@@ -113,7 +114,9 @@ export async function submitIndexNow(paths: Iterable<string>, fetchImpl: FetchLi
 }
 
 export function canonicalIndexNowPaths(detail: ToiletDetailResponse) {
+  // Numeric routes are noindex, including facilities without a canonical district.
   return indexableFacilityLocales(detail).map(locale => localizedPublicPath(regionToiletPath(detail, locale), locale)!)
+    .filter(isIndexableDetailPath)
 }
 
 async function fetchCurrentDetail(id: number, fetchImpl: FetchLike): Promise<ToiletDetailResponse | null> {
@@ -122,7 +125,7 @@ async function fetchCurrentDetail(id: number, fetchImpl: FetchLike): Promise<Toi
     cache: 'no-store', signal: AbortSignal.timeout(INDEXNOW_TIMEOUT_MS),
   })
   if (response.status === 404) return null
-  if (!response.ok) throw new Error(`IndexNow detail lookup failed (${response.status})`)
+  if (!response.ok) throw new IndexNowSubmissionError('http', response.status)
   const detail = await response.json() as ToiletDetailResponse
   if (detail.id !== id || typeof detail.name !== 'string') throw new Error('Invalid IndexNow detail response')
   return detail
@@ -151,7 +154,7 @@ export async function notifyIndexNowForEvents(events: readonly ToiletCacheEvent[
       return [...formerPaths, ...(detail ? canonicalIndexNowPaths(detail) : [])]
     } catch (error) {
       // One unavailable detail must not suppress notifications for the rest of the signed batch.
-      console.error('IndexNow detail lookup skipped', { toiletId: event.toiletId, error })
+      console.error('IndexNow detail lookup skipped', { toiletId: event.toiletId, ...indexNowFailureInfo(error) })
       return []
     }
   })).flat()
@@ -173,7 +176,7 @@ export async function scheduleIndexNowNotification(events: readonly ToiletCacheE
     }))
     return true
   } catch (error) {
-    console.error('IndexNow scheduling failed', error)
+    console.error('IndexNow scheduling failed', indexNowFailureInfo(error))
     return false
   }
 }

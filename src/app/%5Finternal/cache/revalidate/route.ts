@@ -40,16 +40,17 @@ export async function POST(request: Request) {
     const catalogChanged = authenticated.events.some(event => event.catalogChanged)
     const districtCodes = authenticated.protocol === 'v3' ? affectedDistrictCodes(authenticated.events) : null
     // Every affected cache is attempted before acknowledgement. A partial failure returns 503 for outbox retry.
-    const persisted = await Promise.allSettled([
-      persistWorkerInvalidation(ids, catalogChanged, districtCodes),
-      authenticated.protocol !== 'v1' ? persistSharedToiletInvalidation(authenticated.events) : Promise.resolve(),
-      persistMapCellInvalidation(authenticated.protocol === 'v3' ? authenticated.events : null),
-      persistMapFilterInvalidation(authenticated.protocol === 'v3' ? authenticated.events : null),
-      process.env.MAP_CLUSTER_CACHE_ENABLED === 'true'
+    const persistence = {
+      worker: persistWorkerInvalidation(ids, catalogChanged, districtCodes),
+      details: authenticated.protocol !== 'v1' ? persistSharedToiletInvalidation(authenticated.events) : Promise.resolve(),
+      mapCells: persistMapCellInvalidation(authenticated.protocol === 'v3' ? authenticated.events : null),
+      mapFilters: persistMapFilterInvalidation(authenticated.protocol === 'v3' ? authenticated.events : null),
+      mapClusters: process.env.MAP_CLUSTER_CACHE_ENABLED === 'true'
         ? getMapCellBucket().then(bucket => bucket ? invalidateMapClusterCache(bucket) : Promise.resolve())
         : Promise.resolve(),
-      persistRegionMarkerInvalidation(districtCodes, indexNowEnabled() && canNotifyIndexNowDistricts(districtCodes)),
-    ])
+      regions: persistRegionMarkerInvalidation(districtCodes, indexNowEnabled() && canNotifyIndexNowDistricts(districtCodes)),
+    }
+    const persisted = await Promise.allSettled(Object.values(persistence))
     for (const id of ids) {
       revalidateTag(`toilet:${id}`, { expire: 0 })
       for (const path of localizedToiletPaths(id)) revalidatePath(path)
@@ -73,10 +74,8 @@ export async function POST(request: Request) {
     }
     if (persisted.some(result => result.status === 'rejected')) throw new Error('Cache persistence failed')
     // Search discovery is best effort and must never delay or reject the cache outbox acknowledgement.
-    const previousDetails = persisted[1].status === 'fulfilled' && persisted[1].value instanceof Map
-      ? persisted[1].value : new Map()
-    const previousDistricts = persisted[4].status === 'fulfilled' && persisted[4].value instanceof Map
-      ? persisted[4].value : new Map()
+    const previousDetails = await persistence.details ?? new Map()
+    const previousDistricts = await persistence.regions
     await Promise.all([scheduleIndexNowNotification(authenticated.events, previousDetails),
       scheduleIndexNowRegionNotification(previousDistricts)])
     const acknowledgement = authenticated.protocol === 'v1'
