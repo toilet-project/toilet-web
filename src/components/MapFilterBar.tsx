@@ -34,6 +34,10 @@ export function MapFilterBar({ locale, flags, mine, onFlagsChange, onMineChange,
   }, [open])
   return <div className="map-filter-toolbar" ref={root}>
     {listButton && <div className="map-filter-list-action">{listButton}</div>}
+    <div className="map-filter-controls">
+      <div className="map-filter-settings-action">
+        <button className={`map-filter-chip map-filter-icon-only map-filter-settings${flags || mine ? ' has-filters' : ''}`} type="button" aria-label={copy.filters} title={copy.filters} aria-expanded={open} aria-controls="map-filter-options" onClick={() => setOpen(value => !value)}><Icon name="filters" /></button>
+      </div>
     <div className="map-filter-scroll" ref={strip} role="group" aria-label={copy.filters}
       onPointerDown={event => {
         if (event.pointerType !== 'mouse' || event.button !== 0) return
@@ -59,11 +63,11 @@ export function MapFilterBar({ locale, flags, mine, onFlagsChange, onMineChange,
       onPointerCancel={() => { drag.current = null; suppressClick.current = false }}
       onClickCapture={event => { if (suppressClick.current) { event.preventDefault(); event.stopPropagation(); suppressClick.current = false } }}>
       <div className="map-filter-chips">
-        <button className={`map-filter-chip map-filter-icon-only map-filter-settings${flags || mine ? ' has-filters' : ''}`} type="button" aria-label={copy.filters} title={copy.filters} aria-expanded={open} aria-controls="map-filter-options" onClick={() => setOpen(value => !value)}><Icon name="filters" /></button>
         <button className="map-filter-chip" type="button" aria-pressed={mine} title={copy.member} onClick={() => onMineChange(!mine)}><Icon name="mine" /><span>{copy.mine}</span></button>
         {([{ bit: 1, key: 'hours' }, { bit: 2, key: 'cctv' }, { bit: 4, key: 'diaper' }, { bit: 8, key: 'bell' }, { bit: 16, key: 'accessible' }] as const).map(({ bit, key }) =>
           <button className={`map-filter-chip${key === 'accessible' ? ' map-filter-icon-only' : ''}`} key={key} type="button" aria-label={copy[key]} title={copy[key]} aria-pressed={(flags & bit) === bit} onClick={() => onFlagsChange(flags ^ bit)}><Icon name={key} />{key !== 'accessible' && <span>{copy[key]}</span>}</button>)}
       </div>
+    </div>
     </div>
     {open && <div className="map-filter-options" id="map-filter-options"><p>{copy.explanation}</p>{showPreviewSource && <p className="map-filter-source-note">{mapFilterPreviewSourceCopy[locale]}</p>}<button type="button" disabled={!flags && !mine} onClick={() => { onFlagsChange(0); onMineChange(false); setOpen(false) }}>{copy.reset}</button></div>}
   </div>
