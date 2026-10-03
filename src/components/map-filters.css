@@ -1,5 +1,5 @@
 .map-filter-toolbar { position: absolute; z-index: 7; top: 14px; left: calc(var(--desktop-area-list-width, 0px) + 12px); right: 12px; display: flex; justify-content: center; align-items: center; gap: 7px; pointer-events: none; }
-.map-filter-controls { display: flex; min-width: 0; max-width: 100%; align-items: center; gap: 5px; border: 1px solid rgb(190 211 197 / 80%); border-radius: 999px; padding: 5px 12px; background: rgb(232 240 234 / 90%); box-shadow: 0 3px 12px rgb(29 55 38 / 12%); backdrop-filter: blur(8px); pointer-events: auto; }
+.map-filter-controls { display: flex; min-width: 0; max-width: 100%; align-items: center; gap: 5px; border: 1px solid rgb(0 0 0 / 8%); border-radius: 999px; padding: 5px 12px; background: rgb(0 0 0 / 12%); box-shadow: 0 3px 12px rgb(0 0 0 / 12%); backdrop-filter: blur(8px); pointer-events: auto; }
 .map-filter-settings-action { flex: 0 0 auto; padding: 5px 0; }
 .map-filter-scroll { flex: 1 1 auto; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; pointer-events: auto; touch-action: pan-x; }
 .map-filter-scroll::-webkit-scrollbar { display: none; }

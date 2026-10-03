@@ -17,6 +17,16 @@ test('all six locales retain a compact list label alongside the capped count', (
   }
 })
 
+test('desktop capsule uses a neutral translucent black shade without tinting mobile controls', () => {
+  const css = readFileSync(new URL('../src/components/map-filters.css', import.meta.url), 'utf8')
+  const desktop = css.match(/\.map-filter-controls \{([^}]+)\}/)?.[1]
+  assert.ok(desktop.includes('background: rgb(0 0 0 / 12%);'))
+  assert.ok(desktop.includes('border: 1px solid rgb(0 0 0 / 8%);'))
+  assert.ok(desktop.includes('box-shadow: 0 3px 12px rgb(0 0 0 / 12%);'))
+  const mobile = css.slice(css.indexOf('@media (max-width: 640px)'))
+  assert.match(mobile, /\.map-filter-controls \{[^}]*background: transparent;[^}]*box-shadow: none;/)
+})
+
 test('mobile list and settings keep fixed rounded-rectangle geometry outside the scroll strip', () => {
   const css = readFileSync(new URL('../src/components/map-filters.css', import.meta.url), 'utf8')
   const mobile = css.slice(css.indexOf('@media (max-width: 640px)'))
