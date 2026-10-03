@@ -42,6 +42,7 @@ jobs:
       SITE_INDEXABLE: ${{ matrix.indexable }}
       ENGLISH_UI_PREVIEW: ${{ matrix.target == 'preview' && 'true' || 'false' }}
       ENGLISH_UI_RELEASE: ${{ matrix.target == 'production-candidate' && 'true' || 'false' }}
+      MAP_FILTERS_RELEASE: ${{ matrix.target == 'production-candidate' && 'true' || 'false' }}
       REVIEW_API_ENABLED: ${{ matrix.review_api_enabled }}
       REVIEW_PRODUCTION_APPROVED: ${{ matrix.review_production_approved }}
       TOILET_ENGAGEMENT_ENABLED: ${{ matrix.target == 'production-candidate' && 'true' || 'false' }}
