@@ -1,5 +1,5 @@
 .map-filter-toolbar { position: absolute; z-index: 7; top: 14px; left: calc(var(--desktop-area-list-width, 0px) + 12px); right: 12px; display: flex; justify-content: center; align-items: center; gap: 7px; pointer-events: none; }
-.map-filter-controls { display: flex; min-width: 0; max-width: 100%; align-items: center; gap: 5px; border: 1px solid rgb(0 0 0 / 8%); border-radius: 999px; padding: 5px 12px; background: rgb(0 0 0 / 12%); box-shadow: 0 3px 12px rgb(0 0 0 / 12%); backdrop-filter: blur(8px); pointer-events: auto; }
+.map-filter-controls { display: flex; min-width: 0; max-width: 100%; align-items: center; gap: 5px; border: 1px solid rgb(213 224 217 / 95%); border-radius: 999px; padding: 5px 12px; background: rgb(255 255 255 / 94%); box-shadow: 0 6px 20px rgb(26 42 33 / 16%), 0 1px 3px rgb(26 42 33 / 8%); backdrop-filter: blur(10px); pointer-events: auto; }
 .map-filter-settings-action { flex: 0 0 auto; padding: 5px 0; }
 .map-filter-scroll { flex: 1 1 auto; min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; pointer-events: auto; touch-action: pan-x; }
 .map-filter-scroll::-webkit-scrollbar { display: none; }
@@ -23,6 +23,11 @@
 .map-stage.has-map-filters .map-hud { top: 73px; }
 .map-stage.has-map-filters .connection-status-banner { top: 74px; }
 @media (min-width: 641px) and (pointer: fine), (min-width: 641px) and (pointer: none), (min-width: 641px) and (min-height: 501px), (min-width: 1025px) {
+  .map-filter-chip { box-shadow: none; }
+  .map-filter-chip:not([aria-pressed="true"]):not(.has-filters) { border-color: transparent; background: transparent; }
+  .map-filter-chip:not([aria-pressed="true"]):not(.has-filters):hover { background: #edf5ef; }
+  .map-filter-settings-action { position: relative; margin-right: 5px; }
+  .map-filter-settings-action::after { position: absolute; top: 50%; right: -3px; width: 1px; height: 18px; background: #d8e3dc; content: ''; transform: translateY(-50%); }
   .map-stage.has-map-filters .coordinate-group-card { top: 75px; }
   .map-stage.has-map-filters .place-card.initial-route-card { top: 75px; bottom: auto; }
 }
