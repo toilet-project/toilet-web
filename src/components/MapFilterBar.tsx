@@ -1,7 +1,7 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { Locale } from '../i18n/locale'
 import { mapFilterCopy } from '../i18n/mapFilterCopy'
-import { DEFAULT_MAP_FILTER_ORDER, MAP_FILTER_BITS, promoteMapFilter, setAccessibleGender, setMapFilter, type MapFilterKey } from '../lib/mapFilterPreferences'
+import { DEFAULT_MAP_FILTER_ORDER, MAP_FILTER_BITS, appendSelectedMapFilter, setAccessibleGender, setMapFilter, type MapFilterKey } from '../lib/mapFilterPreferences'
 import './map-filters.css'
 
 function Icon({ name }: { name: 'filters' | 'mine' | 'hours' | 'cctv' | 'diaper' | 'bell' | 'accessible' | 'male' | 'female' }) {
@@ -33,20 +33,21 @@ export function MapFilterBar({ locale, flags, mine, onFlagsChange, onMineChange,
   // Order is temporary UI state. Restoring saved selections never reorders chips.
   const [order, setOrder] = useState<MapFilterKey[]>([...DEFAULT_MAP_FILTER_ORDER])
   const previousPositions = useRef<Map<string, number> | null>(null)
-  const promote = (key: MapFilterKey) => {
+  const moveToSelectedEnd = (key: MapFilterKey) => {
+    if (key === 'mine' ? mine : (flags & MAP_FILTER_BITS[key]) !== 0) return
     previousPositions.current = new Map(Array.from(strip.current?.querySelectorAll<HTMLButtonElement>('[data-filter-key]') ?? [])
       .map(button => [button.dataset.filterKey!, button.getBoundingClientRect().left]))
-    setOrder(current => promoteMapFilter(current, key))
+    setOrder(current => appendSelectedMapFilter(current, key, { flags, mine }))
   }
   const selectFilter = (key: MapFilterKey, selected: boolean) => {
     if (key === 'mine') {
       if (!onMineChange(selected)) return
     } else onFlagsChange(setMapFilter(flags, key, selected))
-    if (selected) promote(key)
+    if (selected) moveToSelectedEnd(key)
   }
   const selectGender = (gender: 'male' | 'female', selected: boolean) => {
     onFlagsChange(setAccessibleGender(flags, gender, selected))
-    if (selected) promote('accessible')
+    if (selected) moveToSelectedEnd('accessible')
   }
   useLayoutEffect(() => {
     const positions = previousPositions.current

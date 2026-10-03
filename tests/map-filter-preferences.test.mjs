@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { DEFAULT_MAP_FILTER_ORDER, MAP_FILTER_SELECTION_KEY, normalizeMapFilterSelection,
-  readMapFilterSelection, writeMapFilterSelection, resolveMapFilterOwner, promoteMapFilter,
+  readMapFilterSelection, writeMapFilterSelection, resolveMapFilterOwner, appendSelectedMapFilter,
   setMapFilter, setAccessibleGender } from '../src/lib/mapFilterPreferences.ts'
 import { matchesMapFilters } from '../src/lib/mapFilters.ts'
 import { mapFilterCopy } from '../src/i18n/mapFilterCopy.ts'
@@ -25,25 +25,72 @@ test('map filters start in the requested default order', () => {
   assert.deepEqual(DEFAULT_MAP_FILTER_ORDER, ['hours', 'mine', 'bell', 'cctv', 'accessible', 'diaper'])
 })
 
-test('selecting a filter promotes it without duplicates or changing the default order', () => {
+test('new selections follow the existing selected chips without duplicates or input mutation', () => {
   const initial = Object.freeze([...DEFAULT_MAP_FILTER_ORDER])
-  const first = promoteMapFilter(initial, 'cctv')
+  const first = appendSelectedMapFilter(initial, 'cctv', { flags: 0, mine: false })
   assert.deepEqual(first, ['cctv', 'hours', 'mine', 'bell', 'accessible', 'diaper'])
-  const second = promoteMapFilter(first, 'accessible')
-  assert.deepEqual(second, ['accessible', 'cctv', 'hours', 'mine', 'bell', 'diaper'])
-  assert.deepEqual(promoteMapFilter(second, 'accessible'), second)
+  const previousSelection = Object.freeze({ flags: 2, mine: false })
+  const second = appendSelectedMapFilter(Object.freeze(first), 'accessible', previousSelection)
+  assert.deepEqual(second, ['cctv', 'accessible', 'hours', 'mine', 'bell', 'diaper'])
+  const unchanged = appendSelectedMapFilter(second, 'accessible', { flags: 18, mine: false })
+  assert.deepEqual(unchanged, second)
+  assert.notEqual(unchanged, second)
   assert.equal(second.length, DEFAULT_MAP_FILTER_ORDER.length)
   assert.equal(new Set(second).size, DEFAULT_MAP_FILTER_ORDER.length)
+  assert.deepEqual(previousSelection, { flags: 2, mine: false })
   assert.deepEqual(first, ['cctv', 'hours', 'mine', 'bell', 'accessible', 'diaper'])
   assert.deepEqual(initial, DEFAULT_MAP_FILTER_ORDER)
   assert.deepEqual(DEFAULT_MAP_FILTER_ORDER, ['hours', 'mine', 'bell', 'cctv', 'accessible', 'diaper'])
 })
 
-test('promoted order stays in memory while saved selections restore independently', () => {
+test('mine joins the selected tail and remains ahead of later selections', () => {
+  const first = appendSelectedMapFilter(DEFAULT_MAP_FILTER_ORDER, 'cctv', { flags: 0, mine: false })
+  const withMine = appendSelectedMapFilter(first, 'mine', { flags: 2, mine: false })
+  assert.deepEqual(withMine, ['cctv', 'mine', 'hours', 'bell', 'accessible', 'diaper'])
+  assert.deepEqual(appendSelectedMapFilter(withMine, 'diaper', { flags: 2, mine: true }),
+    ['cctv', 'mine', 'diaper', 'hours', 'bell', 'accessible'])
+  const sameMine = appendSelectedMapFilter(withMine, 'mine', { flags: 2, mine: true })
+  assert.deepEqual(sameMine, withMine)
+  assert.notEqual(sameMine, withMine)
+})
+
+test('restored noncontiguous selections retain their visible relative order ahead of a new chip', () => {
+  assert.deepEqual(appendSelectedMapFilter(DEFAULT_MAP_FILTER_ORDER, 'bell', { flags: 7, mine: true }),
+    ['hours', 'mine', 'cctv', 'diaper', 'bell', 'accessible'])
+  assert.deepEqual(appendSelectedMapFilter(DEFAULT_MAP_FILTER_ORDER, 'hours', { flags: 16, mine: true }),
+    ['mine', 'accessible', 'hours', 'bell', 'cctv', 'diaper'])
+})
+
+test('deselecting leaves order untouched and reselecting appends after the remaining selected chips', () => {
+  const first = appendSelectedMapFilter(DEFAULT_MAP_FILTER_ORDER, 'bell', { flags: 0, mine: false })
+  const second = appendSelectedMapFilter(first, 'cctv', { flags: 8, mine: false })
+  const order = appendSelectedMapFilter(second, 'mine', { flags: 10, mine: false })
+  const flagsAfterDeselection = setMapFilter(10, 'bell', false)
+  assert.equal(flagsAfterDeselection, 2)
+  assert.deepEqual(order, ['bell', 'cctv', 'mine', 'hours', 'accessible', 'diaper'])
+  assert.deepEqual(appendSelectedMapFilter(order, 'bell', { flags: flagsAfterDeselection, mine: true }),
+    ['cctv', 'mine', 'bell', 'hours', 'accessible', 'diaper'])
+})
+
+test('adding an accessibility gender does not move its already selected parent again', () => {
+  const first = appendSelectedMapFilter(DEFAULT_MAP_FILTER_ORDER, 'cctv', { flags: 0, mine: false })
+  const withAccessible = appendSelectedMapFilter(first, 'accessible', { flags: 2, mine: false })
+  const male = setAccessibleGender(2, 'male', true)
+  const order = appendSelectedMapFilter(withAccessible, 'bell', { flags: male, mine: false })
+  assert.deepEqual(order, ['cctv', 'accessible', 'bell', 'hours', 'mine', 'diaper'])
+  const flagsBeforeSecondGender = setMapFilter(male, 'bell', true)
+  assert.equal(setAccessibleGender(flagsBeforeSecondGender, 'female', true), 122)
+  assert.deepEqual(appendSelectedMapFilter(order, 'accessible', { flags: flagsBeforeSecondGender, mine: false }), order)
+  assert.deepEqual(appendSelectedMapFilter(DEFAULT_MAP_FILTER_ORDER, 'accessible', { flags: male, mine: false }),
+    DEFAULT_MAP_FILTER_ORDER)
+})
+
+test('selected chip order stays in memory while saved selections restore independently', () => {
   const values = new Map()
   const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) }
-  const order = promoteMapFilter(promoteMapFilter(DEFAULT_MAP_FILTER_ORDER, 'diaper'), 'mine')
-  assert.deepEqual(order, ['mine', 'diaper', 'hours', 'bell', 'cctv', 'accessible'])
+  const first = appendSelectedMapFilter(DEFAULT_MAP_FILTER_ORDER, 'diaper', { flags: 0, mine: false })
+  const order = appendSelectedMapFilter(first, 'mine', { flags: 4, mine: false })
+  assert.deepEqual(order, ['diaper', 'mine', 'hours', 'bell', 'cctv', 'accessible'])
   writeMapFilterSelection(storage, { flags: 4, mine: true, order })
   assert.deepEqual(readMapFilterSelection(storage), { flags: 4, mine: true })
   assert.deepEqual(JSON.parse(values.get(MAP_FILTER_SELECTION_KEY)), { flags: 4, mine: true })

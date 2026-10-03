@@ -4,8 +4,12 @@ export type MapFilterKey = typeof DEFAULT_MAP_FILTER_ORDER[number]
 export const MAP_FILTER_BITS = { hours: 1, cctv: 2, diaper: 4, bell: 8, accessible: 16 } as const
 export const ACCESSIBLE_FILTER_MASK = 16 | 32 | 64
 
-export function promoteMapFilter(order: readonly MapFilterKey[], key: MapFilterKey): MapFilterKey[] {
-  return [key, ...order.filter(item => item !== key)]
+export function appendSelectedMapFilter(order: readonly MapFilterKey[], key: MapFilterKey, previousSelection: MapFilterSelection): MapFilterKey[] {
+  const selected = (item: MapFilterKey) => item === 'mine' ? previousSelection.mine : (previousSelection.flags & MAP_FILTER_BITS[item]) !== 0
+  // Adding another gender to an enabled accessible filter must not move it again.
+  if (selected(key)) return [...order]
+  const remaining = order.filter(item => item !== key)
+  return [...remaining.filter(selected), key, ...remaining.filter(item => !selected(item))]
 }
 
 export type MapFilterSelection = { flags: number; mine: boolean }
