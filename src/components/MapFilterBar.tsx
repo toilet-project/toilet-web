@@ -21,6 +21,10 @@ function Icon({ name }: { name: 'filters' | 'mine' | 'hours' | 'cctv' | 'diaper'
   </svg>
 }
 
+function SelectionMark() {
+  return <span className="map-filter-selection-mark" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none"><path d="m4 8 2.5 2.5L12 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
+}
+
 export function MapFilterBar({ locale, flags, mine, onFlagsChange, onMineChange, listButton }: {
   locale: Locale; flags: number; mine: boolean; onFlagsChange: (flags: number) => void; onMineChange: (mine: boolean) => void; listButton?: ReactNode
 }) {
@@ -115,12 +119,14 @@ export function MapFilterBar({ locale, flags, mine, onFlagsChange, onMineChange,
     </div>
       {open && <div className="map-filter-options" id={optionsId} role="group" aria-label={copy.filters}>
         <div className="map-filter-options-header"><strong>{copy.filters}</strong><button type="button" disabled={!flags && !mine} onClick={() => { onFlagsChange(0); onMineChange(false) }}>{copy.clearAll}</button></div>
-        <label className="map-filter-option" title={copy.member}><Icon name="mine" /><span>{copy.mine}</span><input type="checkbox" checked={mine} onChange={event => onMineChange(event.target.checked)} /></label>
-        {publicFilters.map(({ bit, key }) => <label className="map-filter-option" key={key}><Icon name={key} /><span>{copy[key]}</span><input type="checkbox" checked={(flags & bit) === bit} onChange={event => onFlagsChange(setMapFilter(flags, key, event.target.checked))} /></label>)}
+        <div className="map-filter-options-grid">
+          <label className="map-filter-option map-filter-option-wide" title={copy.member}><Icon name="mine" /><span>{copy.mine}</span><input type="checkbox" checked={mine} onChange={event => onMineChange(event.target.checked)} /><SelectionMark /></label>
+          {publicFilters.map(({ bit, key }) => <label className={`map-filter-option${key === 'accessible' ? ' map-filter-option-wide' : ''}`} key={key}><Icon name={key} /><span>{copy[key]}</span><input type="checkbox" checked={(flags & bit) === bit} onChange={event => onFlagsChange(setMapFilter(flags, key, event.target.checked))} /><SelectionMark /></label>)}
+        </div>
         <div className="map-filter-genders" role="group" aria-label={copy.accessible}>
           {(['male', 'female'] as const).map(gender => <label className="map-filter-gender-option" key={gender}>
             <Icon name={gender} /><span>{copy[gender]}</span><input type="checkbox" checked={(flags & (gender === 'male' ? 32 : 64)) !== 0}
-              onChange={event => onFlagsChange(setAccessibleGender(flags, gender, event.target.checked))} />
+              onChange={event => onFlagsChange(setAccessibleGender(flags, gender, event.target.checked))} /><SelectionMark />
           </label>)}
         </div>
       </div>}
