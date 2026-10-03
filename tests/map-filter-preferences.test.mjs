@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { DEFAULT_MAP_FILTER_ORDER, MAP_FILTER_SELECTION_KEY, normalizeMapFilterSelection,
-  readMapFilterSelection, writeMapFilterSelection, resolveMapFilterOwner, appendSelectedMapFilter,
+  readMapFilterSelection, writeMapFilterSelection, resolveMapFilterOwner, appendSelectedMapFilter, orderMapFilters,
   setMapFilter, setAccessibleGender } from '../src/lib/mapFilterPreferences.ts'
 import { matchesMapFilters } from '../src/lib/mapFilters.ts'
 import { mapFilterCopy } from '../src/i18n/mapFilterCopy.ts'
@@ -23,6 +23,28 @@ test('gender selection enables parent, both is AND, deselecting parent clears ch
 
 test('map filters start in the requested default order', () => {
   assert.deepEqual(DEFAULT_MAP_FILTER_ORDER, ['hours', 'mine', 'bell', 'cctv', 'accessible', 'diaper'])
+  assert.deepEqual(orderMapFilters(DEFAULT_MAP_FILTER_ORDER, { flags: 0, mine: false }), DEFAULT_MAP_FILTER_ORDER)
+})
+
+test('selected chips keep their priority while every unselected chip returns to default relative order', () => {
+  const priority = Object.freeze(['diaper', 'cctv', 'mine', 'bell', 'hours', 'accessible'])
+  const selection = Object.freeze({ flags: 18, mine: true })
+  const displayed = orderMapFilters(priority, selection)
+  assert.deepEqual(displayed, ['cctv', 'mine', 'accessible', 'hours', 'bell', 'diaper'])
+  assert.equal(displayed.length, DEFAULT_MAP_FILTER_ORDER.length)
+  assert.equal(new Set(displayed).size, DEFAULT_MAP_FILTER_ORDER.length)
+  assert.deepEqual(priority, ['diaper', 'cctv', 'mine', 'bell', 'hours', 'accessible'])
+  assert.deepEqual(selection, { flags: 18, mine: true })
+  assert.deepEqual(orderMapFilters(priority, { flags: 31, mine: true }), priority)
+})
+
+test('adding a chip restores the unselected default order even after previous deselections', () => {
+  const priority = ['diaper', 'accessible', 'cctv', 'bell', 'mine', 'hours']
+  const selection = { flags: 2, mine: true }
+  assert.deepEqual(appendSelectedMapFilter(priority, 'hours', selection),
+    ['cctv', 'mine', 'hours', 'bell', 'accessible', 'diaper'])
+  assert.deepEqual(appendSelectedMapFilter(priority, 'cctv', selection),
+    ['cctv', 'mine', 'hours', 'bell', 'accessible', 'diaper'])
 })
 
 test('new selections follow the existing selected chips without duplicates or input mutation', () => {
@@ -61,15 +83,31 @@ test('restored noncontiguous selections retain their visible relative order ahea
     ['mine', 'accessible', 'hours', 'bell', 'cctv', 'diaper'])
 })
 
-test('deselecting leaves order untouched and reselecting appends after the remaining selected chips', () => {
+test('deselecting a leading chip brings remaining selections forward and reselecting appends to their tail', () => {
   const first = appendSelectedMapFilter(DEFAULT_MAP_FILTER_ORDER, 'bell', { flags: 0, mine: false })
   const second = appendSelectedMapFilter(first, 'cctv', { flags: 8, mine: false })
   const order = appendSelectedMapFilter(second, 'mine', { flags: 10, mine: false })
   const flagsAfterDeselection = setMapFilter(10, 'bell', false)
   assert.equal(flagsAfterDeselection, 2)
   assert.deepEqual(order, ['bell', 'cctv', 'mine', 'hours', 'accessible', 'diaper'])
-  assert.deepEqual(appendSelectedMapFilter(order, 'bell', { flags: flagsAfterDeselection, mine: true }),
+  const afterDeselection = orderMapFilters(order, { flags: flagsAfterDeselection, mine: true })
+  assert.deepEqual(afterDeselection, ['cctv', 'mine', 'hours', 'bell', 'accessible', 'diaper'])
+  assert.deepEqual(appendSelectedMapFilter(afterDeselection, 'bell', { flags: flagsAfterDeselection, mine: true }),
     ['cctv', 'mine', 'bell', 'hours', 'accessible', 'diaper'])
+})
+
+test('turning mine off moves it back among unselected defaults while public selections stay ahead', () => {
+  const priority = ['mine', 'diaper', 'cctv', 'hours', 'bell', 'accessible']
+  assert.deepEqual(orderMapFilters(priority, { flags: 6, mine: false }),
+    ['diaper', 'cctv', 'hours', 'mine', 'bell', 'accessible'])
+})
+
+test('clear-all restores the complete default order regardless of prior selection priority', () => {
+  const priority = ['diaper', 'accessible', 'cctv', 'mine', 'bell', 'hours']
+  const cleared = orderMapFilters(priority, { flags: 0, mine: false })
+  assert.deepEqual(cleared, DEFAULT_MAP_FILTER_ORDER)
+  assert.deepEqual(appendSelectedMapFilter(cleared, 'bell', { flags: 0, mine: false }),
+    ['bell', 'hours', 'mine', 'cctv', 'accessible', 'diaper'])
 })
 
 test('adding an accessibility gender does not move its already selected parent again', () => {
@@ -82,10 +120,12 @@ test('adding an accessibility gender does not move its already selected parent a
   assert.equal(setAccessibleGender(flagsBeforeSecondGender, 'female', true), 122)
   assert.deepEqual(appendSelectedMapFilter(order, 'accessible', { flags: flagsBeforeSecondGender, mine: false }), order)
   assert.deepEqual(appendSelectedMapFilter(DEFAULT_MAP_FILTER_ORDER, 'accessible', { flags: male, mine: false }),
-    DEFAULT_MAP_FILTER_ORDER)
+    ['cctv', 'accessible', 'hours', 'mine', 'bell', 'diaper'])
+  assert.deepEqual(orderMapFilters(order, { flags: setMapFilter(flagsBeforeSecondGender, 'accessible', false), mine: false }),
+    ['cctv', 'bell', 'hours', 'mine', 'accessible', 'diaper'])
 })
 
-test('selected chip order stays in memory while saved selections restore independently', () => {
+test('refresh restores selected chips first in default order without retaining previous selection priority', () => {
   const values = new Map()
   const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) }
   const first = appendSelectedMapFilter(DEFAULT_MAP_FILTER_ORDER, 'diaper', { flags: 0, mine: false })
@@ -95,6 +135,9 @@ test('selected chip order stays in memory while saved selections restore indepen
   assert.deepEqual(readMapFilterSelection(storage), { flags: 4, mine: true })
   assert.deepEqual(JSON.parse(values.get(MAP_FILTER_SELECTION_KEY)), { flags: 4, mine: true })
   assert.deepEqual([...values.keys()], [MAP_FILTER_SELECTION_KEY])
+  const restoredOrder = orderMapFilters(DEFAULT_MAP_FILTER_ORDER, readMapFilterSelection(storage))
+  assert.deepEqual(restoredOrder, ['mine', 'diaper', 'hours', 'bell', 'cctv', 'accessible'])
+  assert.notDeepEqual(restoredOrder, order)
   assert.deepEqual([...DEFAULT_MAP_FILTER_ORDER], ['hours', 'mine', 'bell', 'cctv', 'accessible', 'diaper'])
 })
 

@@ -1,7 +1,7 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Locale } from '../i18n/locale'
 import { mapFilterCopy } from '../i18n/mapFilterCopy'
-import { DEFAULT_MAP_FILTER_ORDER, MAP_FILTER_BITS, appendSelectedMapFilter, setAccessibleGender, setMapFilter, type MapFilterKey } from '../lib/mapFilterPreferences'
+import { DEFAULT_MAP_FILTER_ORDER, MAP_FILTER_BITS, appendSelectedMapFilter, orderMapFilters, setAccessibleGender, setMapFilter, type MapFilterKey } from '../lib/mapFilterPreferences'
 import './map-filters.css'
 
 function Icon({ name }: { name: 'filters' | 'mine' | 'hours' | 'cctv' | 'diaper' | 'bell' | 'accessible' | 'male' | 'female' }) {
@@ -30,24 +30,28 @@ export function MapFilterBar({ locale, flags, mine, onFlagsChange, onMineChange,
   const root = useRef<HTMLDivElement>(null), strip = useRef<HTMLDivElement>(null)
   const drag = useRef<{ id: number; start: number; scroll: number; moved: boolean } | null>(null)
   const suppressClick = useRef(false)
-  // Order is temporary UI state. Restoring saved selections never reorders chips.
-  const [order, setOrder] = useState<MapFilterKey[]>([...DEFAULT_MAP_FILTER_ORDER])
+  // Only selection is persisted. Selected chips lead; unselected chips keep the default order.
+  const [selectionOrder, setSelectionOrder] = useState<MapFilterKey[]>([...DEFAULT_MAP_FILTER_ORDER])
+  const order = useMemo(() => orderMapFilters(selectionOrder, { flags, mine }), [selectionOrder, flags, mine])
   const previousPositions = useRef<Map<string, number> | null>(null)
-  const moveToSelectedEnd = (key: MapFilterKey) => {
-    if (key === 'mine' ? mine : (flags & MAP_FILTER_BITS[key]) !== 0) return
+  const capturePositions = () => {
     previousPositions.current = new Map(Array.from(strip.current?.querySelectorAll<HTMLButtonElement>('[data-filter-key]') ?? [])
       .map(button => [button.dataset.filterKey!, button.getBoundingClientRect().left]))
-    setOrder(current => appendSelectedMapFilter(current, key, { flags, mine }))
   }
   const selectFilter = (key: MapFilterKey, selected: boolean) => {
     if (key === 'mine') {
       if (!onMineChange(selected)) return
     } else onFlagsChange(setMapFilter(flags, key, selected))
-    if (selected) moveToSelectedEnd(key)
+    capturePositions()
+    setSelectionOrder(selected ? appendSelectedMapFilter(order, key, { flags, mine })
+      : orderMapFilters(order, key === 'mine' ? { flags, mine: false } : { flags: setMapFilter(flags, key, false), mine }))
   }
   const selectGender = (gender: 'male' | 'female', selected: boolean) => {
     onFlagsChange(setAccessibleGender(flags, gender, selected))
-    if (selected) moveToSelectedEnd('accessible')
+    if (selected && !(flags & MAP_FILTER_BITS.accessible)) {
+      capturePositions()
+      setSelectionOrder(appendSelectedMapFilter(order, 'accessible', { flags, mine }))
+    }
   }
   useLayoutEffect(() => {
     const positions = previousPositions.current
@@ -111,7 +115,7 @@ export function MapFilterBar({ locale, flags, mine, onFlagsChange, onMineChange,
       </div>
     </div>
       {open && <div className="map-filter-options" id={optionsId} role="group" aria-label={copy.filters}>
-        <div className="map-filter-options-header"><strong>{copy.filters}</strong><button type="button" disabled={!flags && !mine} onClick={() => { onFlagsChange(0); onMineChange(false) }}>{copy.clearAll}</button></div>
+        <div className="map-filter-options-header"><strong>{copy.filters}</strong><button type="button" disabled={!flags && !mine} onClick={() => { capturePositions(); setSelectionOrder([...DEFAULT_MAP_FILTER_ORDER]); onFlagsChange(0); onMineChange(false) }}>{copy.clearAll}</button></div>
         <div className="map-filter-options-grid">
           {DEFAULT_MAP_FILTER_ORDER.map(key => key === 'mine'
             ? <label className="map-filter-option" data-filter-tone={key} key={key} title={copy.member}><span className="map-filter-option-icon"><Icon name="mine" /></span><span className="map-filter-option-label">{copy.mine}</span><input type="checkbox" checked={mine} onChange={event => selectFilter(key, event.target.checked)} /><SelectionMark /></label>
