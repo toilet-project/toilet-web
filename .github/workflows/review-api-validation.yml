@@ -54,6 +54,7 @@ jobs:
       SITE_INDEXABLE: 'false'
       REVIEW_API_ENABLED: 'true'
       REVIEW_LIVE_PREVIEW_APPROVED: 'true'
+      MAP_FILTERS_PREVIEW: 'true'
       REPORT_REDESIGN_PREVIEW: 'true'
       TOILET_ENGAGEMENT_ENABLED: 'true'
       ENGLISH_UI_PREVIEW: 'true'
@@ -96,6 +97,7 @@ jobs:
       REPORT_REDESIGN_RELEASE: 'true'
       TOILET_ENGAGEMENT_ENABLED: 'true'
       ENGLISH_UI_RELEASE: 'true'
+      MAP_FILTERS_RELEASE: 'true'
       # Candidate validation only; this workflow never deploys or activates the feature.
       NEXT_PUBLIC_PROFILE_PHOTO_ENABLED: 'true'
     steps:
