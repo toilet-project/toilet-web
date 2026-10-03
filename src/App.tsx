@@ -1748,9 +1748,10 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         {MAP_FILTERS_ENABLED && <MapFilterBar locale={locale} flags={mapFilterFlags} mine={isMyMapFilter}
           onFlagsChange={setMapFilterFlags}
           onMineChange={selected => {
-                    if (!selected) { setMyMapFilter(false); return }
-            if (!activeFilterOwner) { engagementProps.requireLogin(); return }
-                    setMyMapFilter(true)
+            if (!selected) { setMyMapFilter(false); return true }
+            if (!activeFilterOwner) { engagementProps.requireLogin(); return false }
+            setMyMapFilter(true)
+            return true
           }}
           listButton={!isDesktop ? <button className={`mobile-area-list-button${isMobileAreaListVisible ? ' is-open' : ''}${isLoading ? ' is-loading' : ''}`} type="button" onClick={() => void toggleMobileAreaList()} aria-label={`${isMobileAreaListVisible ? t('map.closeList') : t('map.list')}${result ? ` (${result.meta.total_count.toLocaleString(locale)})` : ''}`} aria-expanded={isMobileAreaListVisible} aria-busy={isLoading} disabled={isLoading || !result}>{filterCopy.list}{result && ` (${mapFilterCountLabel(result.meta.total_count)})`}</button> : undefined} />}
         {hasMapFilters && (isLoading || mapFilterLikes.error || error || result?.meta.total_count === 0) && <div className="map-filter-status" role="status" aria-live="polite">

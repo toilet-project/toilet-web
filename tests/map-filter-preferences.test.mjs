@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { DEFAULT_MAP_FILTER_ORDER, MAP_FILTER_SELECTION_KEY, normalizeMapFilterSelection,
-  readMapFilterSelection, writeMapFilterSelection, resolveMapFilterOwner,
+  readMapFilterSelection, writeMapFilterSelection, resolveMapFilterOwner, promoteMapFilter,
   setMapFilter, setAccessibleGender } from '../src/lib/mapFilterPreferences.ts'
 import { matchesMapFilters } from '../src/lib/mapFilters.ts'
 import { mapFilterCopy } from '../src/i18n/mapFilterCopy.ts'
@@ -21,11 +21,34 @@ test('gender selection enables parent, both is AND, deselecting parent clears ch
   assert.equal(setMapFilter(both, 'cctv', false), 112)
 })
 
-test('map filters have the same fixed order regardless of selected filters', () => {
+test('map filters start in the requested default order', () => {
   assert.deepEqual(DEFAULT_MAP_FILTER_ORDER, ['hours', 'mine', 'bell', 'cctv', 'accessible', 'diaper'])
-  const flags = setMapFilter(setMapFilter(0, 'diaper', true), 'bell', true)
-  assert.deepEqual(normalizeMapFilterSelection({ flags, mine: true }), { flags: 12, mine: true })
+})
+
+test('selecting a filter promotes it without duplicates or changing the default order', () => {
+  const initial = Object.freeze([...DEFAULT_MAP_FILTER_ORDER])
+  const first = promoteMapFilter(initial, 'cctv')
+  assert.deepEqual(first, ['cctv', 'hours', 'mine', 'bell', 'accessible', 'diaper'])
+  const second = promoteMapFilter(first, 'accessible')
+  assert.deepEqual(second, ['accessible', 'cctv', 'hours', 'mine', 'bell', 'diaper'])
+  assert.deepEqual(promoteMapFilter(second, 'accessible'), second)
+  assert.equal(second.length, DEFAULT_MAP_FILTER_ORDER.length)
+  assert.equal(new Set(second).size, DEFAULT_MAP_FILTER_ORDER.length)
+  assert.deepEqual(first, ['cctv', 'hours', 'mine', 'bell', 'accessible', 'diaper'])
+  assert.deepEqual(initial, DEFAULT_MAP_FILTER_ORDER)
   assert.deepEqual(DEFAULT_MAP_FILTER_ORDER, ['hours', 'mine', 'bell', 'cctv', 'accessible', 'diaper'])
+})
+
+test('promoted order stays in memory while saved selections restore independently', () => {
+  const values = new Map()
+  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) }
+  const order = promoteMapFilter(promoteMapFilter(DEFAULT_MAP_FILTER_ORDER, 'diaper'), 'mine')
+  assert.deepEqual(order, ['mine', 'diaper', 'hours', 'bell', 'cctv', 'accessible'])
+  writeMapFilterSelection(storage, { flags: 4, mine: true, order })
+  assert.deepEqual(readMapFilterSelection(storage), { flags: 4, mine: true })
+  assert.deepEqual(JSON.parse(values.get(MAP_FILTER_SELECTION_KEY)), { flags: 4, mine: true })
+  assert.deepEqual([...values.keys()], [MAP_FILTER_SELECTION_KEY])
+  assert.deepEqual([...DEFAULT_MAP_FILTER_ORDER], ['hours', 'mine', 'bell', 'cctv', 'accessible', 'diaper'])
 })
 
 test('selected filters round-trip through browser storage and clear-all remains cleared', () => {

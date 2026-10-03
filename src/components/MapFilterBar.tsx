@@ -1,7 +1,7 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { Locale } from '../i18n/locale'
 import { mapFilterCopy } from '../i18n/mapFilterCopy'
-import { DEFAULT_MAP_FILTER_ORDER, MAP_FILTER_BITS, setAccessibleGender, setMapFilter } from '../lib/mapFilterPreferences'
+import { DEFAULT_MAP_FILTER_ORDER, MAP_FILTER_BITS, promoteMapFilter, setAccessibleGender, setMapFilter, type MapFilterKey } from '../lib/mapFilterPreferences'
 import './map-filters.css'
 
 function Icon({ name }: { name: 'filters' | 'mine' | 'hours' | 'cctv' | 'diaper' | 'bell' | 'accessible' | 'male' | 'female' }) {
@@ -23,13 +23,45 @@ function SelectionMark() {
 }
 
 export function MapFilterBar({ locale, flags, mine, onFlagsChange, onMineChange, listButton }: {
-  locale: Locale; flags: number; mine: boolean; onFlagsChange: (flags: number) => void; onMineChange: (mine: boolean) => void; listButton?: ReactNode
+  locale: Locale; flags: number; mine: boolean; onFlagsChange: (flags: number) => void; onMineChange: (mine: boolean) => boolean; listButton?: ReactNode
 }) {
   const copy = mapFilterCopy[locale], [open, setOpen] = useState(false)
   const optionsId = useId()
-  const root = useRef<HTMLDivElement>(null)
+  const root = useRef<HTMLDivElement>(null), strip = useRef<HTMLDivElement>(null)
   const drag = useRef<{ id: number; start: number; scroll: number; moved: boolean } | null>(null)
   const suppressClick = useRef(false)
+  // Order is temporary UI state. Restoring saved selections never reorders chips.
+  const [order, setOrder] = useState<MapFilterKey[]>([...DEFAULT_MAP_FILTER_ORDER])
+  const previousPositions = useRef<Map<string, number> | null>(null)
+  const promote = (key: MapFilterKey) => {
+    previousPositions.current = new Map(Array.from(strip.current?.querySelectorAll<HTMLButtonElement>('[data-filter-key]') ?? [])
+      .map(button => [button.dataset.filterKey!, button.getBoundingClientRect().left]))
+    setOrder(current => promoteMapFilter(current, key))
+  }
+  const selectFilter = (key: MapFilterKey, selected: boolean) => {
+    if (key === 'mine') {
+      if (!onMineChange(selected)) return
+    } else onFlagsChange(setMapFilter(flags, key, selected))
+    if (selected) promote(key)
+  }
+  const selectGender = (gender: 'male' | 'female', selected: boolean) => {
+    onFlagsChange(setAccessibleGender(flags, gender, selected))
+    if (selected) promote('accessible')
+  }
+  useLayoutEffect(() => {
+    const positions = previousPositions.current
+    previousPositions.current = null
+    if (!positions || !strip.current) return
+    strip.current.scrollLeft = 0
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const animations = Array.from(strip.current.querySelectorAll<HTMLButtonElement>('[data-filter-key]')).flatMap(button => {
+      const before = positions.get(button.dataset.filterKey!)
+      const offset = before === undefined ? 0 : before - button.getBoundingClientRect().left
+      return offset && button.animate ? [button.animate([{ transform: `translateX(${offset}px)` }, { transform: 'translateX(0)' }],
+        { duration: 240, easing: 'cubic-bezier(.2,.8,.2,1)' })] : []
+    })
+    return () => animations.forEach(animation => animation.cancel())
+  }, [order])
   const accessibleLabel = [copy.accessible, ...(flags & 32 ? [copy.male] : []), ...(flags & 64 ? [copy.female] : [])].join(' · ')
   useEffect(() => {
     if (!open) return
@@ -45,7 +77,7 @@ export function MapFilterBar({ locale, flags, mine, onFlagsChange, onMineChange,
       <div className="map-filter-settings-action">
         <button className={`map-filter-chip map-filter-icon-only map-filter-settings${flags || mine ? ' has-filters' : ''}`} type="button" aria-label={copy.filters} title={copy.filters} aria-expanded={open} aria-controls={optionsId} onClick={() => setOpen(value => !value)}><Icon name="filters" /></button>
       </div>
-    <div className="map-filter-scroll" role="group" aria-label={copy.filters}
+    <div className="map-filter-scroll" ref={strip} role="group" aria-label={copy.filters}
       onPointerDown={event => {
         if (event.pointerType !== 'mouse' || event.button !== 0) return
         drag.current = { id: event.pointerId, start: event.clientX, scroll: event.currentTarget.scrollLeft, moved: false }
@@ -70,9 +102,9 @@ export function MapFilterBar({ locale, flags, mine, onFlagsChange, onMineChange,
       onPointerCancel={() => { drag.current = null; suppressClick.current = false }}
       onClickCapture={event => { if (suppressClick.current) { event.preventDefault(); event.stopPropagation(); suppressClick.current = false } }}>
       <div className="map-filter-chips">
-        {DEFAULT_MAP_FILTER_ORDER.map(key => key === 'mine'
-          ? <button className="map-filter-chip" key={key} data-filter-key={key} data-filter-tone={key} type="button" aria-pressed={mine} title={copy.member} onClick={() => onMineChange(!mine)}><Icon name="mine" /><span>{copy.mine}</span></button>
-          : <button className={`map-filter-chip${key === 'accessible' ? ` map-filter-accessible${flags & 96 ? ' has-genders' : ' map-filter-icon-only'}` : ''}`} key={key} data-filter-key={key} data-filter-tone={key} type="button" aria-label={key === 'accessible' ? accessibleLabel : copy[key]} title={key === 'accessible' ? accessibleLabel : copy[key]} aria-pressed={(flags & MAP_FILTER_BITS[key]) !== 0} onClick={() => onFlagsChange(setMapFilter(flags, key, !(flags & MAP_FILTER_BITS[key])))}>
+        {order.map(key => key === 'mine'
+          ? <button className="map-filter-chip" key={key} data-filter-key={key} data-filter-tone={key} type="button" aria-pressed={mine} title={copy.member} onClick={() => selectFilter(key, !mine)}><Icon name="mine" /><span>{copy.mine}</span></button>
+          : <button className={`map-filter-chip${key === 'accessible' ? ` map-filter-accessible${flags & 96 ? ' has-genders' : ' map-filter-icon-only'}` : ''}`} key={key} data-filter-key={key} data-filter-tone={key} type="button" aria-label={key === 'accessible' ? accessibleLabel : copy[key]} title={key === 'accessible' ? accessibleLabel : copy[key]} aria-pressed={(flags & MAP_FILTER_BITS[key]) !== 0} onClick={() => selectFilter(key, !(flags & MAP_FILTER_BITS[key]))}>
             <Icon name={key} />{key !== 'accessible' ? <span>{copy[key]}</span> : flags & 96 ? <span className="map-filter-gender-icons" aria-hidden="true">{(flags & 32) !== 0 && <Icon name="male" />}{(flags & 64) !== 0 && <Icon name="female" />}</span> : null}
           </button>)}
       </div>
@@ -81,15 +113,15 @@ export function MapFilterBar({ locale, flags, mine, onFlagsChange, onMineChange,
         <div className="map-filter-options-header"><strong>{copy.filters}</strong><button type="button" disabled={!flags && !mine} onClick={() => { onFlagsChange(0); onMineChange(false) }}>{copy.clearAll}</button></div>
         <div className="map-filter-options-grid">
           {DEFAULT_MAP_FILTER_ORDER.map(key => key === 'mine'
-            ? <label className="map-filter-option" data-filter-tone={key} key={key} title={copy.member}><span className="map-filter-option-icon"><Icon name="mine" /></span><span className="map-filter-option-label">{copy.mine}</span><input type="checkbox" checked={mine} onChange={event => onMineChange(event.target.checked)} /><SelectionMark /></label>
-            : <label className="map-filter-option" data-filter-tone={key} key={key}><span className="map-filter-option-icon"><Icon name={key} /></span><span className="map-filter-option-label">{copy[key]}</span><input type="checkbox" checked={(flags & MAP_FILTER_BITS[key]) !== 0} onChange={event => onFlagsChange(setMapFilter(flags, key, event.target.checked))} /><SelectionMark /></label>)}
+            ? <label className="map-filter-option" data-filter-tone={key} key={key} title={copy.member}><span className="map-filter-option-icon"><Icon name="mine" /></span><span className="map-filter-option-label">{copy.mine}</span><input type="checkbox" checked={mine} onChange={event => selectFilter(key, event.target.checked)} /><SelectionMark /></label>
+            : <label className="map-filter-option" data-filter-tone={key} key={key}><span className="map-filter-option-icon"><Icon name={key} /></span><span className="map-filter-option-label">{copy[key]}</span><input type="checkbox" checked={(flags & MAP_FILTER_BITS[key]) !== 0} onChange={event => selectFilter(key, event.target.checked)} /><SelectionMark /></label>)}
         </div>
         <div className="map-filter-accessibility-options" data-filter-tone="accessible">
         <div className="map-filter-gender-heading" aria-hidden="true"><Icon name="accessible" /><span>{copy.accessible}</span></div>
         <div className="map-filter-genders" role="group" aria-label={copy.accessible}>
           {(['male', 'female'] as const).map(gender => <label className="map-filter-gender-option" key={gender}>
             <Icon name={gender} /><span>{copy[gender]}</span><input type="checkbox" checked={(flags & (gender === 'male' ? 32 : 64)) !== 0}
-              onChange={event => onFlagsChange(setAccessibleGender(flags, gender, event.target.checked))} /><SelectionMark />
+              onChange={event => selectGender(gender, event.target.checked)} /><SelectionMark />
           </label>)}
         </div>
         </div>

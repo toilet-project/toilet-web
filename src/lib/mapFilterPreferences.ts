@@ -4,6 +4,10 @@ export type MapFilterKey = typeof DEFAULT_MAP_FILTER_ORDER[number]
 export const MAP_FILTER_BITS = { hours: 1, cctv: 2, diaper: 4, bell: 8, accessible: 16 } as const
 export const ACCESSIBLE_FILTER_MASK = 16 | 32 | 64
 
+export function promoteMapFilter(order: readonly MapFilterKey[], key: MapFilterKey): MapFilterKey[] {
+  return [key, ...order.filter(item => item !== key)]
+}
+
 export type MapFilterSelection = { flags: number; mine: boolean }
 
 export function normalizeMapFilterSelection(value: unknown): MapFilterSelection {
