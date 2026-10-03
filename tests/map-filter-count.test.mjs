@@ -27,4 +27,9 @@ test('mobile list and settings keep fixed rounded-rectangle geometry outside the
   assert.match(mobile, /\.map-filter-settings \{ border-radius: 10px; \}/)
   assert.match(mobile, /\.map-filter-controls \{[^}]*padding: 0;/)
   assert.match(mobile, /\.map-filter-toolbar \{[^}]*right: 0;/)
+  const iconRule = mobile.match(/\.map-filter-list-action \.mobile-area-list-button::before \{([^}]+)\}/)?.[1]
+  assert.ok(iconRule)
+  assert.ok(iconRule.includes('flex: 0 0 16px;'))
+  assert.ok(iconRule.includes('width: 16px;'))
+  assert.ok(iconRule.includes('justify-content: center;'))
 })
