@@ -95,7 +95,7 @@ export function sanitizeMapCellOriginResponse(value: unknown, cell: MapCell): To
       displayGroupId: Number.isSafeInteger(marker.displayGroupId) ? marker.displayGroupId as number : null,
       displayGroupName: typeof marker.displayGroupName === 'string' ? marker.displayGroupName : null,
       displayGroupTranslations: Object.keys(groupNames).length ? groupNames : undefined,
-      ...(Number.isInteger(marker.filterFlags) && Number(marker.filterFlags) >= 0 && Number(marker.filterFlags) <= 15
+      ...(Number.isInteger(marker.filterFlags) && Number(marker.filterFlags) >= 0 && Number(marker.filterFlags) <= 31
         ? { filterFlags: Number(marker.filterFlags) } : {}),
       translations: Object.keys(names).length ? names : undefined }
   })

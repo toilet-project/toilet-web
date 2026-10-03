@@ -4,12 +4,13 @@ import type { ScopedToiletCacheEvent } from './cacheRevalidation'
 import { getMapCellBucket, invalidateMapCells, readThroughMapCell } from './mapCellCache.ts'
 import type { R2BucketLike, R2ObjectBodyLike } from './sharedToiletCache'
 
-const KEY = 'map-filter-points/v1/national-points.json.gz'
-export const MAP_FILTER_PREVIEW_SOURCE_KEY = 'map-filter-preview/v1/source.json'
+// A separate epoch prevents old four-condition data from falsely implying no accessible stalls.
+const KEY = 'map-filter-points/v2/national-points.json.gz'
+export const MAP_FILTER_PREVIEW_SOURCE_KEY = 'map-filter-preview/v2/source.json'
 const FRESH_MS = 30 * 24 * 60 * 60 * 1000
 const LEASE_MS = 15_000
 const HOT_MS = 30_000
-type SourceRecord = { schema: 1; revision: number; state: 'data' | 'loading' | 'invalidated';
+type SourceRecord = { schema: 2; revision: number; state: 'data' | 'loading' | 'invalidated';
   storedAt: number; leaseUntil?: number; retryAt?: number; points?: MapFilterPoint[] }
 type Loaded = { etag: string; record: SourceRecord | null } | null
 export type MapFilterSource = { points: MapFilterPoint[]; sourceDate?: string; sourceRevision?: string;
@@ -29,7 +30,7 @@ export function mapFilterPreviewEnabled() {
 export function mapFilterCellBucket(bucket: R2BucketLike, previewSourceDate?: string): R2BucketLike {
   const key = (original: string) => {
     if (!original.startsWith('map-cells/v1/')) throw new Error('Invalid filter cell key')
-    return original.replace('map-cells/v1/', 'map-cells/v2/')
+    return original.replace('map-cells/v1/', 'map-cells/v3/')
   }
   return {
     async get(original) {
@@ -56,7 +57,7 @@ export async function readThroughFilterCell(options: Parameters<typeof readThrou
 function validRecord(value: unknown): SourceRecord | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   const record = value as SourceRecord
-  if (record.schema !== 1 || !Number.isSafeInteger(record.revision) || record.revision < 0
+  if (record.schema !== 2 || !Number.isSafeInteger(record.revision) || record.revision < 0
     || !Number.isSafeInteger(record.storedAt) || record.storedAt < 0
     || !['data', 'loading', 'invalidated'].includes(record.state)
     || (record.state === 'loading' && !Number.isSafeInteger(record.leaseUntil))
@@ -131,7 +132,7 @@ export async function readPreviewMapFilterSource(bucket: R2BucketLike): Promise<
     return cached.value
   }
   const raw = await object.json<{ schema: number; exportedAt: string; points: unknown }>()
-  if (raw.schema !== 1 || typeof raw.exportedAt !== 'string' || !Number.isFinite(Date.parse(raw.exportedAt)))
+  if (raw.schema !== 2 || typeof raw.exportedAt !== 'string' || !Number.isFinite(Date.parse(raw.exportedAt)))
     throw new Error('Invalid preview filter snapshot')
   const value: MapFilterSource = { points: sanitizeMapFilterPoints(raw.points), sourceDate: raw.exportedAt,
     sourceRevision: `${raw.exportedAt}:${object.etag}`, source: 'preview' }
@@ -152,16 +153,16 @@ export async function readThroughMapFilterSource(options: { bucket: R2BucketLike
     if (record?.state === 'invalidated' && record.retryAt && record.retryAt > now())
       throw new Error('Map filter source retry deferred')
     if (record?.state === 'loading' && record.leaseUntil! > now()) { await pause(100); continue }
-    const lease: SourceRecord = { schema: 1, revision: (record?.revision ?? 0) + 1,
+    const lease: SourceRecord = { schema: 2, revision: (record?.revision ?? 0) + 1,
       state: 'loading', storedAt: now(), leaseUntil: now() + LEASE_MS }
     const acquired = await put(bucket, lease, current)
     if (!acquired) continue
     try {
       const points = sanitizeMapFilterPoints(await (options.fetchOrigin ?? fetchMapFilterSourceOrigin)())
-      const fresh: SourceRecord = { schema: 1, revision: lease.revision, state: 'data', storedAt: now(), points }
+      const fresh: SourceRecord = { schema: 2, revision: lease.revision, state: 'data', storedAt: now(), points }
       if (await put(bucket, fresh, { record: lease, etag: acquired.etag })) return { points, source: 'miss' }
     } catch (error) {
-      if (!await put(bucket, { schema: 1, revision: lease.revision, state: 'invalidated', storedAt: now(), retryAt: now() + 60_000 },
+      if (!await put(bucket, { schema: 2, revision: lease.revision, state: 'invalidated', storedAt: now(), retryAt: now() + 60_000 },
         { record: lease, etag: acquired.etag })) continue
       // Do not show an unfiltered/stale national source after a visibility change.
       throw error
@@ -173,7 +174,7 @@ export async function readThroughMapFilterSource(options: { bucket: R2BucketLike
 export async function invalidateMapFilterSource(bucket: R2BucketLike, now = Date.now) {
   for (let attempt = 0; attempt < 8; attempt++) {
     const current = await load(bucket, false)
-    if (await put(bucket, { schema: 1, revision: (current?.record?.revision ?? 0) + 1,
+    if (await put(bucket, { schema: 2, revision: (current?.record?.revision ?? 0) + 1,
       state: 'invalidated', storedAt: now() }, current)) return
   }
   throw new Error('Map filter source invalidation contention')

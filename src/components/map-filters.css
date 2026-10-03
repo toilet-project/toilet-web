@@ -1,16 +1,16 @@
 .map-filter-toolbar { position: absolute; z-index: 7; top: 14px; left: calc(var(--desktop-area-list-width, 0px) + 12px); right: 12px; display: flex; justify-content: center; align-items: center; gap: 7px; pointer-events: none; }
-.map-filter-scroll { min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; pointer-events: auto; touch-action: pan-x; border-radius: 999px; }
+.map-filter-scroll { min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; pointer-events: auto; touch-action: pan-x; border: 1px solid #cbdacf; border-radius: 999px; padding: 0 6px; background: rgb(255 255 255 / 98%); box-shadow: 0 3px 14px rgb(29 55 38 / 16%); }
 .map-filter-scroll::-webkit-scrollbar { display: none; }
-.map-filter-chips { display: flex; width: max-content; align-items: center; gap: 5px; padding: 5px 2px; }
+.map-filter-chips { display: flex; width: max-content; align-items: center; gap: 5px; padding: 6px 2px; }
 .map-filter-chip { display: inline-flex; flex: 0 0 auto; height: 34px; align-items: center; justify-content: center; gap: 5px; padding: 0 11px; border: 1px solid #d8e3dc; border-radius: 999px; background: rgb(255 255 255 / 97%); box-shadow: 0 2px 5px rgb(29 55 38 / 9%); color: #345443; font-size: 12px; font-weight: 650; line-height: 1; white-space: nowrap; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
 .map-filter-chip svg { width: 16px; height: 16px; flex: 0 0 auto; }
 .map-filter-chip { position: relative; }
 .map-filter-chip::after { position: absolute; inset: -5px 0; content: ''; }
 .map-filter-chip[aria-pressed="true"] { border-color: #26764e; background: #26764e; color: #fff; }
 .map-filter-chip:focus-visible, .map-filter-options button:focus-visible { outline: 2px solid #26764e; outline-offset: 2px; }
-.map-filter-settings { width: 34px; padding: 0; }
+.map-filter-icon-only { width: 34px; padding: 0; }
 .map-filter-settings.has-filters { border-color: #78a88c; background: #ecf7ef; }
-.map-filter-options { position: absolute; top: 49px; left: 50%; width: min(300px, calc(100vw - 24px)); padding: 13px; border: 1px solid #dce7df; border-radius: 13px; background: #fff; box-shadow: 0 8px 25px rgb(29 55 38 / 16%); transform: translateX(-50%); pointer-events: auto; }
+.map-filter-options { position: absolute; top: 55px; left: 50%; width: min(300px, calc(100vw - 24px)); padding: 13px; border: 1px solid #dce7df; border-radius: 13px; background: #fff; box-shadow: 0 8px 25px rgb(29 55 38 / 16%); transform: translateX(-50%); pointer-events: auto; }
 .map-filter-options p { margin: 0 0 10px; color: #667b6d; font-size: 12px; line-height: 1.55; }
 .map-filter-options .map-filter-source-note { color: #829186; font-size: 11px; }
 .map-filter-options button { padding: 5px 10px; border: 1px solid #d8e3dc; border-radius: 7px; background: #f5f9f6; color: #26764e; font-size: 12px; font-weight: 650; }
@@ -26,14 +26,15 @@
 }
 @media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (pointer: coarse) {
   .map-filter-toolbar { top: 9px; left: 9px; right: 9px; justify-content: flex-start; }
-  .map-filter-scroll { flex: 1 1 auto; border-radius: 0; }
+  .map-filter-scroll { flex: 1 1 auto; border: 0; border-radius: 0; padding: 0; background: transparent; box-shadow: none; }
+  .map-filter-chips { padding: 5px 2px; }
   .map-filter-chip { height: 34px; font-size: 12px; }
   .map-filter-list-action { display: flex; }
   .map-filter-list-action .mobile-area-list-button { min-height: 34px; max-width: 113px; gap: 4px; padding: 0 9px; border-radius: 999px; font-size: 12px; line-height: 1; white-space: nowrap; }
   .map-filter-list-action .mobile-area-list-button::before { font-size: 14px; }
   .map-filter-list-action .mobile-area-list-button { position: relative; }
   .map-filter-list-action .mobile-area-list-button::after { position: absolute; inset: -5px 0; content: ''; }
-  .map-filter-options { left: 0; transform: none; }
+  .map-filter-options { top: 49px; left: 0; transform: none; }
   .map-filter-status { top: 55px; left: 12px; right: 12px; max-width: calc(100% - 24px); }
   .map-stage.has-map-filters .map-hud { top: 55px; }
   .map-stage.has-map-filters .map-controls.is-with-card .location-button { top: 56px; }

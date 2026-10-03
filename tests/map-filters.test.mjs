@@ -6,12 +6,12 @@ import { POST } from '../src/app/api/map-filter-area/route.ts'
 
 const bounds = { south: 37.5, north: 37.6, west: 127, east: 127.1 }
 const input = { bounds, zoom: 8, includeList: true, filterFlags: 0 }
-const points = Array.from({ length: 16 }, (_, flags) => [flags + 1, 37.55, 127.05, flags])
+const points = Array.from({ length: 32 }, (_, flags) => [flags + 1, 37.55, 127.05, flags])
 const markers = points.map(([id, latitude, longitude, filterFlags]) =>
   ({ id, latitude, longitude, filterFlags, name: `facility${id}`, displayGroupId: 7 }))
 
-test('all 16 AND combinations produce the same marker, cluster and viewport count before grouping', () => {
-  for (let mask = 0; mask < 16; mask++) {
+test('all 32 AND combinations produce the same marker, cluster and viewport count before grouping', () => {
+  for (let mask = 0; mask < 32; mask++) {
     const expected = markers.filter(marker => (marker.filterFlags & mask) === mask).map(marker => marker.id)
     const filtered = filterMapMarkers([...markers, markers[0]], { ...input, filterFlags: mask })
     assert.deepEqual(filtered.toilets.map(marker => marker.id), expected)
@@ -26,7 +26,7 @@ test('all 16 AND combinations produce the same marker, cluster and viewport coun
 
 test('unknown attributes cannot satisfy a positive filter and partial group members do not gain attributes', () => {
   assert.equal(matchesMapFilters(undefined, 0), true)
-  for (const value of [undefined, null, true, '15', -1, 16, 2.5]) assert.equal(matchesMapFilters(value, 1), false)
+  for (const value of [undefined, null, true, '31', -1, 32, 2.5]) assert.equal(matchesMapFilters(value, 1), false)
   const result = filterMapMarkers([{ ...markers[0], filterFlags: undefined }, markers[1], markers[2]],
     { ...input, filterFlags: 3 })
   assert.equal(result.meta.total_count, 0)
@@ -45,7 +45,7 @@ test('empty/private selection and exact bounds work at both zooms', () => {
 
 test('filter source rejects duplicate identities, invalid flags, NaNs and out-of-country coordinates', () => {
   assert.deepEqual(sanitizeMapFilterPoints([]), [])
-  for (const bad of [[points[0], points[0]], [[0, 37, 127, 1]], [[1, 37, 127, 16]],
+  for (const bad of [[points[0], points[0]], [[0, 37, 127, 1]], [[1, 37, 127, 32]],
     [[1, 37, 127, '1']], [[1, null, 127, 1]], [[1, 35, 139, 1]], [[1, 37, 127, 1, 'secret']]])
     assert.throws(() => sanitizeMapFilterPoints(bad))
 })
@@ -60,7 +60,7 @@ test('request validation rejects coercions, malformed mask, huge private selecti
   assert.deepEqual(parseMapFilterInput({ ...raw, likedIds: [] }).likedIds, [])
   assert.deepEqual(parseMapFilterInput({ ...raw, likedIds: [1, 1, 2] }).likedIds, [1, 2])
   for (const change of [{ zoom: 15 }, { zoom: '8' }, { southLat: '37.5' }, { southLat: 38 },
-    { filterFlags: 16 }, { filterFlags: -1 }, { filterFlags: 1.5 }, { filterFlags: '1' },
+    { filterFlags: 32 }, { filterFlags: -1 }, { filterFlags: 1.5 }, { filterFlags: '1' },
     { likedIds: null }, { likedIds: ['1'] }, { likedIds: [-1] }, { likedIds: Array(10001).fill(1) }, { includeList: 'true' }])
     assert.equal(parseMapFilterInput({ ...raw, ...change }), null)
 })
@@ -78,7 +78,7 @@ test('POST guards return private no-store for disabled, cross-site, bad mask and
     assert.equal(cross.status, 403)
     assert.equal(cross.headers.get('Cache-Control'), 'private, no-store')
     assert.equal((await send({}, { 'Sec-Fetch-Site': 'cross-site' })).status, 403)
-    assert.equal((await send({ filterFlags: 16 })).status, 400)
+    assert.equal((await send({ filterFlags: 32 })).status, 400)
     assert.equal((await send({ excessive: 'x'.repeat(100001) })).status, 400)
     assert.equal((await send({}, { 'Content-Length': '100001' })).status, 400)
   } finally {
