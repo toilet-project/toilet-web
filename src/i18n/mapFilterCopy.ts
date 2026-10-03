@@ -26,3 +26,7 @@ const baseCopy: Record<Locale, Copy> = {
 }
 export const mapFilterCopy = Object.fromEntries(Object.entries(baseCopy).map(([locale, copy]) =>
   [locale, { ...copy, accessible: accessibleCopy[locale as Locale], list: listCopy[locale as Locale] }])) as Record<Locale, Copy & { accessible: string; list: string }>
+// Keep the fixed-width mobile list action compact; this never truncates the results.
+export function mapFilterCountLabel(count: number): string {
+  return count > 99 ? '99+' : String(count)
+}

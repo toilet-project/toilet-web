@@ -6,7 +6,7 @@ import { ToiletEngagement, type EngagementProps } from './components/ToiletEngag
 import { EngagementPreviewTools } from './components/EngagementPreviewTools'
 import { MapFilterBar } from './components/MapFilterBar'
 import { useMapFilterLikes } from './components/useMapFilterLikes'
-import { mapFilterCopy } from './i18n/mapFilterCopy'
+import { mapFilterCopy, mapFilterCountLabel } from './i18n/mapFilterCopy'
 
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
@@ -1752,7 +1752,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
             if (!activeFilterOwner) { engagementProps.requireLogin(); return }
             setMapFilterOwner(activeFilterOwner)
           }}
-          listButton={!isDesktop ? <button className={`mobile-area-list-button${isMobileAreaListVisible ? ' is-open' : ''}${isLoading ? ' is-loading' : ''}`} type="button" onClick={() => void toggleMobileAreaList()} aria-label={isMobileAreaListVisible ? t('map.closeList') : t('map.list')} aria-expanded={isMobileAreaListVisible} aria-busy={isLoading} disabled={isLoading || !result}>{filterCopy.list}{result && ` (${result.meta.total_count.toLocaleString(locale)})`}</button> : undefined} />}
+          listButton={!isDesktop ? <button className={`mobile-area-list-button${isMobileAreaListVisible ? ' is-open' : ''}${isLoading ? ' is-loading' : ''}`} type="button" onClick={() => void toggleMobileAreaList()} aria-label={`${isMobileAreaListVisible ? t('map.closeList') : t('map.list')}${result ? ` (${result.meta.total_count.toLocaleString(locale)})` : ''}`} aria-expanded={isMobileAreaListVisible} aria-busy={isLoading} disabled={isLoading || !result}>{filterCopy.list}{result && ` (${mapFilterCountLabel(result.meta.total_count)})`}</button> : undefined} />}
         {hasMapFilters && (isLoading || mapFilterLikes.error || error || result?.meta.total_count === 0) && <div className="map-filter-status" role="status" aria-live="polite">
           <span>{isLoading ? filterCopy.loading : mapFilterLikes.error || error ? filterCopy.error : filterCopy.empty}</span>
           {!isLoading && (mapFilterLikes.error || error) && <button type="button" onClick={() => mapFilterLikes.error ? mapFilterLikes.retry() : void loadMapArea()}>{filterCopy.retry}</button>}
