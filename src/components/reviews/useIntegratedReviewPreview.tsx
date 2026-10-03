@@ -9,6 +9,7 @@ import { requireReviewLocation, ReviewGateError, REVIEW_LOCATION_MAX_AGE_MS, typ
 import { isMobileReviewDevice } from '../../lib/reviewDevice'
 
 import { MyReviewsPanel } from './MyReviewsPanel'
+import type { ReviewCrowding } from '../../lib/reviewCrowding'
 
 export const REVIEW_DESIGN_PREVIEW = process.env.NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW === 'true'
 export type ReviewTarget = { id: number; name: string } & ReviewPoint
@@ -16,7 +17,7 @@ type Target = ReviewTarget
 type LocatedReview = Review & ReviewPoint
 export type ReviewAccess = { requireLogin: () => void; verifySession: (isCurrent: () => boolean) => Promise<boolean> }
 type Access = ReviewAccess
-export type PreviewReviewSummary = { count: number; rating: string; paper: number | null; congestion: string; source?: 'api' }
+export type PreviewReviewSummary = { count: number; rating: string; paper: number | null; congestion: string; crowding?: ReviewCrowding; source?: 'api' }
 export type ReviewEntryState = { status: 'checking' | 'retry' | 'notice'; message: string }
 type Entry = ReviewEntryState & { id: number }
 export type MineNavigation = { embedded: boolean; onOpen: () => void; onClose: () => void; contextKey: string; toiletId?: number }

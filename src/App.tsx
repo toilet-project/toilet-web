@@ -1,6 +1,13 @@
 'use client'
 import { homeCopy } from './i18n/homeCopy'
+import { MapLoadingState } from './components/MapStartup'
 import { PublicReviews, PublicReviewsLoading } from './components/reviews/PublicReviews'
+import { ToiletEngagement, type EngagementProps } from './components/ToiletEngagement'
+import { EngagementPreviewTools } from './components/EngagementPreviewTools'
+import { MapFilterBar } from './components/MapFilterBar'
+import { useMapFilterLikes } from './components/useMapFilterLikes'
+import { useMapFilterSelection } from './components/useMapFilterSelection'
+import { mapFilterCopy, mapFilterCountLabel } from './i18n/mapFilterCopy'
 
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
@@ -41,6 +48,8 @@ import {
 import { searchPlaces } from './lib/placeSearch'
 import type { PlaceSearchResult } from './lib/placeSearchTypes'
 import { ToiletReportModal } from './components/ToiletReportModal'
+import { QuickReportModal } from './components/QuickReportModal'
+import { QUICK_REPORTS_ENABLED } from './api/quickReports'
 import { MyReportsPanel } from './components/MyReportsPanel'
 import { NotificationMenu } from './components/NotificationMenu'
 import { PolicyConsentModal } from './components/PolicyConsentModal'
@@ -49,8 +58,10 @@ import { AccountRecoveryDialog } from './components/AccountRecoveryDialog'
 import { fetchUnreadNotificationCount } from './api/notifications'
 import { getDisplayAddress } from './lib/address'
 import { ToiletDetailContents, DetailRow } from './components/ToiletDetailContents'
+import { ToiletShareLink } from './components/ToiletShareLink'
 import { OriginalSourceBadge } from './components/OriginalSourceBadge'
 import { ToiletCommunityRow, ToiletReportEntry } from './components/ToiletCommunityRow'
+import { ToiletCardHeader } from './components/ToiletCardHeader'
 import { REVIEW_DESIGN_PREVIEW, type PreviewReviewSummary, type ReviewEntryState } from './components/reviews/useIntegratedReviewPreview'
 import { REVIEW_API_ENABLED, REVIEW_UI_ENABLED, useReviews } from './components/reviews/useReviews'
 import { readReviewTestToilet } from './lib/reviewTestToilet'
@@ -58,12 +69,14 @@ import { DetailLoadingFields, LoadingOpenTime } from './components/ToiletCardLoa
 import { hasValue, formatOpenTime, formatFacilityLocation, formatLastUpdatedAt } from './lib/detailFormatting'
 import { BrandWordmark } from './components/BrandWordmark'
 import { toiletCoordinates } from './lib/toiletRoute'
+import type { LikedToilet } from './lib/toiletEngagement'
 import { groupToiletsByCoordinate, representativeToilet, type ToiletMapItem, type MapPoint } from './lib/toiletGrouping'
 import type { MapRouteData } from './components/mapRouteContext'
 import { DESKTOP_LAYOUT_QUERY } from './lib/responsiveLayout'
 import { resolveDistanceReference, type DistanceSource } from './lib/distanceReference'
 import { initialMapLocation, isKoreanMapLocation, SEOUL_STATION } from './lib/mapStart'
 import { TRANSIENT_NOTICE_MS } from './lib/uiTiming'
+import { BrowserLocationError, requestBrowserLocation } from './lib/browserLocation'
 import { warmOwnPhoto } from './lib/warmOwnPhoto'
 import { refreshSignupPhoto } from './lib/signupPhotoWarm'
 import { prefetchPublicReviews, PUBLIC_REVIEW_API_ENABLED } from './lib/publicReviewPrefetch'
@@ -73,6 +86,7 @@ const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
 const CLUSTER_GRID_SIZE = 84
 const MAX_LIST_ZOOM_LEVEL = 6
+const MAP_FILTERS_ENABLED = process.env.NEXT_PUBLIC_MAP_FILTERS_ENABLED === 'true'
 
 type SelectedToilet = ToiletMapItem
 type SelectedCoordinateGroup = { latitude: number; longitude: number; toilets: ToiletMapItem[]; displayGroupName?: string }
@@ -208,8 +222,11 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const searchLocationOverlayRef = useRef<MapOverlay | null>(null)
   const referencePointOverlayRef = useRef<MapOverlay | null>(null)
   const locationWatchIdRef = useRef<number | null>(null)
+  const locationWatchGeneration = useRef(0)
+  const locationRequestRef = useRef<AbortController | null>(null)
   const requestSequenceRef = useRef(0)
   const mapRequestAbortRef = useRef<AbortController | null>(null)
+  const mobileListAbortRef = useRef<AbortController | null>(null)
   const mapInteractionRef = useRef(false)
   const markerClickUntilRef = useRef(0)
   const selectedToiletRef = useRef<SelectedToilet | null>(initialSelected)
@@ -320,6 +337,12 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null)
   const currentUserRef = useRef<string | null>(null)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
+  const activeFilterOwner = !isAuthLoading && authProfile?.status === 'ACTIVE' && !authProfile.consentRequired ? authProfile.userId : null
+  const { flags: mapFilterFlags, setFlags: setMapFilterFlags, mine: isMyMapFilter, ready: mapFilterSelectionReady, setMine: setMyMapFilter } = useMapFilterSelection(MAP_FILTERS_ENABLED, activeFilterOwner, isAuthLoading)
+  const mapFilterLikes = useMapFilterLikes(isMyMapFilter ? activeFilterOwner : null)
+  const mapFilterRequestRef = useRef<{ filterFlags: number; likedIds?: number[]; blocked: boolean; error: boolean }>({ filterFlags: mapFilterFlags, blocked: MAP_FILTERS_ENABLED && !mapFilterSelectionReady, error: false })
+  const hasMapFilters = MAP_FILTERS_ENABLED && (mapFilterFlags !== 0 || isMyMapFilter)
+  const filterCopy = mapFilterCopy[locale]
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false)
   const [loginPurpose, setLoginPurpose] = useState<LoginPurpose>('general')
   const [isMyReportsOpen, setIsMyReportsOpen] = useState(false)
@@ -333,10 +356,11 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     const tab = query.get('tab')
     if (tab !== 'account' && tab !== 'notifications') return null
     const view = query.get('view')
-    return { tab, view: tab === 'account' && (view === 'settings' || view === 'reports') ? view : 'home' } as const
+    return { tab, view: tab === 'account' && (view === 'likes' || view === 'settings' || view === 'reports') ? view : 'home' } as const
   })
   const [mobileTab, setMobileTab] = useState<MobileTab>(incomingMobileView?.tab ?? 'map')
   const [mobileAccountView, setMobileAccountView] = useState<MobileAccountView>(incomingMobileView?.view ?? 'home')
+  const [likedMapTarget, setLikedMapTarget] = useState<LikedToilet | null>(null)
   useEffect(() => {
     if (isDesktop || mobileTab === 'map' || mobileAccountView === 'reviews') return
     const screen = mobileTab === 'notifications' ? 'notifications'
@@ -363,7 +387,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     else { setIsMyReportsOpen(false); setMobileTab('account'); setMobileAccountView('reports') }
   }, [])
   useLayoutEffect(() => { groupRef.current = selectedCoordinateGroup }, [selectedCoordinateGroup])
-  useEffect(() => { onMounted() }, [onMounted])
+  // Replace the server shell before painting; two full-height screens must never coexist.
+  useLayoutEffect(() => { onMounted() }, [onMounted])
 
   const showLocationMessage = useCallback((message: string) => {
     window.clearTimeout(locationMessageTimerRef.current)
@@ -403,6 +428,15 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     },
   }, { embedded: !isDesktop, toiletId: expandedCoordinateToilet?.id ?? selectedToilet?.id, contextKey: `${selectedToilet?.id}:${expandedCoordinateToilet?.id}:${mobileTab}:${testToiletHash}`, onOpen: () => { if (!isDesktop) { setMobileTab('account'); setMobileAccountView('reviews') } }, onClose: () => setMobileAccountView('home') })
   const openedIncomingReview = useRef(false)
+  const engagementProps: EngagementProps = {
+    owner: authProfile?.status === 'ACTIVE' && !authProfile.consentRequired ? authProfile.userId : null,
+    active: isDesktop || mobileTab === 'map',
+    requireLogin: () => {
+      if (isAuthLoading) { showLocationMessage('로그인 상태를 확인하고 있어요. 잠시 후 다시 눌러 주세요.'); return }
+      if (authProfile?.consentRequired) { showLocationMessage('필수 약관 동의를 먼저 완료해 주세요.'); return }
+      setLoginPurpose('general'); setIsLoginDialogOpen(true)
+    },
+  }
   useEffect(() => {
     if (isAuthLoading || !authProfile || openedIncomingReview.current || window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) return
     const query = new URLSearchParams(window.location.search)
@@ -482,6 +516,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const openReport = useCallback((target: ReportTarget) => {
     if (target.toilet.id < 0) return // Browser fixtures cannot enter the real report/auth-resume flow.
     trackEvent('report_start', { source: 'toilet_detail' })
+    if (QUICK_REPORTS_ENABLED) { setReportTarget(target); return }
     if (!authProfile) {
       try { window.sessionStorage.setItem(PENDING_REPORT_TARGET_KEY, JSON.stringify(target)) } catch { /* 저장소 사용 불가 환경에서도 로그인은 계속 제공한다. */ }
       setLoginPurpose('report')
@@ -626,6 +661,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     if (!map) return
 
     referenceRequestGate.invalidate()
+    locationRequestRef.current?.abort()
     setIsLocating(false)
     setMapCenter(coordinates)
     setDistanceSource(source)
@@ -669,7 +705,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         })()
     const mapBounds = {
       left: containerRect.left - sectionRect.left + MAP_EDGE_GAP,
-      top: containerRect.top - sectionRect.top + MAP_EDGE_GAP,
+      top: containerRect.top - sectionRect.top + MAP_EDGE_GAP + (MAP_FILTERS_ENABLED ? 48 : 0),
       right: containerRect.right - sectionRect.left - MAP_EDGE_GAP,
       bottom: containerRect.bottom - sectionRect.top - MAP_EDGE_GAP,
     }
@@ -693,6 +729,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   }, [])
 
   const closeDetailCard = useCallback(() => {
+    setLikedMapTarget(null)
     preserveGroupOnHomeRef.current = false
     setIsMobileAreaListOpen(false)
     resetDetailCard()
@@ -931,6 +968,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   useEffect(() => {
     const selected = selectedToilet ?? expandedCoordinateToilet
     const displaySelected = selected ? localizeToiletMapItem(selected, locale) : null
+    if (hasMapFilters && !result?.toilets.some(toilet => toilet.id === displaySelected?.id)) return
     const map = mapRef.current
     if (!isMapReady || !displaySelected || displaySelected.id === testToilet?.id || !map || toiletMarkerElementsRef.current.has(displaySelected.id)) return
     // A directly linked toilet can be absent from the current clustered/bounds response.
@@ -957,7 +995,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     })
     overlay.setMap(map)
     return () => overlay.setMap(null)
-  }, [selectedToilet, expandedCoordinateToilet, result, isMapReady, locale, suppressMapClickFromMarker, testToilet])
+  }, [selectedToilet, expandedCoordinateToilet, result, isMapReady, locale, suppressMapClickFromMarker, testToilet, hasMapFilters])
 
   const renderResult = useCallback((map: MapInstance, response: ToiletMapSearchResponse) => {
     clearOverlays()
@@ -1074,9 +1112,13 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const loadMapArea = useCallback(async () => {
     const map = mapRef.current
     if (!map) return
+    const filters = mapFilterRequestRef.current
+    if (filters.blocked) { setIsLoading(!filters.error); return }
 
     const requestSequence = ++requestSequenceRef.current
     mapRequestAbortRef.current?.abort()
+    mobileListAbortRef.current?.abort()
+    setIsMobileAreaListLoading(false)
     const controller = new AbortController()
     mapRequestAbortRef.current = controller
     const bounds = map.getBounds()
@@ -1092,6 +1134,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         eastLng: northEast.getLng(),
         zoom: map.getLevel(),
         includeList: window.matchMedia(DESKTOP_LAYOUT_QUERY).matches && map.getLevel() <= MAX_LIST_ZOOM_LEVEL,
+        ...(MAP_FILTERS_ENABLED ? { filterFlags: filters.filterFlags, likedIds: filters.likedIds } : {}),
       }, controller.signal)
 
       if (requestSequence !== requestSequenceRef.current) return
@@ -1111,6 +1154,32 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       }
     }
   }, [renderResult])
+
+  const mapFilterInitialized = useRef(false)
+  const previousMapFilterSelection = useRef({ flags: mapFilterFlags, mine: isMyMapFilter })
+  useLayoutEffect(() => {
+    if (!MAP_FILTERS_ENABLED || !mapFilterSelectionReady) return
+    mapFilterRequestRef.current = {
+      filterFlags: mapFilterFlags,
+      likedIds: isMyMapFilter ? mapFilterLikes.ids ?? undefined : undefined,
+      blocked: isMyMapFilter && mapFilterLikes.ids === null,
+      error: isMyMapFilter && mapFilterLikes.error,
+    }
+    // Change the query, not the SDK: keep its camera and event listeners intact.
+    // Remove the previous result before paint so unfiltered/private rows never masquerade as the new filter.
+    requestSequenceRef.current++
+    mapRequestAbortRef.current?.abort()
+    mobileListAbortRef.current?.abort()
+    window.clearTimeout(mapLoadTimerRef.current)
+    clearOverlays()
+    const previous = previousMapFilterSelection.current
+    if (mapFilterInitialized.current && (previous.flags !== mapFilterFlags || previous.mine !== isMyMapFilter)
+      && (selectedToiletRef.current || groupRef.current)) closeDetailCard()
+    previousMapFilterSelection.current = { flags: mapFilterFlags, mine: isMyMapFilter }
+    if (!mapFilterRequestRef.current.blocked) mapFilterInitialized.current = true
+    setResult(null); setMobileAreaToilets(null); setIsMobileAreaListLoading(false); setError(null)
+    void loadMapArea()
+  }, [mapFilterSelectionReady, mapFilterFlags, isMyMapFilter, mapFilterLikes.ids, mapFilterLikes.error, clearOverlays, loadMapArea, closeDetailCard])
 
   useEffect(() => {
     if (!error || !result) return
@@ -1159,88 +1228,107 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     }
   }, [updateReferencePoint])
 
+  const stopCurrentLocationWatch = useCallback(() => {
+    locationWatchGeneration.current++
+    if (locationWatchIdRef.current != null) navigator.geolocation?.clearWatch(locationWatchIdRef.current)
+    locationWatchIdRef.current = null
+  }, [])
+
   const startCurrentLocationWatch = useCallback(() => {
     if (!navigator.geolocation || locationWatchIdRef.current != null) return
-
+    const watch = ++locationWatchGeneration.current
     locationWatchIdRef.current = navigator.geolocation.watchPosition(
-      ({ coords }) => updateCurrentLocation({ latitude: coords.latitude, longitude: coords.longitude }, false),
+      ({ coords }) => { if (watch === locationWatchGeneration.current) updateCurrentLocation({ latitude: coords.latitude, longitude: coords.longitude }, false) },
       () => {
-        // 최초 위치 확인은 버튼 요청에서 안내한다. 이후 갱신 실패는 사용자 흐름을 방해하지 않는다.
+        // A failed/suspended watch must not block the next explicit request or tab resume.
+        if (watch === locationWatchGeneration.current) stopCurrentLocationWatch()
       },
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 0 },
     )
-  }, [updateCurrentLocation])
+  }, [stopCurrentLocationWatch, updateCurrentLocation])
 
-  const moveToCurrentLocation = useCallback(async (isInitialRequest = false) => {
+  const moveToCurrentLocation = useCallback(async (isInitialRequest = false, preserveViewport = false) => {
     const map = mapRef.current
     if (!map) return
     const request = referenceRequestGate.begin()
     const isCurrent = () => referenceRequestGate.isCurrent(request) && mapRef.current === map
+    locationRequestRef.current?.abort()
+    stopCurrentLocationWatch()
+    const controller = new AbortController()
+    locationRequestRef.current = controller
 
     if (!navigator.geolocation) {
+      locationRequestRef.current = null
       if (!isInitialRequest) trackEvent('nearby_search', { permission_state: 'unsupported', success: false })
       if (!isInitialRequest) showLocationMessage('이 브라우저에서는 현재 위치를 지원하지 않습니다.')
       setIsLocating(false)
       return
     }
 
-    if (!isInitialRequest) setIsLocating(true)
+    setIsLocating(!isInitialRequest)
     try {
-      if ('permissions' in navigator) {
-        const permission = await navigator.permissions.query({ name: 'geolocation' })
-        if (!isCurrent()) return
-        if (permission.state === 'denied') {
-          if (!isInitialRequest) trackEvent('nearby_search', { permission_state: 'denied', success: false })
-          if (!isInitialRequest) showLocationMessage('위치 권한이 거부되었습니다. 브라우저의 사이트 설정에서 위치를 허용해 주세요.')
-          setIsLocating(false)
-          return
+      // Do not await Permissions.query: a suspended permissions promise can leave the button locked.
+      const { coords } = await requestBrowserLocation(navigator.geolocation, controller.signal)
+      if (!isCurrent()) return
+      const coordinates = { latitude: coords.latitude, longitude: coords.longitude }
+      if (!isKoreanMapLocation(coordinates)) {
+        updateCurrentLocation(coordinates, false)
+        if (!isInitialRequest) {
+          updateReferencePoint(SEOUL_STATION)
+          map.setLevel(6)
+          map.panTo(createMapCoordinate(map, SEOUL_STATION.latitude, SEOUL_STATION.longitude))
+          showLocationMessage(t('map.outsideKorea'))
+          trackEvent('nearby_search', { permission_state: 'granted', success: false })
         }
+        return
       }
-    } catch {
-      // Permissions API를 지원하지 않는 브라우저는 Geolocation 요청으로 바로 진행한다.
+      updateCurrentLocation(coordinates, !preserveViewport)
+      if (!isInitialRequest) trackEvent('nearby_search', { permission_state: 'granted', success: true })
+      startCurrentLocationWatch()
+      window.clearTimeout(locationMessageTimerRef.current)
+      setLocationMessage(null)
+    } catch (reason) {
+      if (!isCurrent() || controller.signal.aborted) return
+      const code = reason instanceof BrowserLocationError ? reason.code : 2
+      const messageByCode: Record<number, string> = {
+        1: '위치 권한이 거부되었습니다. 브라우저 주소창의 위치 권한을 허용한 뒤 다시 시도해 주세요.',
+        2: '현재 위치를 확인할 수 없습니다. GPS·Wi‑Fi 연결을 확인해 주세요.',
+        3: '위치 확인 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.',
+      }
+      if (!isInitialRequest) showLocationMessage(messageByCode[code] ?? '현재 위치를 확인하지 못했습니다.')
+      if (!isInitialRequest) trackEvent('nearby_search', {
+        permission_state: code === 1 ? 'denied' : 'unavailable',
+        success: false,
+      })
+    } finally {
+      if (locationRequestRef.current === controller) {
+        locationRequestRef.current = null
+        setIsLocating(false)
+      }
     }
+  }, [showLocationMessage, startCurrentLocationWatch, stopCurrentLocationWatch, updateCurrentLocation, updateReferencePoint, referenceRequestGate, t])
 
-    if (!isCurrent()) return
-    navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        if (!isCurrent()) return
-        const coordinates = { latitude: coords.latitude, longitude: coords.longitude }
-        if (!isKoreanMapLocation(coordinates)) {
-          updateCurrentLocation(coordinates, false)
-          if (!isInitialRequest) {
-            updateReferencePoint(SEOUL_STATION)
-            map.setLevel(6)
-            map.panTo(createMapCoordinate(map, SEOUL_STATION.latitude, SEOUL_STATION.longitude))
-            showLocationMessage(t('map.outsideKorea'))
-            trackEvent('nearby_search', { permission_state: 'granted', success: false })
-          }
-          setIsLocating(false)
-          return
-        }
-        updateCurrentLocation(coordinates, true)
-        if (!isInitialRequest) trackEvent('nearby_search', { permission_state: 'granted', success: true })
-        startCurrentLocationWatch()
-        window.clearTimeout(locationMessageTimerRef.current)
-        setLocationMessage(null)
+  useEffect(() => {
+    const resumeLocation = () => {
+      if (document.visibilityState !== 'visible' || !mapRef.current || locationRequestRef.current) return
+      if (liveMapStateRef.current.distanceSource === 'current-location') void moveToCurrentLocation(true, true)
+    }
+    const visibility = () => {
+      if (document.visibilityState === 'hidden') {
+        locationRequestRef.current?.abort()
+        locationRequestRef.current = null
+        referenceRequestGate.invalidate()
+        stopCurrentLocationWatch()
         setIsLocating(false)
-      },
-      (positionError) => {
-        if (!isCurrent()) return
-        const messageByCode: Record<number, string> = {
-          1: '위치 권한이 거부되었습니다. 브라우저 주소창의 위치 권한을 허용한 뒤 다시 시도해 주세요.',
-          2: '현재 위치를 확인할 수 없습니다. GPS·Wi‑Fi 연결을 확인해 주세요.',
-          3: '위치 확인 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.',
-        }
-        if (!isInitialRequest) showLocationMessage(messageByCode[positionError.code] ?? '현재 위치를 확인하지 못했습니다.')
-        if (!isInitialRequest) trackEvent('nearby_search', {
-          permission_state: positionError.code === 1 ? 'denied' : 'unavailable',
-          success: false,
-        })
-        setIsLocating(false)
-      },
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 30_000 },
-    )
-  }, [showLocationMessage, startCurrentLocationWatch, updateCurrentLocation, updateReferencePoint, referenceRequestGate, t])
+      } else resumeLocation()
+    }
+    window.addEventListener('pageshow', resumeLocation)
+    document.addEventListener('visibilitychange', visibility)
+    return () => {
+      window.removeEventListener('pageshow', resumeLocation)
+      document.removeEventListener('visibilitychange', visibility)
+    }
+  }, [moveToCurrentLocation, referenceRequestGate, stopCurrentLocationWatch])
 
   const moveToSearchPlace = useCallback((place: PlaceSearchResult) => {
     const map = mapRef.current
@@ -1393,10 +1481,11 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         }))
         resizeObserver = new ResizeObserver(() => { if (!disposed) relayoutPreservingCenter(map, settledViewportCenter) })
         resizeObserver.observe(container)
+        // Location recovery is independent of the map-data request and preserves the restored camera.
+        if (!disposed && !snapshot && !initialRouteRef.current.detail && (!resume || usedFallback) && !testToilet) void moveToCurrentLocation(true)
+        else if (!disposed && !usedFallback && (snapshot?.source ?? resume?.source) === 'current-location') void moveToCurrentLocation(true, true)
         await loadMapArea()
         if (snapshot) window.requestAnimationFrame(() => { if (!disposed) setIsMapSwitching(false) })
-        if (!disposed && !snapshot && !initialRouteRef.current.detail && (!resume || usedFallback) && !testToilet) void moveToCurrentLocation(true)
-        if (!disposed && !usedFallback && resume?.source === 'current-location') startCurrentLocationWatch()
       } catch (caughtError) {
         if (disposed) return
         // Browser Back/Forward can bypass the language menu. Recover the same
@@ -1430,7 +1519,11 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       disposed = true
       controller.abort()
       mapRequestAbortRef.current?.abort()
+      mobileListAbortRef.current?.abort()
       referenceRequestGate.invalidate()
+      locationRequestRef.current?.abort()
+      locationRequestRef.current = null
+      setIsLocating(false)
       requestSequenceRef.current += 1
       const activeMap = mapRef.current
       if (activeMap) {
@@ -1452,10 +1545,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       currentLocationOverlayRef.current?.setMap(null)
       searchLocationOverlayRef.current?.setMap(null)
       referencePointOverlayRef.current?.setMap(null)
-      if (locationWatchIdRef.current != null) {
-        navigator.geolocation?.clearWatch(locationWatchIdRef.current)
-        locationWatchIdRef.current = null
-      }
+      stopCurrentLocationWatch()
       resizeObserver?.disconnect()
       if (activeMap) destroyMap(activeMap)
       // The SDK owns this empty React div. Remove its DOM when dev HMR/Strict Mode disposes it.
@@ -1463,7 +1553,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       window.clearTimeout(mapLoadTimerRef.current)
       window.clearTimeout(locationMessageTimerRef.current)
     }
-  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, startCurrentLocationWatch, referenceRequestGate, testToilet, mapRuntimeKey])
+  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, stopCurrentLocationWatch, referenceRequestGate, testToilet, mapRuntimeKey])
 
   const distanceReference = resolveDistanceReference(distanceSource, mapCenter, currentLocation)
   const displaySelectedToilet = selectedToilet ? localizeToiletMapItem(selectedToilet, locale) : null
@@ -1514,6 +1604,12 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     const southWest = bounds.getSouthWest()
     const northEast = bounds.getNorthEast()
     setIsMobileAreaListLoading(true)
+    mobileListAbortRef.current?.abort()
+    const controller = new AbortController()
+    mobileListAbortRef.current = controller
+    const requestSequence = requestSequenceRef.current
+    const filters = mapFilterRequestRef.current
+    if (filters.blocked) { setIsMobileAreaListLoading(false); return }
     try {
       const response = await fetchToiletsInBounds({
         southLat: southWest.getLat(),
@@ -1522,12 +1618,15 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         eastLng: northEast.getLng(),
         zoom: map.getLevel(),
         includeList: true,
-      })
+        ...(MAP_FILTERS_ENABLED ? { filterFlags: filters.filterFlags, likedIds: filters.likedIds } : {}),
+      }, controller.signal)
+      if (controller.signal.aborted || requestSequence !== requestSequenceRef.current) return
       setMobileAreaToilets(response.toilets)
     } catch {
+      if (controller.signal.aborted || requestSequence !== requestSequenceRef.current) return
       setMobileAreaToilets([])
     } finally {
-      setIsMobileAreaListLoading(false)
+      if (mobileListAbortRef.current === controller) { mobileListAbortRef.current = null; setIsMobileAreaListLoading(false) }
     }
   }, [closeDetailCard, isMobileAreaListVisible, result, showMobileZoomGuide])
 
@@ -1546,8 +1645,35 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     if (!window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) map.panTo(position)
   }, [groupedAreaToilets, openCoordinateGroup, selectToilet])
 
+  const openLikedToilet = useCallback((item: LikedToilet) => {
+    setMobileTab('map')
+    setMobileAccountView('home')
+    setIsPlaceSearchFocused(false)
+    setIsMobileAreaListOpen(false)
+    const point = toiletCoordinates(item)
+    if (point) selectToilet(item.id, item.name, point.latitude, point.longitude, false, item.toiletType)
+    else { resetDetailCard(); onNavigate(item.id) }
+    setLikedMapTarget(item)
+  }, [selectToilet, resetDetailCard, onNavigate])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!likedMapTarget || !isMapReady || !map || mobileTab !== 'map') return
+    // The account panel has just hidden the map. Wait for its visible layout,
+    // then focus this explicit selection without changing history navigation.
+    const frame = window.requestAnimationFrame(() => {
+      const point = toiletCoordinates(likedMapTarget)
+      map.relayout()
+      if (point) map.panTo(createMapCoordinate(map, point.latitude, point.longitude))
+      setIsMobileCardExpanded(true)
+      setLikedMapTarget(null)
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [likedMapTarget, isMapReady, mobileTab])
+
   return (
     <main data-review-design-preview={REVIEW_DESIGN_PREVIEW || undefined} data-review-api={REVIEW_API_ENABLED || undefined} className={`app-shell${!isDesktop ? ' has-mobile-navigation' : ''}${!isDesktop && mobileTab !== 'map' ? ' is-mobile-page' : ''}`}>
+      <EngagementPreviewTools />
       <AppUpdateNotice blocked={Boolean(reviewPreview.active || reportTarget || isLoginDialogOpen || isAccountOpen || isMyReportsOpen || isNotificationsOpen || mobileTab !== 'map' || placeSearchKeyword || selectedCoordinateGroup || isMobileAreaListVisible || authProfile?.consentRequired)}
         beforeReload={() => {
           const map = mapRef.current
@@ -1617,8 +1743,22 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       </header>
 
       <section className="map-section" aria-label={t('map.title')}>
-        <div className="map-stage" inert={!isDesktop && mobileTab !== 'map'} style={!isDesktop && mobileTab !== 'map' ? { visibility: 'hidden' } : undefined}>
+        <div className={`map-stage${MAP_FILTERS_ENABLED ? ' has-map-filters' : ''}`} inert={!isDesktop && mobileTab !== 'map'} style={!isDesktop && mobileTab !== 'map' ? { visibility: 'hidden' } : undefined}>
         <div ref={mapContainerRef} className="map" />
+        {MAP_FILTERS_ENABLED && <MapFilterBar locale={locale} flags={mapFilterFlags} mine={isMyMapFilter}
+          onFlagsChange={setMapFilterFlags}
+          onMineChange={selected => {
+            if (!selected) { setMyMapFilter(false); return true }
+            if (!activeFilterOwner) { engagementProps.requireLogin(); return false }
+            setMyMapFilter(true)
+            return true
+          }}
+          listButton={!isDesktop ? <button className={`mobile-area-list-button${isMobileAreaListVisible ? ' is-open' : ''}${isLoading ? ' is-loading' : ''}`} type="button" onClick={() => void toggleMobileAreaList()} aria-label={`${isMobileAreaListVisible ? t('map.closeList') : t('map.list')}${result ? ` (${result.meta.total_count.toLocaleString(locale)})` : ''}`} aria-expanded={isMobileAreaListVisible} aria-busy={isLoading} disabled={isLoading || !result}>{filterCopy.list}{result && ` (${mapFilterCountLabel(result.meta.total_count)})`}</button> : undefined} />}
+        {hasMapFilters && (isLoading || mapFilterLikes.error || error || result?.meta.total_count === 0) && <div className="map-filter-status" role="status" aria-live="polite">
+          <span>{isLoading ? filterCopy.loading : mapFilterLikes.error || error ? filterCopy.error : filterCopy.empty}</span>
+          {!isLoading && (mapFilterLikes.error || error) && <button type="button" onClick={() => mapFilterLikes.error ? mapFilterLikes.retry() : void loadMapArea()}>{filterCopy.retry}</button>}
+        </div>}
+        {!isMapReady && !isMapSwitching && !error && <MapLoadingState locale={locale} />}
         <div className={`map-provider-transition${isMapSwitching ? ' is-visible' : ''}`} role={isMapSwitching ? 'status' : undefined} aria-hidden={!isMapSwitching}>
           <span className="map-provider-transition-spinner" aria-hidden="true" />
           <span>{t('map.switching')}</span>
@@ -1636,8 +1776,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           <div className="map-hud" aria-live="polite">
             {isLoading && <span className="map-loading-message">{t('map.loading')}</span>}
             {!isLoading && result && <span className="map-area-count">{t('map.area', { count: result.meta.total_count.toLocaleString(locale) })}{result.meta.display_type === 'CLUSTER' ? t('map.clustered') : ''}</span>}
-            {result && <button className={`mobile-area-list-button${isMobileAreaListVisible ? ' is-open' : ''}${isLoading ? ' is-loading' : ''}`} type="button" onClick={() => void toggleMobileAreaList()} aria-expanded={isMobileAreaListVisible} aria-busy={isLoading} disabled={isLoading}>{isLoading ? t('map.loading') : isMobileAreaListVisible ? t('map.closeList') : t('map.area', { count: result.meta.total_count.toLocaleString(locale) })}</button>}
-            {error && !result && <span className="error-message">{mapSystemNotice(error, locale)}</span>}
+            {!MAP_FILTERS_ENABLED && result && <button className={`mobile-area-list-button${isMobileAreaListVisible ? ' is-open' : ''}${isLoading ? ' is-loading' : ''}`} type="button" onClick={() => void toggleMobileAreaList()} aria-expanded={isMobileAreaListVisible} aria-busy={isLoading} disabled={isLoading}>{isLoading ? t('map.loading') : isMobileAreaListVisible ? t('map.closeList') : t('map.area', { count: result.meta.total_count.toLocaleString(locale) })}</button>}
+            {error && !result && !hasMapFilters && <span className="error-message">{mapSystemNotice(error, locale)}</span>}
           </div>
           <button className={`location-button${hasMapCard ? ' is-with-card' : ''}`} type="button" onClick={() => void moveToCurrentLocation()} disabled={isLocating}>
             {isLocating ? t('map.checking') : t('map.currentLocation')}
@@ -1686,9 +1826,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         {locationMessage && <p className="location-message" role="status">{mapSystemNotice(locationMessage, locale)}</p>}
         {displayToiletDetail && !toiletCoordinates(displayToiletDetail) && !displaySelectedToilet && !displaySelectedCoordinateGroup && (
           <aside className="place-card initial-route-card" aria-label={t('detail.title')}>
-            <button type="button" className="close-button" onClick={closeDetailCard} aria-label={t('common.close')}>×</button>
-            <OriginalSourceBadge toilet={displayToiletDetail} locale={locale} />
-            <h1>{displayToiletDetail.name}</h1>
+            <ToiletCardHeader onClose={closeDetailCard} closeLabel={t('common.close')} share={<ToiletShareLink key={displayToiletDetail.id} toiletId={displayToiletDetail.id} />}><span className="card-label">{toiletTypeLabel(displayToiletDetail.toiletType, locale)}</span><OriginalSourceBadge toilet={displayToiletDetail} locale={locale} /></ToiletCardHeader>
+            <div className="review-card-title-row"><h1>{displayToiletDetail.name}</h1><div className="toilet-card-actions"><ToiletEngagement toiletId={displayToiletDetail.id} {...engagementProps} /></div></div>
             <p>{t('map.noCoordinates')}</p>
             <p className="open-time">{formatOpenTime(displayToiletDetail, locale)}</p>
             {REVIEW_UI_ENABLED && <ToiletCommunityRow onReview={() => reviewPreview.open(displayToiletDetail)} reviewEntry={reviewPreview.entryState(displayToiletDetail.id)} previewSummary={reviewPreview.summary(displayToiletDetail.id)} />}
@@ -1703,7 +1842,6 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
             aria-live="polite"
             style={placeCardPosition ? { left: placeCardPosition.left, top: placeCardPosition.top } : undefined}
           >
-            <button type="button" className="close-button" onClick={closeDetailCard} aria-label={t('common.close')}>×</button>
             <button type="button" className="mobile-card-handle"
               onTouchStart={event => cardHandleGesture.start(event.touches)}
               onTouchMove={event => cardHandleGesture.move(event.touches)}
@@ -1716,9 +1854,18 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
               }} aria-expanded={isMobileCardExpanded}>
               {t(isMobileCardExpanded ? 'map.collapse' : 'detail.show')}
             </button>
+            <ToiletCardHeader onClose={closeDetailCard} closeLabel={t('common.close')}
+              share={displaySelectedToilet.id !== testToilet?.id && <ToiletShareLink key={displaySelectedToilet.id} toiletId={displaySelectedToilet.id} />}
+              report={REVIEW_UI_ENABLED && <ToiletReportEntry disabled={!displayToiletDetail || displaySelectedToilet.id === testToilet?.id} onClick={() => { if (displayToiletDetail) openReport({ toilet: displayToiletDetail, latitude: displaySelectedToilet.latitude, longitude: displaySelectedToilet.longitude }) }} />}>
+              <span className="card-label">{toiletTypeLabel(displayToiletDetail?.toiletType || displaySelectedToilet.toiletType, locale)}</span><OriginalSourceBadge toilet={displayToiletDetail} locale={locale} />
+            </ToiletCardHeader>
             <div className="place-card-summary">
-              <div className="card-label-row"><span className="card-label">{toiletTypeLabel(displayToiletDetail?.toiletType || displaySelectedToilet.toiletType, locale)}</span><OriginalSourceBadge toilet={displayToiletDetail} locale={locale} /></div>
-              {REVIEW_UI_ENABLED ? <div className="review-card-title-row"><h1>{displayToiletDetail?.name || displaySelectedToilet.name}</h1><ToiletReportEntry disabled={!displayToiletDetail || displaySelectedToilet.id === testToilet?.id} onClick={() => { if (displayToiletDetail) openReport({ toilet: displayToiletDetail, latitude: displaySelectedToilet.latitude, longitude: displaySelectedToilet.longitude }) }} /></div> : <h1>{displayToiletDetail?.name || displaySelectedToilet.name}</h1>}
+              <div className="review-card-title-row">
+                <h1>{displayToiletDetail?.name || displaySelectedToilet.name}</h1>
+                <div className="toilet-card-actions">
+                  {displayToiletDetail && <ToiletEngagement toiletId={displayToiletDetail.id} {...engagementProps} />}
+                </div>
+              </div>
             </div>
             <div ref={cardScrollRef} className="card-scroll-content">
               {displayToiletDetail ? <p className="open-time">{displayToiletDetail.id === testToilet?.id ? t('map.reviewTestNotice') : formatOpenTime(displayToiletDetail, locale)}</p> : isDetailLoading && <LoadingOpenTime />}
@@ -1737,16 +1884,17 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         )}
         {displaySelectedCoordinateGroup && (
           <aside className="coordinate-group-card" aria-live="polite" aria-label={t('map.groupList')}>
-            <button type="button" className="close-button" onClick={closeDetailCard} aria-label={t('map.closeList')}>×</button>
             <header className="coordinate-group-header">
-              <div className="coordinate-group-meta-row">
+              <ToiletCardHeader onClose={closeDetailCard} closeLabel={t('map.closeList')}
+                share={expandedCoordinateToilet && <ToiletShareLink key={expandedCoordinateToilet.id} toiletId={expandedCoordinateToilet.id} />}
+                report={expandedCoordinateToilet && (!isDesktop || REVIEW_UI_ENABLED) && <ToiletReportEntry disabled={toiletDetail?.id !== expandedCoordinateToilet.id} onClick={() => { if (toiletDetail?.id === expandedCoordinateToilet.id) openReport({ toilet: toiletDetail, latitude: expandedCoordinateToilet.latitude, longitude: expandedCoordinateToilet.longitude }) }} />}>
                 <div className="coordinate-group-labels">
                   <span className="card-label">{[...new Set(displaySelectedCoordinateGroup.toilets.map(item => toiletTypeLabel(item.toiletType, locale)))].join(' · ')}</span>
                   {displaySelectedCoordinateGroup.displayGroupName && <span className="coordinate-group-admin-badge" title={t('map.adminHint')}>{t('map.admin')}<svg viewBox="0 0 12 12" aria-hidden="true"><path d="m2.5 6.2 2.2 2.2 4.8-4.8" /></svg></span>}
                   {locale !== 'ko' && (/[가-힣]/.test(displaySelectedCoordinateGroup.displayGroupName ?? '') || displaySelectedCoordinateGroup.toilets.some(item => /[가-힣]/.test(item.name))) && <small className="source-language-badge">{t('detail.originalKorean')}</small>}
                 </div>
-                {distanceToCoordinateGroup && <p className="coordinate-group-distance">{distanceReferenceLabel} <strong>{distanceToCoordinateGroup}</strong></p>}
-              </div>
+              </ToiletCardHeader>
+              {distanceToCoordinateGroup && <div className="coordinate-group-meta-row"><p className="coordinate-group-distance">{distanceReferenceLabel} <strong>{distanceToCoordinateGroup}</strong></p></div>}
               {displaySelectedCoordinateGroup.displayGroupName && <h2 className="coordinate-group-display-name">{displaySelectedCoordinateGroup.displayGroupName}</h2>}
               <p className="coordinate-group-description">{t('map.expandHint')}</p>
             </header>
@@ -1759,17 +1907,18 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
                     <span className="coordinate-group-name">{toilet.name || t('map.unnamed')}</span>
                     <span className="coordinate-group-toggle-label">{t(isExpanded ? 'map.collapse' : 'map.expand')}</span>
                   </button>
-                  {isExpanded && <CoordinateGroupInlineDetails
+                  {isExpanded && <>
+                    <CoordinateGroupInlineDetails
                     toilet={toiletDetail}
+                    engagement={toiletDetail?.id === toilet.id ? engagementProps : undefined}
                     isLoading={isDetailLoading}
                     error={detailError}
                     onRetry={retryDetail}
-                    onReport={isDesktop && !REVIEW_UI_ENABLED ? undefined : () => { if (toiletDetail?.id === toilet.id) openReport({ toilet: toiletDetail, latitude: toilet.latitude, longitude: toilet.longitude }) }}
                     pendingReview={REVIEW_UI_ENABLED && !toiletDetail}
                     onReview={REVIEW_UI_ENABLED && toiletDetail?.id === toilet.id ? () => reviewPreview.open(toiletDetail) : undefined}
                     reviewEntry={reviewPreview.entryState(toilet.id)}
                     previewSummary={REVIEW_UI_ENABLED ? reviewPreview.summary(toilet.id) : undefined}
-                  />}
+                  /></>}
                 </div>
               })}
             </div>
@@ -1781,9 +1930,13 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           onBackAccount={() => { reviewPreview.close(); setMobileAccountView('home'); setFocusedReportId(null) }}
           onSessionExpired={handleSessionExpired}
           onReviews={REVIEW_UI_ENABLED ? reviewPreview.openMine : undefined}
+          onLikes={() => setMobileAccountView('likes')}
+          onOpenLikedToilet={openLikedToilet}
           onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setMobileAccountView('settings')} onWithdrawn={handleWithdrawn} onLogout={handleLogout} onCountChange={refreshNotificationCount} onOpenReport={showReportHistory}
           beforeLogin={tab => { try { window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, tab) } catch { /* 로그인은 계속 제공 */ } }} />}
-        {reportTarget && <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); showReportHistory() }} />}
+        {reportTarget && (QUICK_REPORTS_ENABLED
+          ? <QuickReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} identity={isAuthLoading ? 'loading' : authProfile ? 'member' : 'guest'} onClose={() => setReportTarget(null)} />
+          : <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); showReportHistory() }} />)}
         {reviewPreview.modal}
         {authProfile && isDesktop && isMyReportsOpen && <MyReportsPanel key={`reports-${authProfile.userId}`} onSessionExpired={handleSessionExpired} initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
@@ -1797,7 +1950,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         </section></div>}
         {!isAuthLoading && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('recovery') === 'required' && <AccountRecoveryDialog />}
       </section>
-      {isDesktop ? <SiteFooter homeIntro={route.path === localizedPublicPath('/', locale)} /> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { reviewPreview.close(); setMobileAccountView('home'); setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
+      {isDesktop ? <SiteFooter homeIntro={route.path === localizedPublicPath('/', locale)} /> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { setLikedMapTarget(null); reviewPreview.close(); setMobileAccountView('home'); setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
     </main>
   )
 }
@@ -1821,10 +1974,10 @@ function LoginDialog({ purpose, onClose }: { purpose: LoginPurpose; onClose: () 
   </div>
 }
 
-function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRetry, onReview, pendingReview, previewSummary, reviewEntry }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onReport?: () => void; onRetry: () => void; onReview?: () => void; pendingReview?: boolean; previewSummary?: PreviewReviewSummary; reviewEntry?: ReviewEntryState }) {
+function CoordinateGroupInlineDetails({ toilet, isLoading, error, onRetry, onReview, pendingReview, previewSummary, reviewEntry, engagement }: { toilet: ToiletDetailResponse | null; isLoading: boolean; error: string | null; onRetry: () => void; onReview?: () => void; pendingReview?: boolean; previewSummary?: PreviewReviewSummary; reviewEntry?: ReviewEntryState; engagement?: EngagementProps }) {
   const t = useMessages()
   const locale = useLocale()
-  if (isLoading && !toilet) return <div className="coordinate-inline-details"><div className="coordinate-opening-row"><LoadingOpenTime />{onReport && <ToiletReportEntry iconOnly disabled />}</div><ToiletCommunityRow pendingReview={pendingReview} /><PublicReviewsLoading /><DetailLoadingFields inline /></div>
+  if (isLoading && !toilet) return <div className="coordinate-inline-details"><div className="coordinate-opening-row"><LoadingOpenTime /></div><ToiletCommunityRow pendingReview={pendingReview} /><PublicReviewsLoading /><DetailLoadingFields inline /></div>
   if (error) return <div className="coordinate-inline-details"><p className="detail-error" role="alert">{t('detail.error')}</p><button type="button" className="detail-retry" onClick={onRetry}>{t('common.retry')}</button></div>
   if (!toilet) return null
 
@@ -1833,7 +1986,7 @@ function CoordinateGroupInlineDetails({ toilet, isLoading, error, onReport, onRe
 
   return <div className="coordinate-inline-details">
     <OriginalSourceBadge toilet={display} locale={locale} />
-    <div className="coordinate-opening-row"><p className="open-time">{formatOpenTime(display, locale)}</p>{onReport && <ToiletReportEntry iconOnly onClick={onReport} />}</div>
+    <div className="coordinate-opening-row"><p className="open-time">{formatOpenTime(display, locale)}</p><div className="toilet-card-actions">{engagement && <ToiletEngagement toiletId={display.id} {...engagement} />}</div></div>
     <ToiletCommunityRow onReview={onReview} reviewEntry={reviewEntry} previewSummary={previewSummary} />
     <PublicReviews toiletId={display.id} toiletName={display.name} toiletType={display.toiletType} summary={previewSummary} />
     {address && <DetailRow className="coordinate-inline-address" label={t('detail.address')} value={address} copyable />}

@@ -1,5 +1,6 @@
 import { useLocale, useMessages } from '../i18n/context'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { createToiletReport } from '../api/reports'
 import type { ToiletDetailResponse } from '../api/toilets'
 import { reverseGeocodeKakaoCoordinates } from '../lib/kakaoMap'
@@ -28,11 +29,17 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
   const mapElementRef = useRef<HTMLDivElement>(null)
   const geocodeRequestRef = useRef(0)
   const geocodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const backdropRef = useRef<HTMLDivElement>(null)
+  const backdropRef = useRef<HTMLDialogElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (backdropRef.current) return attachReportViewport(backdropRef.current)
+    const dialog = backdropRef.current
+    if (!dialog) return
+    // The browser top layer escapes map/card stacking and makes the page inert.
+    // Keep visual-viewport handling for the iOS keyboard inside this modal.
+    dialog.showModal()
+    const detachViewport = attachReportViewport(dialog)
+    return () => { detachViewport(); dialog.close() }
   }, [])
 
   useEffect(() => { contentRef.current?.scrollTo(0, 0) }, [step])
@@ -123,8 +130,11 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
     } finally { setIsSubmitting(false) }
   }
 
-  return <div ref={backdropRef} className="report-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-    <section className="report-modal" role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
+  if (typeof document === 'undefined') return null
+  return createPortal(<dialog ref={backdropRef} className="report-modal-backdrop" aria-modal="true" aria-labelledby="report-modal-title"
+    onCancel={event => { event.preventDefault(); onClose() }}
+    onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+    <section className="report-modal">
       <header className="report-modal-toolbar">
         {step !== 'choice' && step !== 'complete' && <button type="button" className="report-back" onClick={() => setStep(step === 'locationConfirm' ? 'location' : 'choice')} aria-label={t('common.back')}>‹</button>}
         <span className="report-modal-step-title">{t(({ choice: 'report.title', location: 'report.location', locationConfirm: 'report.confirmLocation', openTime: 'report.hours', complete: 'report.received' } as const)[step])}</span>
@@ -172,6 +182,6 @@ export function ToiletReportModal({ toilet, latitude, longitude, onClose, onView
       {step === 'complete' && <div className="report-complete"><span aria-hidden="true">✓</span><h1 id="report-modal-title">{t('report.complete')}</h1><p>{t('report.completeHint')}</p><div className="report-complete-actions"><button type="button" className="report-edit-button" onClick={onClose}>{t('detail.back')}</button><button type="button" className="report-submit" onClick={onViewMyReports}>{t('report.viewMine')}</button></div></div>}
       </div>
     </section>
-  </div>
+  </dialog>, document.body)
 }
 

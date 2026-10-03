@@ -14,6 +14,8 @@ import '../components/regions/regions.css'
 import '../components/site-chrome.css'
 import '../components/toilet-list.css'
 import '../components/home-intro.css'
+import '../components/map-startup.css'
+import '../components/account-controls.css'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://geupddong.com'),

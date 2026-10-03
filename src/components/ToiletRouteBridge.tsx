@@ -1,15 +1,16 @@
 'use client'
 
-import { HomeIntro } from './HomeIntro'
+import { MapStartup } from './MapStartup'
 import { useLayoutEffect } from 'react'
-import Link from 'next/link'
 import type { ToiletDetailResponse } from '../api/toilets'
 import { useMapRouteContext } from './mapRouteContext'
 import { ToiletDetailContents } from './ToiletDetailContents'
+import { ToiletShareLink } from './ToiletShareLink'
 import { CachedToiletContents } from './CachedToiletContents'
 import type { DetailFragment } from '../server/detailFragmentCache'
 import { OriginalSourceBadge } from './OriginalSourceBadge'
 import { ToiletCommunityRow, ToiletReportEntry } from './ToiletCommunityRow'
+import { ToiletCardHeader } from './ToiletCardHeader'
 import { PublicReviews } from './reviews/PublicReviews'
 import { formatOpenTime } from '../lib/detailFormatting'
 import { toiletPath } from '../lib/toiletRoute'
@@ -29,11 +30,11 @@ export function ToiletRouteBridge({ detail, locale = 'ko', path: overridePath, f
 
   // Visible initial card, then the same data/component in the existing interactive map card.
   if (mounted) return null
-  if (!detail || !displayDetail) return <main className="home-initial-content"><HomeIntro locale={locale} /></main>
+  if (!detail || !displayDetail) return <MapStartup locale={locale} />
   return <div className="route-card-stage"><aside className="place-card initial-route-card route-preview-card" aria-label={t('detail.title')}>
-    <Link href={localizedPublicPath('/', locale)!} className="close-button" aria-label={t('common.close')}>×</Link>
     <button type="button" className="mobile-card-handle" disabled aria-expanded={false}>{t('detail.show')}</button>
-    <div className="place-card-summary"><div className="card-label-row"><span className="card-label">{toiletTypeLabel(displayDetail.toiletType, locale)}</span><OriginalSourceBadge toilet={displayDetail} locale={locale} /></div>{reviewsEnabled ? <div className="review-card-title-row"><h1>{displayDetail.name}</h1><ToiletReportEntry disabled /></div> : <h1>{displayDetail.name}</h1>}</div>
+    <ToiletCardHeader closeHref={localizedPublicPath('/', locale)!} closeLabel={t('common.close')} report={reviewsEnabled && <ToiletReportEntry disabled />} share={<ToiletShareLink key={displayDetail.id} toiletId={displayDetail.id} />}><span className="card-label">{toiletTypeLabel(displayDetail.toiletType, locale)}</span><OriginalSourceBadge toilet={displayDetail} locale={locale} /></ToiletCardHeader>
+    <div className="place-card-summary">{reviewsEnabled ? <div className="review-card-title-row"><h1>{displayDetail.name}</h1></div> : <h1>{displayDetail.name}</h1>}</div>
     <div className="card-scroll-content">
       <p className="open-time">{formatOpenTime(displayDetail, locale)}</p>
       <div className="distance-from-current" aria-label={t('map.distanceLoading')}><span className="distance-label">{t('map.distanceFrom')}</span><strong className="distance-value">—</strong><span className="distance-caption">{t('map.straightLine')}</span></div>

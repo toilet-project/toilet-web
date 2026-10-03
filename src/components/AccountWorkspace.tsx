@@ -11,8 +11,10 @@ import { useLocale, useMessages } from '../i18n/context'
 import { localizedPublicPath } from '../i18n/routes'
 import { DESKTOP_LAYOUT_QUERY } from '../lib/responsiveLayout'
 import { AccountWorkspaceFrame } from './AccountWorkspaceFrame'
+import { LikedToiletsPanel } from './LikedToiletsPanel'
+const LIKES_ENABLED = process.env.NEXT_PUBLIC_TOILET_ENGAGEMENT_ENABLED === 'true'
 
-export type AccountView = 'home' | 'reviews' | 'reports' | 'settings' | 'notifications'
+export type AccountView = 'home' | 'likes' | 'reviews' | 'reports' | 'settings' | 'notifications'
 
 export function AccountWorkspace({ view, reportId = null }: { view: AccountView; reportId?: number | null }) {
   const locale = useLocale(), t = useMessages(), router = useRouter()
@@ -44,6 +46,7 @@ export function AccountWorkspace({ view, reportId = null }: { view: AccountView;
   return <AccountWorkspaceFrame profile={profile} view={selectedView} onLogout={signOut}>
       {withdrawn && <p role="status">{withdrawn}</p>}
       {selectedView === 'reviews' && (reviews.page || <p className="account-workspace-status">{t('common.loading')}</p>)}
+      {selectedView === 'likes' && LIKES_ENABLED && <LikedToiletsPanel key={profile.userId} owner={profile.userId} onClose={goHome} onSessionExpired={() => setProfile(null)} />}
       {selectedView === 'reports' && <MyReportsPanel key={reportId} embedded initialExpandedId={reportId} onClose={goHome} onSessionExpired={() => setProfile(null)} />}
       {selectedView === 'notifications' && <NotificationPanel embedded unread={0} onClose={goHome} onSessionExpired={() => setProfile(null)} onCountChange={() => undefined} onOpenReport={reportId => router.push(`${base}?view=reports&report=${reportId}`)} />}
       {selectedView === 'settings' && <AccountDialog embedded profile={profile} onClose={goHome} onWithdrawn={message => { setWithdrawn(message); setProfile(null) }} />}
@@ -52,5 +55,5 @@ export function AccountWorkspace({ view, reportId = null }: { view: AccountView;
 }
 
 export function accountView(value?: string): AccountView {
-  return value === 'reviews' || value === 'reports' || value === 'settings' || value === 'notifications' ? value : 'home'
+  return value === 'likes' || value === 'reviews' || value === 'reports' || value === 'settings' || value === 'notifications' ? value : 'home'
 }

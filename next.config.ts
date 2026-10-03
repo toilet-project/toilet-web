@@ -15,7 +15,13 @@ const reviewProductionApi = process.env.SITE_INDEXABLE === 'true'
   && process.env.REVIEW_API_ENABLED === 'true'
   && process.env.REVIEW_PRODUCTION_APPROVED === 'true'
   && process.env.NEXT_PUBLIC_API_BASE_URL === 'https://api.geupddong.com'
-const reviewApiEnabled = reviewPreviewApi || reviewProductionApi
+// Explicitly approved integration preview: real account/data, but still noindex.
+// This does not relax API authentication, origin checks or production release gates.
+const reviewLivePreviewApi = process.env.SITE_INDEXABLE === 'false'
+  && process.env.REVIEW_API_ENABLED === 'true'
+  && process.env.REVIEW_LIVE_PREVIEW_APPROVED === 'true'
+  && process.env.NEXT_PUBLIC_API_BASE_URL === 'https://api.geupddong.com'
+const reviewApiEnabled = reviewPreviewApi || reviewProductionApi || reviewLivePreviewApi
 // Public review reads do not mutate production data. The fixed preview domain may
 // use the production public API while authenticated review writes remain gated.
 const publicReviewApiEnabled = reviewApiEnabled || process.env.SITE_INDEXABLE === 'false'
@@ -24,6 +30,12 @@ const publicReviewApiEnabled = reviewApiEnabled || process.env.SITE_INDEXABLE ==
 const config: NextConfig = {
   deploymentId: process.env.NEXT_DEPLOYMENT_ID,
   env: {
+    NEXT_PUBLIC_MAP_FILTERS_ENABLED: (process.env.SITE_INDEXABLE === 'false' && process.env.MAP_FILTERS_PREVIEW === 'true')
+      || (process.env.SITE_INDEXABLE === 'true' && process.env.MAP_FILTERS_RELEASE === 'true') ? 'true' : 'false',
+    NEXT_PUBLIC_REPORT_REDESIGN_RELEASE: process.env.REPORT_REDESIGN_RELEASE === 'true'
+      && reviewProductionApi ? 'true' : 'false',
+    NEXT_PUBLIC_REPORT_REDESIGN_PREVIEW: process.env.SITE_INDEXABLE === 'false'
+      && process.env.REPORT_REDESIGN_PREVIEW === 'true' && reviewLivePreviewApi ? 'true' : 'false',
     NEXT_PUBLIC_ENGLISH_UI_ENABLED: (process.env.SITE_INDEXABLE === 'false' && process.env.ENGLISH_UI_PREVIEW === 'true')
       || (process.env.SITE_INDEXABLE === 'true' && process.env.ENGLISH_UI_RELEASE === 'true') ? 'true' : 'false',
     NEXT_PUBLIC_APP_VERSION: process.env.NEXT_DEPLOYMENT_ID || 'development',
@@ -32,9 +44,12 @@ const config: NextConfig = {
     NEXT_PUBLIC_MAP_CLUSTER_CACHE_ENABLED: ['false', 'true'].includes(process.env.SITE_INDEXABLE || '') ? 'true' : 'false',
     // Build-time preview gate, never controlled by query strings or local storage.
     NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW: process.env.SITE_INDEXABLE === 'false' && !reviewApiEnabled ? 'true' : 'false',
-    // Production requires all four exact build-time gates above; runtime URLs cannot enable it.
+    // Each target requires its exact build-time gates above; runtime URLs cannot enable it.
     NEXT_PUBLIC_REVIEW_API_ENABLED: reviewApiEnabled ? 'true' : 'false',
     NEXT_PUBLIC_PUBLIC_REVIEW_API_ENABLED: publicReviewApiEnabled ? 'true' : 'false',
+    // Explicit release gate. Live preview uses existing member auth and real data.
+    NEXT_PUBLIC_TOILET_ENGAGEMENT_ENABLED: process.env.TOILET_ENGAGEMENT_ENABLED === 'true'
+      && reviewApiEnabled ? 'true' : 'false',
   },
   distDir: process.env.NEXT_BUILD_DIR || '.next',
   poweredByHeader: false,

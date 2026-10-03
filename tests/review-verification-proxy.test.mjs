@@ -4,6 +4,25 @@ import { readFileSync } from 'node:fs'
 import { reviewVerificationResponse } from '../review-verification-proxy.mjs'
 const base = 'https://preview.geupddong.com/__review-verification'
 const env = () => ({ SITE_INDEXABLE: 'false', REVIEW_VERIFICATION_ORIGIN: 'https://synthetic-only-fixture.trycloudflare.com', REVIEW_VERIFICATION_EXPIRES_AT: new Date(Date.now() + 3600000).toISOString() })
+
+test('engagement mutations use only synthetic identities and require same-origin writes', async () => {
+  const original = globalThis.fetch, calls = []
+  globalThis.fetch = async (url, options) => { calls.push({ url, options }); return Response.json({ liked: true }) }
+  try {
+    for (const method of ['PUT', 'DELETE']) {
+      const url = base + '/api/v1/engagement/toilets/1/like'
+      assert.equal((await reviewVerificationResponse(new Request(url, { method }), env())).status, 403)
+      assert.equal((await reviewVerificationResponse(new Request(url, { method, headers: { Origin: 'https://preview.geupddong.com', Cookie: 'access=real; engagement-preview-actor=2', Authorization: 'Bearer real' } }), env())).status, 200)
+      const call = calls.at(-1)
+      assert.equal(call.options.headers.get('X-Engagement-Fixture-Actor'), '2')
+      assert.equal(call.options.headers.get('Cookie'), null)
+      assert.equal(call.options.headers.get('Authorization'), null)
+      assert.equal(call.options.body, undefined)
+    }
+    await reviewVerificationResponse(new Request(base + '/api/v1/toilets/1/engagement', { headers: { Cookie: 'engagement-preview-actor=999', 'X-Engagement-Fixture-Actor': '1' } }), env())
+    assert.equal(calls.at(-1).options.headers.get('X-Engagement-Fixture-Actor'), 'anonymous')
+  } finally { globalThis.fetch = original }
+})
 test('temporary proxy is inaccessible on production, absent configuration, expiration or non-allowlisted paths', async () => {
   assert.equal(await reviewVerificationResponse(new Request('https://geupddong.com/'), {}), null)
   for (const config of [{}, { ...env(), SITE_INDEXABLE: 'true' }, { ...env(), REVIEW_VERIFICATION_EXPIRES_AT: '2000-01-01' }, { ...env(), REVIEW_VERIFICATION_ORIGIN: 'https://api.geupddong.com' }]) {
@@ -14,6 +33,21 @@ test('temporary proxy is inaccessible on production, absent configuration, expir
     assert.equal((await reviewVerificationResponse(new Request(base + path), env())).status, 403)
   }
   assert.equal((await reviewVerificationResponse(new Request(base.replace('preview.', '') + '/api/v1/auth/me'), env())).status, 404)
+})
+test('liked-list reads keep sort parameters and use only the selected fixture member', async () => {
+  const original = globalThis.fetch
+  let forwarded
+  globalThis.fetch = async (url, options) => { forwarded = { url, options }; return Response.json({ items: [], total: 0, page: 0, size: 30 }) }
+  try {
+    const query = '/api/v1/engagement/likes?sort=distance&page=0&size=30&latitude=36.3&longitude=127.3'
+    const result = await reviewVerificationResponse(new Request(base + query, { headers: { Cookie: 'engagement-preview-actor=1; real=discard', Authorization: 'Bearer discard' } }), env())
+    assert.equal(result.status, 200)
+    assert.equal(forwarded.url, env().REVIEW_VERIFICATION_ORIGIN + query)
+    assert.equal(forwarded.options.headers.get('X-Engagement-Fixture-Actor'), '1')
+    assert.equal(forwarded.options.headers.get('Cookie'), null)
+    assert.equal(forwarded.options.headers.get('Authorization'), null)
+    assert.equal(result.headers.get('Cache-Control'), 'private, no-store')
+  } finally { globalThis.fetch = original }
 })
 test('only synthetic gateway receives requests; real cookies and authorization never leave the Worker', async () => {
   const original = globalThis.fetch; const calls = []

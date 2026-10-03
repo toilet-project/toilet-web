@@ -93,6 +93,9 @@
 .district-selection-error { color: #895427; font-size: 13px; }
 .district-selection-error button { min-height: 36px; padding: 6px 12px; border: 1px solid #d7e9d9; border-radius: 8px; background: #fff; color: #236442; font: inherit; cursor: pointer; }
 .region-selection-close { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #5a7964; font-size: 24px; line-height: 1; cursor: pointer; }
+.district-selection-actions { position:absolute; top:6px; right:6px; display:flex; align-items:center; gap:6px; }
+.district-selection-actions .region-selection-close { position:static; }
+.district-map-selection.is-facility .district-selection-heading { padding-right:82px; }
 .region-map-marker { display: flex; flex-direction: column; align-items: center; }
 .region-map-cluster { display: grid; place-items: center; min-width: 46px; height: 46px; padding: 0 10px; border: 4px solid #ffffffb8; border-radius: 50%; background: #267b53; background-clip: padding-box; color: #fff; box-shadow: 0 3px 12px #184b332e; font: inherit; font-size: 14px; font-weight: 750; cursor: pointer; }
 .region-map-cluster:hover, .region-map-cluster:focus-visible { background-color: #155b3a; outline: 3px solid #75b29180; }

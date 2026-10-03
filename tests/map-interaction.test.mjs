@@ -67,8 +67,8 @@ test('all marker paths let original down/move gestures reach the SDK and only su
   assert.match(app, /preventMapEvent\(mapRef.current\)/)
   assert.match(css, /\.toilet-marker, \.coordinate-group-marker, \.cluster-marker, \.mobile-card-handle \{ touch-action: manipulation; \}/)
   assert.match(app, /const request = referenceRequestGate.begin\(\)/)
-  assert.match(app, /\(\{ coords \}\) => \{\s+if \(!isCurrent\(\)\) return/)
-  assert.match(app, /\(positionError\) => \{\s+if \(!isCurrent\(\)\) return/)
+  assert.match(app, /await requestBrowserLocation\(navigator.geolocation, controller.signal\)\s+if \(!isCurrent\(\)\) return/)
+  assert.match(app, /catch \(reason\) \{\s+if \(!isCurrent\(\) \|\| controller.signal.aborted\) return/)
 })
 test('administrator groups use the ordinary toilet pin and keep the existing group click action', async () => {
   const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8')

@@ -12,6 +12,7 @@ import { regionToiletPath, regionToiletPathForDistrict } from '../../lib/regionT
 import type { RegionMarkerItem } from '../../lib/regionDisplayItems'
 import { formatOpenTime } from '../../lib/detailFormatting'
 import { ToiletDetailContents } from '../ToiletDetailContents'
+import { ToiletShareLink } from '../ToiletShareLink'
 import { OriginalSourceBadge } from '../OriginalSourceBadge'
 import { PublicReviews } from '../reviews/PublicReviews'
 import { regionText } from './regionText'
@@ -56,7 +57,10 @@ export function DistrictToiletSelection({ toilets, locale, districtCode, onClose
   function choose(id: number | null) { setFailed(false); setDetail(null); setActiveId(id) }
 
   return <aside className={`district-map-selection${active ? ' is-facility' : ''}`} aria-label={t('detail.title')}>
-    <button type="button" className="region-selection-close" onClick={onClose} aria-label={r.closeSelection}>×</button>
+    <div className="district-selection-actions">
+      {active && <ToiletShareLink key={active.id} toiletId={active.id} />}
+      <button type="button" className="region-selection-close" onClick={onClose} aria-label={r.closeSelection}>×</button>
+    </div>
     {active && display ? <>
       <header className="district-selection-heading">
         {toilets.length > 1 && <button type="button" className="district-selection-back" onClick={() => choose(null)}>{t('common.back')}</button>}

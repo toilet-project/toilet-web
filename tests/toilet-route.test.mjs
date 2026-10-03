@@ -47,7 +47,7 @@ test('loading and first HTML retain current card rows and mobile geometry withou
   assert.match(app, /isDetailLoading && <LoadingOpenTime \/>/)
   assert.match(app, /<ToiletCommunityRow pendingReport=\{!isDesktop && !displayToiletDetail\}/)
   assert.match(app, /!displayToiletDetail && isDetailLoading && <PublicReviewsLoading \/>/)
-  assert.match(app, /<LoadingOpenTime \/>\{onReport && <ToiletReportEntry iconOnly disabled \/>\}<\/div><ToiletCommunityRow pendingReview=\{pendingReview\} \/><PublicReviewsLoading \/><DetailLoadingFields inline \/>/)
+  assert.match(app, /<LoadingOpenTime \/><\/div><ToiletCommunityRow pendingReview=\{pendingReview\} \/><PublicReviewsLoading \/><DetailLoadingFields inline \/>/)
   assert.match(reviews, /export function PublicReviewsLoading\(\)/)
   assert.match(reviews, /className="public-reviews is-loading" aria-label=\{t\('public.loading'\)\} aria-busy="true"/)
   assert.match(reviews, /className="public-review-summary-panel"/)

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
+import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { resolve, sep } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import {signatureFor, REVALIDATION_PATH} from '../src/server/cacheRevalidation.ts'
 import { regionToiletPath } from '../src/lib/regionToiletPath.ts'
@@ -75,7 +77,12 @@ const reservation = createServer().listen(0,'127.0.0.1')
 await once(reservation,'listening')
 const port = reservation.address().port
 await new Promise(resolve=>reservation.close(resolve))
-const env = {...process.env, NEXT_DEPLOYMENT_ID:'isolated-release-smoke', CACHE_RUNTIME:'node', CACHE_REVALIDATION_SECRET:secret, NEXT_BUILD_DIR:'.next-smoke', TOILET_API_ORIGIN:`http://127.0.0.1:${apiPort}`, SITE_INDEXABLE:String(indexable), NEXT_TELEMETRY_DISABLED:'1', NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY:'smoke-public-key'}
+// Preview and indexable checks mutate their own fixtures. Never inherit the
+// preceding check's filesystem data cache, even when its API port is reused.
+const buildRoot = resolve('.next-smoke')
+await mkdir(buildRoot, {recursive: true})
+const buildDir = await mkdtemp('.next-smoke/run-')
+const env = {...process.env, NEXT_DEPLOYMENT_ID:'isolated-release-smoke', CACHE_RUNTIME:'node', CACHE_REVALIDATION_SECRET:secret, NEXT_BUILD_DIR:buildDir, TOILET_API_ORIGIN:`http://127.0.0.1:${apiPort}`, SITE_INDEXABLE:String(indexable), NEXT_TELEMETRY_DISABLED:'1', NEXT_PUBLIC_KAKAO_JAVASCRIPT_KEY:'smoke-public-key'}
 let server
 let output = ''
 const run = args => {
@@ -97,6 +104,13 @@ try {
     await delay(100)
   }
   const first = await fetch(`${origin}/toilet/900001`)
+  const home = await fetch(origin)
+  assert.equal(home.status, 200)
+  const homeHtml = await home.text()
+  assert.match(homeHtml, /class="app-shell has-mobile-navigation map-startup"/, 'first HTML contains the map frame before JavaScript')
+  assert.match(homeHtml, /class="map-startup-status" role="status"/, 'SDK loading has a visible, accessible status')
+  assert.match(homeHtml, /<h1[^>]*>내 주변 공중·개방 화장실 찾기<\/h1>/, 'home heading remains in server HTML')
+  assert.doesNotMatch(homeHtml, /home-initial-content/, 'the separate introductory screen must not flash before the map')
   const reviewPreview = await fetch(`${origin}/review-preview`)
   assert.equal(reviewPreview.status, indexable ? 404 : 200, 'review design preview must not be published on production')
   const reviewPreviewHtml = await reviewPreview.text()
@@ -324,4 +338,6 @@ try {
   if(server && server.exitCode===null) { server.kill(); await once(server,'exit') }
   api.closeAllConnections()
   await new Promise(resolve=>api.close(resolve))
+  assert.ok(resolve(buildDir).startsWith(buildRoot + sep), 'cleanup stays in the smoke test workspace')
+  await rm(buildDir, {recursive: true, force: true})
 }
