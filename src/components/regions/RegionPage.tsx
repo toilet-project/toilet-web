@@ -7,8 +7,7 @@ import { SUPPORTED_LOCALES } from '../../i18n/locale'
 import { localizedPublicPath } from '../../i18n/routes'
 import { regionSeoCopy } from '../../i18n/regionSeoCopy'
 import { socialMetadata } from '../../i18n/pageSeo'
-import { localizeToiletMapItem } from '../../i18n/toiletTranslations'
-import { regionToiletPathForDistrict } from '../../lib/regionToiletPath'
+import { regionDirectoryEntries } from '../../lib/regionDirectory'
 import { getDistrict, getProvince, localizedRegionPath, regionName } from '../../lib/regions'
 import { codeFromRegionSegment, decodedRouteSegment } from '../../lib/urlName'
 import { regionText } from './regionText'
@@ -56,13 +55,7 @@ async function DistrictDirectory({ locale, provinceCode, districtCode }: {
   })
   if (!toilets) return null
   const r = regionText(locale)
-  const facilityLinks = toilets.map(toilet => ({
-    id: toilet.id,
-    name: localizeToiletMapItem(toilet, locale).name,
-    // The durable dataset is already clipped to this precise district. Avoid
-    // repeating nationwide polygon searches for every SEO facility link.
-    href: localizedPublicPath(regionToiletPathForDistrict(toilet, locale, districtCode), locale)!,
-  })).sort((left, right) => left.name.localeCompare(right.name, locale) || left.id - right.id)
+  const facilityLinks = regionDirectoryEntries(toilets, locale, districtCode)
   return <>
     {facilityLinks.length > 0 && <details className="region-facility-directory"><summary>{r.restroomList} ({facilityLinks.length.toLocaleString(locale)})</summary>
       <nav aria-label={r.nearby}><ul>{facilityLinks.map(toilet => <li key={toilet.id}><a href={toilet.href}>{toilet.name}</a></li>)}</ul></nav>

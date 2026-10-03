@@ -1,11 +1,13 @@
 import { indexableFacilityLocales } from '../i18n/facilitySeo.ts'
-import { localizedPublicPath, localizedToiletPaths, parseLocalizedPublicPath } from '../i18n/routes.ts'
-import { regionToiletPath } from '../lib/regionToiletPath.ts'
+import { localizedPublicPath, parseLocalizedPublicPath } from '../i18n/routes.ts'
+import { parseRegionToiletSegment, regionToiletPath } from '../lib/regionToiletPath.ts'
+import { getDistrict, localizedRegionPath } from '../lib/regions.ts'
+import { codeFromRegionSegment } from '../lib/urlName.ts'
 import { SITE_ORIGIN } from '../lib/seo.ts'
 import type { ToiletDetailResponse } from '../api/toilets.ts'
 import type { ToiletCacheEvent } from './sharedToiletCache.ts'
 
-export const INDEXNOW_ENDPOINT = 'https://api.indexnow.org/IndexNow'
+export const INDEXNOW_ENDPOINT = 'https://api.indexnow.org/indexnow'
 export const INDEXNOW_KEY = '237e18b19a2de7283207a1343afffb4dbf4dc12e24af2c9208999c2238df9c24'
 export const INDEXNOW_KEY_PATH = `/${INDEXNOW_KEY}.txt`
 const INDEXNOW_MAX_URLS = 10_000
@@ -15,6 +17,23 @@ const DETAIL_CONCURRENCY = 4
 
 type FetchLike = typeof fetch
 
+export class IndexNowSubmissionError extends Error {
+  readonly reason: 'http' | 'timeout' | 'network'
+  readonly status: number | null
+  constructor(reason: 'http' | 'timeout' | 'network', status: number | null = null) {
+    super(`IndexNow submission failed (${reason}${status === null ? '' : ` ${status}`})`)
+    this.name = 'IndexNowSubmissionError'
+    this.reason = reason
+    this.status = status
+  }
+}
+
+export function indexNowFailureInfo(error: unknown) {
+  return error instanceof IndexNowSubmissionError
+    ? { reason: error.reason, status: error.status }
+    : { reason: 'unexpected', status: null, errorName: error instanceof Error ? error.name : typeof error }
+}
+
 export function indexNowEnabled() {
   return process.env.SITE_INDEXABLE === 'true' && process.env.INDEXNOW_ENABLED === 'true'
 }
@@ -22,15 +41,27 @@ export function indexNowEnabled() {
 function isIndexableDetailPath(path: string) {
   const parsed = parseLocalizedPublicPath(path)
   if (!parsed || parsed.suffix) return false
-  return /^\/toilet\/[1-9]\d*$/.test(parsed.path)
-    || /^\/regions\/.+\/toilet\/[1-9]\d*-.+$/u.test(parsed.path)
+  const parts = parsed.path.split('/')
+  return parts.length === 6 && parts[4] === 'toilet' && parseRegionToiletSegment(parts[5]) !== null
+    && isCanonicalDistrictPath(localizedPublicPath(parts.slice(0, 4).join('/'), parsed.locale)!)
 }
 
-/** Keep IndexNow input on this site's public, canonicalizable detail routes only. */
+function isCanonicalDistrictPath(path: string) {
+  const parsed = parseLocalizedPublicPath(path)
+  if (!parsed || parsed.suffix) return false
+  const parts = parsed.path.split('/')
+  if (parts.length !== 4 || parts[1] !== 'regions') return false
+  const provinceCode = codeFromRegionSegment(parts[2], 2)
+  const districtCode = codeFromRegionSegment(parts[3], 5)
+  return Boolean(provinceCode && districtCode && getDistrict(provinceCode, districtCode)
+    && parsed.path === localizedRegionPath(parsed.locale, provinceCode, districtCode))
+}
+
+/** Keep IndexNow input on this site's known public canonical routes only. */
 export function indexNowUrls(paths: Iterable<string>) {
   const urls = new Set<string>()
   for (const path of paths) {
-    if (!isIndexableDetailPath(path)) continue
+    if (!isIndexableDetailPath(path) && !isCanonicalDistrictPath(path)) continue
     const url = new URL(encodeURI(path), SITE_ORIGIN)
     if (url.origin !== SITE_ORIGIN || url.search || url.hash) continue
     urls.add(url.href)
@@ -67,21 +98,25 @@ export async function submitIndexNow(paths: Iterable<string>, fetchImpl: FetchLi
         signal: AbortSignal.timeout(INDEXNOW_TIMEOUT_MS),
       })
     } catch (error) {
-      if (attempt === INDEXNOW_RETRIES) throw error
+      if (attempt === INDEXNOW_RETRIES) {
+        throw new IndexNowSubmissionError(error instanceof Error && error.name === 'TimeoutError' ? 'timeout' : 'network')
+      }
       await wait(250 * (2 ** attempt))
       continue
     }
     if (response.ok) return { submitted: payload.urlList.length, status: response.status }
     if (!retryable(response.status) || attempt === INDEXNOW_RETRIES) {
-      throw new Error(`IndexNow rejected URL update (${response.status})`)
+      throw new IndexNowSubmissionError('http', response.status)
     }
     await wait(250 * (2 ** attempt))
   }
-  throw new Error('IndexNow submission failed')
+  throw new IndexNowSubmissionError('network')
 }
 
 export function canonicalIndexNowPaths(detail: ToiletDetailResponse) {
+  // Numeric routes are noindex, including facilities without a canonical district.
   return indexableFacilityLocales(detail).map(locale => localizedPublicPath(regionToiletPath(detail, locale), locale)!)
+    .filter(isIndexableDetailPath)
 }
 
 async function fetchCurrentDetail(id: number, fetchImpl: FetchLike): Promise<ToiletDetailResponse | null> {
@@ -90,7 +125,7 @@ async function fetchCurrentDetail(id: number, fetchImpl: FetchLike): Promise<Toi
     cache: 'no-store', signal: AbortSignal.timeout(INDEXNOW_TIMEOUT_MS),
   })
   if (response.status === 404) return null
-  if (!response.ok) throw new Error(`IndexNow detail lookup failed (${response.status})`)
+  if (!response.ok) throw new IndexNowSubmissionError('http', response.status)
   const detail = await response.json() as ToiletDetailResponse
   if (detail.id !== id || typeof detail.name !== 'string') throw new Error('Invalid IndexNow detail response')
   return detail
@@ -108,15 +143,18 @@ async function mapConcurrent<T, R>(values: readonly T[], concurrency: number, ma
   return output
 }
 
-export async function notifyIndexNowForEvents(events: readonly ToiletCacheEvent[], fetchImpl: FetchLike = fetch) {
+export async function notifyIndexNowForEvents(events: readonly ToiletCacheEvent[], fetchImpl: FetchLike = fetch,
+  previousDetails: ReadonlyMap<number, ToiletDetailResponse> = new Map()) {
   const paths = (await mapConcurrent(events, DETAIL_CONCURRENCY, async event => {
-    if (event.action !== 'UPSERT') return [...localizedToiletPaths(event.toiletId)]
+    const previous = previousDetails.get(event.toiletId)
+    const formerPaths = previous ? canonicalIndexNowPaths(previous) : []
+    if (event.action !== 'UPSERT') return formerPaths
     try {
       const detail = await fetchCurrentDetail(event.toiletId, fetchImpl)
-      return detail ? canonicalIndexNowPaths(detail) : []
+      return [...formerPaths, ...(detail ? canonicalIndexNowPaths(detail) : [])]
     } catch (error) {
       // One unavailable detail must not suppress notifications for the rest of the signed batch.
-      console.error('IndexNow detail lookup skipped', { toiletId: event.toiletId, error })
+      console.error('IndexNow detail lookup skipped', { toiletId: event.toiletId, ...indexNowFailureInfo(error) })
       return []
     }
   })).flat()
@@ -124,19 +162,21 @@ export async function notifyIndexNowForEvents(events: readonly ToiletCacheEvent[
 }
 
 /** Schedule a best-effort notification without changing cache-invalidation acknowledgement. */
-export async function scheduleIndexNowNotification(events: readonly ToiletCacheEvent[]) {
+export async function scheduleIndexNowNotification(events: readonly ToiletCacheEvent[],
+  previousDetails: ReadonlyMap<number, ToiletDetailResponse> = new Map()) {
   if (!indexNowEnabled()) return false
   try {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare')
     const { ctx } = await getCloudflareContext({ async: true })
-    ctx.waitUntil(notifyIndexNowForEvents(events).then(result => {
+    ctx.waitUntil(notifyIndexNowForEvents(events, fetch, previousDetails).then(result => {
       console.info('IndexNow URL update accepted', result)
     }).catch(error => {
-      console.error('IndexNow URL update failed', error)
+      // Keep the failure actionable without logging the key or submitted URLs.
+      console.error('IndexNow URL update failed', indexNowFailureInfo(error))
     }))
     return true
   } catch (error) {
-    console.error('IndexNow scheduling failed', error)
+    console.error('IndexNow scheduling failed', indexNowFailureInfo(error))
     return false
   }
 }
