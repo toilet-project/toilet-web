@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { createViewRecorder, createEngagementApi, decodeCounts, decodeLike, observeDetailView } from '../src/lib/toiletEngagement.ts'
+import { createViewRecorder, createEngagementApi, decodeCounts, decodeLike, decodeLikedToilets, observeDetailView } from '../src/lib/toiletEngagement.ts'
 import { decodeCrowding, crowdingLabel, crowdingTone } from '../src/lib/reviewCrowding.ts'
 
 const memory = () => { const map = new Map(); return { getItem: k => map.get(k) ?? null, setItem: (k, v) => map.set(k, v) } }
@@ -37,6 +37,20 @@ test('view requests omit credentials and personal fields; likes send desired sta
   assert.equal(calls[1].init.credentials, 'include')
   assert.throws(() => decodeCounts({ ...counts, toiletId: 43 }, 42)); assert.throws(() => decodeLike({ toiletId: 42, liked: 'true', likes: 2 }, 42))
   await assert.rejects(api.view(-1, session, event)); assert.equal(calls.length, 3)
+})
+test('my likes use an authenticated, paged read and keep distance coordinates out of date sorts', async () => {
+  const paths = []
+  const row = { id: 42, name: '서울역 화장실', toiletType: '공중화장실', latitude: 37.55, longitude: 126.97,
+    likedAt: '2026-10-02T09:00:00', translations: { en: 'Seoul Station Restroom' } }
+  const api = createEngagementApi('https://example.test', async url => {
+    paths.push(url)
+    return Response.json({ items: [row], total: 1, page: 0, size: 30 })
+  })
+  assert.deepEqual((await api.listLikes('newest')).items, [row])
+  await api.listLikes('distance', 0, { latitude: 37.5, longitude: 127 })
+  assert.match(paths[0], /\/api\/v1\/engagement\/likes\?sort=newest&page=0&size=30$/)
+  assert.match(paths[1], /sort=distance&page=0&size=30&latitude=37.5&longitude=127$/)
+  assert.throws(() => decodeLikedToilets({ items: [{ ...row, translations: { en: 123 } }], total: 1, page: 0, size: 30 }))
 })
 test('visible detail requires a continuous foreground second and cancels after unmount', t => {
   t.mock.timers.enable({ apis: ['setTimeout'] })

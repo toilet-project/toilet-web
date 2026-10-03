@@ -16,7 +16,7 @@ export function regionLabel(region: ToiletDetailResponse['region']) {
   return [region?.sidoName, region?.sigunguName].filter(value => value?.trim()).join(' ')
 }
 
-export function toiletCoordinates(detail: ToiletDetailResponse | null) {
+export function toiletCoordinates(detail: Pick<ToiletDetailResponse, 'latitude' | 'longitude'> | null) {
   if (!detail || !Number.isFinite(detail.latitude) || !Number.isFinite(detail.longitude)) return null
   const latitude = detail.latitude as number
   const longitude = detail.longitude as number

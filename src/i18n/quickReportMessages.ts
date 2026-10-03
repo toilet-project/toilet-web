@@ -1,0 +1,41 @@
+import type { Locale } from './locale'
+
+const copy = {
+  title: ['제보하기', 'Report', '報告', '反馈', '回報'],
+  target: ['제보 대상', 'Reporting', '対象のトイレ', '反馈对象', '回報對象'],
+  missing: ['없음', 'Not here', '見つからない', '不存在', '不存在'],
+  missingHint: ['화장실이 없어요', 'There is no restroom here', 'ここにトイレがありません', '这里没有洗手间', '這裡沒有洗手間'],
+  location: ['위치 수정', 'Move pin', '位置を修正', '位置纠正', '位置修正'],
+  locationHint: ['위치가 달라요', 'The location is wrong', '位置が違います', '位置不对', '位置不對'],
+  closed: ['미개방', 'Closed now', '利用できない', '未开放', '未開放'],
+  closedHint: ['안 열려 있어요', 'It is not open right now', '今は開いていません', '现在没有开放', '現在沒有開放'],
+  new: ['신규 등록', 'Add a place', '新しく登録', '新增地点', '新增地點'],
+  newHint: ['여기 화장실이 있어요', 'There is a restroom here', 'ここにトイレがあります', '这里有洗手间', '這裡有洗手間'],
+  missingQuestion: ['이 위치에 화장실이 없나요?', 'No restroom at this location?', 'この場所にトイレはありませんか？', '这个位置没有洗手间吗？', '這個位置沒有洗手間嗎？'],
+  closedQuestion: ['지금 안 열려 있나요?', 'Is it closed right now?', '今は開いていませんか？', '现在没有开放吗？', '現在沒有開放嗎？'],
+  hours: ['등록 개방시간', 'Listed hours', '登録されている利用時間', '登记开放时间', '登記開放時間'],
+  now: ['현재 한국시간', 'Current time in Korea', '韓国の現在時刻', '韩国当前时间', '韓國目前時間'],
+  observed: ['접수 시각', 'Reported at', '受付日時', '提交时间', '提交時間'],
+  yes: ['예, 제보하기', 'Yes, report', 'はい、報告する', '是，提交反馈', '是，提交回報'],
+  no: ['아니오', 'No', 'いいえ', '否', '否'],
+  move: ['지도를 움직여 위치를 맞춰 주세요', 'Move the map to place the pin', '地図を動かして位置を合わせてください', '移动地图以定位', '移動地圖以定位'],
+  next: ['이 위치로 선택', 'Use this location', 'この位置を選択', '选择此位置', '選擇此位置'],
+  confirm: ['이 위치로 제보할까요?', 'Report this location?', 'この位置を報告しますか？', '提交这个位置吗？', '提交這個位置嗎？'],
+  name: ['화장실 이름', 'Restroom name', 'トイレの名前', '洗手间名称', '洗手間名稱'],
+  namePlaceholder: ['예: 중앙공원 화장실', 'e.g. Central Park Restroom', '例：中央公園トイレ', '例如：中央公园洗手间', '例如：中央公園洗手間'],
+  note: ['추가 설명 (선택)', 'Note (optional)', '補足（任意）', '补充说明（选填）', '補充說明（選填）'],
+  submit: ['제보 접수', 'Submit report', '報告を送信', '提交反馈', '提交回報'],
+  sending: ['접수 중…', 'Submitting…', '送信中…', '提交中…', '提交中…'],
+  complete: ['제보를 받았어요', 'Report received', '報告を受け付けました', '已收到反馈', '已收到回報'],
+  review: ['관리자가 확인할게요', 'An administrator will review it', '管理者が確認します', '管理员将进行审核', '管理員將進行審核'],
+  done: ['완료', 'Done', '完了', '完成', '完成'],
+  nameRequired: ['이름을 입력해 주세요', 'Enter a name', '名前を入力してください', '请输入名称', '請輸入名稱'],
+  failed: ['접수 여부를 확인하지 못했어요. 다시 눌러 확인해 주세요.', 'Could not confirm receipt. Please try again.', '受付を確認できません。もう一度お試しください。', '无法确认是否已提交，请重试。', '無法確認是否已提交，請重試。'],
+  limited: ['잠시 후 다시 제보해 주세요', 'Please try again in a minute', '少し待ってから再度お試しください', '请稍后再试', '請稍後再試'],
+  preview: ['시험 접수 · 운영 반영 없음', 'Test submission · no production changes', 'テスト受付・本番には反映されません', '测试提交 · 不影响正式数据', '測試提交 · 不影響正式資料'],
+  mapFailed: ['지도를 불러오지 못했어요', 'Could not load the map', '地図を読み込めません', '无法加载地图', '無法載入地圖'],
+} as const
+
+export function quickReportMessage(locale: Locale, key: keyof typeof copy): string {
+  return copy[key][locale === 'ko' ? 0 : locale === 'en' ? 1 : locale === 'ja' ? 2 : locale === 'zh-CN' ? 3 : 4]
+}
