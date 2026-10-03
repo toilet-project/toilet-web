@@ -6,6 +6,7 @@ import { ToiletEngagement, type EngagementProps } from './components/ToiletEngag
 import { EngagementPreviewTools } from './components/EngagementPreviewTools'
 import { MapFilterBar } from './components/MapFilterBar'
 import { useMapFilterLikes } from './components/useMapFilterLikes'
+import { useMapFilterSelection } from './components/useMapFilterSelection'
 import { mapFilterCopy, mapFilterCountLabel } from './i18n/mapFilterCopy'
 
 
@@ -336,17 +337,12 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null)
   const currentUserRef = useRef<string | null>(null)
   const [isAuthLoading, setIsAuthLoading] = useState(true)
-  const [mapFilterFlags, setMapFilterFlags] = useState(0)
-  const [mapFilterOwner, setMapFilterOwner] = useState<string | null>(null)
   const activeFilterOwner = !isAuthLoading && authProfile?.status === 'ACTIVE' && !authProfile.consentRequired ? authProfile.userId : null
-  const isMyMapFilter = Boolean(MAP_FILTERS_ENABLED && activeFilterOwner && mapFilterOwner === activeFilterOwner)
+  const { flags: mapFilterFlags, setFlags: setMapFilterFlags, mine: isMyMapFilter, ready: mapFilterSelectionReady, setMine: setMyMapFilter } = useMapFilterSelection(MAP_FILTERS_ENABLED, activeFilterOwner, isAuthLoading)
   const mapFilterLikes = useMapFilterLikes(isMyMapFilter ? activeFilterOwner : null)
-  const mapFilterRequestRef = useRef<{ filterFlags: number; likedIds?: number[]; blocked: boolean; error: boolean }>({ filterFlags: 0, blocked: false, error: false })
+  const mapFilterRequestRef = useRef<{ filterFlags: number; likedIds?: number[]; blocked: boolean; error: boolean }>({ filterFlags: mapFilterFlags, blocked: MAP_FILTERS_ENABLED && !mapFilterSelectionReady, error: false })
   const hasMapFilters = MAP_FILTERS_ENABLED && (mapFilterFlags !== 0 || isMyMapFilter)
   const filterCopy = mapFilterCopy[locale]
-  useLayoutEffect(() => {
-    if (mapFilterOwner && mapFilterOwner !== activeFilterOwner) setMapFilterOwner(null)
-  }, [activeFilterOwner, mapFilterOwner])
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false)
   const [loginPurpose, setLoginPurpose] = useState<LoginPurpose>('general')
   const [isMyReportsOpen, setIsMyReportsOpen] = useState(false)
@@ -1160,8 +1156,9 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   }, [renderResult])
 
   const mapFilterInitialized = useRef(false)
+  const previousMapFilterSelection = useRef({ flags: mapFilterFlags, mine: isMyMapFilter })
   useLayoutEffect(() => {
-    if (!MAP_FILTERS_ENABLED) return
+    if (!MAP_FILTERS_ENABLED || !mapFilterSelectionReady) return
     mapFilterRequestRef.current = {
       filterFlags: mapFilterFlags,
       likedIds: isMyMapFilter ? mapFilterLikes.ids ?? undefined : undefined,
@@ -1175,11 +1172,14 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     mobileListAbortRef.current?.abort()
     window.clearTimeout(mapLoadTimerRef.current)
     clearOverlays()
-    if (mapFilterInitialized.current && (selectedToiletRef.current || groupRef.current)) closeDetailCard()
-    mapFilterInitialized.current = true
+    const previous = previousMapFilterSelection.current
+    if (mapFilterInitialized.current && (previous.flags !== mapFilterFlags || previous.mine !== isMyMapFilter)
+      && (selectedToiletRef.current || groupRef.current)) closeDetailCard()
+    previousMapFilterSelection.current = { flags: mapFilterFlags, mine: isMyMapFilter }
+    if (!mapFilterRequestRef.current.blocked) mapFilterInitialized.current = true
     setResult(null); setMobileAreaToilets(null); setIsMobileAreaListLoading(false); setError(null)
     void loadMapArea()
-  }, [mapFilterFlags, isMyMapFilter, mapFilterLikes.ids, mapFilterLikes.error, clearOverlays, loadMapArea, closeDetailCard])
+  }, [mapFilterSelectionReady, mapFilterFlags, isMyMapFilter, mapFilterLikes.ids, mapFilterLikes.error, clearOverlays, loadMapArea, closeDetailCard])
 
   useEffect(() => {
     if (!error || !result) return
@@ -1748,9 +1748,9 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         {MAP_FILTERS_ENABLED && <MapFilterBar locale={locale} flags={mapFilterFlags} mine={isMyMapFilter}
           onFlagsChange={setMapFilterFlags}
           onMineChange={selected => {
-            if (!selected) { setMapFilterOwner(null); return }
+                    if (!selected) { setMyMapFilter(false); return }
             if (!activeFilterOwner) { engagementProps.requireLogin(); return }
-            setMapFilterOwner(activeFilterOwner)
+                    setMyMapFilter(true)
           }}
           listButton={!isDesktop ? <button className={`mobile-area-list-button${isMobileAreaListVisible ? ' is-open' : ''}${isLoading ? ' is-loading' : ''}`} type="button" onClick={() => void toggleMobileAreaList()} aria-label={`${isMobileAreaListVisible ? t('map.closeList') : t('map.list')}${result ? ` (${result.meta.total_count.toLocaleString(locale)})` : ''}`} aria-expanded={isMobileAreaListVisible} aria-busy={isLoading} disabled={isLoading || !result}>{filterCopy.list}{result && ` (${mapFilterCountLabel(result.meta.total_count)})`}</button> : undefined} />}
         {hasMapFilters && (isLoading || mapFilterLikes.error || error || result?.meta.total_count === 0) && <div className="map-filter-status" role="status" aria-live="polite">

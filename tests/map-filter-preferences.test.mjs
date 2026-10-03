@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { DEFAULT_MAP_FILTER_ORDER, MAP_FILTER_ORDER_KEY, normalizeMapFilterOrder, promoteMapFilter,
-  readMapFilterOrder, writeMapFilterOrder, setMapFilter, setAccessibleGender } from '../src/lib/mapFilterPreferences.ts'
+import { DEFAULT_MAP_FILTER_ORDER, MAP_FILTER_SELECTION_KEY, normalizeMapFilterSelection,
+  readMapFilterSelection, writeMapFilterSelection, resolveMapFilterOwner,
+  setMapFilter, setAccessibleGender } from '../src/lib/mapFilterPreferences.ts'
 import { matchesMapFilters } from '../src/lib/mapFilters.ts'
 import { mapFilterCopy } from '../src/i18n/mapFilterCopy.ts'
 
@@ -20,27 +21,107 @@ test('gender selection enables parent, both is AND, deselecting parent clears ch
   assert.equal(setMapFilter(both, 'cctv', false), 112)
 })
 
-test('promoted order round-trips through browser storage without persisting selected filters', () => {
-  const values = new Map()
-  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) }
-  assert.deepEqual(readMapFilterOrder(storage), DEFAULT_MAP_FILTER_ORDER)
-  const first = promoteMapFilter([...DEFAULT_MAP_FILTER_ORDER], 'cctv')
-  const second = promoteMapFilter(first, 'accessible')
-  assert.deepEqual(second, ['accessible', 'cctv', 'mine', 'hours', 'diaper', 'bell'])
-  writeMapFilterOrder(storage, second)
-  assert.deepEqual(readMapFilterOrder(storage), second)
-  assert.deepEqual([...values.keys()], [MAP_FILTER_ORDER_KEY])
-  assert.deepEqual(promoteMapFilter(second, 'accessible'), second)
+test('map filters have the same fixed order regardless of selected filters', () => {
+  assert.deepEqual(DEFAULT_MAP_FILTER_ORDER, ['hours', 'mine', 'bell', 'cctv', 'accessible', 'diaper'])
+  const flags = setMapFilter(setMapFilter(0, 'diaper', true), 'bell', true)
+  assert.deepEqual(normalizeMapFilterSelection({ flags, mine: true }), { flags: 12, mine: true })
+  assert.deepEqual(DEFAULT_MAP_FILTER_ORDER, ['hours', 'mine', 'bell', 'cctv', 'accessible', 'diaper'])
 })
 
-test('stale, corrupt or denied browser storage never breaks filtering or drops a button', () => {
-  assert.deepEqual(normalizeMapFilterOrder(['bell', 'bell', 'unknown', 123, {}, null]),
-    ['bell', 'mine', 'hours', 'cctv', 'diaper', 'accessible'])
-  for (const raw of ['{broken', 'null', '{}', 'true'])
-    assert.deepEqual(readMapFilterOrder({ getItem: () => raw }), DEFAULT_MAP_FILTER_ORDER)
+test('selected filters round-trip through browser storage and clear-all remains cleared', () => {
+  const values = new Map()
+  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) }
+  assert.equal(MAP_FILTER_SELECTION_KEY, 'geupddong:map-filter-selection:v1')
+  assert.deepEqual(readMapFilterSelection(storage), { flags: 0, mine: false })
+  const selected = { flags: setAccessibleGender(setMapFilter(0, 'hours', true), 'female', true), mine: true }
+  writeMapFilterSelection(storage, selected)
+  assert.deepEqual(readMapFilterSelection(storage), { flags: 81, mine: true })
+  assert.deepEqual([...values.keys()], [MAP_FILTER_SELECTION_KEY])
+  writeMapFilterSelection(storage, { flags: 0, mine: false })
+  assert.deepEqual(readMapFilterSelection(storage), { flags: 0, mine: false })
+})
+
+test('selection normalization rejects invalid flag values and only accepts boolean mine', () => {
+  for (const value of [undefined, null, true, '31', -1, 128, 2.5, NaN, Infinity, {}, []])
+    assert.deepEqual(normalizeMapFilterSelection({ flags: value, mine: true }), { flags: 0, mine: true })
+  for (const mine of [undefined, null, false, 0, 1, 'true', [], {}])
+    assert.deepEqual(normalizeMapFilterSelection({ flags: 15, mine }), { flags: 15, mine: false })
+  for (const value of [undefined, null, true, 127, 'mine', ['hours', 'mine']])
+    assert.deepEqual(normalizeMapFilterSelection(value), { flags: 0, mine: false })
+  assert.deepEqual(normalizeMapFilterSelection({ flags: 127, mine: true }), { flags: 127, mine: true })
+})
+
+test('restored accessibility gender selections always enable their parent', () => {
+  for (const [flags, normalized] of [[32, 48], [64, 80], [96, 112], [97, 113], [16, 16], [0, 0]]) {
+    assert.deepEqual(normalizeMapFilterSelection({ flags, mine: false }), { flags: normalized, mine: false })
+    assert.deepEqual(readMapFilterSelection({ getItem: () => JSON.stringify({ flags }) }),
+      { flags: normalized, mine: false })
+  }
+})
+
+test('corrupt or denied browser storage never breaks filtering', () => {
+  for (const raw of ['{broken', 'null', '{}', 'true', '[]', '"mine"', '{"flags":-1,"mine":"true"}'])
+    assert.deepEqual(readMapFilterSelection({ getItem: () => raw }), { flags: 0, mine: false })
   const blocked = { getItem() { throw Error('blocked') }, setItem() { throw Error('quota') } }
-  assert.deepEqual(readMapFilterOrder(blocked), DEFAULT_MAP_FILTER_ORDER)
-  assert.doesNotThrow(() => writeMapFilterOrder(blocked, ['accessible']))
+  assert.deepEqual(readMapFilterSelection(blocked), { flags: 0, mine: false })
+  assert.doesNotThrow(() => writeMapFilterSelection(blocked, { flags: 113, mine: true }))
+})
+
+test('legacy order storage cannot become a selected-filter preference', () => {
+  const legacyKey = 'geupddong:map-filter-order:v1'
+  const legacyOrder = JSON.stringify(['diaper', 'cctv', 'mine', 'accessible', 'bell', 'hours'])
+  const values = new Map([[legacyKey, legacyOrder]])
+  const reads = []
+  const storage = {
+    getItem: key => { reads.push(key); return values.get(key) ?? null },
+    setItem: (key, value) => values.set(key, value),
+  }
+  assert.deepEqual(readMapFilterSelection(storage), { flags: 0, mine: false })
+  assert.deepEqual(reads, [MAP_FILTER_SELECTION_KEY])
+  writeMapFilterSelection(storage, { flags: 9, mine: false })
+  assert.deepEqual(readMapFilterSelection(storage), { flags: 9, mine: false })
+  assert.equal(values.get(legacyKey), legacyOrder)
+})
+
+test('selection storage contains only flags and mine, never account IDs, likes or order', () => {
+  let serialized
+  const storage = { setItem: (key, value) => { assert.equal(key, MAP_FILTER_SELECTION_KEY); serialized = value } }
+  writeMapFilterSelection(storage, {
+    flags: 32, mine: true, owner: 'private-account', userId: 'private-account',
+    likedIds: [345, 678], ids: [345, 678], order: ['mine', 'hours'],
+  })
+  assert.deepEqual(JSON.parse(serialized), { flags: 48, mine: true })
+  assert.doesNotMatch(serialized, /private-account|owner|userId|likedIds|345|678|order/)
+})
+
+test('restored mine waits for authentication before binding to the active account', () => {
+  assert.equal(resolveMapFilterOwner(undefined, null, true), undefined)
+  assert.equal(resolveMapFilterOwner(undefined, 'account-a', true), undefined)
+  assert.equal(resolveMapFilterOwner(undefined, 'account-a', false), 'account-a')
+  assert.equal(resolveMapFilterOwner('account-a', 'account-a', false), 'account-a')
+})
+
+test('guest or ineligible authentication clears pending mine and cannot reenable it later', () => {
+  const owner = resolveMapFilterOwner(undefined, null, false)
+  assert.equal(owner, null)
+  assert.equal(resolveMapFilterOwner(owner, 'account-a', false), null)
+  assert.equal(resolveMapFilterOwner(null, 'account-a', true), null)
+})
+
+test('logout, consent loss and account switches discard the former mine owner', () => {
+  assert.equal(resolveMapFilterOwner('account-a', null, false), null)
+  assert.equal(resolveMapFilterOwner('account-a', null, true), null)
+  const switchedOwner = resolveMapFilterOwner('account-a', 'account-b', false)
+  assert.equal(switchedOwner, null)
+  assert.equal(resolveMapFilterOwner(switchedOwner, 'account-b', false), null)
+  assert.equal(resolveMapFilterOwner(switchedOwner, 'account-a', false), null)
+})
+
+test('explicitly clearing a pending mine selection prevents restoration after login', () => {
+  let owner = resolveMapFilterOwner(undefined, null, true)
+  assert.equal(owner, undefined)
+  owner = null
+  assert.equal(resolveMapFilterOwner(owner, 'account-a', false), null)
 })
 
 test('all supported languages label actionable dropdown controls', () => {
