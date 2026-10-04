@@ -53,7 +53,3 @@ export function AccountWorkspace({ view, reportId = null }: { view: AccountView;
     {reviews.modal}
   </AccountWorkspaceFrame>
 }
-
-export function accountView(value?: string): AccountView {
-  return value === 'likes' || value === 'reviews' || value === 'reports' || value === 'settings' || value === 'notifications' ? value : 'home'
-}

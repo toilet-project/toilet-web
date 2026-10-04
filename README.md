@@ -6,22 +6,25 @@
 
 - 운영 주소: [https://geupddong.com](https://geupddong.com)
 - Public API: [https://api.geupddong.com](https://api.geupddong.com)
-- 아키텍처: [docs/architecture-v2.md](https://github.com/toilet-project/docs/blob/main/architecture-v2.md)
+- 아키텍처: [현재 아키텍처](https://github.com/toilet-project/docs/blob/main/architecture/architecture-v4.md)
 
 ## 기능
 
-- 카카오맵 지도와 주소·장소 검색
+- 한국어 카카오 지도, 외국어 네이버 지도와 주소·장소 검색
 - 현재 위치 권한 및 실시간 위치 갱신
 - 지도 범위·줌 레벨 기반 공중화장실 마커/클러스터
 - 마커 상세 카드, 주소 복사, 편의·안전시설, 거리 표시
 - 모바일·데스크톱 반응형 UI
+- 지역별 탐색, 다국어 상세 페이지, 사이트맵·IndexNow
+- 회원 로그인·내 페이지, 제보·리뷰·알림·내 화장실과 공유
+
+기능의 공개 여부는 환경별 빌드·런타임 게이트와 승인된 배포 산출물에 따릅니다.
 
 ## 기술
 
 Next.js 16 App Router · React 19 · TypeScript · Kakao Maps SDK · Cloudflare Workers/OpenNext
 
-> 전환 작업 중인 피처입니다. 운영은 아직 기존 Cloudflare Pages입니다.
-> [전환 계획](docs/nextjs-migration-plan.md) · [회귀 검증 목록](docs/nextjs-regression-checklist.md)
+운영 웹은 Cloudflare Workers에서 실행합니다. [배포·운영 가이드](https://github.com/toilet-project/docs/blob/main/operations/deployment.md)와 [회귀 검증 목록](docs/nextjs-regression-checklist.md)을 참고하세요. [Next.js 전환 계획](docs/nextjs-migration-plan.md)은 전환 당시의 기록입니다.
 
 ## 로컬 실행
 
@@ -57,7 +60,7 @@ OpenNext의 심볼릭 링크 생성 권한 문제로 변환이 실패할 수 있
 - `wrangler.jsonc`는 **미리보기 전용** Worker·캐시 이름이며 운영 route/DNS를 포함하지 않습니다.
 - `NEXT_PUBLIC_*`는 빌드 때 공개 번들에 포함됩니다. REST API 비밀키를 넣지 않습니다.
 - `SITE_INDEXABLE`도 빌드 시 적용됩니다. preview는 noindex, 운영 빌드에서만 true입니다.
-- 현재 R2·갱신 큐 설정은 준비 단계입니다. 자원 생성·배포 전 계정의 유료 플랜/사용량을 확인합니다.
+- R2·D1·Durable Object 캐시를 사용합니다. 미리보기와 운영 설정·자원을 구분하고, 자원 변경 전 현재 사용량과 요금 영향을 확인합니다.
 - 요청당 CPU 1,000ms 제한은 실측 전 보호 설정이지 월 지출 상한이 아닙니다.
 - CI의 Kakao 키는 컴파일 검증용 가짜 값입니다. CI 결과를 실제 지도 검증 또는 배포 파일로 사용하지 않습니다.
-- `deploy:workers`는 원격 변경 명령입니다. 현재 단계에서는 실행하지 않습니다.
+- `deploy:workers`는 원격 변경 명령입니다. 검증된 산출물과 환경별 승인 절차를 확인한 뒤 실행합니다. `main` 병합과 CI 성공만으로 운영 배포 완료로 기록하지 않습니다.
