@@ -1,12 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { fetchMyToiletReports, type ToiletReport, type ToiletReportStatus } from '../api/reports'
+import { useEffect, useRef, useState } from 'react'
+import { type ToiletReport, type ToiletReportStatus } from '../api/reports'
 import { getDisplayAddress } from '../lib/address'
 import { reportReadErrorMessage } from '../lib/report-error'
-import { AuthExpiredError } from '../api/auth'
 import { useDialogFocus } from '../lib/useDialogFocus'
-import { historyDateLabel, historyRange, selectHistory, type HistoryRange } from '../lib/history'
+import { historyDateLabel, historyRange, type HistoryRange } from '../lib/history'
 import { HistoryFilters, HistoryHeading, HistoryMore } from './HistoryControls'
-import { historyScroller, useHistoryWindow } from '../lib/useHistoryWindow'
+import { historyScroller } from '../lib/useHistoryWindow'
+import { useReportHistory } from '../lib/useReportHistory'
 
 import { useLocale, useMessages } from '../i18n/context'
 import type { MessageKey } from '../i18n/messages'
@@ -32,47 +32,23 @@ export function MyReportsPanel({ onClose, onSessionExpired, initialExpandedId = 
   const locale = useLocale(), t = useMessages()
   const formatDate = (value?: string | null) => value ? historyDateLabel(value, locale) : '-'
   const dialog = useDialogFocus(!embedded, onClose)
-  const expireRef = useRef(onSessionExpired)
-  useEffect(() => { expireRef.current = onSessionExpired }, [onSessionExpired])
-  const [reports, setReports] = useState<ToiletReport[]>([])
   const [filter, setFilter] = useState<Filter>('ALL')
   const [range, setRange] = useState<HistoryRange>(() => historyRange(initialExpandedId ? 'all' : '7'))
   const [focusInitial, setFocusInitial] = useState(Boolean(initialExpandedId))
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [requestVersion, setRequestVersion] = useState(0)
   const [expandedId, setExpandedId] = useState<number | null>(initialExpandedId)
   const focusedReportRef = useRef<HTMLElement | null>(null)
   const titleId = embedded ? 'mobile-my-reports-title' : 'my-reports-title'
 
-  useEffect(() => {
-    let active = true
-    void fetchMyToiletReports()
-      .then((items) => { if (active) setReports(items) })
-      .catch((reason: unknown) => {
-        if (!active) return
-        if (reason instanceof AuthExpiredError) { setReports([]); expireRef.current(); return }
-        setError(reportReadErrorMessage(reason, locale))
-      })
-      .finally(() => { if (active) setIsLoading(false) })
-    return () => { active = false }
-  }, [requestVersion, locale])
-
+  const history = useReportHistory(range, filter, focusInitial ? initialExpandedId : null, onSessionExpired)
+  const isLoading = history.loading
+  const firstError = history.error
+  const error = history.error || history.moreError || history.focusError
   const retryReports = () => {
     if (isLoading) return
-    setError(null)
-    setIsLoading(true)
-    setRequestVersion((version) => version + 1)
+    void history.retry()
   }
-
-  const datedReports = useMemo(() => selectHistory(reports, range), [reports, range])
-  const matchingReports = useMemo(
-    () => filter === 'ALL' ? datedReports : datedReports.filter((report) => report.status === filter),
-    [filter, datedReports],
-  )
-  const page = useHistoryWindow(matchingReports.length, JSON.stringify(range) + filter, focusInitial ? matchingReports.findIndex(report => report.id === initialExpandedId) : -1)
-  const visibleReports = matchingReports.slice(0, page.count)
-  const reset = () => { page.reset(); setExpandedId(null); setFocusInitial(false) }
+  const visibleReports = history.focused ? [history.focused, ...history.items.filter(report => report.id !== history.focused?.id)] : history.items
+  const reset = () => { setExpandedId(null); setFocusInitial(false) }
 
   useEffect(() => {
     if (!focusInitial || !initialExpandedId || isLoading || !focusedReportRef.current) return
@@ -80,29 +56,29 @@ export function MyReportsPanel({ onClose, onSessionExpired, initialExpandedId = 
     const heading = embedded ? focusedReportRef.current.closest('.my-reports-panel')?.querySelector<HTMLElement>('.history-heading') : null
     const headingHeight = heading && getComputedStyle(heading).position === 'sticky' ? heading.getBoundingClientRect().height : 0
     if (scroll) scroll.scrollTop += focusedReportRef.current.getBoundingClientRect().top - scroll.getBoundingClientRect().top - headingHeight - 16
-  }, [initialExpandedId, isLoading, focusInitial, embedded])
+  }, [initialExpandedId, isLoading, focusInitial, embedded, history.focused])
 
   return <div className={`history-list ${embedded ? 'my-reports-embedded' : 'my-reports-backdrop'}`} onMouseDown={(event) => { if (!embedded && event.target === event.currentTarget) onClose() }}>
     <section ref={dialog} tabIndex={embedded ? undefined : -1} className="my-reports-panel" role={embedded ? undefined : 'dialog'} aria-modal={embedded ? undefined : true} aria-labelledby={titleId}>
       <HistoryHeading id={titleId} title={t('nav.myReports')} onClose={embedded ? onBack : onClose} />
-      <HistoryFilters embedded={embedded} value={range} onChange={value => { reset(); setRange(value) }} count={matchingReports.length}>
+      <HistoryFilters embedded={embedded} value={range} onChange={value => { reset(); setRange(value) }} count={history.total}>
         <nav className="my-reports-filters" aria-label={t('report.statusFilter')}>
           {filters.map((item) => <button key={item.value} type="button" aria-pressed={filter === item.value} className={filter === item.value ? 'is-active' : ''} onClick={() => { reset(); setFilter(item.value) }}>
-            {t(item.label)}<span>{item.value === 'ALL' ? datedReports.length : datedReports.filter((report) => report.status === item.value).length}</span>
+            {t(item.label)}<span>{history.counts[item.value]}</span>
           </button>)}
         </nav>
       </HistoryFilters>
       <div className="my-reports-content" aria-busy={isLoading}>
         {isLoading && <p className="my-reports-state" role="status">{t('report.loading')}</p>}
-        {error && <div className="my-reports-retry">
+        {Boolean(error) && <div className="my-reports-retry">
           <span className="my-reports-retry-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4M9 16h6M9 12h3" /><circle cx="18" cy="6" r="4" /><path d="M18 4.5v1.8M18 8h.01" /></svg>
           </span>
-          <p className="my-reports-retry-message" role="alert">{error}</p>
-          <button type="button" className="my-reports-retry-button" onClick={retryReports} disabled={isLoading}>{t('common.retry')}</button>
+          <p className="my-reports-retry-message" role="alert">{reportReadErrorMessage(error, locale)}</p>
+          <button type="button" className="my-reports-retry-button" onClick={retryReports} disabled={isLoading || history.loadingMore || history.loadingFocus}>{t('common.retry')}</button>
         </div>}
         {!isLoading && !error && visibleReports.length === 0 && <div className="my-reports-empty history-empty"><strong>{t('report.empty')}</strong><p>{t('report.emptyHint')}</p></div>}
-        {!isLoading && !error && visibleReports.map((report) => {
+        {!isLoading && !firstError && visibleReports.map((report) => {
           const expanded = expandedId === report.id
           const originalTag = locale !== 'ko' ? <small className="original-text-tag">{t('content.original')}</small> : null
           return <article key={report.id} ref={report.id === initialExpandedId ? focusedReportRef : undefined} className={`my-report-item is-${report.status.toLowerCase()}${report.id === initialExpandedId ? ' is-focused' : ''}`}>
@@ -126,7 +102,8 @@ export function MyReportsPanel({ onClose, onSessionExpired, initialExpandedId = 
             </div>}
           </article>
         })}
-        {!isLoading && !error && <HistoryMore count={page.count} total={matchingReports.length} onMore={page.loadMore} />}
+        {history.loadingMore && <p className="my-reports-state" role="status">{t('report.loading')}</p>}
+        {!isLoading && !firstError && <HistoryMore count={history.hasNext ? Math.min(visibleReports.length, Math.max(0, history.total - 1)) : history.total} total={history.total} onMore={() => { void history.loadMore() }} disabled={history.loadingMore} autoLoad={!error} />}
       </div>
     </section>
   </div>

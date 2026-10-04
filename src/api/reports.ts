@@ -2,6 +2,8 @@ import { createApiUrl } from '../config/api'
 import { fetchSessionRead } from './session'
 import { AuthExpiredError } from './auth'
 import type { QuickReportType } from './quickReports'
+import { decodeHistoryReport, decodeReportHistoryPage, reportHistoryPath, type ReportFilter, type ReportHistoryPage } from '../lib/reportHistory'
+import type { HistoryRange } from '../lib/history'
 
 export type CreateToiletReportRequest = {
   toiletId: number
@@ -48,9 +50,20 @@ export async function createToiletReport(request: CreateToiletReportRequest) {
   }
 }
 
-export async function fetchMyToiletReports(): Promise<ToiletReport[]> {
-  const response = await fetchSessionRead(createApiUrl('/api/v1/reports/me'))
+async function readMyReports(path: string): Promise<unknown> {
+  const response = await fetchSessionRead(createApiUrl(path))
   if (response.status === 401) throw new AuthExpiredError('로그인이 만료되었어요. 다시 로그인해 주세요.')
   if (!response.ok) throw new Error('내 제보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
-  return response.json() as Promise<ToiletReport[]>
+  return response.json()
+}
+
+export async function fetchMyToiletReports(range: HistoryRange, filter: ReportFilter, page = 0): Promise<ReportHistoryPage> {
+  return decodeReportHistoryPage(await readMyReports(reportHistoryPath(range, filter, page)), page, filter)
+}
+
+export async function fetchMyToiletReport(id: number): Promise<ToiletReport> {
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Invalid report id')
+  const report = decodeHistoryReport(await readMyReports(`/api/v1/reports/me/${id}`))
+  if (report.id !== id) throw new Error('Invalid report id')
+  return report
 }

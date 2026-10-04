@@ -65,18 +65,18 @@ export function HistoryFilters({ value, onChange, count, countLabel, embedded = 
     {children}
   </div>
 }
-export function HistoryMore({ count, total, onMore, label }: { count: number; total: number; onMore: () => void; label?: string }) {
+export function HistoryMore({ count, total, onMore, label, disabled = false, autoLoad = true }: { count: number; total: number; onMore: () => void; label?: string; disabled?: boolean; autoLoad?: boolean }) {
   const t = useMessages()
   const button = useRef<HTMLButtonElement>(null)
   const latest = useRef(onMore)
   useEffect(() => { latest.current = onMore }, [onMore])
   useEffect(() => {
-    if (count >= total || !button.current || typeof IntersectionObserver === 'undefined') return
+    if (disabled || !autoLoad || count >= total || !button.current || typeof IntersectionObserver === 'undefined') return
     const observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) { observer.disconnect(); latest.current() }
     }, { root: historyScroller(button.current), rootMargin: '0px 0px 100px 0px' })
     observer.observe(button.current)
     return () => observer.disconnect()
-  }, [count, total])
-  return count < total ? <button ref={button} type="button" className="history-more" onClick={onMore}>{label ?? <>{t('common.more')} <span>{count} / {total}</span></>}</button> : total > 0 ? <p className="history-end">{t('history.end')}</p> : null
+  }, [count, total, disabled, autoLoad])
+  return count < total ? <button ref={button} type="button" className="history-more" onClick={onMore} disabled={disabled}>{label ?? <>{t('common.more')} <span>{count} / {total}</span></>}</button> : total > 0 ? <p className="history-end">{t('history.end')}</p> : null
 }
