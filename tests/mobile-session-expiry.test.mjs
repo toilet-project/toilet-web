@@ -5,7 +5,7 @@ const source = file => readFileSync(new URL(`../src/${file}`, import.meta.url), 
 
 test('report and notification 401 share the profile expiration signal', () => {
   for (const file of ['api/reports.ts', 'api/notifications.ts']) assert.match(source(file), /response.status === 401\) throw new AuthExpiredError/)
-  for (const file of ['components/MyReportsPanel.tsx', 'components/NotificationPanel.tsx']) {
+  for (const file of ['lib/useReportHistory.ts', 'components/NotificationPanel.tsx']) {
     assert.match(source(file), /reason instanceof AuthExpiredError/)
     assert.match(source(file), /expireRef.current\(\)/)
   }
