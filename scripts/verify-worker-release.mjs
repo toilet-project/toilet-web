@@ -2,9 +2,9 @@
 import {readFile, access} from 'node:fs/promises'
 import {resolve, join} from 'node:path'
 import {createHash} from 'node:crypto'
-import {validateWorkerConfig, validateReleaseManifest} from './worker-release-policy.mjs'
+import {validateWorkerConfig, validateReleaseManifest, validateGrowthRelease} from './worker-release-policy.mjs'
 const [directory, target, commit, ...extra] = process.argv.slice(2)
-if (!directory || !['preview','production-candidate'].includes(target) || extra.length) throw new Error('Usage: verify-worker-release.mjs DIRECTORY TARGET FULL_COMMIT')
+if (!directory || !['preview','production-candidate'].includes(target) || extra.length > 1 || extra.length && !/^--expect-member-growth=(true|false)$/.test(extra[0])) throw new Error('Usage: verify-worker-release.mjs DIRECTORY TARGET FULL_COMMIT [--expect-member-growth=true|false]')
 const root = resolve(directory)
 const file = target === 'preview' ? 'wrangler.jsonc' : 'wrangler.production.jsonc'
 const opposite = target === 'preview' ? 'wrangler.production.jsonc' : 'wrangler.jsonc'
@@ -19,5 +19,6 @@ await access(join(root,'worker-cache-policy.mjs'))
 for (const path of ['region-markers-worker.ts', 'src/lib/regionMarkerStore.ts', 'src/lib/regionDisplayItems.ts',
   'src/i18n/toiletTranslations.ts', 'data/regions/boundary-assets.json']) await access(join(root, path))
 validateReleaseManifest(manifest,config,createHash('sha256').update(raw).digest('hex'),buildId,commit,target)
+if (extra.length) validateGrowthRelease(manifest, extra[0].endsWith('=true'))
 validateWorkerConfig(config,target,{deploy:true,stage:target==='production-candidate'})
-console.log(JSON.stringify({verified:true,target,commit,buildId,publicRoutes:config.routes.length}))
+console.log(JSON.stringify({verified:true,target,commit,buildId,publicRoutes:config.routes.length,memberGrowth:manifest.features?.memberGrowth ?? null}))

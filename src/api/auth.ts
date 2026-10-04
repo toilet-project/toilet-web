@@ -7,6 +7,7 @@ import { decodePhoto, type PhotoState } from '../lib/profilePhoto'
 import { saveLanguageLoginReturn } from '../i18n/loginReturn'
 import { ENGLISH_UI_ENABLED } from '../i18n/feature'
 import { likedListView } from '../lib/likedListView'
+import { clearGrowth } from '../lib/memberGrowth'
 
 export type AuthProfile = {
   userId: string
@@ -47,7 +48,7 @@ export type PolicyConsentStatus = {
 export async function getCurrentUser(): Promise<AuthProfile | null> {
   const response = await fetchSessionRead(createApiUrl('/api/v1/auth/me'))
 
-  if (response.status === 401) { likedListView.clear(); return null }
+  if (response.status === 401) { likedListView.clear(); clearGrowth(); return null }
   if (!response.ok) throw new Error('로그인 상태를 확인하지 못했습니다.')
   const profile = await response.json() as AuthProfile & { profilePhoto?: unknown }
   if (profile.status === 'ACTIVE' && !profile.consentRequired) likedListView.identify(profile.userId)
@@ -68,6 +69,7 @@ export async function logout() {
   })
   if (!response.ok) throw new Error('로그아웃하지 못했습니다. 잠시 후 다시 시도해 주세요.')
   likedListView.clear()
+  clearGrowth()
 }
 
 export class AuthExpiredError extends Error {}

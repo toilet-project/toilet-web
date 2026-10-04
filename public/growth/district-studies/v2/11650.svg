@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="서울 서초구 · 예술의전당 오페라하우스"><title>서울 서초구 · 예술의전당 오페라하우스</title><circle cx="64" cy="64" r="60" fill="#EEE7F5" stroke="#ADC3B3" stroke-width="2.5" /><g transform="translate(14 14)"><g id="motif" fill="none" stroke="#153B2B" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M20 54H80V82Q50 92 20 82Z" fill="#E4D0B1" />
+    <path d="M25 59Q50 66 75 59V73Q50 81 25 73Z" fill="#B8D0D1" />
+    <path d="M37 63V76M50 65V78M63 63V76" />
+    <path d="M9 49C19 35 81 35 91 49C86 64 14 64 9 49Z" fill="#657E84" />
+    <path d="M30 43L34 18Q50 11 66 18L70 43Q50 51 30 43Z" fill="#8CA8AC" />
+    <path d="M34 18Q50 10 66 18Q50 27 34 18Z" fill="#B8D0D1" />
+  </g>
+</g></svg>

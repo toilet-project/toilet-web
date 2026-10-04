@@ -20,6 +20,7 @@ jobs:
       REVIEW_API_ENABLED: 'true'
       TOILET_ENGAGEMENT_ENABLED: 'true'
       ENGLISH_UI_PREVIEW: 'true'
+      NEXT_PUBLIC_GROWTH_ENABLED: 'false'
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.0.0
@@ -59,6 +60,7 @@ jobs:
       TOILET_ENGAGEMENT_ENABLED: 'true'
       ENGLISH_UI_PREVIEW: 'true'
       NEXT_PUBLIC_PROFILE_PHOTO_ENABLED: 'true'
+      NEXT_PUBLIC_GROWTH_ENABLED: 'true'
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.0.0
@@ -100,6 +102,7 @@ jobs:
       MAP_FILTERS_RELEASE: 'true'
       # Candidate validation only; this workflow never deploys or activates the feature.
       NEXT_PUBLIC_PROFILE_PHOTO_ENABLED: 'true'
+      NEXT_PUBLIC_GROWTH_ENABLED: 'true'
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v7.0.0
