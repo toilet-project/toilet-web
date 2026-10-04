@@ -36,6 +36,8 @@ test('blocked session storage keeps one entry event and session ID until inactiv
     assert.deepEqual(events.slice(4).map(({ event }) => event), ['session_start', 'page_view'])
     assert.notEqual(events[0].sessionId, events[4].sessionId)
     assert.equal(events[4].path, '/account')
+    assert.equal(events[4].entryNavigation, 'CONTINUATION')
+    assert.equal(events[4].acquisitionEvidence, 'NO_REFERRER')
   } finally {
     Date.now = originalNow
     globalThis.window = originalWindow

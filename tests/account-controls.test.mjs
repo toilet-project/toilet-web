@@ -5,7 +5,7 @@ const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 
 test('compact account controls are scoped to account pages, not the shared inbox or map', async () => {
   const [mobile, desktop, layout, css] = await Promise.all([
-    read('src/components/MobileNavigation.tsx'), read('src/components/AccountWorkspaceFrame.tsx'),
+    read('src/components/MobilePage.tsx'), read('src/components/AccountWorkspaceFrame.tsx'),
     read('src/app/layout.tsx'), read('src/components/account-controls.css'),
   ])
   assert.ok(mobile.includes("tab === 'account' ? ' account-controls' : ''"))

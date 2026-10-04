@@ -25,8 +25,14 @@ export function AccountWorkspace({ view, reportId = null }: { view: AccountView;
   const base = localizedPublicPath('/account', locale)!
   const home = localizedPublicPath('/', locale)!
   useEffect(() => {
-    if (window.matchMedia(DESKTOP_LAYOUT_QUERY).matches) return
-    router.replace(`${home}?tab=${view === 'notifications' ? 'notifications' : 'account'}${view !== 'home' && view !== 'notifications' ? `&view=${view}` : ''}`)
+    const desktop = window.matchMedia(DESKTOP_LAYOUT_QUERY)
+    const redirectMobile = () => {
+      if (desktop.matches) return
+      router.replace(`${home}?tab=${view === 'notifications' ? 'notifications' : 'account'}${view !== 'home' && view !== 'notifications' ? `&view=${view}` : ''}`)
+    }
+    redirectMobile()
+    desktop.addEventListener('change', redirectMobile)
+    return () => desktop.removeEventListener('change', redirectMobile)
   }, [home, view, router])
   useEffect(() => { let active = true; void getCurrentUser().then(value => { if (active) setProfile(value) }).catch(() => undefined).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [])
   const reviews = useReviews(profile?.status === 'ACTIVE' && !profile.consentRequired ? profile.userId : null, {
@@ -55,8 +61,4 @@ export function AccountWorkspace({ view, reportId = null }: { view: AccountView;
       {selectedView === 'settings' && <AccountDialog embedded profile={profile} onClose={goHome} onWithdrawn={message => { setWithdrawn(message); setProfile(null) }} />}
     {reviews.modal}
   </AccountWorkspaceFrame>
-}
-
-export function accountView(value?: string): AccountView {
-  return value === 'likes' || value === 'reviews' || value === 'reports' || value === 'settings' || value === 'notifications' ? value : 'home'
 }

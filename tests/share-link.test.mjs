@@ -13,11 +13,10 @@ test('shared links preserve all languages and carry only fixed referral categori
       assert.equal(link.searchParams.get('utm_source'), `${method}_link`)
       assert.equal(link.searchParams.get('utm_medium'), 'referral')
       assert.equal(link.hash, '')
-      // The deployed API already accepts UTM fields. Entry-evidence collection
-      // remains in its separate API/V36 release; sharing does not depend on it.
       const acquisition = buildAnalyticsAcquisition(link.href, '')
       assert.equal(acquisition.utmSource, `${method}_link`)
       assert.equal(acquisition.utmMedium, 'referral')
+      assert.equal(acquisition.acquisitionEvidence, 'UTM')
     }
   }
   for (const id of [0, -1, NaN, 1.2, Infinity, Number.MAX_SAFE_INTEGER + 1]) assert.throws(() => buildFacilityShareLink(id, 'ko', 'copy'))
