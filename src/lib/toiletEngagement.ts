@@ -1,5 +1,8 @@
 export type EngagementCounts = { toiletId: number; views: number; likes: number }
 export type LikeState = { toiletId: number; liked: boolean; likes: number }
+export type LikedToilet = { id: number; name: string; toiletType: string; latitude: number | null; longitude: number | null; likedAt: string; translations: Record<string, string> }
+export type LikedToiletPage = { items: LikedToilet[]; total: number; page: number; size: number }
+export type LikeSort = 'newest' | 'oldest' | 'distance'
 export type ViewResult = { counted: boolean; counts: EngagementCounts; nextEligibleAt: string | null }
 const object = (v: unknown): Record<string, unknown> => v !== null && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {}
 const count = (v: unknown): v is number => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0
@@ -17,6 +20,21 @@ export function decodeLike(value: unknown, toilet: number): LikeState {
   const r = object(value)
   if (r.toiletId !== toilet || typeof r.liked !== 'boolean' || !count(r.likes)) throw new EngagementError(502, 'INVALID_RESPONSE')
   return { toiletId: toilet, liked: r.liked, likes: r.likes }
+}
+export function decodeLikedToilets(value: unknown): LikedToiletPage {
+  const data = object(value)
+  if (!Array.isArray(data.items) || !count(data.total) || !count(data.page) || !count(data.size) || data.size > 50 || data.items.length > data.size)
+    throw new EngagementError(502, 'INVALID_RESPONSE')
+  const items = data.items.map((value: unknown) => {
+    const row = object(value), translations = object(row.translations)
+    if (!count(row.id) || row.id === 0 || typeof row.name !== 'string' || typeof row.toiletType !== 'string'
+      || (row.latitude !== null && typeof row.latitude !== 'number') || (row.longitude !== null && typeof row.longitude !== 'number')
+      || typeof row.likedAt !== 'string' || !Object.values(translations).every(name => typeof name === 'string'))
+      throw new EngagementError(502, 'INVALID_RESPONSE')
+    return { id: row.id, name: row.name, toiletType: row.toiletType, latitude: row.latitude, longitude: row.longitude,
+      likedAt: row.likedAt, translations: translations as Record<string, string> } as LikedToilet
+  })
+  return { items, total: data.total, page: data.page, size: data.size }
 }
 export function createEngagementApi(base: string, readSession: (url: string) => Promise<Response>, request: typeof fetch = fetch) {
   const url = (path: string) => `${base.replace(/\/$/, '')}${path}`
@@ -39,6 +57,11 @@ export function createEngagementApi(base: string, readSession: (url: string) => 
       return { counted: data.counted, counts: decodeCounts(data.counts, id), nextEligibleAt: data.nextEligibleAt as string | null }
     },
     async mine(id: number) { return decodeLike(await json(await readSession(ownPath(id))), id) },
+    async listLikes(sort: LikeSort, page = 0, location?: { latitude: number; longitude: number }) {
+      const query = new URLSearchParams({ sort, page: String(page), size: '30' })
+      if (sort === 'distance' && location) { query.set('latitude', String(location.latitude)); query.set('longitude', String(location.longitude)) }
+      return decodeLikedToilets(await json(await readSession(url(`/api/v1/engagement/likes?${query}`))))
+    },
     async setLike(id: number, liked: boolean) {
       // PUT and DELETE express desired state. A retried request never toggles a like twice.
       return decodeLike(await json(await request(ownPath(id), { method: liked ? 'PUT' : 'DELETE', credentials: 'include', cache: 'no-store', signal: AbortSignal.timeout(10000) })), id)

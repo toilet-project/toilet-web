@@ -10,6 +10,7 @@ import { historyScroller, useHistoryWindow } from '../lib/useHistoryWindow'
 
 import { useLocale, useMessages } from '../i18n/context'
 import type { MessageKey } from '../i18n/messages'
+import { quickReportMessage } from '../i18n/quickReportMessages'
 
 type Filter = 'ALL' | ToiletReportStatus
 
@@ -106,17 +107,18 @@ export function MyReportsPanel({ onClose, onSessionExpired, initialExpandedId = 
           const originalTag = locale !== 'ko' ? <small className="original-text-tag">{t('content.original')}</small> : null
           return <article key={report.id} ref={report.id === initialExpandedId ? focusedReportRef : undefined} className={`my-report-item is-${report.status.toLowerCase()}${report.id === initialExpandedId ? ' is-focused' : ''}`}>
             <button type="button" className="my-report-summary" aria-expanded={expanded} onClick={() => setExpandedId(expanded ? null : report.id)}>
-              <span className="my-report-type">{t(reportTypeLabel(report.reportType))}</span>
-              <strong>{report.toiletName || t('report.toilet', { id: report.toiletId })}</strong>
+              <span className="my-report-type">{report.reportType === 'FACILITY_MISSING' ? quickReportMessage(locale, 'missing') : report.reportType === 'TEMPORARILY_CLOSED' ? quickReportMessage(locale, 'closed') : report.reportType === 'NEW_FACILITY' ? quickReportMessage(locale, 'new') : t(reportTypeLabel(report.reportType))}</span>
+              <strong>{report.toiletName || (report.toiletId ? t('report.toilet', { id: report.toiletId }) : quickReportMessage(locale, 'new'))}</strong>
               <span className={`my-report-status is-${report.status.toLowerCase()}`}>{t(statusLabel[report.status])}</span>
               <time>{formatDate(report.createdAt)}</time>
               <i aria-hidden="true" />
             </button>
             {expanded && <div className="my-report-detail">
               <dl>
-                {report.reportType === 'COORDINATE_CORRECTION' && <div><dt>{t('report.address')}</dt><dd>{getDisplayAddress(report.roadAddress, report.jibunAddress) && originalTag}{getDisplayAddress(report.roadAddress, report.jibunAddress) || t('map.noAddress')}</dd></div>}
+                {['COORDINATE_CORRECTION', 'NEW_FACILITY', 'FACILITY_MISSING'].includes(report.reportType) && <div><dt>{t('report.address')}</dt><dd>{getDisplayAddress(report.roadAddress, report.jibunAddress) && originalTag}{getDisplayAddress(report.roadAddress, report.jibunAddress) || t('map.noAddress')}</dd></div>}
                 {report.reportType === 'OPEN_TIME_CORRECTION' && <div><dt>{t('report.openTime')}</dt><dd>{report.openTime && originalTag}{report.openTime || t('common.noInfo')}</dd></div>}
-                <div><dt>{t('report.reason')}</dt><dd>{report.reason && originalTag}{report.reason}</dd></div>
+                {report.reason && <div><dt>{t('report.reason')}</dt><dd>{report.reason && originalTag}{report.reason}</dd></div>}
+                {report.observedAt && <div><dt>{quickReportMessage(locale, 'observed')}</dt><dd>{formatDate(report.observedAt)} · KST</dd></div>}
                 {report.reviewedAt && <div><dt>{t('report.reviewedAt')}</dt><dd>{formatDate(report.reviewedAt)}</dd></div>}
               </dl>
               {report.status === 'PENDING' && <p className="my-report-review-note is-pending">{t('report.reviewing')}</p>}

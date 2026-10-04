@@ -11,8 +11,8 @@ import { PUBLIC_REVIEW_API_ENABLED } from '../lib/publicReviewPrefetch'
 const api = createReviewApi({ url: createApiUrl, read: url => fetch(url, { credentials: 'omit', cache: 'no-store', signal: AbortSignal.timeout(10_000) }) })
 const summaries = createListReviewCache(id => api.summary(id))
 
-export function ToiletListItem({ id, name, type, count, distance, active, onSelect }: {
-  id: number; name: string; type?: string; count: number; distance: string; active: boolean; onSelect: () => void
+export function ToiletListItem({ id, name, type, count, distance, active, onSelect, distanceBelow = false }: {
+  id: number; name: string; type?: string; count: number; distance: string; active: boolean; onSelect: () => void; distanceBelow?: boolean
 }) {
   const t = useMessages(), locale = useLocale(), root = useRef<HTMLButtonElement>(null)
   const [summary, setSummary] = useState<{ id: number; value: ReviewSummary } | null>(null)
@@ -34,7 +34,7 @@ export function ToiletListItem({ id, name, type, count, distance, active, onSele
   const rating = review?.averageRating ?? review?.rating
   const tone = type?.includes('개방') ? 'is-open' : type?.includes('제보') ? 'is-reported' : 'is-public'
   return <button ref={root} type="button" className={`toilet-list-item${active ? ' is-selected' : ''}`} onClick={onSelect} aria-pressed={active}>
-    <span className="toilet-list-item-heading"><strong>{name || t('map.unnamed')}</strong><span className="toilet-list-distance" aria-label={`${t('map.distance')} ${distance}`}>{distance}</span></span>
+    <span className="toilet-list-item-heading"><strong>{name || t('map.unnamed')}</strong>{!distanceBelow && <span className="toilet-list-distance" aria-label={`${t('map.distance')} ${distance}`}>{distance}</span>}</span>
     <span className="toilet-list-item-meta">
       <span className={`toilet-list-type ${tone}`}>{toiletTypeLabel(type || '공중화장실', locale)}</span>
       {count > 1 ? <span className="toilet-list-group-count">{t('map.facilities', { count })}</span> : review && <span className={`toilet-list-rating${review.count && rating != null ? ' has-rating' : ''}`} aria-label={rating != null && review.count ? t('public.summary', { rating: rating.toFixed(1), count: review.count }) : t('public.count', { count: review.count })}>
@@ -42,5 +42,6 @@ export function ToiletListItem({ id, name, type, count, distance, active, onSele
         <span>{t('public.count', { count: review.count.toLocaleString(locale) })}</span>
       </span>}
     </span>
+    {distanceBelow && <span className="toilet-list-distance is-below" aria-label={`${t('map.distance')} ${distance}`}>{distance}</span>}
   </button>
 }

@@ -42,9 +42,11 @@ jobs:
       SITE_INDEXABLE: ${{ matrix.indexable }}
       ENGLISH_UI_PREVIEW: ${{ matrix.target == 'preview' && 'true' || 'false' }}
       ENGLISH_UI_RELEASE: ${{ matrix.target == 'production-candidate' && 'true' || 'false' }}
+      MAP_FILTERS_RELEASE: ${{ matrix.target == 'production-candidate' && 'true' || 'false' }}
       REVIEW_API_ENABLED: ${{ matrix.review_api_enabled }}
       REVIEW_PRODUCTION_APPROVED: ${{ matrix.review_production_approved }}
       TOILET_ENGAGEMENT_ENABLED: ${{ matrix.target == 'production-candidate' && 'true' || 'false' }}
+      REPORT_REDESIGN_RELEASE: ${{ matrix.target == 'production-candidate' && 'true' || 'false' }}
       NEXT_PUBLIC_PROFILE_PHOTO_ENABLED: ${{ matrix.profile_photo_enabled }}
       NEXT_DEPLOYMENT_ID: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.target }}
     steps:
@@ -76,7 +78,7 @@ jobs:
       - name: Package selected candidate runtime
         # Include ONLY the selected config: an indexable candidate must never
         # fall back to preview's default wrangler.jsonc when extracted.
-        run: tar -czf workers-${{ matrix.target }}.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs region-markers-worker.ts src/lib/regionMarkerStore.ts src/lib/regionDisplayItems.ts src/i18n/toiletTranslations.ts data/regions/boundary-assets.json review-verification-proxy.mjs place-search-worker.mjs map-provider-worker.mjs package.json pnpm-lock.yaml pnpm-workspace.yaml ${{ matrix.config }} worker-release-manifest.json open-next.config.ts detail-incremental-cache.ts detail-cache-tags.ts next.config.ts .next/BUILD_ID
+        run: tar -czf workers-${{ matrix.target }}.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs region-markers-worker.ts src/lib/regionMarkerStore.ts src/lib/regionDisplayItems.ts src/i18n/toiletTranslations.ts data/regions/boundary-assets.json review-verification-proxy.mjs report-preview-proxy.mjs place-search-worker.mjs map-provider-worker.mjs package.json pnpm-lock.yaml pnpm-workspace.yaml ${{ matrix.config }} worker-release-manifest.json open-next.config.ts detail-incremental-cache.ts detail-cache-tags.ts next.config.ts .next/BUILD_ID
       - uses: actions/upload-artifact@v4
         with:
           name: workers-${{ matrix.target }}-${{ github.sha }}

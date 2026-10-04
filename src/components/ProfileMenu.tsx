@@ -7,6 +7,7 @@ import { OwnPhoto } from './ProfilePhoto'
 import { useLocale, useMessages } from '../i18n/context'
 import { localizedPublicPath } from '../i18n/routes'
 import { HeaderIcon } from './HeaderIcon'
+const LIKES_ENABLED = process.env.NEXT_PUBLIC_TOILET_ENGAGEMENT_ENABLED === 'true'
 
 export function ProfileMenu({ profile, onLogout }: { profile: AuthProfile; onLogout: () => void }) {
   const t = useMessages(), locale = useLocale()
@@ -29,6 +30,7 @@ export function ProfileMenu({ profile, onLogout }: { profile: AuthProfile; onLog
     </button>
     {open && <div className="profile-menu-panel" role="menu">
       <div className="profile-menu-heading"><strong>{profile.displayName || t('account.defaultName')}</strong></div>
+      {LIKES_ENABLED && <Link role="menuitem" href={account('likes')} onClick={() => setOpen(false)}><HeaderIcon name="likes" /><span>{t('nav.myLikes')}</span><i aria-hidden="true">›</i></Link>}
       <Link role="menuitem" href={account('reviews')} onClick={() => setOpen(false)}><HeaderIcon name="reviews" /><span>{t('nav.myReviews')}</span><i aria-hidden="true">›</i></Link>
       <Link role="menuitem" href={account('reports')} onClick={() => setOpen(false)}><HeaderIcon name="reports" /><span>{t('nav.myReports')}</span><i aria-hidden="true">›</i></Link>
       <Link role="menuitem" href={account('settings')} onClick={() => setOpen(false)}><HeaderIcon name="account" /><span>{t('auth.account')}</span><i aria-hidden="true">›</i></Link>

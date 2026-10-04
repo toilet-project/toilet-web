@@ -3,9 +3,10 @@
 import type { ReactNode } from 'react'
 import Link from 'next/link'
 
-export function ToiletCardHeader({ children, report, closeLabel, onClose, closeHref }: {
+export function ToiletCardHeader({ children, report, share, closeLabel, onClose, closeHref }: {
   children: ReactNode
   report?: ReactNode
+  share?: ReactNode
   closeLabel: string
   onClose?: () => void
   closeHref?: string
@@ -15,6 +16,7 @@ export function ToiletCardHeader({ children, report, closeLabel, onClose, closeH
     <div className="card-label-row">{children}</div>
     <div className="toilet-card-header-actions">
       {report}
+      {share}
       {closeHref ? <Link href={closeHref} className="close-button" aria-label={closeLabel}>{icon}</Link>
         : <button type="button" className="close-button" onClick={onClose} aria-label={closeLabel}>{icon}</button>}
     </div>

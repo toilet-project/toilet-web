@@ -90,8 +90,8 @@
 .history-empty strong { color: #425e4c; font-size: 14px; }
 .history-empty p { margin: 8px 0 0; font-size: 12px; line-height: 1.6; }
 /* Compact report/review controls without changing the shared inbox layout. */
-.history-list:is(.my-reports-embedded,.my-reports-backdrop,.history-reviews) .history-title-row { min-height: 40px; }
-.history-list:is(.my-reports-embedded,.my-reports-backdrop,.history-reviews) .history-close { flex-basis: 40px; height: 40px; border-radius: 10px; }
+.history-list:is(.my-reports-embedded,.my-reports-backdrop,.history-reviews,.liked-toilets) .history-title-row { min-height: 40px; }
+.history-list:is(.my-reports-embedded,.my-reports-backdrop,.history-reviews,.liked-toilets) .history-close { flex-basis: 40px; height: 40px; border-radius: 10px; }
 .history-list:is(.my-reports-embedded,.my-reports-backdrop,.history-reviews) .history-periods button { min-height: 40px; padding-block: 7px; border-radius: 10px; }
 .history-list:is(.my-reports-embedded,.my-reports-backdrop,.history-reviews) .history-date-toggle { width: 40px; flex-basis: 40px; padding: 0; }
 .history-list:is(.my-reports-embedded,.my-reports-backdrop,.history-reviews) .history-more { min-height: 40px; border-radius: 10px; }
@@ -99,7 +99,7 @@
 .history-reviews .history-review-actions .history-review-remove { flex-basis: 40px; width: 40px; height: 40px; padding: 0; }
 @media(max-width:767px), (max-width:1024px) and (max-height:500px) and (pointer:coarse) {
   .mobile-page.is-history-page { --history-page-gutter: 24px; --history-heading-height: 84px; padding: 0 var(--history-page-gutter) 28px; overflow-anchor: none; }
-  .mobile-page :is(.my-reports-embedded,.history-reviews,.account-embedded) .history-heading { position: sticky; top: 0; z-index: 7; box-sizing: border-box; min-height: var(--history-heading-height); margin: 0 calc(var(--history-page-gutter) * -1); padding: 24px var(--history-page-gutter) 16px; background: #fff; box-shadow: 0 1px 0 rgb(224 233 227 / 88%); }
+  .mobile-page :is(.my-reports-embedded,.history-reviews,.liked-toilets,.account-embedded) .history-heading { position: sticky; top: 0; z-index: 7; box-sizing: border-box; min-height: var(--history-heading-height); margin: 0 calc(var(--history-page-gutter) * -1); padding: 24px var(--history-page-gutter) 16px; background: #fff; box-shadow: 0 1px 0 rgb(224 233 227 / 88%); }
   .mobile-page .history-list .history-title-row, .mobile-page .account-embedded .history-title-row { min-height: 44px; margin: 0; }
   .mobile-page .history-filter-shell.is-embedded { margin: 0 calc(var(--history-page-gutter) * -1) 16px; padding: 14px var(--history-page-gutter) 16px; background: #fff; border-bottom: 1px solid #e7ede9; }
   .mobile-page .history-filter-shell.is-embedded .my-reports-filters { margin-top: 12px; padding-bottom: 0; }
