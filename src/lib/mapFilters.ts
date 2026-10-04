@@ -4,7 +4,6 @@ import { buildClusterBins, clusterBinsInBounds, validClusterBounds } from './map
 
 // Public, affirmative attributes only. Unknown values never satisfy a condition.
 export const MAP_FILTER_SCHEMA = 3
-export const MAP_FILTER_FLAGS = { open24h: 1, cctv: 2, diaper: 4, emergencyBell: 8, accessible: 16, accessibleMale: 32, accessibleFemale: 64 } as const
 export const MAX_MAP_FILTER_LIKED_IDS = 10_000
 export type MapFilterPoint = [id: number, latitude: number, longitude: number, flags: number]
 export type MapFilterInput = { bounds: MapBounds; zoom: number; includeList: boolean;
