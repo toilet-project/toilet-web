@@ -20,9 +20,9 @@ test('private panels remount per owner and late notification counters are guarde
   assert.match(menu, /reason instanceof AuthExpiredError/)
   assert.match(menu, /expire.current\(\)/)
   assert.match(app, /currentUserRef.current === owner/)
-  assert.match(source('components/MobileNavigation.tsx'), /<NotificationPanel key=\{profile.userId\}/)
-  assert.ok(source('components/MobileNavigation.tsx').includes('account-reports-${profile.userId}'))
-  assert.match(source('components/MobileNavigation.tsx'), /if \(!active.current\) return/)
+  assert.match(source('components/MobilePage.tsx'), /<NotificationPanel key=\{profile.userId\}/)
+  assert.ok(source('components/MobilePage.tsx').includes('account-reports-${profile.userId}'))
+  assert.match(source('components/MobilePage.tsx'), /if \(!active.current\) return/)
 })
 test('expired session clears private details and retains only a navigation intent', () => {
   const app = source('App.tsx')

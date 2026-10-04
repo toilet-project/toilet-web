@@ -28,7 +28,7 @@ import { message } from './i18n/messages'
 import { ENGLISH_UI_ENABLED } from './i18n/feature'
 import { isLanguageOnlyNavigation, localizedPublicPath } from './i18n/routes'
 import type { Locale } from './i18n/locale'
-import { MobileNavigation, MobilePage, type MobileTab, type MobileAccountView } from './components/MobileNavigation'
+import { MobileNavigation, type MobileTab, type MobileAccountView } from './components/MobileNavigation'
 import { AppUpdateNotice } from './components/AppUpdateNotice'
 import { readMapResume, saveMapResume, MAP_RESUME_KEY } from './lib/appUpdate'
 import { MAP_NAVIGATION_EVENT, mapNavigationPath } from './lib/navigationCache'
@@ -45,15 +45,12 @@ import {
   type MapInstance,
   type MapOverlay,
 } from './lib/mapProvider'
-import { searchPlaces } from './lib/placeSearch'
+import { usePlaceSearch } from './lib/usePlaceSearch'
+import { MobilePage, ToiletReportModal, QuickReportModal, MyReportsPanel, AccountDialog } from './components/MapLazyPanels'
 import type { PlaceSearchResult } from './lib/placeSearchTypes'
-import { ToiletReportModal } from './components/ToiletReportModal'
-import { QuickReportModal } from './components/QuickReportModal'
 import { QUICK_REPORTS_ENABLED } from './api/quickReports'
-import { MyReportsPanel } from './components/MyReportsPanel'
 import { NotificationMenu } from './components/NotificationMenu'
 import { PolicyConsentModal } from './components/PolicyConsentModal'
-import { AccountDialog } from './components/AccountDialog'
 import { AccountRecoveryDialog } from './components/AccountRecoveryDialog'
 import { fetchUnreadNotificationCount } from './api/notifications'
 import { getDisplayAddress } from './lib/address'
@@ -80,7 +77,7 @@ import { BrowserLocationError, requestBrowserLocation } from './lib/browserLocat
 import { warmOwnPhoto } from './lib/warmOwnPhoto'
 import { refreshSignupPhoto } from './lib/signupPhotoWarm'
 import { prefetchPublicReviews, PUBLIC_REVIEW_API_ENABLED } from './lib/publicReviewPrefetch'
-import { resultCountBucket, trackEvent } from './lib/analytics'
+import { trackEvent } from './lib/analytics'
 import { localizeToiletDetail, localizeToiletMapItem, localizeToiletMapSearch } from './i18n/toiletTranslations'
 const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
@@ -237,7 +234,6 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const [cardHandleGesture] = useState(createCardHandleGesture)
   const [referenceRequestGate] = useState(createReferenceRequestGate)
   const cardScrollRef = useRef<HTMLDivElement>(null)
-  const placeSearchRequestRef = useRef(0)
   const placeSearchInputRef = useRef<HTMLInputElement>(null)
   const mapLoadTimerRef = useRef<number | undefined>(undefined)
   const [isLoading, setIsLoading] = useState(true)
@@ -313,19 +309,11 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     currentLocation: Coordinates | null
   } | null>(null)
   const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.matchMedia(DESKTOP_LAYOUT_QUERY).matches)
-  const [placeSearchKeyword, setPlaceSearchKeyword] = useState('')
-  const [placeSearchResults, setPlaceSearchResults] = useState<PlaceSearchResult[]>([])
-  const [placeSearchMessage, setPlaceSearchMessage] = useState<string | null>(null)
-  const [isPlaceSearching, setIsPlaceSearching] = useState(false)
-  const [activePlaceSearchIndex, setActivePlaceSearchIndex] = useState(-1)
-  const [isPlaceSearchFocused, setIsPlaceSearchFocused] = useState(false)
-  useEffect(() => {
-    const query = new URLSearchParams(window.location.search).get('q')?.trim()
-    if (query && query.length >= 2 && query.length <= 100) {
-      setPlaceSearchKeyword(query)
-      setIsPlaceSearchFocused(true)
-    }
-  }, [])
+  const {
+    placeSearchKeyword, placeSearchResults, placeSearchMessage, isPlaceSearching,
+    activePlaceSearchIndex, setActivePlaceSearchIndex, setIsPlaceSearchFocused,
+    handlePlaceSearchChange, handlePlaceSearchFocus, selectPlaceSearch, isPlaceSearchResultsOpen,
+  } = usePlaceSearch(locale)
   const [isMobileAreaListOpen, setIsMobileAreaListOpen] = useState(false)
   const isMobileAreaListVisible = isMobileAreaListOpen && !route.detail
   const [mobileAreaToilets, setMobileAreaToilets] = useState<ToiletMapItem[] | null>(null)
@@ -806,46 +794,6 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       return () => window.cancelAnimationFrame(frame)
     }
   }, [route, resetDetailCard, detailCache, testToilet])
-
-  useEffect(() => {
-    const keyword = placeSearchKeyword.trim()
-    const requestSequence = ++placeSearchRequestRef.current
-    const controller = new AbortController()
-
-    if (keyword.length < 2) {
-      return
-    }
-
-    const timer = window.setTimeout(async () => {
-      setIsPlaceSearching(true)
-      setPlaceSearchMessage(null)
-      try {
-        const places = await searchPlaces(keyword, locale, controller.signal)
-        if (requestSequence !== placeSearchRequestRef.current) return
-        setPlaceSearchResults(places)
-        setPlaceSearchMessage(places.length === 0 ? '검색 결과가 없습니다.' : null)
-        trackEvent('toilet_search', {
-          query_kind: /\d|로|길/.test(keyword) ? 'address' : 'place',
-          success: true,
-          result_count_bucket: resultCountBucket(places.length),
-        })
-      } catch {
-        if (controller.signal.aborted) return
-        if (requestSequence === placeSearchRequestRef.current) {
-          setPlaceSearchResults([])
-          setPlaceSearchMessage('장소를 검색하지 못했습니다. 잠시 후 다시 시도해 주세요.')
-          trackEvent('toilet_search', { query_kind: 'unknown', success: false, result_count_bucket: '0' })
-        }
-      } finally {
-        if (requestSequence === placeSearchRequestRef.current) setIsPlaceSearching(false)
-      }
-    }, 300)
-
-    return () => {
-      window.clearTimeout(timer)
-      controller.abort()
-    }
-  }, [placeSearchKeyword, locale])
 
   useLayoutEffect(() => {
     if (!isMapReady || !selectedToilet || !placeCardRef.current) return
@@ -1360,14 +1308,9 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     searchLocationOverlayRef.current.setMap(map)
     map.setLevel(4)
     map.panTo(position)
-    setPlaceSearchKeyword(place.name)
-    setPlaceSearchResults([])
-    setPlaceSearchMessage(null)
-    setActivePlaceSearchIndex(-1)
-    setIsPlaceSearching(false)
-    setIsPlaceSearchFocused(false)
+    selectPlaceSearch(place)
     placeSearchInputRef.current?.blur()
-  }, [closeDetailCard, placeSearchResults, updateReferencePoint])
+  }, [closeDetailCard, placeSearchResults, selectPlaceSearch, updateReferencePoint])
 
   const handlePlaceSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'ArrowDown' && placeSearchResults.length > 0) {
@@ -1386,33 +1329,10 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       return
     }
     if (event.key === 'Escape') {
-      setPlaceSearchResults([])
-      setPlaceSearchMessage(null)
-      setActivePlaceSearchIndex(-1)
       setIsPlaceSearchFocused(false)
       event.currentTarget.blur()
     }
   }
-
-  const handlePlaceSearchChange = (keyword: string) => {
-    setPlaceSearchKeyword(keyword)
-    setActivePlaceSearchIndex(-1)
-    setPlaceSearchResults([])
-    setPlaceSearchMessage(null)
-    setIsPlaceSearching(false)
-  }
-
-  const handlePlaceSearchFocus = () => {
-    placeSearchRequestRef.current += 1
-    setPlaceSearchKeyword('')
-    setPlaceSearchResults([])
-    setPlaceSearchMessage(null)
-    setIsPlaceSearching(false)
-    setActivePlaceSearchIndex(-1)
-    setIsPlaceSearchFocused(true)
-  }
-
-  const isPlaceSearchResultsOpen = isPlaceSearchFocused && placeSearchKeyword.trim().length >= 2
 
   useEffect(() => {
     let disposed = false
@@ -1654,7 +1574,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     if (point) selectToilet(item.id, item.name, point.latitude, point.longitude, false, item.toiletType)
     else { resetDetailCard(); onNavigate(item.id) }
     setLikedMapTarget(item)
-  }, [selectToilet, resetDetailCard, onNavigate])
+  }, [selectToilet, resetDetailCard, onNavigate, setIsPlaceSearchFocused])
 
   useEffect(() => {
     const map = mapRef.current
@@ -1941,7 +1861,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         {authProfile && isDesktop && isMyReportsOpen && <MyReportsPanel key={`reports-${authProfile.userId}`} onSessionExpired={handleSessionExpired} initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
         {authProfile?.consentRequired && <PolicyConsentModal isNewRegistration={authProfile.status === 'PENDING_CONSENT'} onComplete={handleConsentComplete} onLogout={handleLogout} />}
-        {authProfile && isAccountOpen && <AccountDialog profile={authProfile} onClose={() => setIsAccountOpen(false)} onWithdrawn={handleWithdrawn} />}
+        {authProfile && isAccountOpen && <AccountDialog key={authProfile.userId} profile={authProfile} onClose={() => setIsAccountOpen(false)} onWithdrawn={handleWithdrawn} />}
         {withdrawalNotice && <div className="account-backdrop"><section className="account-dialog account-recovery account-result" role="dialog" aria-modal="true" aria-labelledby="withdrawal-result-title">
           <h1 id="withdrawal-result-title">{t('account.resultTitle')}</h1>
           <p role="status">{withdrawalNotice}</p>
