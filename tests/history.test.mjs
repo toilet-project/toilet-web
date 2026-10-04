@@ -37,7 +37,7 @@ test('history reveals ten at a time and focused notifications can reach an older
 })
 test('mobile report and review history stay in the shell; filtering never introduces business writes', () => {
   const read = path => readFileSync(new URL('../src/'+path,import.meta.url),'utf8')
-  const app = read('App.tsx'), mobile = read('components/MobileNavigation.tsx')
+  const app = read('App.tsx'), mobile = read('components/MobilePage.tsx')
   assert.match(app,/setMobileTab\('account'\); setMobileAccountView\('reports'\)/)
   assert.match(app,/embedded: !isDesktop/)
   assert.match(mobile,/accountView === 'reports' \? <MyReportsPanel[^\n]+embedded/)

@@ -46,7 +46,7 @@ test('report login prompt uses brand and concise labels without removing the aut
 
 test('English branding and mobile facility rows remain compact without overlapping location actions', async () => {
   const app = await source('../src/App.tsx')
-  const mobile = await source('../src/components/MobileNavigation.tsx')
+  const mobile = await source('../src/components/MobilePage.tsx')
   const logo = await source('../src/components/BrandWordmark.tsx')
   const css = await source('../src/App.css')
   assert.match(app, /<BrandWordmark locale=\{locale\} \/>/)
@@ -62,7 +62,7 @@ test('English branding and mobile facility rows remain compact without overlappi
 
 test('login entry copy is one short purpose sentence and notifications use the shared title', async () => {
   const app = await source('../src/App.tsx')
-  const mobile = await source('../src/components/MobileNavigation.tsx')
+  const mobile = await source('../src/components/MobilePage.tsx')
   assert.match(app, /review: 'review.loginRequired'/)
   assert.match(app, /'my-reports': 'auth.reportsLogin'/)
   assert.match(app, /report: 'auth.reportLogin'/)
@@ -78,7 +78,7 @@ test('login entry copy is one short purpose sentence and notifications use the s
 })
 
 test('all login entry surfaces put Google before Kakao with matching provider handlers', async () => {
-  for (const file of ['../src/App.tsx', '../src/components/MobileNavigation.tsx']) {
+  for (const file of ['../src/App.tsx', '../src/components/MobilePage.tsx']) {
     const content = await source(file)
     const buttons = [...content.matchAll(/<button\b[^>]*className="social-login ([^"]+)"[^\r\n]+/g)].map(match => match[0])
     assert.equal(buttons.length, 2)
