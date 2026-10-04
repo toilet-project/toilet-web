@@ -33,6 +33,11 @@ export function SiteHeader({ path, languagePaths }: { path: string; languagePath
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [unread, setUnread] = useState(0), [notificationVersion, setNotificationVersion] = useState(0)
   useEffect(() => { let active = true; void getCurrentUser().then(value => { if (active) setProfile(value) }).catch(() => undefined).finally(() => { if (active) setReady(true) }); return () => { active = false } }, [])
+  useEffect(() => {
+    const update = (event: Event) => { const next = (event as CustomEvent<AuthProfile>).detail; if (next?.userId) setProfile(current => current?.userId === next.userId ? next : current) }
+    window.addEventListener('geupddong-profile-updated', update)
+    return () => window.removeEventListener('geupddong-profile-updated', update)
+  }, [])
   const notificationOwner = profile?.userId
   useEffect(() => {
     if (!notificationOwner) return

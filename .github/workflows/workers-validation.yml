@@ -26,12 +26,14 @@ jobs:
             review_api_enabled: 'false'
             review_production_approved: 'false'
             profile_photo_enabled: 'false'
+            growth_enabled: 'false'
           - target: production-candidate
             config: wrangler.production.jsonc
             indexable: 'true'
             review_api_enabled: 'true'
             review_production_approved: 'true'
             profile_photo_enabled: 'true'
+            growth_enabled: 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -48,6 +50,7 @@ jobs:
       TOILET_ENGAGEMENT_ENABLED: ${{ matrix.target == 'production-candidate' && 'true' || 'false' }}
       REPORT_REDESIGN_RELEASE: ${{ matrix.target == 'production-candidate' && 'true' || 'false' }}
       NEXT_PUBLIC_PROFILE_PHOTO_ENABLED: ${{ matrix.profile_photo_enabled }}
+      NEXT_PUBLIC_GROWTH_ENABLED: ${{ matrix.growth_enabled }}
       NEXT_DEPLOYMENT_ID: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.target }}
     steps:
       - uses: actions/checkout@v7.0.1

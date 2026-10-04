@@ -12,6 +12,7 @@ import { localizedPublicPath } from '../i18n/routes'
 import { DESKTOP_LAYOUT_QUERY } from '../lib/responsiveLayout'
 import { AccountWorkspaceFrame } from './AccountWorkspaceFrame'
 import { LikedToiletsPanel } from './LikedToiletsPanel'
+import { AccountHome } from './AccountHome'
 const LIKES_ENABLED = process.env.NEXT_PUBLIC_TOILET_ENGAGEMENT_ENABLED === 'true'
 
 export type AccountView = 'home' | 'likes' | 'reviews' | 'reports' | 'settings' | 'notifications'
@@ -42,9 +43,11 @@ export function AccountWorkspace({ view, reportId = null }: { view: AccountView;
   const signOut = () => { void logout().then(() => { setProfile(null); router.push(home) }) }
   if (loading) return <div className="account-workspace-status" role="status">{t('common.loading')}</div>
   if (!profile) return <div className="account-login"><h1>{t('auth.title')}</h1><p>{t('auth.intro')}</p><button type="button" onClick={() => startSocialLogin('google')}>{t('auth.google')}</button><button type="button" onClick={() => startSocialLogin('kakao')}>{t('auth.kakao')}</button></div>
-  const selectedView = view === 'home' ? 'settings' : view
+  const selectedView = view
+  const updateProfile = (next: AuthProfile) => { setProfile(next); window.dispatchEvent(new CustomEvent('geupddong-profile-updated', { detail: next })) }
   return <AccountWorkspaceFrame profile={profile} view={selectedView} onLogout={signOut}>
       {withdrawn && <p role="status">{withdrawn}</p>}
+      {selectedView === 'home' && <AccountHome profile={profile} onProfile={updateProfile} onExpired={() => setProfile(null)} />}
       {selectedView === 'reviews' && (reviews.page || <p className="account-workspace-status">{t('common.loading')}</p>)}
       {selectedView === 'likes' && LIKES_ENABLED && <LikedToiletsPanel key={profile.userId} owner={profile.userId} onClose={goHome} onSessionExpired={() => setProfile(null)} />}
       {selectedView === 'reports' && <MyReportsPanel key={reportId} embedded initialExpandedId={reportId} onClose={goHome} onSessionExpired={() => setProfile(null)} />}

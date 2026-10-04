@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="서울 종로구 · 경복궁 근정전"><title>서울 종로구 · 경복궁 근정전</title><circle cx="64" cy="64" r="60" fill="#F2E9D8" stroke="#ADC3B3" stroke-width="2.5" /><g transform="translate(14 14)"><g id="motif" fill="none" stroke="#153B2B" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M22 53H78V84H22Z" fill="#C98972" />
+    <path d="M31 30H69V51H31Z" fill="#C98972" />
+    <path d="M23 31Q34 29 38 16H62Q66 29 77 31L73 37H27Z" fill="#63887B" />
+    <path d="M10 52Q26 52 32 40H68Q74 52 90 52L85 61H15Z" fill="#63887B" />
+    <path d="M38 65H62V85H38Z" fill="#F3DFB6" />
+    <path d="M50 66V83M29 66V79M71 66V79" />
+    <path d="M16 84H84L89 91H11Z" fill="#F3DFB6" />
+  </g>
+</g></svg>

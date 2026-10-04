@@ -153,7 +153,7 @@
 }
 @media (max-height: 540px) { .region-hero p, .region-hero .region-eyebrow { display: none; } .region-hero { margin-bottom: 9px; } .region-hero h1 { margin: 0; font-size: 22px; } .region-breadcrumbs { margin-bottom: 5px; } }
 .region-site-shell.is-account-page { height: 100dvh; min-height: 0; overflow: hidden; }
-.account-page-main { width: 100%; max-width: 1480px; flex: 1; min-height: 0; margin: 0 auto; padding: 24px; }
+.account-page-main { width: 100%; max-width: 1248px; flex: 1; min-height: 0; margin: 0 auto; padding: 24px; }
 .account-workspace { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 28px; height: 100%; min-height: 0; align-items: start; }
 .account-workspace-rail { display: flex; flex-direction: column; gap: 5px; min-width: 0; padding: 16px 12px; border: 1px solid #e0e9e3; border-radius: 20px; background: #fff; }
 .account-workspace-profile { display: grid; gap: 7px; justify-items: center; margin: 0 6px 18px; padding: 12px 0 26px; border-bottom: 1px solid #edf1ee; text-align: center; }

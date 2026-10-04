@@ -11,6 +11,7 @@ import { requireReviewFix, reviewLocationProblem, ReviewGateError } from '../../
 import { isMobileReviewDevice } from '../../lib/reviewDevice'
 import { invalidatePublicReviewPrefetch } from '../../lib/publicReviewPrefetch'
 import { trackEvent } from '../../lib/analytics'
+import { refreshGrowth } from '../../lib/memberGrowth'
 import { ReviewDialog, ReviewModal, type ReviewEligibility } from './ReviewDialog'
 import { MyReviewsPanel } from './MyReviewsPanel'
 import type { MineNavigation, PreviewReviewSummary, ReviewAccess, ReviewEntryState, ReviewTarget } from './useIntegratedReviewPreview'
@@ -204,6 +205,7 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
       if (!current(token)) return
       attempt.current = null; setItems(values => values.map(item => item.id === stored.id ? stored : item))
       invalidatePublicReviewPrefetch(facility.id)
+      refreshGrowth(owner)
       setTarget(null); setEditing(null); setSaved(true); void refreshSummary(facility.id)
       trackEvent('review_submit', { success: true })
     } catch (error) {
@@ -222,6 +224,7 @@ export function useReviewApi(owner: string | null, access: ReviewAccess, navigat
       await reviewApi.detach(item)
       if (!current(token)) return
       invalidatePublicReviewPrefetch(item.toiletId)
+      refreshGrowth(owner)
       setItems(values => values.filter(v => v.id !== item.id))
       setMessage(t('review.detached')); void refreshSummary(item.toiletId)
     } catch (error) { if (current(token)) { authFailure(error); throw error } }

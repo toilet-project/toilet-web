@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="경북 울릉군 · 울릉도 오징어"><title>경북 울릉군 · 울릉도 오징어</title><circle cx="64" cy="64" r="60" fill="#F4E2EC" stroke="#ADC3B3" stroke-width="2.5" /><g transform="translate(14 14)"><g id="motif" fill="none" stroke="#153B2B" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M37 65q-3 17-15 12M43 66q-4 27-12 22m18-20v19m9-21q3 26 11 22m-5-23q3 16 14 12" stroke-width="9" />
+    <path d="M37 65q-3 17-15 12M43 66q-4 27-12 22m18-20v19m9-21q3 26 11 22m-5-23q3 16 14 12" stroke="#E4A3A1" stroke-width="4" />
+    <path d="m50 10 32 28-16 4H34L18 38Z" fill="#C57D91" />
+    <path d="M50 10C41 20 33 38 33 54c0 13 6 18 17 18s17-5 17-18C67 38 59 20 50 10Z" fill="#E4A3A1" />
+    <circle cx="42" cy="54" r="2.7" fill="#153B2B" stroke="none" />
+    <circle cx="58" cy="54" r="2.7" fill="#153B2B" stroke="none" />
+    <path d="M46 62q4 3 8 0" stroke-width="3.5" />
+  </g>
+</g></svg>

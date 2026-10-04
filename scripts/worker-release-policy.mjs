@@ -1,4 +1,16 @@
 import assert from 'node:assert/strict'
+export function growthBuildFeature(requiredServerFiles, requestedFlag) {
+  const compiled = requiredServerFiles?.config?.env?.NEXT_PUBLIC_GROWTH_ENABLED
+  assert.ok(compiled === 'true' || compiled === 'false', 'Compiled member growth flag is missing')
+  assert.equal(compiled, requestedFlag === 'true' ? 'true' : 'false', 'Member growth build flag mismatch')
+  return compiled === 'true'
+}
+
+export function validateGrowthRelease(manifest, expected) {
+  assert.equal(typeof manifest.features?.memberGrowth, 'boolean', 'Artifact does not record its member growth build flag')
+  assert.equal(manifest.features.memberGrowth, expected, 'Unexpected member growth feature state')
+}
+
 export function validateWorkerConfig(config, target, {deploy = false, stage = false} = {}) {
   assert.ok(['preview', 'production-candidate'].includes(target), 'Unknown release target')
   const production = target === 'production-candidate'
