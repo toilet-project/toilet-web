@@ -70,6 +70,7 @@ import type { LikedToilet } from './lib/toiletEngagement'
 import { groupToiletsByCoordinate, representativeToilet, type ToiletMapItem, type MapPoint } from './lib/toiletGrouping'
 import type { MapRouteData } from './components/mapRouteContext'
 import { DESKTOP_LAYOUT_QUERY } from './lib/responsiveLayout'
+import { mobileReportFocus } from './lib/accountNavigation'
 import { resolveDistanceReference, type DistanceSource } from './lib/distanceReference'
 import { initialMapLocation, isKoreanMapLocation, SEOUL_STATION } from './lib/mapStart'
 import { TRANSIENT_NOTICE_MS } from './lib/uiTiming'
@@ -334,7 +335,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const [isLoginDialogOpen, setIsLoginDialogOpen] = useState(false)
   const [loginPurpose, setLoginPurpose] = useState<LoginPurpose>('general')
   const [isMyReportsOpen, setIsMyReportsOpen] = useState(false)
-  const [focusedReportId, setFocusedReportId] = useState<number | null>(null)
+  const [focusedReportId, setFocusedReportId] = useState<number | null>(() =>
+    typeof window !== 'undefined' && !window.matchMedia(DESKTOP_LAYOUT_QUERY).matches ? mobileReportFocus(window.location.search) : null)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [unreadNotificationCount, setUnreadNotificationCount] = useState(0)
   const [isAccountOpen, setIsAccountOpen] = useState(false)

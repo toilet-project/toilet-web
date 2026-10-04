@@ -10,6 +10,7 @@ import { useReviews, REVIEW_UI_ENABLED } from './reviews/useReviews'
 import { useLocale, useMessages } from '../i18n/context'
 import { localizedPublicPath } from '../i18n/routes'
 import { DESKTOP_LAYOUT_QUERY } from '../lib/responsiveLayout'
+import { mobileAccountHref } from '../lib/accountNavigation'
 import { AccountWorkspaceFrame } from './AccountWorkspaceFrame'
 import { LikedToiletsPanel } from './LikedToiletsPanel'
 import { AccountHome } from './AccountHome'
@@ -28,12 +29,12 @@ export function AccountWorkspace({ view, reportId = null }: { view: AccountView;
     const desktop = window.matchMedia(DESKTOP_LAYOUT_QUERY)
     const redirectMobile = () => {
       if (desktop.matches) return
-      router.replace(`${home}?tab=${view === 'notifications' ? 'notifications' : 'account'}${view !== 'home' && view !== 'notifications' ? `&view=${view}` : ''}`)
+      router.replace(mobileAccountHref(home, view, reportId))
     }
     redirectMobile()
     desktop.addEventListener('change', redirectMobile)
     return () => desktop.removeEventListener('change', redirectMobile)
-  }, [home, view, router])
+  }, [home, view, reportId, router])
   useEffect(() => { let active = true; void getCurrentUser().then(value => { if (active) setProfile(value) }).catch(() => undefined).finally(() => { if (active) setLoading(false) }); return () => { active = false } }, [])
   const reviews = useReviews(profile?.status === 'ACTIVE' && !profile.consentRequired ? profile.userId : null, {
     requireLogin: () => router.push(base),
