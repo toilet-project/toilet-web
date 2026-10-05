@@ -5,10 +5,10 @@ import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { createPortal } from 'react-dom'
 import { reviewAverageLabel } from '../../lib/review'
 import type { StoredReview } from '../../lib/reviewApi'
-import { publicPhotoPath } from '../../lib/profilePhoto'
+import { GROWTH_ENABLED } from '../../lib/growth'
 import { cachedPublicReviews, loadPublicReviews, prefetchPublicReviews, PUBLIC_REVIEW_API_ENABLED } from '../../lib/publicReviewPrefetch'
 import { trackEvent } from '../../lib/analytics'
-import { PhotoImage } from '../ProfilePhoto'
+import { RankIcon } from '../growth/RankIcon'
 import { ReviewIcon } from './ReviewDialog'
 
 const SUMMARY_LIMIT = 3
@@ -172,7 +172,7 @@ function PublicReviewRow({ item, expanded }: { item: StoredReview; expanded: boo
   const comment = item.comment?.trim()
   return <article className={`public-review-row${expanded ? ' is-expanded' : ''}`}>
     <div className="public-review-meta">
-      <span className="public-review-avatar"><PhotoImage enabled path={item.authorRemoved || !item.authorPhotoVersion ? null : publicPhotoPath(item.authorPhotoVersion)} fallback={<span role="img" aria-label={t('public.avatar')}>👤</span>} /></span>
+      <span className="public-review-avatar">{GROWTH_ENABLED && !item.authorRemoved && item.authorRank ? <RankIcon rank={item.authorRank} size={24} /> : <span className="public-review-avatar-fallback" role="img" aria-label={t('public.avatar')}>👤</span>}</span>
       <strong className="public-review-name">{item.authorRemoved ? t('public.anonymous') : item.authorDisplayName}</strong>
       <span className="public-review-rating" aria-label={t('public.average', { rating: average })}><ReviewIcon name="star" size={14} /><strong>{average}</strong></span>
       <time dateTime={item.createdAt}>{new Date(item.createdAt).toLocaleDateString(locale === 'ko' ? 'ko-KR' : locale, { timeZone: 'Asia/Seoul' })}</time>

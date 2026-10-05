@@ -1,8 +1,9 @@
 import type { Review, ReviewInput } from './review'
 import type { HistoryRange } from './history'
 import { decodeCrowding, type ReviewCrowding } from './reviewCrowding.ts'
+import { growthRanks, type GrowthRank } from './growth.ts'
 
-export type StoredReview = Review & { version: number; canManage: boolean; editableUntil: string; authorDisplayName: string; authorPhotoVersion: string | null }
+export type StoredReview = Review & { version: number; canManage: boolean; editableUntil: string; authorDisplayName: string; authorPhotoVersion: string | null; authorRank: GrowthRank | null }
 export type ReviewPosition = { latitude: number; longitude: number; accuracyMeters: number; measuredAt: string }
 export type ReviewCreationStatus = { canCreate: boolean; existingReviewId: string | null; nextAllowedAt: string | null }
 export type ReviewPage = { items: StoredReview[]; nextCursor: string | null; hasMore: boolean }
@@ -37,17 +38,19 @@ const malformed = () => new ReviewApiError('INVALID_RESPONSE', '리뷰 응답을
 export function decodeReview(value: unknown): StoredReview {
   const r = object(value)
   const authorPhotoVersion = r.authorPhotoVersion === undefined ? null : r.authorPhotoVersion
+  const authorRank = r.authorRank === undefined ? null : r.authorRank
   if (!id(r.id) || !integer(r.toiletId, 1) || typeof r.toiletName !== 'string' || !integer(r.satisfaction, 1, 5)
     || !integer(r.cleanliness, 1, 5) || typeof r.paper !== 'boolean' || !integer(r.waitMinutes, 0, 60) || r.waitMinutes % 10 !== 0
     || typeof r.comment !== 'string' || Array.from(r.comment).length > 200 || !integer(r.version, 0)
     || !stamp(r.createdAt) || !stamp(r.updatedAt) || !stamp(r.editableUntil) || typeof r.canManage !== 'boolean'
     || typeof r.authorRemoved !== 'boolean' || typeof r.authorDisplayName !== 'string' || !photoVersion(authorPhotoVersion)
-    || r.authorRemoved && authorPhotoVersion !== null) throw malformed()
+    || !(authorRank === null || growthRanks.some(rank => rank.key === authorRank))
+    || r.authorRemoved && (authorPhotoVersion !== null || authorRank !== null)) throw malformed()
   // Allowlist the response; never keep unexpected identity/location fields in browser state.
   return { id: r.id, toiletId: r.toiletId, toiletName: r.toiletName, satisfaction: r.satisfaction, cleanliness: r.cleanliness,
     paper: r.paper, waitMinutes: r.waitMinutes, comment: r.comment, version: r.version, createdAt: r.createdAt,
     updatedAt: r.updatedAt, editableUntil: r.editableUntil, canManage: r.canManage, authorRemoved: r.authorRemoved,
-    authorDisplayName: r.authorDisplayName, authorPhotoVersion }
+    authorDisplayName: r.authorDisplayName, authorPhotoVersion, authorRank: authorRank as GrowthRank | null }
 }
 function decodeStatus(value: unknown): ReviewCreationStatus {
   const r = object(value)
