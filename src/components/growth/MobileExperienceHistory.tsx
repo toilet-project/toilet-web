@@ -58,11 +58,12 @@ export function ExperienceHistoryRecords({ data, direction, onPage, layout = 'mo
     <div className="experience-history-caption"><span>{t.total.replace('{count}', data.total.toLocaleString(locale))}</span><span>{t.newest}</span></div>
     {data.scope === 'recent' && <p className="experience-history-limit">{t.recentLimit}</p>}
     {data.items.length ? layout === 'desktop' ? <div className="experience-history-table-wrap"><table className="experience-history-table" aria-label={t.title}>
-      <thead><tr><th scope="col">{t.activity}</th><th scope="col">{t.date}</th><th scope="col">{t.experience}</th></tr></thead>
-      <tbody>{data.items.map(item => {
+      <thead><tr><th scope="col">{t.orderNumber}</th><th scope="col">{t.activity}</th><th scope="col">{t.date}</th><th scope="col">{t.experience}</th></tr></thead>
+      <tbody>{data.items.map((item, index) => {
         const date = growthHistoryDate(item.happenedAt)
         return <tr key={item.id}>
-          <td><div className="experience-history-activity"><span className={`experience-history-sign${item.deltaXp < 0 ? ' is-deducted' : ''}`} aria-hidden="true">{item.deltaXp > 0 ? '+' : '−'}</span><span>{t[growthHistoryReason(item.reason)]}</span></div></td>
+          <td className="experience-history-order">{(data.page * data.size + index + 1).toLocaleString(locale)}</td>
+          <td><span className="experience-history-activity">{t[growthHistoryReason(item.reason)]}</span></td>
           <td><time dateTime={date?.toISOString()}>{date ? new Intl.DateTimeFormat(locale, { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(date) : '—'}</time></td>
           <td><strong className={item.deltaXp < 0 ? 'is-deducted' : ''}>{item.deltaXp > 0 ? '+' : '−'}{Math.abs(item.deltaXp).toLocaleString(locale)}<small> XP</small></strong></td>
         </tr>
@@ -71,6 +72,6 @@ export function ExperienceHistoryRecords({ data, direction, onPage, layout = 'mo
       const date = growthHistoryDate(item.happenedAt)
       return <li key={item.id}><span className={`experience-history-sign${item.deltaXp < 0 ? ' is-deducted' : ''}`} aria-hidden="true">{item.deltaXp > 0 ? '+' : '−'}</span><div><h2>{t[growthHistoryReason(item.reason)]}</h2><time dateTime={date?.toISOString()}>{date ? new Intl.DateTimeFormat(locale, { timeZone: 'Asia/Seoul', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).format(date) : '—'}</time></div><strong className={item.deltaXp < 0 ? 'is-deducted' : ''}>{item.deltaXp > 0 ? '+' : '−'}{Math.abs(item.deltaXp).toLocaleString(locale)}<small> XP</small></strong></li>
     })}</ol> : <div className="experience-history-empty"><span aria-hidden="true">{direction === 'earned' ? '+' : '−'}</span><p>{direction === 'earned' ? t.emptyEarned : t.emptyDeducted}</p></div>}
-    {pages > 1 && <nav className="experience-history-pagination" aria-label={t.pagination}><button type="button" aria-label={t.previous} disabled={data.page === 0} onClick={() => onPage(data.page - 1)}>‹</button>{pageNumbers.map(value => <button key={value} type="button" aria-label={`${t.page} ${value + 1}`} aria-current={value === data.page ? 'page' : undefined} onClick={() => onPage(value)}>{value + 1}</button>)}<button type="button" aria-label={t.next} disabled={data.page + 1 >= pages} onClick={() => onPage(data.page + 1)}>›</button></nav>}
+    {(layout === 'desktop' || pages > 1) && <nav className="experience-history-pagination" aria-label={t.pagination}><button type="button" aria-label={t.previous} disabled={data.page === 0} onClick={() => onPage(data.page - 1)}>‹</button>{pageNumbers.map(value => <button key={value} type="button" aria-label={`${t.page} ${value + 1}`} aria-current={value === data.page ? 'page' : undefined} onClick={() => onPage(value)}>{value + 1}</button>)}<button type="button" aria-label={t.next} disabled={data.page + 1 >= pages} onClick={() => onPage(data.page + 1)}>›</button></nav>}
   </>
 }
