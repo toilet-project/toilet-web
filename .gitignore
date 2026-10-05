@@ -12,6 +12,7 @@ dist
 dist-ssr
 .next/
 .next-smoke/
+.next-growth-*/
 .open-next/
 worker-release-manifest.json
 .cache-prewarm/

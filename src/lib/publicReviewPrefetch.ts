@@ -1,14 +1,11 @@
 import { createApiUrl } from '../config/api'
-import { publicPhotoPath } from './profilePhoto'
 import { decodeReview, type StoredReview } from './reviewApi'
 
 export type PublicReviewPage = { items: StoredReview[]; hasMore: boolean; nextCursor: string | null }
 
 export const PUBLIC_REVIEW_API_ENABLED = process.env.NEXT_PUBLIC_PUBLIC_REVIEW_API_ENABLED === 'true'
 export const PUBLIC_REVIEW_PREFETCH_TTL_MS = 30_000
-export const PUBLIC_REVIEW_PREFETCH_PHOTO_LIMIT = 3
 const MAX_CACHED_TOILETS = 24
-const PHOTO_WARM_TIMEOUT_MS = 4_000
 
 const cache = new Map<number, { page: PublicReviewPage; expiresAt: number }>()
 const pending = new Map<number, Promise<PublicReviewPage>>()
@@ -21,42 +18,6 @@ export function decodePublicReviewPage(value: unknown, toiletId: number, cursor:
   const items = page.items.map(decodeReview)
   if (items.some(item => item.toiletId !== toiletId) || new Set(items.map(item => item.id)).size !== items.length) throw new Error('INVALID_PUBLIC_REVIEW_PAGE')
   return { items, hasMore: page.hasMore, nextCursor: page.nextCursor as string | null }
-}
-
-export function publicReviewPhotoPaths(items: StoredReview[]) {
-  const paths: string[] = []
-  for (const item of items) {
-    if (item.authorRemoved || !item.authorPhotoVersion) continue
-    const path = publicPhotoPath(item.authorPhotoVersion)
-    if (path && !paths.includes(path)) paths.push(path)
-    if (paths.length === PUBLIC_REVIEW_PREFETCH_PHOTO_LIMIT) break
-  }
-  return paths
-}
-
-async function warmPublicReviewPhotos(items: StoredReview[], signal?: AbortSignal) {
-  if (typeof window === 'undefined' || signal?.aborted) return
-  await Promise.allSettled(publicReviewPhotoPaths(items).map(path => new Promise<void>(resolve => {
-    const image = new window.Image()
-    let finished = false
-    const finish = () => {
-      if (finished) return
-      finished = true
-      window.clearTimeout(timer)
-      signal?.removeEventListener('abort', cancel)
-      image.onload = null
-      image.onerror = null
-      resolve()
-    }
-    const cancel = () => { image.src = ''; finish() }
-    const timer = window.setTimeout(finish, PHOTO_WARM_TIMEOUT_MS)
-    signal?.addEventListener('abort', cancel, { once: true })
-    image.decoding = 'async'
-    image.fetchPriority = 'low'
-    image.onload = () => { void image.decode().catch(() => undefined).finally(finish) }
-    image.onerror = finish
-    image.src = createApiUrl(path)
-  })))
 }
 
 async function requestPublicReviewPage(toiletId: number, cursor: string | null, signal?: AbortSignal) {
@@ -72,7 +33,6 @@ async function requestPublicReviewPage(toiletId: number, cursor: string | null, 
     })
     if (!response.ok) throw new Error('PUBLIC_REVIEW_REQUEST_FAILED')
     const page = decodePublicReviewPage(await response.json(), toiletId, cursor)
-    await warmPublicReviewPhotos(page.items, controller.signal)
     return page
   } finally {
     clearTimeout(timer)

@@ -229,8 +229,9 @@
 .public-review-rating { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 3px; padding: 3px 6px; border-radius: 999px; background: transparent; color: #a66d13; font-variant-numeric: tabular-nums; }
 .public-review-rating svg { fill: #ffd667; stroke: #c68c25; }
 .public-review-rating strong { color: inherit; font-size: 11px; line-height: 1; }
-.public-review-avatar { display: inline-flex; width: 26px; height: 26px; flex: 0 0 26px; align-items: center; justify-content: center; overflow: hidden; border-radius: 50%; background: #edf3ee; color: #839388; font-size: 13px; }
-.public-review-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.public-review-avatar { display: inline-flex; width: 26px; height: 26px; flex: 0 0 26px; align-items: center; justify-content: center; }
+.public-review-avatar img { display: block; width: 24px; height: 24px; object-fit: contain; }
+.public-review-avatar-fallback { display: inline-flex; width: 26px; height: 26px; align-items: center; justify-content: center; border-radius: 50%; background: #edf3ee; color: #839388; font-size: 13px; }
 .public-review-name { min-width: 0; flex: 0 1 auto; overflow: hidden; color: #35473b !important; font-size: 12px !important; font-weight: 750 !important; text-overflow: ellipsis; white-space: nowrap; }
 .public-review-meta time { flex: 0 0 auto; margin-left: auto; color: #95a198; font-size: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .public-review-comment { margin: 6px 0 0 33px; overflow: hidden; color: #66756b; font-size: 12px; line-height: 1.45; text-overflow: ellipsis; white-space: nowrap; }

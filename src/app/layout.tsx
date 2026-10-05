@@ -16,6 +16,12 @@ import '../components/toilet-list.css'
 import '../components/home-intro.css'
 import '../components/map-startup.css'
 import '../components/account-controls.css'
+import '../components/growth/growth.css'
+import '../components/growth/growth-guide.css'
+import '../components/growth/growth-guide-mobile.css'
+import '../components/growth/mobile-growth.css'
+import '../components/growth/achievements.css'
+import '../components/growth/experience-history.css'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://geupddong.com'),

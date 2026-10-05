@@ -7,10 +7,14 @@ import { OwnPhoto } from './ProfilePhoto'
 import { useLocale, useMessages } from '../i18n/context'
 import { localizedPublicPath } from '../i18n/routes'
 import { HeaderIcon } from './HeaderIcon'
+import { useGrowth } from '../lib/useGrowth'
+import { RankIcon } from './growth/RankIcon'
+import { growthText } from '../i18n/growthText'
 const LIKES_ENABLED = process.env.NEXT_PUBLIC_TOILET_ENGAGEMENT_ENABLED === 'true'
 
 export function ProfileMenu({ profile, onLogout }: { profile: AuthProfile; onLogout: () => void }) {
   const t = useMessages(), locale = useLocale()
+  const growth = useGrowth(profile.status === 'ACTIVE' && !profile.consentRequired ? profile.userId : null)
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -29,7 +33,7 @@ export function ProfileMenu({ profile, onLogout }: { profile: AuthProfile; onLog
       <svg className="profile-menu-chevron" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="m5 7 5 5 5-5" /></svg>
     </button>
     {open && <div className="profile-menu-panel" role="menu">
-      <div className="profile-menu-heading"><strong>{profile.displayName || t('account.defaultName')}</strong></div>
+      <Link className="profile-menu-home" role="menuitem" href={account()} onClick={() => setOpen(false)} aria-label={growthText(locale).home}>{growth.summary && <><RankIcon rank={growth.summary.rank} size={24} /><span className="profile-menu-level">Lv.{growth.summary.level}</span></>}<strong>{profile.displayName || t('account.defaultName')}</strong><i aria-hidden="true">›</i></Link>
       {LIKES_ENABLED && <Link role="menuitem" href={account('likes')} onClick={() => setOpen(false)}><HeaderIcon name="likes" /><span>{t('nav.myLikes')}</span><i aria-hidden="true">›</i></Link>}
       <Link role="menuitem" href={account('reviews')} onClick={() => setOpen(false)}><HeaderIcon name="reviews" /><span>{t('nav.myReviews')}</span><i aria-hidden="true">›</i></Link>
       <Link role="menuitem" href={account('reports')} onClick={() => setOpen(false)}><HeaderIcon name="reports" /><span>{t('nav.myReports')}</span><i aria-hidden="true">›</i></Link>

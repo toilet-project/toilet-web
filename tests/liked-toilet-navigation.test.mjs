@@ -18,7 +18,7 @@ test('liked rows keep localized map detail routes as the desktop fallback', asyn
 
 test('mobile liked rows switch to the map and explicitly focus the selected restroom', async () => {
   const app = await source('../src/App.tsx')
-  const mobile = await source('../src/components/MobileNavigation.tsx')
+  const mobile = await source('../src/components/MobilePage.tsx')
   assert.match(mobile, /onOpenToilet=\{onOpenLikedToilet\}/)
   assert.match(app, /onOpenLikedToilet=\{openLikedToilet\}/)
   const open = app.slice(app.indexOf('const openLikedToilet ='), app.indexOf('\n  return (', app.indexOf('const openLikedToilet =')))

@@ -1,15 +1,5 @@
 import type { Locale } from './locale'
 
-// Five-condition preview source exported on October 3 in Korea.
-export const mapFilterPreviewSourceCopy: Record<Locale, string> = {
-  ko: '프리뷰 · 10월 3일 공개 데이터 기준',
-  en: 'Preview · Public data as of Oct 3',
-  ja: 'プレビュー · 10月3日時点の公開データ',
-  'zh-CN': '预览 · 10月3日公开数据',
-  'zh-TW': '預覽 · 10月3日公開資料',
-  'zh-HK': '預覽 · 10月3日公開資料',
-}
-
 type Copy = { filters: string; mine: string; member: string; hours: string; cctv: string; diaper: string; bell: string; reset: string; explanation: string; loading: string; error: string; retry: string; empty: string }
 const accessibleCopy: Record<Locale, string> = {
   ko: '장애인 화장실', en: 'Accessible restroom', ja: '車いす対応トイレ',

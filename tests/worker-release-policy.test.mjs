@@ -1,11 +1,26 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {readFile} from 'node:fs/promises'
-import {validateWorkerConfig, validateBuildPolicy, validateReleaseManifest} from '../scripts/worker-release-policy.mjs'
+import {validateWorkerConfig, validateBuildPolicy, validateReleaseManifest, growthBuildFeature, validateGrowthRelease} from '../scripts/worker-release-policy.mjs'
 const preview = JSON.parse(await readFile(new URL('../wrangler.jsonc',import.meta.url)))
 const production = JSON.parse(await readFile(new URL('../wrangler.production.jsonc',import.meta.url)))
 const header = {headers:[{headers:[{key:'X-Robots-Tag',value:'noindex, nofollow'}]}]}
 const none = {headers:[]}
+
+test('growth release records the compiled build flag and rejects a different requested state',()=>{
+  const compiled=value=>({config:{env:{NEXT_PUBLIC_GROWTH_ENABLED:value}}})
+  assert.equal(growthBuildFeature(compiled('true'),'true'),true)
+  assert.equal(growthBuildFeature(compiled('false'),undefined),false)
+  assert.equal(growthBuildFeature(compiled('false'),'false'),false)
+  assert.throws(()=>growthBuildFeature(compiled('false'),'true'))
+  assert.throws(()=>growthBuildFeature(compiled('true'),'false'))
+  assert.throws(()=>growthBuildFeature({},'true'))
+  validateGrowthRelease({features:{memberGrowth:true}},true)
+  validateGrowthRelease({features:{memberGrowth:false}},false)
+  assert.throws(()=>validateGrowthRelease({features:{memberGrowth:false}},true))
+  assert.throws(()=>validateGrowthRelease({features:{memberGrowth:'true'}},true))
+  assert.throws(()=>validateGrowthRelease({},true))
+})
 test('preview retains its domain, storage and noindex',()=>{
   validateWorkerConfig(preview,'preview',{deploy:true})
   validateBuildPolicy(preview,'preview','false',header)

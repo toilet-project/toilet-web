@@ -5,7 +5,7 @@ import { createReviewApi, decodeReview, ReviewApiError } from '../src/lib/review
 import { canManageReview } from '../src/lib/review.ts'
 
 const record = () => ({ id: '1', toiletId: 12, toiletName: '가상 화장실', satisfaction: 4, cleanliness: 5, paper: true, waitMinutes: 0, comment: '합성 리뷰', version: 0,
-  createdAt: '2026-09-12T00:00:00+09:00', updatedAt: '2026-09-12T00:00:00+09:00', editableUntil: '2026-09-19T00:00:00+09:00', canManage: true, authorRemoved: false, authorDisplayName: '시험 사용자', authorPhotoVersion: null })
+  createdAt: '2026-09-12T00:00:00+09:00', updatedAt: '2026-09-12T00:00:00+09:00', editableUntil: '2026-09-19T00:00:00+09:00', canManage: true, authorRemoved: false, authorDisplayName: '시험 사용자', authorPhotoVersion: null, authorRank: null })
 const key = '00000000-0000-4000-8000-000000000001'
 const position = { latitude: 36.3, longitude: 127.3, accuracyMeters: 10, measuredAt: '2026-09-12T00:00:00Z' }
 const range = { period: '7', from: '2026-09-06', to: '2026-09-12' }
@@ -22,6 +22,19 @@ test('review response is strict and strips unneeded identity fields', () => {
   for (const change of [{ authorPhotoVersion: '../member' }, { authorRemoved: true, authorPhotoVersion: '12345678-1234-1234-1234-123456789abc' }]) assert.throws(() => decodeReview({ ...record(), ...change }), ReviewApiError)
   assert.equal(canManageReview({ ...record(), canManage: false }, Date.parse(record().createdAt)), false)
 })
+test('review ranks accept only known public tiers and never retain a detached author rank', () => {
+  for (const authorRank of ['white', 'green', 'yellow', 'blue', 'red', 'pink', 'black']) {
+    const item = decodeReview({ ...record(), authorRank, authorUserId: 'private-id', totalXp: 15990 })
+    assert.equal(item.authorRank, authorRank)
+    assert.equal('authorUserId' in item, false)
+    assert.equal('totalXp' in item, false)
+  }
+  assert.equal(decodeReview({ ...record(), authorRank: undefined }).authorRank, null)
+  assert.equal(decodeReview({ ...record(), authorRemoved: true, authorRank: null }).authorRank, null)
+  for (const authorRank of ['../black', 'gold', 40, {}, ['white']]) assert.throws(() => decodeReview({ ...record(), authorRank }), ReviewApiError)
+  assert.throws(() => decodeReview({ ...record(), authorRemoved: true, authorRank: 'black' }), ReviewApiError)
+})
+
 test('real create sends only allowlisted content and transient location, with one stable request key', async () => {
   const { api, calls } = setup([response(record())])
   await api.create(12, { ...record(), email: 'must-not-leak' }, position, key)

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="부산 해운대구 · 해변 파라솔"><title>부산 해운대구 · 해변 파라솔</title><circle cx="64" cy="64" r="60" fill="#E0F0EE" stroke="#ADC3B3" stroke-width="2.5" /><g transform="translate(14 14)"><g id="motif" fill="none" stroke="#153B2B" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M50 15v61" />
+    <path d="M13 47C19 27 31 17 50 17s31 10 37 30q-9-5-18 1-9-6-19 1-10-7-19-1-9-6-18-1Z" fill="#E6A391" />
+    <path d="M50 17C40 23 34 34 31 48q9-6 19 1 10-7 19-1C66 34 60 23 50 17Z" fill="#F5DFA6" />
+    <path d="M50 18v30" />
+    <path d="M11 75q10-8 20 0t20 0t20 0q10-8 18 0v9q-9 7-18 0-10 8-20 0-10 8-20 0-10 8-20 0Z" fill="#93C9D5" />
+  </g>
+</g></svg>

@@ -13,7 +13,7 @@ import { PublicReviews } from '../../components/reviews/PublicReviews'
 const noop=()=>{}
 export default function Fixture(){
  const [user,setUser]=useState('1'), [reviews,setReviews]=useState(false), [profilePhoto,setProfilePhoto]=useState({available:true,publicPhoto:false,imageVersion:'${version}'})
- return <><div style={{position:'fixed',top:0,zIndex:9999,background:'white'}}><button onClick={()=>setUser(user==='1'?'2':'1')}>계정 전환 시험</button><button onClick={()=>setReviews(!reviews)}>리뷰 화면 시험</button></div>
+ return <><div data-review-growth-enabled={process.env.NEXT_PUBLIC_GROWTH_ENABLED === 'true' ? 'true' : 'false'} style={{position:'fixed',top:0,zIndex:9999,background:'white'}}><button onClick={()=>setUser(user==='1'?'2':'1')}>계정 전환 시험</button><button onClick={()=>setReviews(!reviews)}>리뷰 화면 시험</button></div>
  {reviews?<div className="place-card mobile-card-expanded" style={{position:'relative',inset:'auto',height:460,margin:'60px auto 0'}}><button className="close-button" aria-label="정보 닫기">×</button><PublicReviews toiletId={20} toiletName="합성 화장실"/></div>:<MobilePage tab="account" profile={{userId:user,displayName:'합성 사용자 '+user,email:null,status:'ACTIVE',roles:['USER'],consentRequired:false,profilePhoto:user==='1'?profilePhoto:{available:true,publicPhoto:false,imageVersion:null}}} loading={false} unread={0} onProfile={next=>{if(user==='1'&&next.profilePhoto)setProfilePhoto(next.profilePhoto)}} onReports={noop} onAccount={noop} onLogout={noop} onCountChange={noop} onOpenReport={noop} beforeLogin={noop} onSessionExpired={()=>setUser('2')} onWithdrawn={noop} onBackAccount={noop}/>}</>
 }`
 ;(async () => {
@@ -48,12 +48,27 @@ export default function Fixture(){
     if(user!=='1'||!setting.imageVersion||(p.includes('/profile-photos/')&&!setting.publicPhoto))return json({},404)
     return route.fulfill({contentType:'image/webp',body:syntheticWebp,headers:{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Credentials':'true','Cache-Control':p.includes('/profile-photos/')?'public, max-age=14400':'private, max-age=86400'}})
    }
-   if(p==='/api/v1/toilets/20/reviews'){reviewReads++;if(holdReview)await new Promise(resolve=>{releaseReview=resolve});const items=Array.from({length:4},(_,index)=>({id:String(10+index),toiletId:20,toiletName:'합성 화장실',satisfaction:index===0?4:5,cleanliness:5,paper:true,waitMinutes:0,comment:index===0?'':`합성 리뷰 ${index+1}`,version:0,createdAt:stamp,updatedAt:stamp,editableUntil:stamp,canManage:false,authorRemoved:false,authorDisplayName:'합성 사용자 1',authorPhotoVersion:setting.publicPhoto?reviewVersion:null}));return json({items,hasMore:false,nextCursor:null})}
+   if(/^\/api\/v1\/toilets\/20\/reviews\/\d+\/photo$/.test(p)){reviewPhotoReads++;return json({},404)}
+   if(p==='/api/v1/toilets/20/reviews'){reviewReads++;if(holdReview)await new Promise(resolve=>{releaseReview=resolve});const items=Array.from({length:4},(_,index)=>({id:String(10+index),toiletId:20,toiletName:'합성 화장실',satisfaction:index===0?4:5,cleanliness:5,paper:true,waitMinutes:0,comment:index===0?'':`합성 리뷰 ${index+1}`,version:0,createdAt:stamp,updatedAt:stamp,editableUntil:stamp,canManage:false,authorRemoved:index===2,authorDisplayName:index===2?'익명':'합성 사용자 1',authorPhotoVersion:setting.publicPhoto&&index!==2?reviewVersion:null,authorRank:index===0?'yellow':index===1?'red':null}));return json({items,hasMore:false,nextCursor:null})}
    return json({},404)
   })
   const page=await context.newPage(),errors=[]
   page.on('pageerror',e=>errors.push(e.message))
   await page.goto(origin+'/photo-check')
+  const growthEnabled=await page.locator('[data-review-growth-enabled]').getAttribute('data-review-growth-enabled')==='true'
+  const assertReviewAvatars=async(scope,total)=>{
+   assert.equal(await scope.locator('.public-review-avatar').count(),total)
+   const icons=scope.locator('.public-review-avatar .growth-rank-icon')
+   assert.equal(await icons.count(),growthEnabled?2:0)
+   assert.equal(await scope.locator('.public-review-avatar-fallback').count(),growthEnabled?total-2:total)
+   assert.equal(await scope.locator('.public-review-avatar img:not(.growth-rank-icon)').count(),0)
+   if(growthEnabled){
+    assert.equal(await icons.nth(0).getAttribute('src'),'/growth/rank-icons/v14/compact/03-flame.svg')
+    assert.equal(await icons.nth(0).getAttribute('alt'),'노랑 휴지')
+    assert.match(await icons.nth(1).getAttribute('src'),/^\/growth\/rank-icons\/v14\/compact\/05-star\.(?:svg|gif)$/)
+   }
+   assert.equal(reviewPhotoReads,0,'review photos must not be rendered or prefetched')
+  }
   await page.locator('.mobile-avatar img').waitFor()
   assert.equal(photoStateReads,0)
   assert.equal(await page.locator('.mobile-avatar img').getAttribute('src'),`https://api.geupddong.com/api/v1/auth/me/photo/image?version=${version}`)
@@ -64,8 +79,9 @@ export default function Fixture(){
   await page.screenshot({path:path.join(evidence,'photo-actions-mobile.png'),fullPage:true})
   await page.getByRole('button',{name:'취소',exact:true}).click()
   await page.getByRole('button',{name:'프로필 수정',exact:true}).click()
-  const visibility=page.getByRole('switch',{name:'리뷰에 프로필 사진 공개'})
+  const visibility=page.getByRole('switch',{name:'프로필 사진 공개',exact:true})
   await visibility.waitFor()
+  await page.getByText('리뷰에는 사진 대신 휴지 등급이 표시돼요.',{exact:true}).waitFor()
   await page.locator('.mobile-avatar img').waitFor()
   assert.equal(await visibility.getAttribute('aria-checked'),'false')
   assert.deepEqual(await visibility.evaluate(button=>{
@@ -85,7 +101,6 @@ export default function Fixture(){
    return {background:getComputedStyle(button).backgroundColor,labelBeforeKnob:label.right<=knob.left}
   }),{background:'rgb(23, 104, 58)',labelBeforeKnob:true})
   assert.equal(await page.getByText(/리뷰 작성자 사진을 (공개했어요|비공개로 바꿨어요)/).count(),0)
-  const reviewPhotoReadsBeforePrefetch=reviewPhotoReads
   holdReview=true
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
   await page.locator('.public-reviews').waitFor()
@@ -93,19 +108,18 @@ export default function Fixture(){
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
   releaseReview();holdReview=false
-  for(let attempt=0;attempt<100&&(reviewReads===0||reviewPhotoReads===reviewPhotoReadsBeforePrefetch);attempt++)await page.waitForTimeout(25)
-  assert.equal(reviewReads,1);assert.equal(reviewPhotoReads,reviewPhotoReadsBeforePrefetch+1)
-  const reviewPhotoReadsAfterPrefetch=reviewPhotoReads
   await page.getByText('합성 리뷰 2',{exact:true}).waitFor()
-  await page.locator('.public-review-avatar img').first().waitFor()
+  assert.equal(reviewReads,1)
+  await assertReviewAvatars(page.locator('.public-review-summary-list'),3)
   assert.equal(await page.locator('.public-review-summary-list .public-review-row').count(),3)
   assert.equal(await page.locator('.public-review-summary-list .public-review-rating').first().innerText(),'4.5')
   assert.equal(await page.locator('.public-review-summary-list .public-review-row').first().locator('.public-review-comment').count(),0)
-  assert.equal(reviewReads,1);assert.equal(reviewPhotoReads,reviewPhotoReadsAfterPrefetch)
+  assert.equal(reviewReads,1);assert.equal(reviewPhotoReads,0)
   await page.screenshot({path:path.join(evidence,'public-review.png'),fullPage:true})
   await page.locator('.public-review-summary-list .public-review-row').nth(1).click()
   await page.getByRole('region',{name:'합성 화장실 전체 리뷰'}).waitFor()
   assert.equal(await page.locator('.public-review-full-list .public-review-row').count(),4)
+  await assertReviewAvatars(page.locator('.public-review-full-list'),4)
   assert.equal(await page.locator('.public-review-full-list .public-review-row').first().locator('.public-review-comment').count(),0)
   const backBox=await page.getByRole('button',{name:'화장실 상세로 돌아가기'}).boundingBox(),closeBox=await page.getByRole('button',{name:'정보 닫기'}).boundingBox()
   assert.ok(backBox&&closeBox&&Math.abs((backBox.y+backBox.height/2)-(closeBox.y+closeBox.height/2))<8)
@@ -119,7 +133,7 @@ export default function Fixture(){
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
   await page.getByRole('button',{name:'프로필 수정',exact:true}).click()
   const ownPhotoBeforeOff=await page.locator('.mobile-avatar img').getAttribute('src'),privateOwnReadsBeforeOff=privateOwnReads
-  await page.getByRole('switch',{name:'리뷰에 프로필 사진 공개'}).click()
+  await page.getByRole('switch',{name:'프로필 사진 공개',exact:true}).click()
   await page.waitForFunction(()=>document.querySelector('[role="switch"]')?.getAttribute('aria-checked')==='false')
   assert.equal(writes,2);assert.equal(setting.publicPhoto,false)
   await page.waitForFunction(version=>document.querySelector('.mobile-avatar img')?.getAttribute('src')===`https://api.geupddong.com/api/v1/auth/me/photo/image?version=${version}`,version)
@@ -127,11 +141,12 @@ export default function Fixture(){
   assert.notEqual(await page.locator('.mobile-avatar img').getAttribute('src'),ownPhotoBeforeOff)
   assert.equal(await page.getByText(/리뷰 작성자 사진을 (공개했어요|비공개로 바꿨어요)/).count(),0)
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
-  await page.waitForFunction(()=>!document.querySelector('.public-review-avatar img'))
+  await page.getByText('합성 리뷰 2',{exact:true}).waitFor()
+  await assertReviewAvatars(page.locator('.public-review-summary-list'),3)
   await page.getByRole('button',{name:'리뷰 화면 시험'}).click()
   await page.getByRole('button',{name:'프로필 수정',exact:true}).click()
   failSave=true
-  await page.getByRole('switch',{name:'리뷰에 프로필 사진 공개'}).click()
+  await page.getByRole('switch',{name:'프로필 사진 공개',exact:true}).click()
   await page.getByText(/사진 공개 설정을 저장하지 못했어요/).waitFor();assert.equal(writes,3);assert.equal(setting.publicPhoto,false)
   failSave=false
   await page.getByRole('button',{name:'프로필 사진 변경',exact:true}).click()
@@ -180,7 +195,8 @@ export default function Fixture(){
   assert.equal(photoStateReads,0)
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false)
   assert.deepEqual(errors,[])
-  console.log(JSON.stringify({passed:true,writes,imageReads,privateOwnReads,publicOwnReads,reviewPhotoReads,reviewReads,photoStateReads,checks:['auth-profile-photo-first-paint','native-browser-image-cache','photo-action-sheet','pill-visibility-switch','toggle-no-success-message','private-owner','public-owner-cdn','off-keeps-own-photo','off-private-browser-cache-reuse','off-hides-public-review','public-review-prefetch','public-review-photo-decode','public-review-browser-cache-reuse','revocation','save-failure','delete','large-source-auto-resize','crop-grid','reset-icon','apply-layout','webp-export','png-export-fallback','client-crop-upload','account-switch','mobile-width']}))
+  assert.equal(reviewPhotoReads,0)
+  console.log(JSON.stringify({passed:true,growthEnabled,writes,imageReads,privateOwnReads,publicOwnReads,reviewPhotoReads,reviewReads,photoStateReads,checks:['auth-profile-photo-first-paint','native-browser-image-cache','photo-action-sheet','pill-visibility-switch','review-rank-notice','toggle-no-success-message','private-owner','public-owner-cdn','off-keeps-own-photo','off-private-browser-cache-reuse','off-keeps-review-rank','public-review-prefetch','public-review-rank-or-disabled-fallback','anonymous-and-missing-rank-fallback','no-review-photo-requests','public-review-browser-cache-reuse','revocation','save-failure','delete','large-source-auto-resize','crop-grid','reset-icon','apply-layout','webp-export','png-export-fallback','client-crop-upload','account-switch','mobile-width']}))
   await context.close()
  } finally {
   if(browser)await browser.close()

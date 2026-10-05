@@ -1,0 +1,67 @@
+.experience-history { color: #294231; }
+.experience-history-heading { display: flex; align-items: center; gap: 8px; min-height: 62px; margin-bottom: 12px; }
+.experience-history-heading button { display: grid; place-items: center; width: 40px; height: 44px; margin-left: -10px; padding: 0; border: 0; background: none; color: #466451; }
+.experience-history-heading svg { width: 21px; height: 21px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.experience-history-heading h1 { margin: 0; font-size: 21px; letter-spacing: -.7px; }
+.experience-history-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border: 1px solid #e0e8df; border-radius: 13px; background: #edf2ec; }
+.experience-history-tabs button { min-height: 42px; padding: 8px; border: 0; border-radius: 9px; background: none; color: #738370; font: inherit; font-size: 13px; font-weight: 650; }
+.experience-history-tabs button[aria-pressed=true] { color: #286844; background: #fff; box-shadow: 0 2px 5px #28473212; }
+.experience-history-caption { display: flex; justify-content: space-between; gap: 10px; padding: 18px 2px 12px; color: #71816c; font-size: 11px; }
+.experience-history-limit { margin: -3px 2px 12px; color: #78846f; font-size: 10px; line-height: 1.5; }
+.experience-history-list { margin: 0; padding: 0 14px; list-style: none; border: 1px solid #e1e7db; border-radius: 16px; background: #fff; }
+.experience-history-list li { display: flex; align-items: center; gap: 10px; min-height: 72px; padding: 12px 0; }
+.experience-history-list li + li { border-top: 1px solid #eef1e9; }
+.experience-history-sign { display: grid; place-items: center; flex: 0 0 30px; height: 30px; border-radius: 11px; color: #5d8e5c; background: #eef5e9; font-size: 19px; }
+.experience-history-sign.is-deducted { color: #a67565; background: #faf0e9; }
+.experience-history-list li > div { min-width: 0; }
+.experience-history-list h2 { margin: 0 0 5px; color: #395334; font-size: 12px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+.experience-history-list time { display: block; color: #7c8872; font-size: 10px; line-height: 1.4; }
+.experience-history-list li > strong { margin-left: auto; flex-shrink: 0; color: #3d8050; font-size: 15px; font-variant-numeric: tabular-nums; }
+.experience-history-list li > strong.is-deducted { color: #a56b58; }
+.experience-history-list small { font-size: 10px; font-weight: 500; }
+.experience-history-pagination { display: flex; justify-content: center; gap: 3px; margin-top: 18px; }
+.experience-history-pagination button { min-width: 34px; min-height: 44px; padding: 5px; border: 0; border-radius: 11px; color: #72856b; background: transparent; font: inherit; font-size: 12px; }
+.experience-history-pagination button[aria-current=page] { color: #356842; background: #e6efdf; font-weight: 700; }
+.experience-history-pagination button:disabled { color: #c4cdbd; }
+.experience-history-state, .experience-history-empty { padding: 42px 12px; color: #788870; font-size: 13px; line-height: 1.7; text-align: center; }
+.experience-history-state button { min-height: 44px; padding: 8px 16px; border: 1px solid #cdddc5; border-radius: 10px; background: #fff; color: #437044; font: inherit; }
+.experience-history-empty > span { display: grid; place-items: center; width: 48px; height: 48px; margin: 0 auto 16px; border-radius: 17px; background: #ecf1e6; color: #8aa17c; font-size: 28px; }
+.experience-history button { cursor: pointer; }
+.experience-history button:disabled { cursor: default; }
+.experience-history--desktop .experience-history-heading { min-height: 0; margin-bottom: 24px; padding-bottom: 22px; border-bottom: 1px solid #e7eee9; }
+.experience-history--desktop .experience-history-heading h1 { font-size: 26px; font-weight: 750; line-height: 1.4; }
+.experience-history--desktop .experience-history-tabs { width: 260px; max-width: 100%; border-radius: 12px; }
+.experience-history--desktop .experience-history-tabs button { min-height: 36px; font-size: 14px; }
+.experience-history--desktop .experience-history-caption { padding: 22px 2px 12px; font-size: 12px; }
+.experience-history--desktop .experience-history-limit { font-size: 12px; }
+.experience-history--desktop .experience-history-table-wrap { overflow: hidden; border: 1px solid #e1e9e3; border-radius: 14px; }
+.experience-history--desktop .experience-history-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 14px; }
+.experience-history--desktop .experience-history-table th { padding: 13px 20px; background: #f6f9f6; color: #7a8c7f; font-size: 12px; font-weight: 500; text-align: center; vertical-align: middle; }
+.experience-history--desktop .experience-history-table th:first-child { width: 64px; padding-inline: 10px; }
+.experience-history--desktop .experience-history-table th:nth-child(3) { width: 220px; }
+.experience-history--desktop .experience-history-table th:last-child { width: 130px; }
+.experience-history--desktop .experience-history-table td { height: 64px; padding: 12px 20px; border-top: 1px solid #edf2ee; text-align: center; vertical-align: middle; overflow-wrap: anywhere; }
+.experience-history--desktop .experience-history-table .experience-history-order { padding-inline: 10px; color: #8b9b8f; font-size: 12px; font-variant-numeric: tabular-nums; }
+.experience-history--desktop .experience-history-activity { color: #39563f; font-weight: 550; line-height: 1.5; }
+.experience-history--desktop .experience-history-table time { color: #7e9083; font-size: 13px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.experience-history--desktop .experience-history-table strong { color: #397c4e; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.experience-history--desktop .experience-history-table strong.is-deducted { color: #a56b58; }
+.experience-history--desktop .experience-history-table small { font-size: 11px; font-weight: 500; }
+.experience-history--desktop .experience-history-pagination { gap: 6px; margin-top: 24px; }
+.experience-history--desktop .experience-history-pagination button { min-width: 38px; min-height: 38px; font-size: 13px; }
+.experience-history--desktop .experience-history-state,
+.experience-history--desktop .experience-history-empty { display: flex; min-height: 280px; margin: 18px 0 0; padding: 60px 24px; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #e1e9e3; border-radius: 14px; background: #fafcf9; font-size: 14px; }
+.experience-history--desktop .experience-history-empty > span { width: 54px; height: 54px; margin-bottom: 12px; }
+.experience-history--desktop .experience-history-empty p { margin: 0; }
+.experience-history--desktop button:focus-visible { outline: 2px solid #39815b; outline-offset: 3px; }
+@media (min-width: 641px) and (max-width: 1100px) {
+  .experience-history--desktop .experience-history-table th,
+  .experience-history--desktop .experience-history-table td { padding-inline: 8px; }
+  .experience-history--desktop .experience-history-table th:first-child { width: 44px; padding-inline: 8px; }
+  .experience-history--desktop .experience-history-table th:nth-child(3) { width: 32%; }
+  .experience-history--desktop .experience-history-table th:last-child { width: 22%; }
+}
+@media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (pointer: coarse) {
+  .mobile-page.is-experience-page { padding: 5px 18px 26px; background: #f8faf6; }
+  .mobile-page.is-experience-page .history-scroll-top { display: none; }
+}

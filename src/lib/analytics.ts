@@ -17,7 +17,16 @@ const eventParameters = {
 
 export type AnalyticsEventName = keyof typeof eventParameters
 export type AnalyticsParameters = Record<string, string | number | boolean | undefined>
-export type AnalyticsAcquisition = { referrerHost?: string; utmSource?: string; utmMedium?: string }
+export type EntryNavigation = 'NAVIGATE' | 'RELOAD' | 'HISTORY' | 'PRERENDER' | 'CONTINUATION' | 'UNKNOWN'
+export type AcquisitionEvidence = 'UTM' | 'REFERRER' | 'INTERNAL' | 'NO_REFERRER' | 'INVALID_REFERRER' | 'UNRECORDED'
+export type AnalyticsAcquisition = { referrerHost?: string; utmSource?: string; utmMedium?: string; acquisitionEvidence?: AcquisitionEvidence; entryNavigation?: EntryNavigation }
+const evidenceValues = new Set(['UTM', 'REFERRER', 'INTERNAL', 'NO_REFERRER', 'INVALID_REFERRER', 'UNRECORDED'])
+const navigationValues = new Set(['NAVIGATE', 'RELOAD', 'HISTORY', 'PRERENDER', 'CONTINUATION', 'UNKNOWN'])
+
+export function entryNavigationType(type: string | undefined, continued = false): EntryNavigation {
+  if (continued) return 'CONTINUATION'
+  return ({ navigate: 'NAVIGATE', reload: 'RELOAD', back_forward: 'HISTORY', prerender: 'PRERENDER' } as Record<string, EntryNavigation>)[type || ''] || 'UNKNOWN'
+}
 
 export function sanitizeAnalyticsPagePath(pathname: string) {
   // Keep the strict page allowlist; language adds no identifier to analytics.
@@ -42,7 +51,7 @@ function referrerHostValue(value: string | null | undefined) {
   return normalized.length <= 120 && /^[a-z0-9.-]+$/.test(normalized) ? normalized : undefined
 }
 
-export function buildAnalyticsAcquisition(locationHref: string, documentReferrer: string): AnalyticsAcquisition {
+export function buildAnalyticsAcquisition(locationHref: string, documentReferrer: string, entryNavigation: EntryNavigation = 'UNKNOWN'): AnalyticsAcquisition {
   let referrerHost: string | undefined
   try {
     const host = documentReferrer ? new URL(documentReferrer).hostname.toLowerCase() : ''
@@ -51,13 +60,19 @@ export function buildAnalyticsAcquisition(locationHref: string, documentReferrer
 
   try {
     const params = new URL(locationHref).searchParams
+    const utmSource = attributionValue(params.get('utm_source'), 40)
+    const acquisitionEvidence: AcquisitionEvidence = utmSource ? 'UTM'
+      : referrerHost ? (referrerHost === 'geupddong.com' || referrerHost.endsWith('.geupddong.com') ? 'INTERNAL' : 'REFERRER')
+        : documentReferrer ? 'INVALID_REFERRER' : 'NO_REFERRER'
     return {
       referrerHost,
-      utmSource: attributionValue(params.get('utm_source'), 40),
+      utmSource,
       utmMedium: attributionValue(params.get('utm_medium'), 24),
+      acquisitionEvidence,
+      entryNavigation,
     }
   } catch {
-    return { referrerHost }
+    return { referrerHost, acquisitionEvidence: 'UNRECORDED', entryNavigation }
   }
 }
 
@@ -65,6 +80,7 @@ export function resolveAnalyticsAcquisition(
   stored: string | null,
   locationHref: string,
   documentReferrer: string,
+  entryNavigation: EntryNavigation = 'UNKNOWN',
 ): AnalyticsAcquisition {
   if (stored !== null) {
     try {
@@ -73,10 +89,12 @@ export function resolveAnalyticsAcquisition(
         referrerHost: referrerHostValue(parsed.referrerHost),
         utmSource: attributionValue(parsed.utmSource, 40),
         utmMedium: attributionValue(parsed.utmMedium, 24),
+        acquisitionEvidence: evidenceValues.has(parsed.acquisitionEvidence || '') ? parsed.acquisitionEvidence : 'UNRECORDED',
+        entryNavigation: navigationValues.has(parsed.entryNavigation || '') ? parsed.entryNavigation : 'UNKNOWN',
       }
     } catch { /* A broken storage value starts a fresh attribution below. */ }
   }
-  return buildAnalyticsAcquisition(locationHref, documentReferrer)
+  return buildAnalyticsAcquisition(locationHref, documentReferrer, entryNavigation)
 }
 
 export function sanitizeAnalyticsParameters(name: AnalyticsEventName, parameters: AnalyticsParameters = {}) {
@@ -120,6 +138,14 @@ let volatileSessionId = ''
 let volatileActivityAt = 0
 let volatileStartedId = ''
 let volatileAcquisition: AnalyticsAcquisition | undefined
+let sentOnDocument = false
+
+function currentEntryNavigation(): EntryNavigation {
+  try {
+    const entry = window.performance?.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
+    return entryNavigationType(entry?.type, sentOnDocument)
+  } catch { return sentOnDocument ? 'CONTINUATION' : 'UNKNOWN' }
+}
 
 function randomId() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
@@ -196,10 +222,10 @@ function claimNewVisitor() {
 }
 
 function acquisition(): AnalyticsAcquisition {
-  const initial = () => resolveAnalyticsAcquisition(null, window.location.href, document.referrer)
+  const initial = () => resolveAnalyticsAcquisition(null, window.location.href, document.referrer, currentEntryNavigation())
   try {
     const current = window.sessionStorage.getItem(ACQUISITION_KEY)
-    const created = resolveAnalyticsAcquisition(current, window.location.href, document.referrer)
+    const created = resolveAnalyticsAcquisition(current, window.location.href, document.referrer, currentEntryNavigation())
     if (current === null) window.sessionStorage.setItem(ACQUISITION_KEY, JSON.stringify(created))
     volatileAcquisition = created
     return created
@@ -249,6 +275,7 @@ function send(payload: AnalyticsPayload) {
   if (typeof window === 'undefined') return
   const session = sessionId()
   const source = acquisition()
+  sentOnDocument = true
   if (!sessionStarted(session)) {
     markSessionStarted(session)
     if (payload.event !== 'session_start') {

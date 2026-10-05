@@ -19,9 +19,10 @@ test('report panel exposes a read-only retry and guards stale completion', () =>
   const source=readFileSync(new URL('../src/components/MyReportsPanel.tsx', import.meta.url),'utf8')
   assert.match(source,/onClick=\{retryReports\}/)
   assert.match(source,/if \(isLoading\) return/)
-  assert.match(source,/setError\(null\)/)
-  assert.match(source,/\[requestVersion, locale\]/)
-  assert.match(source,/return \(\) => \{ active = false \}/)
+  assert.match(source,/useReportHistory\(/)
+  assert.match(source,/void history.retry\(\)/)
+  const hook = readFileSync(new URL('../src/lib/useReportHistory.ts', import.meta.url),'utf8')
+  assert.match(hook,/return pager.dispose/)
   assert.doesNotMatch(source,/createToiletReport|method:\s*['"]POST/)
 })
 

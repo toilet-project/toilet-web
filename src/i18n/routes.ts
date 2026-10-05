@@ -1,6 +1,6 @@
 import { isLocale, SUPPORTED_LOCALES, type Locale } from './locale.ts'
 
-const PUBLIC_PATH = /^\/(?:toilet\/[1-9]\d*|regions(?:\/[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*(?:\/[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*(?:\/toilet\/[1-9]\d*-[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*)?)?)?|account|policies\/(?:all|terms|privacy|location))?$/u
+const PUBLIC_PATH = /^\/(?:toilet\/[1-9]\d*|regions(?:\/[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*(?:\/[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*(?:\/toilet\/[1-9]\d*-[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*)?)?)?|account|growth\/(?:ranks|levels)|policies\/(?:all|terms|privacy|location))?$/u
 
 export function localeForPath(path: string | null): Locale {
   return localePrefix(path ?? '').locale
