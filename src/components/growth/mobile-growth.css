@@ -17,9 +17,9 @@
   .mobile-page .mobile-growth-next small { color: #78887c; font-size: 11px; font-weight: 600; }
   .mobile-page .mobile-growth-track { grid-column: 1 / -1; height: 6px; overflow: hidden; border-radius: 6px; background: #e5ece5; }
   .mobile-page .mobile-growth-track > div { box-sizing: border-box; height: 100%; border: 1px solid var(--mobile-growth-color, #6fa27d); border-radius: inherit; background: var(--mobile-growth-bar, #8ac998); }
-  .mobile-page .mobile-growth-links { display: flex; justify-content: flex-end; align-items: center; gap: 16px; padding: 0 16px 3px; }
-  .mobile-page .mobile-growth-links a { display: inline-flex; min-height: 44px; align-items: center; color: #74877a; font-size: 11px; font-weight: 500; line-height: 1.5; text-decoration: underline; text-decoration-color: #cad5cd; text-underline-offset: 3px; }
-  .mobile-page .mobile-growth-links a:focus-visible { outline: 2px solid #518162; outline-offset: 3px; border-radius: 3px; }
+  .mobile-page .mobile-growth-links { display: flex; flex-wrap: nowrap; justify-content: flex-end; align-items: center; gap: clamp(8px, 2.5vw, 16px); padding: 0 16px 3px; }
+  .mobile-page .mobile-growth-links :is(a, button) { display: inline-flex; flex: 0 1 auto; min-width: 0; min-height: 44px; align-items: center; padding: 0; border: 0; background: none; color: #74877a; font: inherit; font-size: 11px; font-weight: 500; line-height: 1.5; text-align: center; text-decoration: underline; text-decoration-color: #cad5cd; text-underline-offset: 3px; cursor: pointer; }
+  .mobile-page .mobile-growth-links :is(a, button):focus-visible { outline: 2px solid #518162; outline-offset: 3px; border-radius: 3px; }
   .mobile-page .mobile-growth-summary .growth-state { grid-column: 1 / -1; margin: 0; padding: 17px 16px; color: #718177; font-size: 12px; line-height: 1.6; }
   .mobile-page .mobile-growth-body > .growth-state { padding: 0; }
   .mobile-page .mobile-growth-summary .growth-state button { min-height: 44px; padding: 4px 0 4px 6px; font: inherit; }

@@ -5,13 +5,14 @@ import Link from 'next/link'
 import { useLocale } from '../../i18n/context'
 import { growthText } from '../../i18n/growthText'
 import { growthMobileText } from '../../i18n/growthMobileText'
+import { experienceHistoryText } from '../../i18n/experienceHistoryText'
 import { localizedPublicPath } from '../../i18n/routes'
-import { growthRanks } from '../../lib/growth'
+import { GROWTH_ENABLED, growthRanks } from '../../lib/growth'
 import type { GrowthState } from '../../lib/growthStore'
 import { GrowthStatus } from './GrowthStatus'
 import { RankIcon } from './RankIcon'
 
-export function MobileGrowthSummary({ state }: { state: GrowthState & { refresh: () => void } }) {
+export function MobileGrowthSummary({ state, onHistory }: { state: GrowthState & { refresh: () => void }; onHistory?: () => void }) {
   const locale = useLocale(), t = growthText(locale), mobile = growthMobileText(locale)
   const summary = state.summary
   const rankIndex = summary ? growthRanks.findIndex(rank => rank.key === summary.rank) : -1
@@ -28,6 +29,7 @@ export function MobileGrowthSummary({ state }: { state: GrowthState & { refresh:
     <nav className="mobile-growth-links" aria-label={t.growthGuide}>
       <Link href={localizedPublicPath('/growth/ranks', locale)!}>{mobile.ranksTab}</Link>
       <Link href={localizedPublicPath('/growth/levels', locale)!}>{mobile.levelsTab}</Link>
+      {GROWTH_ENABLED && onHistory && <button type="button" onClick={onHistory}>{experienceHistoryText(locale).title}</button>}
     </nav>
   </section>
 }

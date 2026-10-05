@@ -44,6 +44,23 @@
 .achievement-next strong { color: #655c3a; font-size: 12px; }
 .achievement-next em { color: #766c4b; font-size: 10px; font-style: normal; line-height: 1.4; }
 .achievement-next > svg { flex-shrink: 0; width: 16px; height: 16px; margin-left: auto; color: #b7ac88; }
+.achievement-bronze-goal { margin-top: 13px; padding: 12px 12px 0; border: 1px solid #e5d9bc; border-radius: 15px; background: #fffaf0; }
+.achievement-bronze-goal-main { display: flex; align-items: center; gap: 10px; }
+.achievement-bronze-goal-main > img { flex-shrink: 0; }
+.achievement-bronze-goal-main > div { min-width: 0; }
+.achievement-bronze-goal-main small { color: #8b6e45; font-size: 10px; font-weight: 650; }
+.achievement-bronze-goal-main h2 { margin: 4px 0; color: #604a2e; font-size: 13px; letter-spacing: -.25px; }
+.achievement-bronze-goal-main p { margin: 0; color: #756744; font-size: 11px; line-height: 1.5; word-break: keep-all; overflow-wrap: anywhere; }
+.achievement-bronze-goal-counts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 15px; margin: 10px 0; font-size: 10px; color: #706647; }
+.achievement-bronze-goal-counts > span { display: flex; align-items: center; gap: 6px; }
+.achievement-bronze-goal-counts b { color: #635332; font-size: 12px; }
+.achievement-bronze-goal-counts small { margin-left: 2px; font-size: 10px; font-weight: 400; }
+.achievement-bronze-goal-counts svg { width: 12px; height: 12px; color: #52784a; }
+.achievement-bronze-goal-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid #e9e1cc; }
+.achievement-bronze-goal-actions button, .achievement-bronze-goal-actions a { display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 44px; padding: 5px 0; border: 0; background: none; font: inherit; font-size: 11px; line-height: 1.5; }
+.achievement-bronze-goal-actions button { color: #796b4c; }
+.achievement-bronze-goal-actions a { color: #356f40; font-weight: 700; text-decoration: none; text-align: right; }
+.achievement-bronze-goal-actions svg { width: 14px; height: 14px; flex-shrink: 0; }
 .achievement-filter-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0 6px; }
 .achievement-filter-row > div { display: flex; gap: 14px; }
 .achievement-filter-row button { min-height: 40px; padding: 0 1px; border: 0; background: none; color: #94a08f; font-size: 11px; }

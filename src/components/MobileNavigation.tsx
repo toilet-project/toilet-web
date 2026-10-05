@@ -3,7 +3,7 @@ import { useMessages, useLocale } from '../i18n/context'
 import { localizedPublicPath } from '../i18n/routes'
 
 export type MobileTab = 'map' | 'notifications' | 'account'
-export type MobileAccountView = 'home' | 'likes' | 'achievements' | 'reports' | 'reviews' | 'settings'
+export type MobileAccountView = 'home' | 'likes' | 'achievements' | 'experience' | 'reports' | 'reviews' | 'settings'
 type IconName = MobileTab | 'community' | 'regions' | 'settings' | 'likes' | 'achievements'
 
 export function Icon({ name }: { name: IconName }) {

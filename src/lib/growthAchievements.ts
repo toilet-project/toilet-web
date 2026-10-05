@@ -365,3 +365,23 @@ export function growthNextMedalProgress(region: GrowthRegion | null | undefined)
   const nextTier = region.tier === 'silver' ? 'gold' : region.tier === 'bronze' ? 'silver' : 'bronze'
   return growthMedalProgress(region, nextTier)
 }
+
+/** Recommend an unfinished bronze goal only when both the catalogue and server support it. */
+export function growthBronzeGoal(summary: GrowthSummary, regionCode?: string): { region: GrowthAchievementRegion; progress: GrowthMedalProgress } | null {
+  const awards = growthHighestRegionalAwards(summary)
+  const serverRegions = new Map(summary.regions.map(region => [region.code, region]))
+  const candidates: { region: GrowthAchievementRegion; progress: GrowthMedalProgress }[] = []
+  for (const region of growthAchievementRegions) {
+    if (regionCode !== undefined && regionCode !== 'all' && region.code !== regionCode) continue
+    const serverRegion = serverRegions.get(region.code)
+    // Either source indicating ownership is enough to suppress a contradictory prompt.
+    if (awards.has(region.code) || serverRegion?.tier) continue
+    const progress = growthMedalProgress(serverRegion, 'bronze')
+    if (!progress || !Number.isFinite(progress.percent) || progress.percent >= 100) continue
+    candidates.push({ region, progress })
+  }
+  const started = ({ progress }: typeof candidates[number]) => Number(progress.facilities.count > 0 || progress.districts.count > 0)
+  const remaining = ({ progress }: typeof candidates[number]) => progress.facilities.remaining + progress.districts.remaining
+  candidates.sort((a, b) => started(b) - started(a) || b.progress.percent - a.progress.percent || remaining(a) - remaining(b) || a.region.code.localeCompare(b.region.code))
+  return candidates[0] ?? null
+}

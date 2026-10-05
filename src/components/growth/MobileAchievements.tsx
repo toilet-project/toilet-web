@@ -8,7 +8,7 @@ import { achievementText } from '../../i18n/achievementText'
 import { localizedPublicPath } from '../../i18n/routes'
 import { GROWTH_ENABLED, type GrowthBadge, type GrowthSummary, type MedalTier } from '../../lib/growth'
 import { growthBadgePath } from '../../lib/growthBadgeAssets'
-import { growthAchievementRegions, growthAchievementName, growthAchievementKey, growthEarnedAchievements, growthHighestRegionalAwards, growthMedalTiers, growthMedalProgress, growthNextMedalProgress, type GrowthMedalProgress } from '../../lib/growthAchievements'
+import { growthAchievementRegions, growthAchievementName, growthAchievementKey, growthEarnedAchievements, growthHighestRegionalAwards, growthBronzeGoal, growthMedalTiers, growthMedalProgress, growthNextMedalProgress, type GrowthMedalProgress } from '../../lib/growthAchievements'
 import { useGrowth } from '../../lib/useGrowth'
 import { useDialogFocus } from '../../lib/useDialogFocus'
 import { urlName } from '../../lib/urlName'
@@ -58,6 +58,7 @@ export function AchievementCollection({ summary }: { summary: GrowthSummary }) {
   const region = growthAchievementRegions.find(item => item.code === regionCode)
   const record = summary.regions.find(item => item.code === regionCode)
   const next = growthNextMedalProgress(record)
+  const bronzeGoal = growthBronzeGoal(summary, regionCode)
   const districtCount = [...awards.values()].filter(badge => badge.type === 'district').length
   const medalCount = regionalAwards.size
   const collectionCount = districtCount + medalCount
@@ -77,6 +78,7 @@ export function AchievementCollection({ summary }: { summary: GrowthSummary }) {
   }
   const isEarned = (item: CollectionItem) => item.type === 'regional_medal' ? regionalAwards.has(item.code) : awards.has(growthAchievementKey(item))
   const matching = items.filter(item => filter === 'all' || (filter === 'earned') === isEarned(item))
+    .sort((a, b) => Number(isEarned(b)) - Number(isEarned(a)))
   const visible = matching.slice(0, limit)
   const ownedHere = items.filter(isEarned).length
   const resetView = () => { setLimit(30); setSelected(null) }
@@ -93,6 +95,8 @@ export function AchievementCollection({ summary }: { summary: GrowthSummary }) {
     </div>
 
     <div className="achievement-region-picker"><label htmlFor="achievement-region">{t.region}</label><select id="achievement-region" value={regionCode} onChange={event => { setRegionCode(event.target.value); resetView() }}><option value="all">{t.allRegions}</option>{growthAchievementRegions.map(item => <option key={item.code} value={item.code}>{growthAchievementName(item, locale)}</option>)}</select><span>{t.earned} <b>{ownedHere}</b></span></div>
+
+    {tab === 'regional_medal' && filter !== 'earned' && bronzeGoal && <BronzeGoalCard goal={bronzeGoal} first={medalCount === 0} onDetails={() => setSelected({ type: 'regional_medal', code: bronzeGoal.region.code, regionCode: bronzeGoal.region.code, tier: 'bronze', name: growthAchievementName(bronzeGoal.region, locale) })} />}
 
     {tab === 'district' && region && record && <div className="achievement-region-status"><div><span>{t.regionCollection}</span><strong>{record.earnedDistricts} <small>/ {record.targetDistricts}</small></strong></div><div className="achievement-meter" role="progressbar" aria-label={t.regionCollection} aria-valuemin={0} aria-valuemax={Math.max(1, record.targetDistricts)} aria-valuenow={Math.min(record.targetDistricts, record.earnedDistricts)}><i style={{ width: `${record.targetDistricts ? Math.min(100, record.earnedDistricts / record.targetDistricts * 100) : 0}%` }} /></div></div>}
 
@@ -117,6 +121,22 @@ export function AchievementCollection({ summary }: { summary: GrowthSummary }) {
     <p className="achievement-policy-note">{t.policyNote}{regions.some(item => summary.regions.find(value => value.code === item.code)?.targetDistricts !== item.districts.length) && <> {t.policyDifference}</>}</p>
     {selected && <AchievementDetail item={selected} summary={summary} awards={awards} onClose={() => setSelected(null)} />}
   </>
+}
+
+function BronzeGoalCard({ goal, first, onDetails }: { goal: NonNullable<ReturnType<typeof growthBronzeGoal>>; first: boolean; onDetails: () => void }) {
+  const locale = useLocale(), t = achievementText(locale)
+  const name = growthAchievementName(goal.region, locale)
+  const label = first ? t.firstBronzeGoal : t.anotherBronzeGoal
+  const { facilities, districts } = goal.progress
+  const message = facilities.count === 0 && districts.count === 0 ? t.bronzeStart
+    : facilities.remaining > 0 ? t.bronzeReviewsLeft.replace('{count}', String(facilities.remaining))
+      : t.bronzeDistrictsLeft.replace('{count}', String(districts.remaining))
+  const path = localizedPublicPath(`/regions/${urlName(name)}-${goal.region.code}`, locale)!
+  return <section className="achievement-bronze-goal" aria-label={label}>
+    <div className="achievement-bronze-goal-main"><BadgeArt item={{ type: 'regional_medal', code: goal.region.code, tier: 'bronze' }} size={50} /><div><small>{label}</small><h2>{name} · {t.bronze}</h2><p>{message}</p></div></div>
+    <div className="achievement-bronze-goal-counts">{[{ label: t.facilities, value: facilities }, { label: t.districts, value: districts }].map(({ label: metricLabel, value }) => <span key={metricLabel}><span>{metricLabel}</span><b>{value.count}<small>/{value.required}</small></b>{value.remaining === 0 && <Mark kind="check" />}</span>)}</div>
+    <div className="achievement-bronze-goal-actions"><button type="button" onClick={onDetails}>{t.viewGoal}</button><Link href={path} prefetch={false}>{t.findToilets}<Mark kind="chevron" /></Link></div>
+  </section>
 }
 
 function AchievementDetail({ item, summary, awards, onClose }: { item: CollectionItem; summary: GrowthSummary; awards: ReadonlyMap<string, GrowthBadge>; onClose: () => void }) {

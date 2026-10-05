@@ -7,7 +7,7 @@ import { growthBadgePath } from '../src/lib/growthBadgeAssets.ts'
 import {
   growthAchievementDistricts, growthAchievementRegions, growthAchievementName,
   growthMedalTiers, growthAchievementKey, growthEarnedAchievements, growthHighestRegionalAwards,
-  growthMedalProgress, growthNextMedalProgress,
+  growthMedalProgress, growthNextMedalProgress, growthBronzeGoal,
 } from '../src/lib/growthAchievements.ts'
 
 const region = (patch = {}) => ({ code: '11', name: '서울특별시', targetDistricts: 25,
@@ -114,4 +114,58 @@ test('missing policy data and a completed top tier do not invent progress or fur
   assert.equal(growthNextMedalProgress(region({ targetDistricts: 0 })), null)
   assert.equal(growthMedalProgress(region({ goldFacilities: 0 }), 'gold'), null)
   assert.equal(growthMedalProgress(region({ goldDistricts: 0 }), 'gold'), null)
+})
+
+test('the bronze goal selects actual started progress before untouched regions and then the closest target', () => {
+  const untouched = region({ code: '11', tier: null, distinctFacilities: 0, earnedDistricts: 0, bronzeFacilities: 1 })
+  const started = region({ code: '26', tier: null, distinctFacilities: 1, earnedDistricts: 0, bronzeFacilities: 5 })
+  const closest = region({ code: '30', tier: null, distinctFacilities: 3, earnedDistricts: 1, bronzeFacilities: 4 })
+  assert.equal(growthBronzeGoal({ badges: [], regions: [untouched, started] }).region.code, '26')
+  const goal = growthBronzeGoal({ badges: [], regions: [untouched, closest, started] }, 'all')
+  assert.equal(goal.region.code, '30')
+  assert.deepEqual(goal.progress, { tier: 'bronze',
+    facilities: { count: 3, required: 4, remaining: 1 },
+    districts: { count: 1, required: 1, remaining: 0 }, percent: 75,
+  })
+})
+
+test('bronze goals break equal progress by remaining requirements and stable region code', () => {
+  const moreRemaining = region({ code: '11', tier: null, distinctFacilities: 2, earnedDistricts: 1, bronzeFacilities: 4 })
+  const fewerRemaining = region({ code: '26', tier: null, distinctFacilities: 1, earnedDistricts: 1, bronzeFacilities: 2 })
+  const tied = { ...fewerRemaining, code: '30' }
+  for (const regions of [[moreRemaining, tied, fewerRemaining], [fewerRemaining, tied, moreRemaining]]) {
+    assert.equal(growthBronzeGoal({ badges: [], regions }).region.code, '26')
+  }
+})
+
+test('an explicit bronze goal stays in the selected region without falling back to another region', () => {
+  const seoul = region({ tier: null, distinctFacilities: 1, earnedDistricts: 1 })
+  const busan = region({ code: '26', tier: null, distinctFacilities: 2, earnedDistricts: 1 })
+  const summary = { badges: [], regions: [seoul, busan] }
+  assert.equal(growthBronzeGoal(summary).region.code, '26')
+  assert.equal(growthBronzeGoal(summary, '11').region.code, '11')
+  assert.equal(growthBronzeGoal(summary, '30'), null)
+  assert.equal(growthBronzeGoal(summary, 'unknown'), null)
+})
+
+test('bronze goals exclude every owned medal tier even if server progress contradicts the award', () => {
+  const incomplete = region({ tier: null, distinctFacilities: 1, earnedDistricts: 1 })
+  for (const tier of growthMedalTiers) {
+    const award = { type: 'regional_medal', code: '11', name: '서울', tier, xp: 30, earnedAt: '2026-10-04T10:00:00' }
+    assert.equal(growthBronzeGoal({ badges: [award], regions: [incomplete] }), null)
+    assert.equal(growthBronzeGoal({ badges: [], regions: [{ ...incomplete, tier }] }), null)
+  }
+  const district = { type: 'district', code: '11110', name: '종로구', tier: null, xp: 20, earnedAt: '2026-10-04T10:00:00' }
+  assert.equal(growthBronzeGoal({ badges: [district], regions: [incomplete] }).region.code, '11')
+})
+
+test('bronze goals do not suggest extra reviews when requirements are met or policy support is missing', () => {
+  const unfinished = region({ tier: null, distinctFacilities: 1, earnedDistricts: 1 })
+  assert.equal(growthBronzeGoal({ badges: [], regions: [] }), null)
+  for (const patch of [
+    { distinctFacilities: 3 }, { distinctFacilities: 4 },
+    { code: '29' }, { code: 'unknown' }, { targetDistricts: 0 }, { bronzeFacilities: 0 },
+  ]) {
+    assert.equal(growthBronzeGoal({ badges: [], regions: [{ ...unfinished, ...patch }] }), null)
+  }
 })
