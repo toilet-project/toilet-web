@@ -11,7 +11,7 @@ test('report notification focus survives account-to-mobile navigation in each la
 })
 
 test('ordinary account destinations do not inherit notification report focus', () => {
-  for (const [view, query] of [['home', 'tab=account'], ['notifications', 'tab=notifications'], ['likes', 'tab=account&view=likes'], ['settings', 'tab=account&view=settings']]) {
+  for (const [view, query] of [['home', 'tab=account'], ['notifications', 'tab=notifications'], ['likes', 'tab=account&view=likes'], ['achievements', 'tab=account&view=achievements'], ['experience', 'tab=account&view=experience'], ['settings', 'tab=account&view=settings']]) {
     const href = mobileAccountHref('/', view, 8)
     assert.equal(href, `/?${query}`)
     assert.equal(mobileReportFocus(new URL(href, 'https://example.com').search), null)

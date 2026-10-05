@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { getCurrentUser, logout, startSocialLogin, type AuthProfile } from '../api/auth'
 import { MyReportsPanel } from './MyReportsPanel'
@@ -15,14 +16,22 @@ import { AccountWorkspaceFrame } from './AccountWorkspaceFrame'
 import { LikedToiletsPanel } from './LikedToiletsPanel'
 import { AccountHome } from './AccountHome'
 const LIKES_ENABLED = process.env.NEXT_PUBLIC_TOILET_ENGAGEMENT_ENABLED === 'true'
+const Achievements = dynamic(() => import('./growth/MobileAchievements').then(module => module.MobileAchievements), { loading: AccountPanelLoading })
+const ExperienceHistory = dynamic(() => import('./growth/MobileExperienceHistory').then(module => module.MobileExperienceHistory), { loading: AccountPanelLoading })
 
-export type AccountView = 'home' | 'likes' | 'reviews' | 'reports' | 'settings' | 'notifications'
+function AccountPanelLoading() {
+  const t = useMessages()
+  return <p className="account-workspace-status" role="status">{t('common.loading')}</p>
+}
+
+export type AccountView = 'home' | 'likes' | 'achievements' | 'experience' | 'reviews' | 'reports' | 'settings' | 'notifications'
 
 export function AccountWorkspace({ view, reportId = null }: { view: AccountView; reportId?: number | null }) {
   const locale = useLocale(), t = useMessages(), router = useRouter()
   const [profile, setProfile] = useState<AuthProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [withdrawn, setWithdrawn] = useState('')
+  const expireSession = useCallback(() => setProfile(null), [])
   const base = localizedPublicPath('/account', locale)!
   const home = localizedPublicPath('/', locale)!
   useEffect(() => {
@@ -54,7 +63,9 @@ export function AccountWorkspace({ view, reportId = null }: { view: AccountView;
   const updateProfile = (next: AuthProfile) => { setProfile(next); window.dispatchEvent(new CustomEvent('geupddong-profile-updated', { detail: next })) }
   return <AccountWorkspaceFrame profile={profile} view={selectedView} onLogout={signOut}>
       {withdrawn && <p role="status">{withdrawn}</p>}
-      {selectedView === 'home' && <AccountHome profile={profile} onProfile={updateProfile} onExpired={() => setProfile(null)} />}
+      {selectedView === 'home' && <AccountHome profile={profile} onProfile={updateProfile} onExpired={expireSession} />}
+      {selectedView === 'achievements' && <Achievements key={profile.userId} profile={profile} layout="desktop" onBack={goHome} onSessionExpired={expireSession} />}
+      {selectedView === 'experience' && <ExperienceHistory key={profile.userId} profile={profile} layout="desktop" onBack={goHome} onSessionExpired={expireSession} />}
       {selectedView === 'reviews' && (reviews.page || <p className="account-workspace-status">{t('common.loading')}</p>)}
       {selectedView === 'likes' && LIKES_ENABLED && <LikedToiletsPanel key={profile.userId} owner={profile.userId} onClose={goHome} onSessionExpired={() => setProfile(null)} />}
       {selectedView === 'reports' && <MyReportsPanel key={reportId} embedded initialExpandedId={reportId} onClose={goHome} onSessionExpired={() => setProfile(null)} />}
