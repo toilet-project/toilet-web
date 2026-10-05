@@ -130,7 +130,7 @@ module.exports = async function runAccountChecks(browser, origin) {
         await page.getByRole('button', { name: 'Save', exact: true }).click()
         await page.getByRole('heading', { name: '새 닉네임 원문', exact: true }).waitFor()
         await page.getByRole('button', { name: 'Edit profile', exact: true }).click()
-        await page.getByRole('switch', { name: 'Show profile photo on reviews' }).click()
+        await page.getByRole('switch', { name: 'Share profile photo' }).click()
         await page.waitForFunction(() => document.querySelector('.profile-photo-switch')?.getAttribute('aria-checked') === 'true')
         await page.getByRole('button', { name: 'Change profile photo' }).click()
         await page.getByRole('dialog', { name: 'Profile photo options' }).waitFor()
