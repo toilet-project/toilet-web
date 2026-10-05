@@ -13,6 +13,13 @@ import { useMessages, useLocale } from '../i18n/context'
 import { accountError } from '../i18n/accountLabels'
 import { localizedPublicPath } from '../i18n/routes'
 import { BrandWordmark } from './BrandWordmark'
+import { GROWTH_ENABLED } from '../lib/growth'
+import { growthBadgePath } from '../lib/growthBadgeAssets'
+import { useGrowth } from '../lib/useGrowth'
+import { MobileGrowthSummary } from './growth/MobileGrowthSummary'
+import { MobileAchievements } from './growth/MobileAchievements'
+import { MobileExperienceHistory } from './growth/MobileExperienceHistory'
+import { achievementText } from '../i18n/achievementText'
 
 import { Icon, type MobileTab, type MobileAccountView } from './MobileNavigation'
 
@@ -34,10 +41,16 @@ function LoginLanding({ onLogin }: { onLogin: (provider: 'google' | 'kakao') => 
   </div>
 }
 
-function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthProfile; onProfile: (profile: AuthProfile) => void; onSessionExpired: () => void }) {
+function ProfileCard({ profile, onProfile, onSessionExpired, onHistory }: { profile: AuthProfile; onProfile: (profile: AuthProfile) => void; onSessionExpired: () => void; onHistory?: () => void }) {
   const t = useMessages(), locale = useLocale()
   const [editing, setEditing] = useState(false)
   const photo = useProfilePhoto(profile.userId, onSessionExpired, profile.profilePhoto ?? undefined)
+  const growthEligible = profile.status === 'ACTIVE' && !profile.consentRequired
+  const growth = useGrowth(GROWTH_ENABLED && growthEligible ? profile.userId : null)
+  const badges = growthEligible && growth.summary ? growth.summary.badges.flatMap(badge => {
+    const src = growthBadgePath(badge, 18)
+    return src ? [{ ...badge, src }] : []
+  }).slice(0, 3) : []
   const [nickname, setNickname] = useState(profile.displayName || '')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -46,6 +59,7 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
     photo.update(next); onProfile({ ...profile, profilePhoto: next })
   }
   useEffect(() => { active.current = true; return () => { active.current = false } }, [])
+  useEffect(() => { if (growth.status === 'signedOut') onSessionExpired() }, [growth.status, onSessionExpired])
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); setSaving(true); setMessage('')
     try {
@@ -55,11 +69,11 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
     } catch (reason) { if (!active.current) return; if (reason instanceof AuthExpiredError) onSessionExpired(); else setMessage(accountError(reason, locale, 'account.nicknameFailed')) }
     finally { if (active.current) setSaving(false) }
   }
-  return <section className="mobile-profile-card" aria-label={t('account.profile')}>
+  return <><section className="mobile-profile-card" aria-label={t('account.profile')}>
     <div className="mobile-avatar-wrap"><div className="mobile-avatar"><OwnPhoto state={photo.state} fallback={<span role="img" aria-label={t('account.defaultPhoto')}><Icon name="account" /></span>} /></div>
       {PROFILE_PHOTO_ENABLED && <PhotoActions state={photo.state} loadError={photo.error} onRetry={photo.retry} onSaved={savePhoto} onExpired={onSessionExpired} onOpen={() => { setEditing(false); setMessage('') }} onNotice={setMessage} />}
     </div>
-    <div className="mobile-profile-copy"><span>{t('account.profile')}</span><h2>{profile.displayName || t('account.defaultName')}</h2><button type="button" className="mobile-profile-settings" onClick={() => { setNickname(profile.displayName || ''); setMessage(''); setEditing(value => !value) }}>{t('account.editProfile')}</button></div>
+    <div className="mobile-profile-copy"><span>{t('account.profile')}</span><div className="mobile-profile-name-line"><h2>{profile.displayName || t('account.defaultName')}</h2>{badges.length > 0 && <span className="mobile-profile-earned-badges">{badges.map(badge => <img key={`${badge.type}:${badge.code}:${badge.tier}`} src={badge.src} width={18} height={18} alt={badge.name} title={badge.name} />)}</span>}</div><button type="button" className="mobile-profile-settings" onClick={() => { setNickname(profile.displayName || ''); setMessage(''); setEditing(value => !value) }}>{t('account.editProfile')}</button></div>
     {editing && <form className="mobile-profile-form" onSubmit={event => void submit(event)}>
       <label htmlFor="mobile-nickname">{t('account.nickname')}</label><input id="mobile-nickname" value={nickname} onChange={event => setNickname(event.target.value)} minLength={2} maxLength={30} required autoComplete="nickname" />
       <small>{t('account.nicknameHelp')}</small>
@@ -67,34 +81,38 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
       <div><button type="button" disabled={saving} onClick={() => setEditing(false)}>{t('common.cancel')}</button><button type="submit" disabled={saving || nickname.trim().length < 2}>{saving ? t('common.saving') : t('common.save')}</button></div>
     </form>}
     {message && <p role="status">{message}</p>}
-  </section>
+  </section>{growthEligible && <MobileGrowthSummary state={growth} onHistory={GROWTH_ENABLED ? onHistory : undefined} />}</>
 }
 
-export function MobilePage({ tab, profile, loading, unread, onProfile, onReports, onAccount, onLogout, onCountChange, onOpenReport, beforeLogin, onSessionExpired, onLikes, onOpenLikedToilet, onReviews, accountView = 'home', onBackAccount, reviewPage, focusedReportId, onWithdrawn }: {
+export function MobilePage({ tab, profile, loading, unread, onProfile, onReports, onAccount, onLogout, onCountChange, onOpenReport, beforeLogin, onSessionExpired, onLikes, onAchievements, onExperience, onOpenLikedToilet, onReviews, accountView = 'home', onBackAccount, reviewPage, focusedReportId, onWithdrawn }: {
   tab: Exclude<MobileTab, 'map'>; profile: AuthProfile | null; loading: boolean; unread: number;
   onProfile: (profile: AuthProfile) => void; onReports: () => void; onAccount: () => void; onLogout: () => void; onCountChange: () => void; onOpenReport: (reportId: number) => void;
   beforeLogin: (tab: MobileTab) => void;
   onSessionExpired: () => void;
   onWithdrawn: (message: string) => void;
   onLikes?: () => void;
+  onAchievements?: () => void;
+  onExperience?: () => void;
   onOpenLikedToilet: (item: LikedToilet) => void;
   onReviews?: () => void;
   accountView?: MobileAccountView; onBackAccount: () => void; reviewPage?: ReactNode; focusedReportId?: number | null;
 }) {
-  const t = useMessages()
+  const t = useMessages(), locale = useLocale()
   const page = useRef<HTMLElement>(null)
   useLayoutEffect(() => { if (page.current) page.current.scrollTop = 0 }, [tab, accountView])
   const historyPage = tab === 'account' && accountView !== 'home'
-  return <section ref={page} className={`mobile-page${tab === 'account' ? ' account-controls' : ''}${historyPage ? ' is-history-page' : ''}`} aria-label={t(tab === 'account' ? 'nav.account' : 'nav.notifications')}>
+  return <section ref={page} className={`mobile-page${tab === 'account' ? ' account-controls' : ''}${historyPage ? ' is-history-page' : ''}${tab === 'account' && accountView === 'achievements' ? ' is-achievements-page' : ''}${tab === 'account' && accountView === 'experience' ? ' is-experience-page' : ''}`} aria-label={t(tab === 'account' ? 'nav.account' : 'nav.notifications')}>
     {loading ? <p className="mobile-page-loading" role="status">{t('common.loading')}</p> : !profile ? <LoginLanding onLogin={provider => { beforeLogin(tab); startSocialLogin(provider) }} />
       : tab === 'account' && accountView === 'reports' ? <MyReportsPanel key={`account-reports-${profile.userId}-${focusedReportId ?? 'list'}`} embedded onSessionExpired={onSessionExpired} initialExpandedId={focusedReportId} onClose={onBackAccount} onBack={onBackAccount} />
       : tab === 'account' && accountView === 'likes' && LIKES_ENABLED ? <LikedToiletsPanel key={profile.userId} owner={profile.userId} onClose={onBackAccount} onSessionExpired={onSessionExpired} onOpenToilet={onOpenLikedToilet} />
+      : tab === 'account' && accountView === 'achievements' ? <MobileAchievements key={profile.userId} profile={profile} onBack={onBackAccount} onSessionExpired={onSessionExpired} />
+      : tab === 'account' && accountView === 'experience' ? <MobileExperienceHistory key={profile.userId} profile={profile} onBack={onBackAccount} onSessionExpired={onSessionExpired} />
       : tab === 'account' && accountView === 'reviews' && onReviews ? reviewPage
       : tab === 'account' && accountView === 'settings' ? <AccountDialog key={profile.userId} embedded profile={profile} onClose={onBackAccount} onWithdrawn={onWithdrawn} />
       : tab === 'account' ? <>
       <header className="mobile-page-heading"><h1>{t('nav.account')}</h1></header>
-      <ProfileCard key={profile.userId} profile={profile} onProfile={onProfile} onSessionExpired={onSessionExpired} />
-      <div className="mobile-account-links">{LIKES_ENABLED && onLikes && <button type="button" onClick={onLikes}><Icon name="likes" /><span>{t('nav.myLikes')}</span><span aria-hidden="true">›</span></button>}{onReviews && <button type="button" onClick={onReviews}><Icon name="community" /><span>{t('nav.myReviews')}</span><span aria-hidden="true">›</span></button>}<button type="button" onClick={onReports}><Icon name="community" /><span>{t('nav.myReports')}</span><span aria-hidden="true">›</span></button><button type="button" onClick={onAccount}><Icon name="settings" /><span>{t('account.settings')}</span><span aria-hidden="true">›</span></button></div>
+      <ProfileCard key={profile.userId} profile={profile} onProfile={onProfile} onSessionExpired={onSessionExpired} onHistory={onExperience} />
+      <div className="mobile-account-links">{LIKES_ENABLED && onLikes && <button type="button" onClick={onLikes}><Icon name="likes" /><span>{t('nav.myLikes')}</span><span aria-hidden="true">›</span></button>}{GROWTH_ENABLED && profile.status === 'ACTIVE' && !profile.consentRequired && onAchievements && <button type="button" onClick={onAchievements}><Icon name="achievements" /><span>{achievementText(locale).title}</span><span aria-hidden="true">›</span></button>}{onReviews && <button type="button" onClick={onReviews}><Icon name="community" /><span>{t('nav.myReviews')}</span><span aria-hidden="true">›</span></button>}<button type="button" onClick={onReports}><Icon name="community" /><span>{t('nav.myReports')}</span><span aria-hidden="true">›</span></button><button type="button" onClick={onAccount}><Icon name="settings" /><span>{t('account.settings')}</span><span aria-hidden="true">›</span></button></div>
       <div className="mobile-account-support"><PolicyLinks /><button type="button" className="mobile-logout" onClick={onLogout}>{t('auth.logout')}</button></div>
     </> : <NotificationPanel key={profile.userId} embedded unread={unread} onSessionExpired={onSessionExpired} onCountChange={onCountChange} onOpenReport={onOpenReport} onClose={() => {}} />}
     {historyPage && !loading && profile && <HistoryScrollTop key={`${accountView}-${profile.userId}`} container={page} />}

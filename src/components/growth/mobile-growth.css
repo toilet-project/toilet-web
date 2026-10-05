@@ -1,0 +1,26 @@
+@media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (pointer: coarse) {
+  .mobile-page .mobile-profile-copy { min-width: 0; }
+  .mobile-page .mobile-profile-name-line { display: flex; min-width: 0; align-items: center; gap: 7px; }
+  .mobile-page .mobile-profile-name-line h2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mobile-page .mobile-profile-earned-badges { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 2px; }
+  .mobile-page .mobile-profile-earned-badges img { display: block; width: 18px; height: 18px; object-fit: contain; }
+  .mobile-page .mobile-growth-summary { margin: -8px 0 24px; overflow: hidden; border: 1px solid #dfe8e1; border-radius: 16px; background: #f9fbf9; color: #294331; }
+  .mobile-page .mobile-growth-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px 10px; padding: 14px 16px 0; }
+  .mobile-page .mobile-growth-current { display: flex; min-width: 0; align-items: center; gap: 10px; }
+  .mobile-page .mobile-growth-current > div { min-width: 0; }
+  .mobile-page .mobile-growth-current strong { display: block; color: #263d2e; font-size: 25px; font-weight: 800; line-height: 1.2; font-variant-numeric: tabular-nums; letter-spacing: -.6px; }
+  .mobile-page .mobile-growth-current span { display: block; margin-top: 4px; color: #6b8071; font-size: 12px; line-height: 1.35; }
+  .mobile-page .mobile-growth-next { display: flex; min-width: 0; flex-direction: column; align-items: flex-end; justify-content: center; gap: 7px; text-align: right; }
+  .mobile-page .mobile-growth-next > span { color: #718177; font-size: 11px; line-height: 1.45; }
+  .mobile-page .mobile-growth-next b { color: #415e4b; font-weight: 700; white-space: nowrap; }
+  .mobile-page .mobile-growth-next > strong { color: #2d513a; font-size: 20px; font-weight: 800; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+  .mobile-page .mobile-growth-next small { color: #78887c; font-size: 11px; font-weight: 600; }
+  .mobile-page .mobile-growth-track { grid-column: 1 / -1; height: 6px; overflow: hidden; border-radius: 6px; background: #e5ece5; }
+  .mobile-page .mobile-growth-track > div { box-sizing: border-box; height: 100%; border: 1px solid var(--mobile-growth-color, #6fa27d); border-radius: inherit; background: var(--mobile-growth-bar, #8ac998); }
+  .mobile-page .mobile-growth-links { display: flex; flex-wrap: nowrap; justify-content: flex-end; align-items: center; gap: clamp(8px, 2.5vw, 16px); padding: 0 16px 3px; }
+  .mobile-page .mobile-growth-links :is(a, button) { display: inline-flex; flex: 0 1 auto; min-width: 0; min-height: 44px; align-items: center; padding: 0; border: 0; background: none; color: #74877a; font: inherit; font-size: 11px; font-weight: 500; line-height: 1.5; text-align: center; text-decoration: underline; text-decoration-color: #cad5cd; text-underline-offset: 3px; cursor: pointer; }
+  .mobile-page .mobile-growth-links :is(a, button):focus-visible { outline: 2px solid #518162; outline-offset: 3px; border-radius: 3px; }
+  .mobile-page .mobile-growth-summary .growth-state { grid-column: 1 / -1; margin: 0; padding: 17px 16px; color: #718177; font-size: 12px; line-height: 1.6; }
+  .mobile-page .mobile-growth-body > .growth-state { padding: 0; }
+  .mobile-page .mobile-growth-summary .growth-state button { min-height: 44px; padding: 4px 0 4px 6px; font: inherit; }
+}
