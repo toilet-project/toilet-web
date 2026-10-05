@@ -16,39 +16,38 @@
   .growth-guide .section-heading h2 { font-size: 16px; letter-spacing: -.4px; }
   .growth-guide .section-heading > p { display: none; }
 
-  /* One row per rank, with matching level milestones on the right. */
-  .growth-guide .rank-path { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 70px; gap: 15px; padding-right: 18px; }
-  .growth-guide .rank-gallery { grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(48px, auto); gap: 6px; }
+  /* A single compact list keeps all seven ranks visible, with 44px touch rows. */
+  .growth-guide:has(.rank-path) .guide-nav { padding-bottom: 12px; }
+  .growth-guide .rank-path { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 78px; gap: 10px; padding-right: 16px; }
+  .growth-guide .rank-gallery { grid-template-columns: minmax(0, 1fr); grid-auto-rows: minmax(44px, auto); gap: 0; padding: 3px; border: 1px solid #dfe6de; border-radius: 14px; background: #fff; }
   .growth-guide .rank-card,
-  .growth-guide .rank-card:last-child { grid-column: auto; display: grid; grid-template-columns: 38px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 12px; row-gap: 1px; min-height: 48px; padding: 5px 12px; border-radius: 12px; text-align: left; }
-  .growth-guide .card-index { display: none; }
-  .growth-guide .rank-art { grid-row: 1 / 3; height: 38px; margin: 0; }
-  .growth-guide .rank-art img { width: 38px; height: 38px; }
-  .growth-guide .rank-name { align-self: end; font-size: 13px; line-height: 1.25; letter-spacing: -.2px; white-space: normal; }
-  .growth-guide .rank-range { align-self: start; margin: 0; font-size: 10px; line-height: 1.25; font-variant-numeric: tabular-nums; }
+  .growth-guide .rank-card:last-child { grid-column: auto; display: grid; grid-template-columns: 32px minmax(0, 1fr); grid-template-rows: auto; column-gap: 10px; row-gap: 0; min-height: 44px; padding: 5px 10px; border: 0; border-radius: 9px; text-align: left; }
+  .growth-guide .rank-card[aria-pressed=true] { box-shadow: inset 0 0 0 1px var(--rank-color); }
+  .growth-guide .card-index,
+  .growth-guide .rank-range { display: none; }
+  .growth-guide .rank-art { grid-row: 1; height: 32px; margin: 0; }
+  .growth-guide .rank-art img { width: 32px; height: 32px; }
+  .growth-guide .rank-name { align-self: center; font-size: 13px; line-height: 1.3; letter-spacing: -.2px; white-space: normal; }
   .growth-guide .level-track-viewport { overflow: visible; margin: 0; padding: 0; }
-  .growth-guide .level-track { grid-template-columns: 1fr; grid-template-rows: repeat(7, 1fr); gap: 6px; min-width: 0; height: 100%; padding: 0; }
-  .growth-guide .level-step { position: relative; display: flex; flex-direction: row; align-items: center; gap: 9px; padding: 3px 0; min-height: 48px; }
+  .growth-guide .level-track { grid-template-columns: 1fr; grid-template-rows: repeat(7, 1fr); gap: 0; min-width: 0; height: 100%; padding: 4px 0; }
+  .growth-guide .level-step { position: relative; display: flex; flex-direction: row; align-items: center; gap: 8px; padding: 4px 0; min-height: 44px; }
   .growth-guide .level-color { width: 6px; height: 100%; flex-shrink: 0; border-radius: 5px; }
-  .growth-guide .level-step:not(:last-child)::after { position: absolute; bottom: -7px; left: 2px; content: ''; width: 2px; height: 11px; background: #d9e2d9; }
-  .growth-guide .level-start { display: flex; gap: 1px; font-size: 12px; line-height: 1.3; white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .growth-guide .level-open { font-size: 0; }
-  .growth-guide .level-open::after { content: '+'; font-size: 12px; }
+  .growth-guide .level-step:not(:last-child)::after { position: absolute; bottom: -4px; left: 2px; content: ''; width: 2px; height: 8px; background: #d9e2d9; }
+  .growth-guide .level-start { display: flex; gap: 1px; font-size: 11px; line-height: 1.3; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .growth-guide .rank-direction { position: absolute; right: 0; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; gap: 10px; writing-mode: vertical-rl; color: #829487; font-size: 10px; letter-spacing: 1px; }
   .growth-guide .rank-direction > span { writing-mode: horizontal-tb; font-size: 18px; }
-  .growth-guide .rank-detail { grid-template-columns: 1fr; min-height: 0; margin-top: 16px; border-radius: 14px; }
-  .growth-guide .detail-main { gap: 10px; padding: 12px 14px; }
-  .growth-guide .detail-art { flex-basis: 44px; }
-  .growth-guide .detail-art img { width: 44px; height: 44px; }
-  .growth-guide .detail-copy { min-width: 0; flex: 1; }
-  .growth-guide .small-label { font-size: 10px; }
-  .growth-guide .detail-copy h3 { margin: 3px 0 0; font-size: 16px; }
+  .growth-guide .rank-detail { grid-template-columns: 1fr; min-height: 0; margin-top: 10px; border-radius: 12px; }
+  .growth-guide .detail-main { padding: 10px 12px; }
+  .growth-guide .detail-art,
+  .growth-guide .rank-detail .small-label,
+  .growth-guide .detail-level { display: none; }
+  .growth-guide .detail-copy { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 10px; min-width: 0; flex: 1; }
+  .growth-guide .detail-copy h3 { margin: 0; font-size: 13px; }
   .growth-guide .detail-copy > p:not(.small-label) { display: none; }
-  .growth-guide .detail-metrics { flex-direction: row; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin-top: 6px; }
-  .growth-guide .detail-level { padding: 2px 5px; font-size: 10px; }
+  .growth-guide .detail-metrics { display: contents; }
   .growth-guide .detail-xp { font-size: 10px; }
   .growth-guide .detail-xp strong { margin: 0 2px; font-size: 12px; }
-  .growth-guide .detail-example { display: flex; align-items: center; justify-content: space-between; gap: 8px; align-self: stretch; padding: 9px 14px; border-left: 0; border-top: 1px solid #e9eee8; }
+  .growth-guide .detail-example { display: flex; align-items: center; justify-content: space-between; gap: 8px; align-self: stretch; padding: 7px 12px; border-left: 0; border-top: 1px solid #e9eee8; }
   .growth-guide .example-top { display: contents; }
   .growth-guide .example-top h3,
   .growth-guide .example-text,
@@ -58,7 +57,7 @@
   .growth-guide .example-author strong { overflow-wrap: anywhere; }
   .growth-guide .example-author b { margin-right: 2px; font-size: 10px; white-space: nowrap; }
   .growth-guide .example-author img { width: 22px; height: 22px; }
-  .growth-guide .rank-next { margin-top: 8px; font-size: 10px; }
+  .growth-guide .rank-next { margin-top: 6px; font-size: 10px; }
   .growth-guide .growth-bottom,
   .growth-guide .footer { display: none; }
   .growth-guide .footer:has(.page-note) { display: block; margin: 12px 0 0; padding: 0; }
