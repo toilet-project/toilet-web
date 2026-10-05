@@ -34,6 +34,16 @@ export function indexNowFailureInfo(error: unknown) {
     : { reason: 'unexpected', status: null, errorName: error instanceof Error ? error.name : typeof error }
 }
 
+export function logIndexNowResult(scope: 'URL' | 'district URL',
+  result: { submitted: number; status: number | null }, startedAt: number) {
+  // A skipped batch made no request; 202 still requires key validation by the receiver.
+  const outcome = result.submitted === 0 ? 'skipped'
+    : result.status === 202 ? 'received pending key validation' : 'accepted'
+  console.info(`IndexNow ${scope} update ${outcome}`, {
+    ...result, elapsedMs: Math.max(0, Date.now() - startedAt),
+  })
+}
+
 export function indexNowEnabled() {
   return process.env.SITE_INDEXABLE === 'true' && process.env.INDEXNOW_ENABLED === 'true'
 }
@@ -168,11 +178,12 @@ export async function scheduleIndexNowNotification(events: readonly ToiletCacheE
   try {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare')
     const { ctx } = await getCloudflareContext({ async: true })
+    const startedAt = Date.now()
     ctx.waitUntil(notifyIndexNowForEvents(events, fetch, previousDetails).then(result => {
-      console.info('IndexNow URL update accepted', result)
+      logIndexNowResult('URL', result, startedAt)
     }).catch(error => {
       // Keep the failure actionable without logging the key or submitted URLs.
-      console.error('IndexNow URL update failed', indexNowFailureInfo(error))
+      console.error('IndexNow URL update failed', { ...indexNowFailureInfo(error), elapsedMs: Date.now() - startedAt })
     }))
     return true
   } catch (error) {

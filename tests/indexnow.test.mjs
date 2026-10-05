@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   INDEXNOW_ENDPOINT, INDEXNOW_KEY, INDEXNOW_KEY_PATH, buildIndexNowPayload, canonicalIndexNowPaths,
-  indexNowFailureInfo, indexNowUrls, notifyIndexNowForEvents, submitIndexNow,
+  indexNowFailureInfo, indexNowUrls, logIndexNowResult, notifyIndexNowForEvents, submitIndexNow,
 } from '../src/server/indexNow.ts'
 
 const detail = {
@@ -19,6 +19,23 @@ const canonicalPath = canonicalIndexNowPaths(detail)[0]
 const englishPath = canonicalIndexNowPaths(detail)[1]
 const canonicalUrl = new URL(canonicalPath, 'https://geupddong.com').href
 const englishUrl = new URL(englishPath, 'https://geupddong.com').href
+
+test('operational logs distinguish no request, pending key validation, and accepted URLs', () => {
+  const logs = []
+  const original = console.info
+  console.info = (...args) => logs.push(args)
+  try {
+    for (const result of [{ submitted: 0, status: null }, { submitted: 6, status: 202 }, { submitted: 6, status: 200 }])
+      logIndexNowResult('URL', result, Date.now() - 100)
+    assert.deepEqual(logs.map(([message]) => message), [
+      'IndexNow URL update skipped', 'IndexNow URL update received pending key validation', 'IndexNow URL update accepted',
+    ])
+    assert.ok(logs.every(([, data]) => data.elapsedMs >= 100))
+    assert.ok(logs.every(([, data]) => Object.keys(data).sort().join(',') === 'elapsedMs,status,submitted'))
+    logIndexNowResult('district URL', { submitted: 0, status: null }, Date.now())
+    assert.equal(logs[3][0], 'IndexNow district URL update skipped')
+  } finally { console.info = original }
+})
 
 test('payload contains only same-origin public detail URLs and deduplicates them', () => {
   const paths = [canonicalPath, canonicalPath, englishPath, '/api/v1/toilets/177',

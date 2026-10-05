@@ -3,7 +3,7 @@ import { SUPPORTED_LOCALES } from '../i18n/locale.ts'
 import { localizedPublicPath } from '../i18n/routes.ts'
 import { regionDirectoryEntries } from '../lib/regionDirectory.ts'
 import { getDistrict, localizedRegionPath } from '../lib/regions.ts'
-import { indexNowEnabled, indexNowFailureInfo, submitIndexNow } from './indexNow.ts'
+import { indexNowEnabled, indexNowFailureInfo, logIndexNowResult, submitIndexNow } from './indexNow.ts'
 
 export type RegionDirectorySnapshots = Map<string, ToiletMapItemResponse[]>
 // A signed cache delivery may cover 24 districts. waitUntil is too short for
@@ -57,11 +57,12 @@ export async function scheduleIndexNowRegionNotification(snapshots: RegionDirect
       import('@opennextjs/cloudflare'), import('./regions.ts'),
     ])
     const { ctx } = await getCloudflareContext({ async: true })
+    const startedAt = Date.now()
     ctx.waitUntil(notifyIndexNowForRegionChanges(snapshots,
       code => getCurrentDistrictToiletsForIndexNow(code.slice(0, 2), code)).then(result => {
-      console.info('IndexNow district URL update accepted', result)
+      logIndexNowResult('district URL', result, startedAt)
     }).catch(error => {
-      console.error('IndexNow district URL update failed', indexNowFailureInfo(error))
+      console.error('IndexNow district URL update failed', { ...indexNowFailureInfo(error), elapsedMs: Date.now() - startedAt })
     }))
     return true
   } catch (error) {
