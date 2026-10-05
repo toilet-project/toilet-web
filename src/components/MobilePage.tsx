@@ -20,6 +20,7 @@ import { MobileGrowthSummary } from './growth/MobileGrowthSummary'
 import { MobileAchievements } from './growth/MobileAchievements'
 import { MobileExperienceHistory } from './growth/MobileExperienceHistory'
 import { achievementText } from '../i18n/achievementText'
+import { HeaderIcon } from './HeaderIcon'
 
 import { Icon, type MobileTab, type MobileAccountView } from './MobileNavigation'
 
@@ -112,7 +113,7 @@ export function MobilePage({ tab, profile, loading, unread, onProfile, onReports
       : tab === 'account' ? <>
       <header className="mobile-page-heading"><h1>{t('nav.account')}</h1></header>
       <ProfileCard key={profile.userId} profile={profile} onProfile={onProfile} onSessionExpired={onSessionExpired} onHistory={onExperience} />
-      <div className="mobile-account-links">{LIKES_ENABLED && onLikes && <button type="button" onClick={onLikes}><Icon name="likes" /><span>{t('nav.myLikes')}</span><span aria-hidden="true">›</span></button>}{GROWTH_ENABLED && profile.status === 'ACTIVE' && !profile.consentRequired && onAchievements && <button type="button" onClick={onAchievements}><Icon name="achievements" /><span>{achievementText(locale).title}</span><span aria-hidden="true">›</span></button>}{onReviews && <button type="button" onClick={onReviews}><Icon name="community" /><span>{t('nav.myReviews')}</span><span aria-hidden="true">›</span></button>}<button type="button" onClick={onReports}><Icon name="community" /><span>{t('nav.myReports')}</span><span aria-hidden="true">›</span></button><button type="button" onClick={onAccount}><Icon name="settings" /><span>{t('account.settings')}</span><span aria-hidden="true">›</span></button></div>
+      <div className="mobile-account-links">{LIKES_ENABLED && onLikes && <button type="button" onClick={onLikes}><Icon name="likes" /><span>{t('nav.myLikes')}</span><span aria-hidden="true">›</span></button>}{GROWTH_ENABLED && profile.status === 'ACTIVE' && !profile.consentRequired && onAchievements && <button type="button" onClick={onAchievements}><Icon name="achievements" /><span>{achievementText(locale).title}</span><span aria-hidden="true">›</span></button>}{onReviews && <button type="button" onClick={onReviews}><HeaderIcon name="reviews" /><span>{t('nav.myReviews')}</span><span aria-hidden="true">›</span></button>}<button type="button" onClick={onReports}><HeaderIcon name="reports" /><span>{t('nav.myReports')}</span><span aria-hidden="true">›</span></button><button type="button" onClick={onAccount}><Icon name="settings" /><span>{t('account.settings')}</span><span aria-hidden="true">›</span></button></div>
       <div className="mobile-account-support"><PolicyLinks /><button type="button" className="mobile-logout" onClick={onLogout}>{t('auth.logout')}</button></div>
     </> : <NotificationPanel key={profile.userId} embedded unread={unread} onSessionExpired={onSessionExpired} onCountChange={onCountChange} onOpenReport={onOpenReport} onClose={() => {}} />}
     {historyPage && !loading && profile && <HistoryScrollTop key={`${accountView}-${profile.userId}`} container={page} />}
