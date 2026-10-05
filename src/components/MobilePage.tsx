@@ -13,6 +13,10 @@ import { useMessages, useLocale } from '../i18n/context'
 import { accountError } from '../i18n/accountLabels'
 import { localizedPublicPath } from '../i18n/routes'
 import { BrandWordmark } from './BrandWordmark'
+import { GROWTH_ENABLED } from '../lib/growth'
+import { growthBadgePath } from '../lib/growthBadgeAssets'
+import { useGrowth } from '../lib/useGrowth'
+import { MobileGrowthSummary } from './growth/MobileGrowthSummary'
 
 import { Icon, type MobileTab, type MobileAccountView } from './MobileNavigation'
 
@@ -38,6 +42,12 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
   const t = useMessages(), locale = useLocale()
   const [editing, setEditing] = useState(false)
   const photo = useProfilePhoto(profile.userId, onSessionExpired, profile.profilePhoto ?? undefined)
+  const growthEligible = profile.status === 'ACTIVE' && !profile.consentRequired
+  const growth = useGrowth(GROWTH_ENABLED && growthEligible ? profile.userId : null)
+  const badges = growthEligible && growth.summary ? growth.summary.badges.flatMap(badge => {
+    const src = growthBadgePath(badge, 18)
+    return src ? [{ ...badge, src }] : []
+  }).slice(0, 3) : []
   const [nickname, setNickname] = useState(profile.displayName || '')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
@@ -46,6 +56,7 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
     photo.update(next); onProfile({ ...profile, profilePhoto: next })
   }
   useEffect(() => { active.current = true; return () => { active.current = false } }, [])
+  useEffect(() => { if (growth.status === 'signedOut') onSessionExpired() }, [growth.status, onSessionExpired])
   const submit = async (event: React.FormEvent) => {
     event.preventDefault(); setSaving(true); setMessage('')
     try {
@@ -55,11 +66,11 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
     } catch (reason) { if (!active.current) return; if (reason instanceof AuthExpiredError) onSessionExpired(); else setMessage(accountError(reason, locale, 'account.nicknameFailed')) }
     finally { if (active.current) setSaving(false) }
   }
-  return <section className="mobile-profile-card" aria-label={t('account.profile')}>
+  return <><section className="mobile-profile-card" aria-label={t('account.profile')}>
     <div className="mobile-avatar-wrap"><div className="mobile-avatar"><OwnPhoto state={photo.state} fallback={<span role="img" aria-label={t('account.defaultPhoto')}><Icon name="account" /></span>} /></div>
       {PROFILE_PHOTO_ENABLED && <PhotoActions state={photo.state} loadError={photo.error} onRetry={photo.retry} onSaved={savePhoto} onExpired={onSessionExpired} onOpen={() => { setEditing(false); setMessage('') }} onNotice={setMessage} />}
     </div>
-    <div className="mobile-profile-copy"><span>{t('account.profile')}</span><h2>{profile.displayName || t('account.defaultName')}</h2><button type="button" className="mobile-profile-settings" onClick={() => { setNickname(profile.displayName || ''); setMessage(''); setEditing(value => !value) }}>{t('account.editProfile')}</button></div>
+    <div className="mobile-profile-copy"><span>{t('account.profile')}</span><div className="mobile-profile-name-line"><h2>{profile.displayName || t('account.defaultName')}</h2>{badges.length > 0 && <span className="mobile-profile-earned-badges">{badges.map(badge => <img key={`${badge.type}:${badge.code}:${badge.tier}`} src={badge.src} width={18} height={18} alt={badge.name} title={badge.name} />)}</span>}</div><button type="button" className="mobile-profile-settings" onClick={() => { setNickname(profile.displayName || ''); setMessage(''); setEditing(value => !value) }}>{t('account.editProfile')}</button></div>
     {editing && <form className="mobile-profile-form" onSubmit={event => void submit(event)}>
       <label htmlFor="mobile-nickname">{t('account.nickname')}</label><input id="mobile-nickname" value={nickname} onChange={event => setNickname(event.target.value)} minLength={2} maxLength={30} required autoComplete="nickname" />
       <small>{t('account.nicknameHelp')}</small>
@@ -67,7 +78,7 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
       <div><button type="button" disabled={saving} onClick={() => setEditing(false)}>{t('common.cancel')}</button><button type="submit" disabled={saving || nickname.trim().length < 2}>{saving ? t('common.saving') : t('common.save')}</button></div>
     </form>}
     {message && <p role="status">{message}</p>}
-  </section>
+  </section>{growthEligible && <MobileGrowthSummary state={growth} />}</>
 }
 
 export function MobilePage({ tab, profile, loading, unread, onProfile, onReports, onAccount, onLogout, onCountChange, onOpenReport, beforeLogin, onSessionExpired, onLikes, onOpenLikedToilet, onReviews, accountView = 'home', onBackAccount, reviewPage, focusedReportId, onWithdrawn }: {
