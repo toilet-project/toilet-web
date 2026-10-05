@@ -16,6 +16,7 @@ import { GrowthStatus } from './GrowthStatus'
 
 type CollectionItem = { type: GrowthBadge['type']; code: string; tier: MedalTier | null; name: string; regionCode: string }
 type Filter = 'all' | 'earned' | 'locked'
+type AchievementLayout = 'mobile' | 'desktop'
 
 function Mark({ kind }: { kind: 'back' | 'check' | 'lock' | 'close' | 'chevron' }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{kind === 'back' ? <path d="m14 5-7 7 7 7" /> : kind === 'check' ? <path d="m5 12 4 4L19 6" /> : kind === 'lock' ? <><rect x="5" y="10" width="14" height="11" rx="3" /><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3" /></> : kind === 'close' ? <path d="m6 6 12 12M6 18 18 6" /> : <path d="m9 5 7 7-7 7" />}</svg>
@@ -33,19 +34,19 @@ function ProgressRows({ progress }: { progress: GrowthMedalProgress }) {
   })}</div>
 }
 
-export function MobileAchievements({ profile, onBack, onSessionExpired }: { profile: AuthProfile; onBack: () => void; onSessionExpired: () => void }) {
+export function MobileAchievements({ profile, onBack, onSessionExpired, layout = 'mobile' }: { profile: AuthProfile; onBack: () => void; onSessionExpired: () => void; layout?: AchievementLayout }) {
   const eligible = profile.status === 'ACTIVE' && !profile.consentRequired
   const state = useGrowth(GROWTH_ENABLED && eligible ? profile.userId : null)
   const t = achievementText(useLocale())
   useEffect(() => { if (state.status === 'signedOut') onSessionExpired() }, [state.status, onSessionExpired])
-  return <section className="achievement-page" aria-labelledby="achievement-title">
-    <header className="achievement-heading"><button type="button" onClick={onBack} aria-label={t.back}><Mark kind="back" /></button><h1 id="achievement-title">{t.title}</h1><span aria-hidden="true">✦</span></header>
-    {!eligible ? <p className="achievement-empty" role="status">{t.unavailable}</p> : state.summary ? <><AchievementCollection summary={state.summary} />{state.checkInError && <GrowthStatus state={state} retry={state.refresh} />}</> : <div className="achievement-loading"><GrowthStatus state={state} retry={state.refresh} /></div>}
+  return <section className={`achievement-page${layout === 'desktop' ? ' is-desktop' : ''}`} aria-labelledby="achievement-title">
+    <header className="achievement-heading">{layout === 'mobile' && <button type="button" onClick={onBack} aria-label={t.back}><Mark kind="back" /></button>}<h1 id="achievement-title">{t.title}</h1>{layout === 'mobile' && <span aria-hidden="true">✦</span>}</header>
+    {!eligible ? <p className="achievement-empty" role="status">{t.unavailable}</p> : state.summary ? <><AchievementCollection summary={state.summary} layout={layout} />{state.checkInError && <GrowthStatus state={state} retry={state.refresh} />}</> : <div className="achievement-loading"><GrowthStatus state={state} retry={state.refresh} /></div>}
   </section>
 }
 
 /** The collection never derives ownership from progress or from a preview illustration. */
-export function AchievementCollection({ summary }: { summary: GrowthSummary }) {
+export function AchievementCollection({ summary, layout = 'mobile' }: { summary: GrowthSummary; layout?: AchievementLayout }) {
   const locale = useLocale(), t = achievementText(locale)
   const awards = useMemo(() => growthEarnedAchievements(summary), [summary])
   const regionalAwards = useMemo(() => growthHighestRegionalAwards(summary), [summary])
@@ -113,13 +114,13 @@ export function AchievementCollection({ summary }: { summary: GrowthSummary }) {
         const currentTier = regionalAwards.get(item.code)?.tier
         const stage = currentTier ? growthMedalTiers.indexOf(currentTier) + 1 : 0
         return <button type="button" key={key} className={`achievement-sticker ${earned ? 'is-earned' : 'is-locked'}`} aria-label={`${item.name} · ${earned ? t.earned : t.locked}${regional ? ` · ${t.stage} ${stage}/3` : ''}`} onClick={() => setSelected(item)}>
-          <span className="achievement-sticker-art"><BadgeArt item={item} size={72} locked={!earned} /><span className="achievement-sticker-status"><Mark kind={earned ? 'check' : 'lock'} /></span></span><strong>{item.name}</strong>{regional && <span className="achievement-stage-track" aria-hidden="true">{growthMedalTiers.map(tier => <i key={tier} className={awards.has(growthAchievementKey({ ...item, tier })) ? `is-earned is-${tier}` : ''} />)}</span>}<span>{regional ? `${t.stage} ${stage}/3` : earned ? t.earned : t.locked}</span>
+          <span className="achievement-sticker-art"><BadgeArt item={item} size={layout === 'desktop' ? 96 : 72} locked={!earned} /><span className="achievement-sticker-status"><Mark kind={earned ? 'check' : 'lock'} /></span></span><strong>{item.name}</strong>{regional && <span className="achievement-stage-track" aria-hidden="true">{growthMedalTiers.map(tier => <i key={tier} className={awards.has(growthAchievementKey({ ...item, tier })) ? `is-earned is-${tier}` : ''} />)}</span>}<span>{regional ? `${t.stage} ${stage}/3` : earned ? t.earned : t.locked}</span>
         </button>
       })}</div> : <p className="achievement-empty">{t.emptyFilter}</p>}
       {matching.length > limit && <button type="button" className="achievement-more" onClick={() => setLimit(value => value + 30)}>{t.more} <span>{visible.length} / {matching.length}</span></button>}
     </div>
     <p className="achievement-policy-note">{t.policyNote}{regions.some(item => summary.regions.find(value => value.code === item.code)?.targetDistricts !== item.districts.length) && <> {t.policyDifference}</>}</p>
-    {selected && <AchievementDetail item={selected} summary={summary} awards={awards} onClose={() => setSelected(null)} />}
+    {selected && <AchievementDetail item={selected} summary={summary} awards={awards} layout={layout} onClose={() => setSelected(null)} />}
   </>
 }
 
@@ -139,7 +140,7 @@ function BronzeGoalCard({ goal, first, onDetails }: { goal: NonNullable<ReturnTy
   </section>
 }
 
-function AchievementDetail({ item, summary, awards, onClose }: { item: CollectionItem; summary: GrowthSummary; awards: ReadonlyMap<string, GrowthBadge>; onClose: () => void }) {
+function AchievementDetail({ item, summary, awards, onClose, layout }: { item: CollectionItem; summary: GrowthSummary; awards: ReadonlyMap<string, GrowthBadge>; onClose: () => void; layout: AchievementLayout }) {
   const locale = useLocale(), t = achievementText(locale)
   const [tier, setTier] = useState<MedalTier>(item.tier ?? 'bronze')
   const regional = item.type === 'regional_medal'
@@ -153,7 +154,7 @@ function AchievementDetail({ item, summary, awards, onClose }: { item: Collectio
   const progress = regional ? growthMedalProgress(summary.regions.find(value => value.code === item.regionCode), tier) : null
   const path = region ? `/regions/${urlName(regionLabel)}-${region.code}${district ? `/${urlName(growthAchievementName(district, locale))}-${district.code}` : ''}` : null
   const earnedDate = earned ? new Date(earned.earnedAt) : null
-  return createPortal(<div className="achievement-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}><section ref={dialog} className="achievement-detail" role="dialog" aria-modal="true" aria-labelledby="achievement-detail-title" tabIndex={-1}>
+  return createPortal(<div className={`achievement-backdrop${layout === 'desktop' ? ' is-desktop' : ''}`} onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}><section ref={dialog} className="achievement-detail" role="dialog" aria-modal="true" aria-labelledby="achievement-detail-title" tabIndex={-1}>
     <button type="button" className="achievement-close" onClick={onClose} aria-label={t.close}><Mark kind="close" /></button>
     <div className="achievement-detail-hero"><span className={`achievement-state-pill${earned ? ' is-earned' : ''}`}><Mark kind={earned ? 'check' : 'lock'} />{earned ? t.earned : t.locked}</span><BadgeArt item={shown} size={120} /><p>{regional ? t.medalTab : regionLabel}</p><h2 id="achievement-detail-title">{item.name}</h2></div>
     {regional && <div className="achievement-stage-section"><p>{t.currentStage}<b>{highestTier ? t[highestTier] : t.locked}</b></p><div className="achievement-stage-options" role="group" aria-label={t.stage}>{growthMedalTiers.map((value, index) => <button key={value} type="button" className={`is-${value}`} aria-pressed={tier === value} onClick={() => setTier(value)}><span>{index + 1}</span><strong>{t[value]}</strong><small>{awards.has(growthAchievementKey({ ...item, tier: value })) ? t.earned : t.locked}</small></button>)}</div></div>}

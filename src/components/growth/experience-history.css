@@ -28,6 +28,40 @@
 .experience-history-empty > span { display: grid; place-items: center; width: 48px; height: 48px; margin: 0 auto 16px; border-radius: 17px; background: #ecf1e6; color: #8aa17c; font-size: 28px; }
 .experience-history button { cursor: pointer; }
 .experience-history button:disabled { cursor: default; }
+.experience-history--desktop .experience-history-heading { min-height: 0; margin-bottom: 24px; padding-bottom: 22px; border-bottom: 1px solid #e7eee9; }
+.experience-history--desktop .experience-history-heading h1 { font-size: 26px; font-weight: 750; line-height: 1.4; }
+.experience-history--desktop .experience-history-tabs { width: 260px; max-width: 100%; border-radius: 12px; }
+.experience-history--desktop .experience-history-tabs button { min-height: 36px; font-size: 14px; }
+.experience-history--desktop .experience-history-caption { padding: 22px 2px 12px; font-size: 12px; }
+.experience-history--desktop .experience-history-limit { font-size: 12px; }
+.experience-history--desktop .experience-history-table-wrap { overflow: hidden; border: 1px solid #e1e9e3; border-radius: 14px; }
+.experience-history--desktop .experience-history-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 14px; }
+.experience-history--desktop .experience-history-table th { padding: 13px 20px; background: #f6f9f6; color: #7a8c7f; font-size: 12px; font-weight: 500; text-align: left; }
+.experience-history--desktop .experience-history-table th:nth-child(2) { width: 220px; }
+.experience-history--desktop .experience-history-table th:last-child { width: 130px; text-align: right; }
+.experience-history--desktop .experience-history-table td { height: 64px; padding: 12px 20px; border-top: 1px solid #edf2ee; vertical-align: middle; overflow-wrap: anywhere; }
+.experience-history--desktop .experience-history-activity { display: flex; align-items: center; gap: 12px; color: #39563f; font-weight: 550; line-height: 1.5; }
+.experience-history--desktop .experience-history-sign { width: 32px; height: 32px; flex-basis: 32px; border-radius: 11px; }
+.experience-history--desktop .experience-history-table time { color: #7e9083; font-size: 13px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.experience-history--desktop .experience-history-table td:last-child { text-align: right; }
+.experience-history--desktop .experience-history-table strong { color: #397c4e; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.experience-history--desktop .experience-history-table strong.is-deducted { color: #a56b58; }
+.experience-history--desktop .experience-history-table small { font-size: 11px; font-weight: 500; }
+.experience-history--desktop .experience-history-pagination { gap: 6px; margin-top: 24px; }
+.experience-history--desktop .experience-history-pagination button { min-width: 38px; min-height: 38px; font-size: 13px; }
+.experience-history--desktop .experience-history-state,
+.experience-history--desktop .experience-history-empty { display: flex; min-height: 280px; margin: 18px 0 0; padding: 60px 24px; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #e1e9e3; border-radius: 14px; background: #fafcf9; font-size: 14px; }
+.experience-history--desktop .experience-history-empty > span { width: 54px; height: 54px; margin-bottom: 12px; }
+.experience-history--desktop .experience-history-empty p { margin: 0; }
+.experience-history--desktop button:focus-visible { outline: 2px solid #39815b; outline-offset: 3px; }
+@media (min-width: 641px) and (max-width: 1100px) {
+  .experience-history--desktop .experience-history-table th,
+  .experience-history--desktop .experience-history-table td { padding-inline: 12px; }
+  .experience-history--desktop .experience-history-table th:nth-child(2) { width: 34%; }
+  .experience-history--desktop .experience-history-table th:last-child { width: 22%; }
+  .experience-history--desktop .experience-history-activity { gap: 8px; }
+  .experience-history--desktop .experience-history-sign { width: 26px; height: 26px; flex-basis: 26px; font-size: 17px; }
+}
 @media (max-width: 640px), (max-width: 1024px) and (max-height: 500px) and (pointer: coarse) {
   .mobile-page.is-experience-page { padding: 5px 18px 26px; background: #f8faf6; }
   .mobile-page.is-experience-page .history-scroll-top { display: none; }

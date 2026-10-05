@@ -12,3 +12,14 @@
 @media(max-width:1000px){.account-home-top{padding:22px;gap:15px}.account-home-avatar{width:64px;height:64px;flex-basis:64px;font-size:25px}.account-home-name h2{font-size:21px}.account-home-growth{grid-template-columns:minmax(0,1fr) 150px;gap:18px;padding:0 22px 24px}.account-home-total{padding-left:18px}.account-home-guides a{padding:17px 22px}}
 @media(max-width:800px){.account-home-top{flex-wrap:wrap}.account-home-edit{margin-left:auto}.account-home-growth{grid-template-columns:1fr;gap:19px}.account-home-total{flex-direction:row;justify-content:space-between;align-items:center;border-left:0;border-top:1px solid #e7ede9;padding:16px 0 0}.account-home-total>strong{font-size:21px}.account-home-guides a{padding:17px}}
 .account-earned-badge{display:block;width:56px;height:56px;object-fit:contain;flex-shrink:0}.account-home-collection ul{grid-template-columns:repeat(auto-fill,minmax(185px,1fr))}
+/* Desktop account shortcuts share the existing profile card and content width. */
+.account-home-guides.has-history { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.account-home-guides.has-history a { padding: 18px 20px; }
+.account-home-collection-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+.account-home-collection-heading h2 { margin-bottom: 0; }
+.account-home-collection-heading > a { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; color: #527a5e; font-size: 12px; text-decoration: none; }
+.account-home-collection-heading > a:hover { color: #176b43; text-decoration: underline; }
+@media (min-width: 641px) and (max-width: 1000px) {
+  .account-home-guides.has-history a { gap: 6px; padding: 15px 12px; }
+  .account-home-guides.has-history small { line-height: 1.5; }
+}
