@@ -65,6 +65,11 @@
 .achievement-sticker > strong { max-width: 100%; font-size: 11px; line-height: 1.45; word-break: keep-all; overflow-wrap: anywhere; }
 .achievement-sticker > span:last-child { color: #687660; font-size: 10px; }
 .achievement-sticker.is-earned > span:last-child { color: #657443; }
+.achievement-stage-track { display: flex; gap: 3px; width: 64px; margin-top: 2px; }
+.achievement-stage-track i { flex: 1; height: 4px; border-radius: 3px; background: #e2e7dc; }
+.achievement-stage-track .is-bronze { background: #bb8059; }
+.achievement-stage-track .is-silver { background: #8e9da9; }
+.achievement-stage-track .is-gold { background: #d6ae4b; }
 .achievement-empty { margin: 15px; padding: 18px 0; color: #687660; font-size: 12px; line-height: 1.7; text-align: center; }
 .achievement-more { width: 100%; min-height: 44px; margin-top: 12px; padding: 8px; border: 1px solid #e0e6d7; border-radius: 10px; background: #fffdf8; color: #638057; font-size: 12px; }
 .achievement-more span { color: #687660; font-size: 10px; margin-left: 6px; }
@@ -89,6 +94,17 @@
 .achievement-earned-facts > div { display: grid; gap: 6px; }
 .achievement-earned-facts dt { color: #687660; font-size: 11px; }
 .achievement-earned-facts dd { margin: 0; color: #5b7953; font-size: 13px; font-weight: 700; }
+.achievement-stage-section { margin-bottom: 20px; }
+.achievement-stage-section > p { display: flex; justify-content: space-between; gap: 10px; margin: 0 0 10px; color: #687660; font-size: 11px; }
+.achievement-stage-section b { color: #41613c; }
+.achievement-stage-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.achievement-stage-options button { --stage-color: #9b6945; display: grid; justify-items: center; gap: 6px; min-width: 0; padding: 10px 3px; border: 1px solid #e1e5d9; border-radius: 12px; background: #f7f8f1; color: #61715c; }
+.achievement-stage-options .is-silver { --stage-color: #667986; }
+.achievement-stage-options .is-gold { --stage-color: #96731e; }
+.achievement-stage-options button[aria-pressed=true] { border-color: var(--stage-color); background: #fff; box-shadow: inset 0 -3px var(--stage-color); }
+.achievement-stage-options button > span { display: grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; background: var(--stage-color); color: #fff; font-size: 11px; }
+.achievement-stage-options strong { color: var(--stage-color); font-size: 12px; }
+.achievement-stage-options small { font-size: 10px; }
 .achievement-condition h3 { margin: 0 0 10px; font-size: 13px; }
 .achievement-condition > p { margin: 0; color: #64805b; font-size: 13px; line-height: 1.6; }
 .achievement-condition > .achievement-condition-note { margin-top: 14px; color: #6e795f; font-size: 11px; line-height: 1.7; }

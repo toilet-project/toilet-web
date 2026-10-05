@@ -331,6 +331,17 @@ export function growthEarnedAchievements(summary: GrowthSummary): ReadonlyMap<st
   return new Map(summary.badges.map(badge => [growthAchievementKey(badge), badge]))
 }
 
+/** One representative per awarded region, including codes outside today's catalogue. */
+export function growthHighestRegionalAwards(summary: GrowthSummary): ReadonlyMap<string, GrowthBadge> {
+  const awards = new Map<string, GrowthBadge>()
+  for (const badge of summary.badges) {
+    if (badge.type !== 'regional_medal' || !badge.tier) continue
+    const currentTier = awards.get(badge.code)?.tier
+    if (!currentTier || growthMedalTiers.indexOf(badge.tier) > growthMedalTiers.indexOf(currentTier)) awards.set(badge.code, badge)
+  }
+  return awards
+}
+
 export type GrowthAchievementProgress = { count: number; required: number; remaining: number }
 export type GrowthMedalProgress = { tier: MedalTier; facilities: GrowthAchievementProgress; districts: GrowthAchievementProgress; percent: number }
 
