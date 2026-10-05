@@ -7,5 +7,5 @@ export const metadata: Metadata = { title: '성장 가이드', robots: { index: 
 export default async function Page({ params }: { params: Promise<{ section: string }> }) {
   const { section } = await params
   if (section !== 'ranks' && section !== 'levels') notFound()
-  return <div className="region-site-shell"><SiteHeader path={`/growth/${section}`} /><GrowthGuide page={section} /><SiteFooter /></div>
+  return <div className="region-site-shell is-growth-guide-page"><SiteHeader path={`/growth/${section}`} /><GrowthGuide page={section} /><SiteFooter /></div>
 }
