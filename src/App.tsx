@@ -346,7 +346,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     const tab = query.get('tab')
     if (tab !== 'account' && tab !== 'notifications') return null
     const view = query.get('view')
-    return { tab, view: tab === 'account' && (view === 'likes' || view === 'settings' || view === 'reports') ? view : 'home' } as const
+    return { tab, view: tab === 'account' && (view === 'likes' || view === 'achievements' || view === 'settings' || view === 'reports') ? view : 'home' } as const
   })
   const [mobileTab, setMobileTab] = useState<MobileTab>(incomingMobileView?.tab ?? 'map')
   const [mobileAccountView, setMobileAccountView] = useState<MobileAccountView>(incomingMobileView?.view ?? 'home')
@@ -1853,6 +1853,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           onSessionExpired={handleSessionExpired}
           onReviews={REVIEW_UI_ENABLED ? reviewPreview.openMine : undefined}
           onLikes={() => setMobileAccountView('likes')}
+          onAchievements={() => setMobileAccountView('achievements')}
           onOpenLikedToilet={openLikedToilet}
           onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setMobileAccountView('settings')} onWithdrawn={handleWithdrawn} onLogout={handleLogout} onCountChange={refreshNotificationCount} onOpenReport={showReportHistory}
           beforeLogin={tab => { try { window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, tab) } catch { /* 로그인은 계속 제공 */ } }} />}

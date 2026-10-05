@@ -17,6 +17,8 @@ import { GROWTH_ENABLED } from '../lib/growth'
 import { growthBadgePath } from '../lib/growthBadgeAssets'
 import { useGrowth } from '../lib/useGrowth'
 import { MobileGrowthSummary } from './growth/MobileGrowthSummary'
+import { MobileAchievements } from './growth/MobileAchievements'
+import { achievementText } from '../i18n/achievementText'
 
 import { Icon, type MobileTab, type MobileAccountView } from './MobileNavigation'
 
@@ -81,31 +83,33 @@ function ProfileCard({ profile, onProfile, onSessionExpired }: { profile: AuthPr
   </section>{growthEligible && <MobileGrowthSummary state={growth} />}</>
 }
 
-export function MobilePage({ tab, profile, loading, unread, onProfile, onReports, onAccount, onLogout, onCountChange, onOpenReport, beforeLogin, onSessionExpired, onLikes, onOpenLikedToilet, onReviews, accountView = 'home', onBackAccount, reviewPage, focusedReportId, onWithdrawn }: {
+export function MobilePage({ tab, profile, loading, unread, onProfile, onReports, onAccount, onLogout, onCountChange, onOpenReport, beforeLogin, onSessionExpired, onLikes, onAchievements, onOpenLikedToilet, onReviews, accountView = 'home', onBackAccount, reviewPage, focusedReportId, onWithdrawn }: {
   tab: Exclude<MobileTab, 'map'>; profile: AuthProfile | null; loading: boolean; unread: number;
   onProfile: (profile: AuthProfile) => void; onReports: () => void; onAccount: () => void; onLogout: () => void; onCountChange: () => void; onOpenReport: (reportId: number) => void;
   beforeLogin: (tab: MobileTab) => void;
   onSessionExpired: () => void;
   onWithdrawn: (message: string) => void;
   onLikes?: () => void;
+  onAchievements?: () => void;
   onOpenLikedToilet: (item: LikedToilet) => void;
   onReviews?: () => void;
   accountView?: MobileAccountView; onBackAccount: () => void; reviewPage?: ReactNode; focusedReportId?: number | null;
 }) {
-  const t = useMessages()
+  const t = useMessages(), locale = useLocale()
   const page = useRef<HTMLElement>(null)
   useLayoutEffect(() => { if (page.current) page.current.scrollTop = 0 }, [tab, accountView])
   const historyPage = tab === 'account' && accountView !== 'home'
-  return <section ref={page} className={`mobile-page${tab === 'account' ? ' account-controls' : ''}${historyPage ? ' is-history-page' : ''}`} aria-label={t(tab === 'account' ? 'nav.account' : 'nav.notifications')}>
+  return <section ref={page} className={`mobile-page${tab === 'account' ? ' account-controls' : ''}${historyPage ? ' is-history-page' : ''}${tab === 'account' && accountView === 'achievements' ? ' is-achievements-page' : ''}`} aria-label={t(tab === 'account' ? 'nav.account' : 'nav.notifications')}>
     {loading ? <p className="mobile-page-loading" role="status">{t('common.loading')}</p> : !profile ? <LoginLanding onLogin={provider => { beforeLogin(tab); startSocialLogin(provider) }} />
       : tab === 'account' && accountView === 'reports' ? <MyReportsPanel key={`account-reports-${profile.userId}-${focusedReportId ?? 'list'}`} embedded onSessionExpired={onSessionExpired} initialExpandedId={focusedReportId} onClose={onBackAccount} onBack={onBackAccount} />
       : tab === 'account' && accountView === 'likes' && LIKES_ENABLED ? <LikedToiletsPanel key={profile.userId} owner={profile.userId} onClose={onBackAccount} onSessionExpired={onSessionExpired} onOpenToilet={onOpenLikedToilet} />
+      : tab === 'account' && accountView === 'achievements' ? <MobileAchievements key={profile.userId} profile={profile} onBack={onBackAccount} onSessionExpired={onSessionExpired} />
       : tab === 'account' && accountView === 'reviews' && onReviews ? reviewPage
       : tab === 'account' && accountView === 'settings' ? <AccountDialog key={profile.userId} embedded profile={profile} onClose={onBackAccount} onWithdrawn={onWithdrawn} />
       : tab === 'account' ? <>
       <header className="mobile-page-heading"><h1>{t('nav.account')}</h1></header>
       <ProfileCard key={profile.userId} profile={profile} onProfile={onProfile} onSessionExpired={onSessionExpired} />
-      <div className="mobile-account-links">{LIKES_ENABLED && onLikes && <button type="button" onClick={onLikes}><Icon name="likes" /><span>{t('nav.myLikes')}</span><span aria-hidden="true">›</span></button>}{onReviews && <button type="button" onClick={onReviews}><Icon name="community" /><span>{t('nav.myReviews')}</span><span aria-hidden="true">›</span></button>}<button type="button" onClick={onReports}><Icon name="community" /><span>{t('nav.myReports')}</span><span aria-hidden="true">›</span></button><button type="button" onClick={onAccount}><Icon name="settings" /><span>{t('account.settings')}</span><span aria-hidden="true">›</span></button></div>
+      <div className="mobile-account-links">{LIKES_ENABLED && onLikes && <button type="button" onClick={onLikes}><Icon name="likes" /><span>{t('nav.myLikes')}</span><span aria-hidden="true">›</span></button>}{GROWTH_ENABLED && profile.status === 'ACTIVE' && !profile.consentRequired && onAchievements && <button type="button" onClick={onAchievements}><Icon name="achievements" /><span>{achievementText(locale).title}</span><span aria-hidden="true">›</span></button>}{onReviews && <button type="button" onClick={onReviews}><Icon name="community" /><span>{t('nav.myReviews')}</span><span aria-hidden="true">›</span></button>}<button type="button" onClick={onReports}><Icon name="community" /><span>{t('nav.myReports')}</span><span aria-hidden="true">›</span></button><button type="button" onClick={onAccount}><Icon name="settings" /><span>{t('account.settings')}</span><span aria-hidden="true">›</span></button></div>
       <div className="mobile-account-support"><PolicyLinks /><button type="button" className="mobile-logout" onClick={onLogout}>{t('auth.logout')}</button></div>
     </> : <NotificationPanel key={profile.userId} embedded unread={unread} onSessionExpired={onSessionExpired} onCountChange={onCountChange} onOpenReport={onOpenReport} onClose={() => {}} />}
     {historyPage && !loading && profile && <HistoryScrollTop key={`${accountView}-${profile.userId}`} container={page} />}

@@ -3,14 +3,15 @@ import { useMessages, useLocale } from '../i18n/context'
 import { localizedPublicPath } from '../i18n/routes'
 
 export type MobileTab = 'map' | 'notifications' | 'account'
-export type MobileAccountView = 'home' | 'likes' | 'reports' | 'reviews' | 'settings'
-type IconName = MobileTab | 'community' | 'regions' | 'settings' | 'likes'
+export type MobileAccountView = 'home' | 'likes' | 'achievements' | 'reports' | 'reviews' | 'settings'
+type IconName = MobileTab | 'community' | 'regions' | 'settings' | 'likes' | 'achievements'
 
 export function Icon({ name }: { name: IconName }) {
   const paths = {
     map: <><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Z" /><path d="M9 3v16M15 5v16" /></>,
     community: <><path d="M20 11a8 8 0 0 1-8 8H7l-4 2 1-5a8 8 0 1 1 16-5Z" /><path d="M8 9h8M8 13h5" /></>,
     likes: <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" />,
+    achievements: <><circle cx="12" cy="9" r="6" /><path d="m8 14-1 7 5-3 5 3-1-7M12 6v6M9 9h6" /></>,
     regions: <><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Z" /><path d="M9 3v16M15 5v16" /><path d="M12 9a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4Z" /></>,
     notifications: <><path d="M18 9a6 6 0 0 0-12 0c0 6-2 6-2 8h16c0-2-2-2-2-8M10 21h4" /></>,
     account: <><circle cx="12" cy="7.5" r="3.5" /><path d="M5 21v-2a7 7 0 0 1 14 0v2" /></>,
