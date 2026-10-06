@@ -243,6 +243,15 @@
 .quick-report .report-field input { font-size: 16px; padding: 9px 11px; }
 .quick-report .report-submit, .quick-report .report-edit-button { min-height: 42px; font-size: 13px; }
 .quick-report-preview { margin: 14px 0 0; text-align: center; font-size: 10px; color: #8c9990; }
+.new-report-info textarea { box-sizing:border-box; font-size:16px; font-weight:400; }
+.new-report-info textarea::placeholder { color:#77847c; font-size:13px; }
+.new-report-extra { margin-top:14px; padding:12px; border:1px solid #e1e9e4; border-radius:12px; background:#f8fbf9; }
+.new-report-extra summary { color:#53685c; font-size:12px; cursor:pointer; }
+.new-report-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:12px; }
+.new-report-fields .report-field { min-width:0; margin:0; gap:5px; }
+.new-report-fields input,.new-report-fields select { box-sizing:border-box; width:100%; min-width:0; height:42px; padding:8px; border:1px solid #d5e1d7; border-radius:8px; background:white; color:#26372c; font:inherit; font-size:16px; }
+.new-report-fields select:focus { outline:2px solid #9bc9ae; outline-offset:1px; }
+.new-report-fields .report-field > span { line-height:1.4; overflow-wrap:anywhere; }
 .quick-map-error { position: absolute; inset: 0; display: grid; place-items: center; background: #f4f8f5; color: #7b493f; font-size: 13px; }
 .card-details { max-height: 324px; margin-top: 16px; padding-top: 16px; flex: 0 1 auto; overflow-y: auto; border-top: 1px solid #e8ede9; overscroll-behavior: contain; }
 .detail-section { margin-top: 18px; }
