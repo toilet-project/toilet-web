@@ -109,8 +109,10 @@ export function QuickReportModal({ toilet, latitude, longitude, identity, onClos
     if (kind === 'new' && !name.trim()) { setError(q('nameRequired')); return }
     if (kind === 'new' && [...(content.current?.querySelectorAll<HTMLInputElement>('input, select') || [])].some(input => !input.checkValidity())) { setError(q('invalidInfo')); return }
     if ((kind === 'new' || kind === 'location') && !confirmed) return
-    const request: QuickReportRequest = { reportType: types[kind], ...(kind === 'new' ? { name: name.trim(), facilityInfo: facilityProposal(facility) } : { toiletId: toilet.id }),
+    let request: QuickReportRequest
+    try { request = { reportType: types[kind], ...(kind === 'new' ? { name: name.trim(), facilityInfo: facilityProposal(facility) } : { toiletId: toilet.id }),
       ...(confirmed ? { ...confirmed, roadAddress: address, reason: reason.trim() } : {}) }
+    } catch { setError(q('invalidHours')); return }
     const body = JSON.stringify(request)
     // Preserve the key when a response is lost; edited proposals receive a fresh key.
     if (submission.current?.body !== body) submission.current = { body, id: crypto.randomUUID() }

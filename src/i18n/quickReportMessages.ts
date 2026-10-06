@@ -1,6 +1,21 @@
 import type { Locale } from './locale'
 
 const copy = {
+  hoursPolicy: ['운영 방식','Hours policy','利用時間の設定','开放方式','開放方式'],
+  weekly: ['요일별','Weekly schedule','曜日別','按星期','按星期'],
+  irregular: ['불규칙','Irregular','不定期','不定时','不定時'],
+  notOperating: ['운영 중단','Not operating','運営休止','停止开放','停止開放'],
+  holiday: ['공휴일','Public holidays','祝日','法定节假日','公眾假期'],
+  holidayOpen: ['운영','Open','利用可','开放','開放'],
+  weekday: ['요일','Day','曜日','星期','星期'],
+  mon: ['월','Mon','月','周一','週一'], tue: ['화','Tue','火','周二','週二'], wed: ['수','Wed','水','周三','週三'], thu: ['목','Thu','木','周四','週四'], fri: ['금','Fri','金','周五','週五'], sat: ['토','Sat','土','周六','週六'], sun: ['일','Sun','日','周日','週日'],
+  dayOff: ['휴무','Closed','休み','关闭','關閉'],
+  startTime: ['시작 시간','Opens at','開始時間','开始时间','開始時間'],
+  endTime: ['종료 시간','Closes at','終了時間','结束时间','結束時間'],
+  addTime: ['시간대 추가','Add time slot','時間帯を追加','添加时段','新增時段'],
+  removeTime: ['시간대 삭제','Remove time slot','時間帯を削除','删除时段','刪除時段'],
+  overnight: ['종료가 시작보다 이르면 익일 종료 · 미입력 요일은 미확인','Earlier end time means next day · unlisted days are unknown','終了が開始より早い場合は翌日・未入力の曜日は不明','结束早于开始表示次日 · 未填写的星期为未知','結束早於開始表示翌日 · 未填寫的星期為未知'],
+  invalidHours: ['요일별 시간과 운영 방식을 확인해 주세요','Check the schedule and hours policy','曜日別の時間と設定をご確認ください','请检查时段和开放方式','請檢查時段及開放方式'],
   title: ['제보하기', 'Report', '報告', '反馈', '回報'],
   target: ['제보 대상', 'Reporting', '対象のトイレ', '反馈对象', '回報對象'],
   missing: ['없음', 'Not here', '見つからない', '不存在', '不存在'],
