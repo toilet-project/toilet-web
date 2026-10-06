@@ -40,6 +40,8 @@ const copy = {
   namePlaceholder: ['예: 중앙공원 화장실', 'e.g. Central Park Restroom', '例：中央公園トイレ', '例如：中央公园洗手间', '例如：中央公園洗手間'],
   note: ['추가 설명 (선택)', 'Note (optional)', '補足（任意）', '补充说明（选填）', '補充說明（選填）'],
   newHours: ['개방시간 (선택)', 'Opening hours (optional)', '利用時間（任意）', '开放时间（选填）', '開放時間（選填）'],
+  newInfo: ['개방시간·이용 정보 (선택)', 'Hours & useful details (optional)', '利用時間・補足情報（任意）', '开放时间与使用信息（选填）', '開放時間與使用資訊（選填）'],
+  newInfoGuide: ['예: 평일 09:00~18:00, 주말·공휴일 휴무\n불규칙 운영, 편의시설 등 아는 정보만 적어 주세요', 'e.g. Weekdays 09:00–18:00; closed on weekends and holidays\nAdd any hours, irregular opening or amenities you know', '例：平日09:00〜18:00、土日・祝日は休み\n不定期の利用時間や設備など、わかる情報だけで大丈夫です', '例如：工作日09:00–18:00，周末和节假日关闭\n不定时开放、设施等信息，填写您知道的即可', '例如：平日09:00–18:00，週末及公眾假期休息\n不定時開放、設施等資訊，只需填寫您知道的'],
   allDay: ['24시간', '24 hours', '24時間', '24小时', '24小時'],
   basicInfo: ['기본 정보 더 입력 (선택)', 'More details (optional)', '基本情報を追加（任意）', '补充基本信息（选填）', '補充基本資訊（選填）'],
   facilityType: ['화장실 구분', 'Restroom type', 'トイレの種類', '洗手间类型', '洗手間類型'],

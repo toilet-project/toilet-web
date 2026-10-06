@@ -107,12 +107,12 @@ export function QuickReportModal({ toilet, latitude, longitude, identity, onClos
   const submit = async () => {
     if (!kind || flight.current || (kind !== 'closed' && !mapReady)) return
     if (kind === 'new' && !name.trim()) { setError(q('nameRequired')); return }
-    if (kind === 'new' && [...(content.current?.querySelectorAll<HTMLInputElement>('input, select') || [])].some(input => !input.checkValidity())) { setError(q('invalidInfo')); return }
+    if (kind === 'new' && [...(content.current?.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input, select, textarea') || [])].some(input => !input.checkValidity())) { setError(q('invalidInfo')); return }
     if ((kind === 'new' || kind === 'location') && !confirmed) return
     let request: QuickReportRequest
     try { request = { reportType: types[kind], ...(kind === 'new' ? { name: name.trim(), facilityInfo: facilityProposal(facility) } : { toiletId: toilet.id }),
       ...(confirmed ? { ...confirmed, roadAddress: address, reason: reason.trim() } : {}) }
-    } catch { setError(q('invalidHours')); return }
+    } catch { setError(q('invalidInfo')); return }
     const body = JSON.stringify(request)
     // Preserve the key when a response is lost; edited proposals receive a fresh key.
     if (submission.current?.body !== body) submission.current = { body, id: crypto.randomUUID() }
@@ -146,7 +146,7 @@ export function QuickReportModal({ toilet, latitude, longitude, identity, onClos
           <p className="quick-report-address">{address || `${confirmed.latitude.toFixed(6)}, ${confirmed.longitude.toFixed(6)}`}</p>
           {kind === 'new' ? <><label className="report-field"><span>{q('name')}</span><input value={name} maxLength={100} disabled={busy} onChange={event => setName(event.target.value)} placeholder={q('namePlaceholder')} autoComplete="off" /></label><NewFacilityFields value={facility} onChange={setFacility} disabled={busy} /></>
             : <h3 className="quick-report-question">{q('confirm')}</h3>}
-          <label className="report-field"><span>{q('note')}</span><input value={reason} maxLength={500} onChange={event => setReason(event.target.value)} /></label>
+          {kind !== 'new' && <label className="report-field"><span>{q('note')}</span><input value={reason} maxLength={500} disabled={busy} onChange={event => setReason(event.target.value)} /></label>}
           <button type="button" className="report-submit" disabled={busy || !mapReady || (kind === 'new' && !name.trim())} onClick={() => void submit()}>{q(busy ? 'sending' : 'submit')}</button></>}
         {!receipt && (kind === 'missing' || kind === 'closed') && <div className="report-confirm-actions"><button type="button" className="report-edit-button" disabled={busy} onClick={back}>{q('no')}</button><button type="button" className="report-submit" disabled={busy || (kind === 'missing' && !mapReady)} onClick={() => void submit()}>{q(busy ? 'sending' : 'yes')}</button></div>}
         {error && <p className="report-error" role="alert">{error}</p>}
