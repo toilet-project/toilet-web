@@ -11,6 +11,8 @@ import { addMapEventListener, createMap, destroyMap } from '../lib/mapProvider'
 import { reverseGeocodeKakaoCoordinates } from '../lib/kakaoMap'
 import { formatOpenTime } from '../lib/detailFormatting'
 import { getDisplayAddress } from '../lib/address'
+import { NewFacilityFields } from './NewFacilityFields'
+import { emptyFacilityForm, facilityProposal } from '../lib/newFacilityProposal'
 
 type Point = { latitude: number; longitude: number }
 type Kind = 'missing' | 'location' | 'closed' | 'new'
@@ -65,6 +67,7 @@ export function QuickReportModal({ toilet, latitude, longitude, identity, onClos
   const [start, setStart] = useState<Point>({ latitude, longitude })
   const [mapReady, setMapReady] = useState(false)
   const [name, setName] = useState('')
+  const [facility, setFacility] = useState(emptyFacilityForm)
   const [reason, setReason] = useState('')
   const [address, setAddress] = useState(getDisplayAddress(toilet.roadAddress, toilet.jibunAddress))
   const [busy, setBusy] = useState(false)
@@ -96,6 +99,7 @@ export function QuickReportModal({ toilet, latitude, longitude, identity, onClos
 
   const choose = (next: Kind) => {
     setKind(next); setConfirmed(null); setError(null); setReason(''); setName('')
+    setFacility(emptyFacilityForm)
     setAddress(getDisplayAddress(toilet.roadAddress, toilet.jibunAddress))
     point.current = { latitude, longitude }; setStart({ latitude, longitude }); setMapReady(false); submission.current = null
   }
@@ -103,8 +107,9 @@ export function QuickReportModal({ toilet, latitude, longitude, identity, onClos
   const submit = async () => {
     if (!kind || flight.current || (kind !== 'closed' && !mapReady)) return
     if (kind === 'new' && !name.trim()) { setError(q('nameRequired')); return }
+    if (kind === 'new' && [...(content.current?.querySelectorAll<HTMLInputElement>('input, select') || [])].some(input => !input.checkValidity())) { setError(q('invalidInfo')); return }
     if ((kind === 'new' || kind === 'location') && !confirmed) return
-    const request: QuickReportRequest = { reportType: types[kind], ...(kind === 'new' ? { name: name.trim() } : { toiletId: toilet.id }),
+    const request: QuickReportRequest = { reportType: types[kind], ...(kind === 'new' ? { name: name.trim(), facilityInfo: facilityProposal(facility) } : { toiletId: toilet.id }),
       ...(confirmed ? { ...confirmed, roadAddress: address, reason: reason.trim() } : {}) }
     const body = JSON.stringify(request)
     // Preserve the key when a response is lost; edited proposals receive a fresh key.
@@ -137,7 +142,7 @@ export function QuickReportModal({ toilet, latitude, longitude, identity, onClos
         {!receipt && moving && <><p className="quick-report-guide">{q('move')}</p><ReportMap key={`${kind}-move`} initial={start} fixed={false} onPoint={value => { point.current = value }} onReady={() => setMapReady(true)} /><button type="button" className="report-submit" disabled={!mapReady} onClick={() => { setAddress(''); setMapReady(false); setConfirmed({ ...point.current }) }}>{q('next')}</button></>}
         {!receipt && confirmed && <><ReportMap key={`${kind}-confirm`} initial={confirmed} fixed onReady={() => setMapReady(true)} />
           <p className="quick-report-address">{address || `${confirmed.latitude.toFixed(6)}, ${confirmed.longitude.toFixed(6)}`}</p>
-          {kind === 'new' ? <label className="report-field"><span>{q('name')}</span><input value={name} maxLength={100} onChange={event => setName(event.target.value)} placeholder={q('namePlaceholder')} autoComplete="off" /></label>
+          {kind === 'new' ? <><label className="report-field"><span>{q('name')}</span><input value={name} maxLength={100} disabled={busy} onChange={event => setName(event.target.value)} placeholder={q('namePlaceholder')} autoComplete="off" /></label><NewFacilityFields value={facility} onChange={setFacility} disabled={busy} /></>
             : <h3 className="quick-report-question">{q('confirm')}</h3>}
           <label className="report-field"><span>{q('note')}</span><input value={reason} maxLength={500} onChange={event => setReason(event.target.value)} /></label>
           <button type="button" className="report-submit" disabled={busy || !mapReady || (kind === 'new' && !name.trim())} onClick={() => void submit()}>{q(busy ? 'sending' : 'submit')}</button></>}
