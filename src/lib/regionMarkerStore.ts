@@ -126,14 +126,21 @@ export async function readRegionMarkersOrFallback(options: Parameters<typeof rea
   }
 }
 
-async function invalidateDistrict(bucket: R2BucketLike, code: string, now: () => number) {
+async function invalidateDistrict(bucket: R2BucketLike, code: string, now: () => number,
+  globalRevision: number | null, capture?: (code: string, previous: ToiletMapItemResponse[]) => void) {
   if (!validCode(code)) throw new Error('Invalid district code')
   for (let attempt = 0; attempt < 8; attempt++) {
     const current = await loadDistrict(bucket, code)
     const record = current?.record
+    const former = globalRevision !== null && record?.state === 'data'
+      && record.globalRevision === globalRevision && record.storedAt + regionMarkerFreshAge(code) > now()
+      ? record.data! : null
     const next: DistrictRecord = { schema: SCHEMA, districtCode: code, revision: (record?.revision ?? 0) + 1,
       globalRevision: record?.globalRevision ?? 0, state: 'invalidated', storedAt: now() }
-    if (await put(bucket, regionMarkerObjectKey(code), next, current)) return
+    if (await put(bucket, regionMarkerObjectKey(code), next, current)) {
+      if (former) capture?.(code, former)
+      return
+    }
   }
   throw new Error('Region marker invalidation contention')
 }
@@ -147,12 +154,18 @@ async function advanceGlobal(bucket: R2BucketLike) {
   throw new Error('Region marker global invalidation contention')
 }
 
-export async function invalidateRegionMarkers(bucket: R2BucketLike, codes: string[] | null, now = Date.now) {
+export async function invalidateRegionMarkers(bucket: R2BucketLike, codes: string[] | null, now = Date.now,
+  capture?: (code: string, previous: ToiletMapItemResponse[]) => void) {
   if (codes === null) { await advanceGlobal(bucket); return 'global' as const }
   const pending = [...new Set(codes)]
+  let globalRevision: number | null = null
+  if (capture) {
+    try { globalRevision = (await loadGlobal(bucket))?.record?.revision ?? 0 }
+    catch { /* An IndexNow snapshot must not make cache invalidation fail. */ }
+  }
   let cursor = 0
   await Promise.all(Array.from({ length: Math.min(4, pending.length) }, async () => {
-    while (cursor < pending.length) await invalidateDistrict(bucket, pending[cursor++], now)
+    while (cursor < pending.length) await invalidateDistrict(bucket, pending[cursor++], now, globalRevision, capture)
   }))
   return 'scoped' as const
 }

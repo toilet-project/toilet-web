@@ -44,6 +44,15 @@ test('public detail is reused across callers and extra personal fields never per
   assert.equal(bucket.value(7).data.email,undefined); assert.equal(bucket.value(7).data.accessToken,undefined)
 })
 
+test('invalidation returns only a still-public before-image without another cache read',async()=>{
+  const bucket=new FakeR2()
+  await readThroughSharedToiletCache({bucket,toiletId:27,fetchOrigin:async()=>detail(27),now:()=>1000})
+  const former=await applySharedToiletInvalidation(bucket,{toiletId:27,revision:1,action:'PRIVATE',catalogChanged:true},()=>3000)
+  assert.equal(former.name,'공개 화장실')
+  assert.equal(await applySharedToiletInvalidation(bucket,{toiletId:27,revision:1,action:'PRIVATE',catalogChanged:true},()=>4000),null)
+  assert.equal(await applySharedToiletInvalidation(bucket,{toiletId:28,revision:1,action:'DELETE',catalogChanged:true},()=>4000),null)
+})
+
 test('public translation fields persist safely while malformed locale entries are discarded',async()=>{
   const bucket=new FakeR2()
   const origin={...detail(18),translations:{en:{name:'Public Restroom',roadAddress:'1 Test-ro',jibunAddress:null},
