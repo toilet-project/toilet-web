@@ -2,8 +2,9 @@ import type { ToiletDetailResponse } from '../api/toilets.ts'
 import { getDisplayAddress } from './address.ts'
 import { regionLabel, toiletCoordinates } from './toiletRoute.ts'
 import { regionToiletPath } from './regionToiletPath.ts'
+import { SITE_ORIGIN } from './robotsPolicy.ts'
 
-export const SITE_ORIGIN = 'https://geupddong.com'
+export { SITE_ORIGIN, robotsPolicy } from './robotsPolicy.ts'
 export const SITEMAP_SIZE = 10_000
 export const MAX_SHARD = Math.floor((Number.MAX_SAFE_INTEGER - 1) / SITEMAP_SIZE)
 
@@ -58,16 +59,4 @@ export function validateSitemapIds(value: unknown, shard?: number): number[] {
     previous = id
   }
   return value
-}
-
-export function robotsPolicy(indexable: boolean) {
-  return indexable
-    ? {
-      rules: [
-        { userAgent: ['ClaudeBot', 'Moltbot', 'GPTBot', 'Google-Extended', 'FacebookBot', 'Meta-ExternalAgent'], disallow: '/' },
-        { userAgent: '*', allow: '/', disallow: ['/api/', '/_internal/', '/admin/', '/login/'] },
-      ],
-      sitemap: `${SITE_ORIGIN}/sitemap.xml`,
-    }
-    : { rules: { userAgent: '*', disallow: '/' } }
 }
