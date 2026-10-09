@@ -1,4 +1,5 @@
 import type { R2BucketLike } from './sharedToiletCache'
+import type { ToiletMapItemResponse } from '../api/toilets'
 import { invalidateRegionMarkers } from '../lib/regionMarkerStore.ts'
 export * from '../lib/regionMarkerStore.ts'
 
@@ -11,8 +12,11 @@ export async function getRegionMarkerBucket(): Promise<R2BucketLike | null> {
   return bucket as R2BucketLike
 }
 
-export async function persistRegionMarkerInvalidation(codes: string[] | null) {
-  if (process.env.REGION_MARKER_CACHE_ENABLED !== 'true') return
+export async function persistRegionMarkerInvalidation(codes: string[] | null, captureBefore = false) {
+  const previous = new Map<string, ToiletMapItemResponse[]>()
+  if (process.env.REGION_MARKER_CACHE_ENABLED !== 'true') return previous
   const bucket = await getRegionMarkerBucket()
-  if (bucket) await invalidateRegionMarkers(bucket, codes)
+  if (bucket) await invalidateRegionMarkers(bucket, codes, Date.now,
+    captureBefore ? (code, markers) => previous.set(code, markers) : undefined)
+  return previous
 }

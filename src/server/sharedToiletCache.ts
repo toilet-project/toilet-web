@@ -159,6 +159,7 @@ async function load(bucket: R2BucketLike, id: number): Promise<Loaded> {
   // response can replace it conditionally instead of retrying forever.
   return { record, etag: object.etag }
 }
+
 function condition(current: Loaded): R2PutOnlyIf {
   // Use the structured R2 condition in server components. A Headers instance can
   // cross a Next.js/runtime realm boundary and fail the Workers API brand check.
@@ -244,14 +245,16 @@ function eventState(action: ToiletCacheAction): CacheState { return action === '
 export async function applySharedToiletInvalidation(bucket: R2BucketLike, event: ToiletCacheEvent, now = Date.now) {
   for (let attempt = 0; attempt < 4; attempt += 1) {
     const current = await load(bucket, event.toiletId)
-    if (current?.record && current.record.revision > event.revision) return
+    if (current?.record && current.record.revision > event.revision) return null
     if (current?.record && current.record.revision === event.revision
-      && (event.action === 'UPSERT' || current.record.state === 'deleted')) return
+      && (event.action === 'UPSERT' || current.record.state === 'deleted')) return null
+    const former = current?.record?.state === 'data' && current.record.staleUntil! > now()
+      ? current.record.data! : null
     const record: SharedToiletRecord = {
       schema: SHARED_TOILET_CACHE_SCHEMA, toiletId: event.toiletId, revision: event.revision,
       state: eventState(event.action), storedAt: now(),
     }
-    if (await put(bucket, record, current)) return
+    if (await put(bucket, record, current)) return former
   }
   throw new Error('Shared toilet invalidation contention')
 }
@@ -266,8 +269,7 @@ export async function getSharedToiletBucket(): Promise<R2BucketLike | null> {
 }
 export async function persistSharedToiletInvalidation(events: ToiletCacheEvent[]) {
   const bucket = await getSharedToiletBucket()
-  if (!bucket) return
-  await applySharedToiletInvalidations(bucket, events)
+  return bucket ? applySharedToiletInvalidations(bucket, events) : new Map<number, ToiletDetailResponse>()
 }
 
 export async function applySharedToiletInvalidations(bucket: R2BucketLike, events: ToiletCacheEvent[]) {
@@ -277,12 +279,17 @@ export async function applySharedToiletInvalidations(bucket: R2BucketLike, event
   // finish every attempted event before returning a retryable failure.
   let cursor = 0
   let failed = false
+  const previous = new Map<number, ToiletDetailResponse>()
   await Promise.all(Array.from({ length: Math.min(4, events.length) }, async () => {
     while (cursor < events.length) {
       const event = events[cursor++]
-      try { await applySharedToiletInvalidation(bucket, event) }
+      try {
+        const former = await applySharedToiletInvalidation(bucket, event)
+        if (former) previous.set(event.toiletId, former)
+      }
       catch { failed = true }
     }
   }))
   if (failed) throw new Error('Shared toilet invalidation failed')
+  return previous
 }

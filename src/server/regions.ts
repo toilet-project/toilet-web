@@ -71,8 +71,7 @@ export function sanitizeDistrictMarkers(value: unknown, region: Region): ToiletM
 export async function getDistrictToiletsWithSource(provinceCode: string, districtCode: string): Promise<RegionMarkerRead> {
   const region = getPreciseDistrict(provinceCode, districtCode)
   if (!region) return { toilets: [], source: 'hit' }
-  const { south, north, west, east } = regionBounds(region)
-  const query = new URLSearchParams({ southLat: String(south), northLat: String(north), westLng: String(west), eastLng: String(east), zoom: '8' })
+  const query = districtQuery(region)
   const fetchOrigin = async () => {
     try {
       const response = await fetch(`${API_ORIGIN}/api/v1/toilets?${query}`, {
@@ -92,6 +91,23 @@ export async function getDistrictToiletsWithSource(provinceCode: string, distric
   }
   if (bucket) return readRegionMarkersOrFallback({ bucket, districtCode, fetchOrigin }, fetchOrigin)
   return { toilets: await fetchOrigin(), source: 'miss' }
+}
+
+function districtQuery(region: Region) {
+  const { south, north, west, east } = regionBounds(region)
+  return new URLSearchParams({ southLat: String(south), northLat: String(north),
+    westLng: String(west), eastLng: String(east), zoom: '8' })
+}
+
+/** Bounded, read-only before/after comparison; never primes the user-facing R2 cache. */
+export async function getCurrentDistrictToiletsForIndexNow(provinceCode: string, districtCode: string) {
+  const region = getPreciseDistrict(provinceCode, districtCode)
+  if (!region) throw new Error('Unknown IndexNow district')
+  const response = await fetch(`${API_ORIGIN}/api/v1/toilets?${districtQuery(region)}`, {
+    cache: 'no-store', signal: AbortSignal.timeout(5_000),
+  })
+  if (!response.ok) throw new Error(`IndexNow district lookup failed (${response.status})`)
+  return sanitizeDistrictMarkers(await response.json(), region)
 }
 
 export async function getDistrictToilets(provinceCode: string, districtCode: string): Promise<ToiletMapItemResponse[]> {
