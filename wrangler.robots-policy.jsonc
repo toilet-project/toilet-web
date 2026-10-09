@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "geupddong-robots-policy",
+  "main": "robots-policy-worker.mjs",
+  "compatibility_date": "2026-09-05",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "geupddong.com/robots.txt*", "zone_name": "geupddong.com" },
+    { "pattern": "api.geupddong.com/robots.txt*", "zone_name": "geupddong.com" },
+    { "pattern": "preview.geupddong.com/robots.txt*", "zone_name": "geupddong.com" }
+  ],
+  "observability": { "enabled": true, "head_sampling_rate": 0.1 }
+}
