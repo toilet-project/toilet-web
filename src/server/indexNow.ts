@@ -5,7 +5,9 @@ import { getDistrict, localizedRegionPath } from '../lib/regions.ts'
 import { codeFromRegionSegment } from '../lib/urlName.ts'
 import { SITE_ORIGIN } from '../lib/seo.ts'
 import type { ToiletDetailResponse } from '../api/toilets.ts'
-import type { ToiletCacheEvent } from './sharedToiletCache.ts'
+import type { R2BucketLike, ToiletCacheEvent } from './sharedToiletCache.ts'
+import { createIndexNowRateLimit, IndexNowRateLimitError, indexNowRetryAt } from './indexNowRateLimit.ts'
+import type { IndexNowRateLimit } from './indexNowRateLimit.ts'
 
 export const INDEXNOW_ENDPOINT = 'https://api.indexnow.org/indexnow'
 export const INDEXNOW_KEY = '237e18b19a2de7283207a1343afffb4dbf4dc12e24af2c9208999c2238df9c24'
@@ -20,17 +22,21 @@ type FetchLike = typeof fetch
 export class IndexNowSubmissionError extends Error {
   readonly reason: 'http' | 'timeout' | 'network'
   readonly status: number | null
-  constructor(reason: 'http' | 'timeout' | 'network', status: number | null = null) {
+  readonly retryAt?: number
+  constructor(reason: 'http' | 'timeout' | 'network', status: number | null = null, retryAt?: number) {
     super(`IndexNow submission failed (${reason}${status === null ? '' : ` ${status}`})`)
     this.name = 'IndexNowSubmissionError'
     this.reason = reason
     this.status = status
+    this.retryAt = retryAt
   }
 }
 
 export function indexNowFailureInfo(error: unknown) {
-  return error instanceof IndexNowSubmissionError
-    ? { reason: error.reason, status: error.status }
+  return error instanceof IndexNowRateLimitError
+    ? { reason: 'rate_limit', status: 429, retryAt: error.retryAt }
+    : error instanceof IndexNowSubmissionError
+    ? { reason: error.reason, status: error.status, ...(error.retryAt === undefined ? {} : { retryAt: error.retryAt }) }
     : { reason: 'unexpected', status: null, errorName: error instanceof Error ? error.name : typeof error }
 }
 
@@ -91,14 +97,15 @@ export function buildIndexNowPayload(paths: Iterable<string>) {
   }
 }
 
-function retryable(status: number) { return status === 429 || status >= 500 }
+function retryable(status: number) { return status >= 500 }
 const delay = (milliseconds: number) => new Promise(resolve => setTimeout(resolve, milliseconds))
 
 export async function submitIndexNow(paths: Iterable<string>, fetchImpl: FetchLike = fetch,
-  wait: (milliseconds: number) => Promise<unknown> = delay) {
+  wait: (milliseconds: number) => Promise<unknown> = delay, rateLimit?: IndexNowRateLimit) {
   const payload = buildIndexNowPayload(paths)
   if (!payload) return { submitted: 0, status: null }
   for (let attempt = 0; attempt <= INDEXNOW_RETRIES; attempt++) {
+    await rateLimit?.check()
     let response: Response
     try {
       response = await fetchImpl(INDEXNOW_ENDPOINT, {
@@ -115,6 +122,16 @@ export async function submitIndexNow(paths: Iterable<string>, fetchImpl: FetchLi
       continue
     }
     if (response.ok) return { submitted: payload.urlList.length, status: response.status }
+    if (response.status === 429) {
+      const retryAt = indexNowRetryAt(response.headers.get('Retry-After'), Date.now())
+      try { await rateLimit?.defer(retryAt) } catch (error) {
+        console.error('IndexNow cooldown persistence failed', {
+          errorName: error instanceof Error ? error.name : typeof error,
+        })
+      }
+      // Do not repeat a rejected request in this background task.
+      throw new IndexNowSubmissionError('http', 429, retryAt)
+    }
     if (!retryable(response.status) || attempt === INDEXNOW_RETRIES) {
       throw new IndexNowSubmissionError('http', response.status)
     }
@@ -154,7 +171,8 @@ async function mapConcurrent<T, R>(values: readonly T[], concurrency: number, ma
 }
 
 export async function notifyIndexNowForEvents(events: readonly ToiletCacheEvent[], fetchImpl: FetchLike = fetch,
-  previousDetails: ReadonlyMap<number, ToiletDetailResponse> = new Map()) {
+  previousDetails: ReadonlyMap<number, ToiletDetailResponse> = new Map(), rateLimit?: IndexNowRateLimit) {
+  if (events.length) await rateLimit?.check()
   const paths = (await mapConcurrent(events, DETAIL_CONCURRENCY, async event => {
     const previous = previousDetails.get(event.toiletId)
     const formerPaths = previous ? canonicalIndexNowPaths(previous) : []
@@ -168,7 +186,7 @@ export async function notifyIndexNowForEvents(events: readonly ToiletCacheEvent[
       return []
     }
   })).flat()
-  return submitIndexNow(paths, fetchImpl)
+  return submitIndexNow(paths, fetchImpl, undefined, rateLimit)
 }
 
 /** Schedule a best-effort notification without changing cache-invalidation acknowledgement. */
@@ -177,9 +195,11 @@ export async function scheduleIndexNowNotification(events: readonly ToiletCacheE
   if (!indexNowEnabled()) return false
   try {
     const { getCloudflareContext } = await import('@opennextjs/cloudflare')
-    const { ctx } = await getCloudflareContext({ async: true })
+    const { ctx, env } = await getCloudflareContext({ async: true })
+    const bucket = (env as Record<string, unknown>).PUBLIC_TOILET_DATA_CACHE_R2 as R2BucketLike | undefined
+    if (!bucket) throw new Error('IndexNow cooldown binding unavailable')
     const startedAt = Date.now()
-    ctx.waitUntil(notifyIndexNowForEvents(events, fetch, previousDetails).then(result => {
+    ctx.waitUntil(notifyIndexNowForEvents(events, fetch, previousDetails, createIndexNowRateLimit(bucket)).then(result => {
       logIndexNowResult('URL', result, startedAt)
     }).catch(error => {
       // Keep the failure actionable without logging the key or submitted URLs.

@@ -4,6 +4,9 @@ import { localizedPublicPath } from '../i18n/routes.ts'
 import { regionDirectoryEntries } from '../lib/regionDirectory.ts'
 import { getDistrict, localizedRegionPath } from '../lib/regions.ts'
 import { indexNowEnabled, indexNowFailureInfo, logIndexNowResult, submitIndexNow } from './indexNow.ts'
+import { createIndexNowRateLimit } from './indexNowRateLimit.ts'
+import type { IndexNowRateLimit } from './indexNowRateLimit.ts'
+import type { R2BucketLike } from './sharedToiletCache.ts'
 
 export type RegionDirectorySnapshots = Map<string, ToiletMapItemResponse[]>
 // A signed cache delivery may cover 24 districts. waitUntil is too short for
@@ -28,7 +31,9 @@ export function changedDistrictIndexNowPaths(districtCode: string,
 }
 
 export async function notifyIndexNowForRegionChanges(snapshots: RegionDirectorySnapshots,
-  loadCurrent: (code: string) => Promise<ToiletMapItemResponse[]>, fetchImpl: typeof fetch = fetch) {
+  loadCurrent: (code: string) => Promise<ToiletMapItemResponse[]>, fetchImpl: typeof fetch = fetch,
+  rateLimit?: IndexNowRateLimit) {
+  if (snapshots.size) await rateLimit?.check()
   const entries = [...snapshots]
   const changes: string[][] = new Array(entries.length)
   let cursor = 0
@@ -47,7 +52,7 @@ export async function notifyIndexNowForRegionChanges(snapshots: RegionDirectoryS
       }
     }
   }))
-  return submitIndexNow(changes.flat(), fetchImpl)
+  return submitIndexNow(changes.flat(), fetchImpl, undefined, rateLimit)
 }
 
 export async function scheduleIndexNowRegionNotification(snapshots: RegionDirectorySnapshots) {
@@ -56,10 +61,13 @@ export async function scheduleIndexNowRegionNotification(snapshots: RegionDirect
     const [{ getCloudflareContext }, { getCurrentDistrictToiletsForIndexNow }] = await Promise.all([
       import('@opennextjs/cloudflare'), import('./regions.ts'),
     ])
-    const { ctx } = await getCloudflareContext({ async: true })
+    const { ctx, env } = await getCloudflareContext({ async: true })
+    const bucket = (env as Record<string, unknown>).PUBLIC_TOILET_DATA_CACHE_R2 as R2BucketLike | undefined
+    if (!bucket) throw new Error('IndexNow cooldown binding unavailable')
     const startedAt = Date.now()
     ctx.waitUntil(notifyIndexNowForRegionChanges(snapshots,
-      code => getCurrentDistrictToiletsForIndexNow(code.slice(0, 2), code)).then(result => {
+      code => getCurrentDistrictToiletsForIndexNow(code.slice(0, 2), code), fetch,
+      createIndexNowRateLimit(bucket)).then(result => {
       logIndexNowResult('district URL', result, startedAt)
     }).catch(error => {
       console.error('IndexNow district URL update failed', { ...indexNowFailureInfo(error), elapsedMs: Date.now() - startedAt })
