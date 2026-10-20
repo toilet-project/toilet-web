@@ -3,7 +3,7 @@ import { useMessages, useLocale } from '../i18n/context'
 import { crowdingLabel as reviewCrowdingLabel, crowdingTone } from '../lib/reviewCrowding'
 import { engagementMessage } from '../i18n/engagementMessages'
 import { useId, useRef } from 'react'
-import { ReviewIcon } from './reviews/ReviewDialog'
+import { ReviewIcon } from './reviews/ReviewIcon'
 import { ReviewEntryHint } from './reviews/ReviewEntryHint'
 import type { PreviewReviewSummary, ReviewEntryState } from './reviews/useIntegratedReviewPreview'
 

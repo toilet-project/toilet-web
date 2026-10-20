@@ -51,6 +51,9 @@ test('all language homes retain a server-rendered startup shell before the inter
     assert.ok(html.includes(`href="${localizedPublicPath('/regions', locale)}"`))
     assert.match(html, /type="search" disabled=""/)
     assert.doesNotMatch(html, /route-preview-card|public-reviews|<script/)
+    assert.ok(html.includes(`rel="preconnect" href="https://${locale === 'ko' ? 'dapi.kakao.com' : 'oapi.map.naver.com'}"`))
+    assert.equal(html.includes('href="https://t1.daumcdn.net"'), locale === 'ko')
+    assert.equal(html.includes('href="https://dapi.kakao.com"'), locale === 'ko')
   }
 })
 

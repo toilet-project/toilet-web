@@ -1,7 +1,7 @@
 'use client'
 import { homeCopy } from './i18n/homeCopy'
 import { MapLoadingState } from './components/MapStartup'
-import { PublicReviews, PublicReviewsLoading } from './components/reviews/PublicReviews'
+import { PublicReviewsLoading } from './components/reviews/PublicReviewsLoading'
 import { ToiletEngagement, type EngagementProps } from './components/ToiletEngagement'
 import { EngagementPreviewTools } from './components/EngagementPreviewTools'
 import { MapFilterBar } from './components/MapFilterBar'
@@ -14,6 +14,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, type ToiletMapSearchResponse } from './api/toilets'
 import { createDetailCache } from './lib/detailCache'
 import { createMapRequestCoalescer } from './lib/mapRequestCoalescer'
+import { createMapAccountScope } from './lib/mapAccountScope'
 import { createMapViewportClient } from './lib/mapViewportSourceCache'
 import { fetchMapSourceCells } from './api/mapSourceCells'
 import { createCardHandleGesture, createMarkerTapGesture, createReferenceRequestGate, relayoutPreservingCenter } from './lib/mapInteraction'
@@ -49,12 +50,10 @@ import {
   type MapOverlay,
 } from './lib/mapProvider'
 import { usePlaceSearch } from './lib/usePlaceSearch'
-import { MobilePage, ToiletReportModal, QuickReportModal, MyReportsPanel, AccountDialog } from './components/MapLazyPanels'
+import { MobilePage, ToiletReportModal, QuickReportModal, MyReportsPanel, AccountDialog, PublicReviews, PolicyConsentModal, AccountRecoveryDialog } from './components/MapLazyPanels'
 import type { PlaceSearchResult } from './lib/placeSearchTypes'
 import { QUICK_REPORTS_ENABLED } from './api/quickReports'
 import { NotificationMenu } from './components/NotificationMenu'
-import { PolicyConsentModal } from './components/PolicyConsentModal'
-import { AccountRecoveryDialog } from './components/AccountRecoveryDialog'
 import { fetchUnreadNotificationCount } from './api/notifications'
 import { getDisplayAddress } from './lib/address'
 import { ToiletDetailContents, DetailRow } from './components/ToiletDetailContents'
@@ -1148,17 +1147,21 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     return () => { cancelAnimationFrame(firstFrame); cancelAnimationFrame(secondFrame) }
   }, [result, isLoading])
 
-  const sourceOwnerRef = useRef(activeFilterOwner)
+  const [mapAccountScope] = useState(() => createMapAccountScope({ owner: activeFilterOwner, authLoading: isAuthLoading }))
   useLayoutEffect(() => {
-    if (!MAP_FILTERS_ENABLED || sourceOwnerRef.current === activeFilterOwner) return
-    sourceOwnerRef.current = activeFilterOwner
+    if (!MAP_FILTERS_ENABLED) return
+    const currentRequest = mapFilterRequestRef.current
+    const change = mapAccountScope.update({ owner: activeFilterOwner, authLoading: isAuthLoading,
+      publicSelection: mapFilterSelectionReady && !isMyMapFilter && !currentRequest.blocked && currentRequest.likedIds === undefined })
+    if (change === 'preserve-initial-public') markMapTiming('account-initial-public-preserved')
+    if (change !== 'reset') return
     markMapTiming('account-scope-reset')
-    // Account transitions invalidate even public source work. Wait until the
-    // filter/likes layout effects have installed the new request scope.
+    // Preserve only a public query during the first session resolution. Actual
+    // login/logout/account changes and private selections retain a full reset.
     invalidateMapSources()
     const timer = window.setTimeout(() => { void loadMapArea() }, 0)
     return () => window.clearTimeout(timer)
-  }, [activeFilterOwner, invalidateMapSources, loadMapArea])
+  }, [activeFilterOwner, isAuthLoading, mapFilterSelectionReady, isMyMapFilter, mapAccountScope, invalidateMapSources, loadMapArea])
 
   const retryMap = useCallback(() => {
     invalidateMapSources()

@@ -58,3 +58,18 @@ test('the interactive home map does not restore the district dataset through ano
   const files = await eagerFiles('src/App.tsx')
   assert.deepEqual(files.filter(path => path.startsWith('data/regions/')), ['data/regions/sido.json'])
 })
+
+test('the initial interactive map keeps closed review and account panels behind lazy boundaries', async () => {
+  const files = await eagerFiles('src/App.tsx')
+  const deferred = ['PublicReviews.tsx', 'ReviewDialog.tsx', 'MyReviewsPanel.tsx', 'PolicyConsentModal.tsx', 'PolicyDisclosure.tsx', 'AccountRecoveryDialog.tsx']
+  assert.deepEqual(files.filter(path => deferred.some(name => path.endsWith('/' + name))), [])
+  assert.ok(files.includes('src/components/reviews/ReviewIcon.tsx'))
+  assert.ok(files.includes('src/components/reviews/PublicReviewsLoading.tsx'))
+})
+
+test('review icons and loading rows do not pull in editing, GPS, or API modules', async () => {
+  for (const entry of ['src/components/reviews/ReviewIcon.tsx', 'src/components/reviews/PublicReviewsLoading.tsx']) {
+    const files = await eagerFiles(entry)
+    assert.deepEqual(files.filter(path => /(?:ReviewDialog|reviewLocation|reviewApi|publicReviewPrefetch|reportViewport|reviewViewport)\.[jt]sx?$/.test(path)), [])
+  }
+})

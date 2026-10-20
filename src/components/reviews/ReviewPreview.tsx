@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { ReviewDialog, ReviewIcon, ReviewModal } from './ReviewDialog'
+import { ReviewDialog, ReviewModal } from './ReviewDialog'
+import { ReviewIcon } from './ReviewIcon'
 import { canManageReview, waitLabel, type Review, type ReviewInput } from '../../lib/review'
 import { TRANSIENT_NOTICE_MS } from '../../lib/uiTiming'
 

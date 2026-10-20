@@ -3,12 +3,13 @@
 import { useLocale, useMessages } from '../../i18n/context'
 import { reviewErrorMessage } from '../../i18n/reviewErrors'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { ReviewDialog, ReviewIcon, ReviewModal, type ReviewEligibility } from './ReviewDialog'
+import type { ReviewEligibility } from './ReviewDialog'
+import { ReviewDialog, ReviewModal, MyReviewsPanel } from './ReviewLazyPanels'
+import { ReviewIcon } from './ReviewIcon'
 import { canManageReview, recentToiletReview, type Review, type ReviewInput } from '../../lib/review'
 import { requireReviewLocation, ReviewGateError, REVIEW_LOCATION_MAX_AGE_MS, type ReviewPoint } from '../../lib/reviewLocation'
 import { isMobileReviewDevice } from '../../lib/reviewDevice'
 
-import { MyReviewsPanel } from './MyReviewsPanel'
 import type { ReviewCrowding } from '../../lib/reviewCrowding'
 
 export const REVIEW_DESIGN_PREVIEW = process.env.NEXT_PUBLIC_REVIEW_DESIGN_PREVIEW === 'true'

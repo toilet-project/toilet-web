@@ -12,8 +12,8 @@ import { isMobileReviewDevice } from '../../lib/reviewDevice'
 import { invalidatePublicReviewPrefetch } from '../../lib/publicReviewPrefetch'
 import { trackEvent } from '../../lib/analytics'
 import { refreshGrowth } from '../../lib/memberGrowth'
-import { ReviewDialog, ReviewModal, type ReviewEligibility } from './ReviewDialog'
-import { MyReviewsPanel } from './MyReviewsPanel'
+import type { ReviewEligibility } from './ReviewDialog'
+import { ReviewDialog, ReviewModal, MyReviewsPanel } from './ReviewLazyPanels'
 import type { MineNavigation, PreviewReviewSummary, ReviewAccess, ReviewEntryState, ReviewTarget } from './useIntegratedReviewPreview'
 
 type Entry = ReviewEntryState & { id: number }

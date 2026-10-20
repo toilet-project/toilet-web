@@ -1,7 +1,7 @@
 // Local, opt-in preview diagnostics. Never sends performance or visitor data.
 type Phase = 'shell-evaluated' | 'route-registered' | 'app-import' | 'app-mounted' | 'sdk-prepare'
   | 'map-create' | 'map-data' | 'marker-group' | 'marker-build' | 'marker-attach'
-  | 'marker-total' | 'result-committed' | 'result-frame' | 'account-scope-reset' | 'viewport-refresh' | 'visibility-refresh'
+  | 'marker-total' | 'result-committed' | 'result-frame' | 'account-scope-reset' | 'account-initial-public-preserved' | 'viewport-refresh' | 'visibility-refresh'
 type Timing = { phase: Phase; startMs: number; durationMs?: number; visibility?: DocumentVisibilityState }
 const samples: Timing[] = []
 let active: boolean | undefined, output: HTMLOutputElement | null = null

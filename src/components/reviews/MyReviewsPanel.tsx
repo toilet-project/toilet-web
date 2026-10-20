@@ -6,7 +6,7 @@ import { ReviewApiError } from '../../lib/reviewApi'
 import { canManageReview, reviewAverageLabel, waitLabel, type Review } from '../../lib/review'
 import { HistoryFilters, HistoryHeading, HistoryMore } from '../HistoryControls'
 import { historyScroller, useHistoryWindow } from '../../lib/useHistoryWindow'
-import { ReviewIcon } from './ReviewDialog'
+import { ReviewIcon } from './ReviewIcon'
 
 export function MyReviewsPanel<T extends Review>({ reviews, loading, error, message, focusedReviewId, onRetry, onBack, onEdit, onDetach, remote }: {
   reviews: T[]; loading: boolean; error: string; message: string; onRetry: () => void; onBack?: () => void;
