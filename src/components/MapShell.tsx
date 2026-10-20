@@ -15,11 +15,17 @@ import { loadedNaverMapLanguage, prepareMapSdk } from '../lib/mapProvider'
 import { naverMapLanguageForLocale, naverMapLanguageNeedsReload } from '../lib/mapProviderSelection'
 import { useLocale } from '../i18n/context'
 import { message } from '../i18n/messages'
+import { beginMapTiming, markMapTiming } from '../lib/mapTiming'
+
+markMapTiming('shell-evaluated')
 
 const noServerTestHash = () => ''
 
 // The SDK and browser-only effects stay in the existing map. Policy/SEO routes stay server rendered.
-const MapApp = dynamic(() => import('../App'), { ssr: false })
+const MapApp = dynamic(() => {
+  const done = beginMapTiming('app-import')
+  return import('../App').finally(done)
+}, { ssr: false })
 
 class MapErrorBoundary extends Component<{ children: ReactNode; locale: Locale }, { failed: boolean }> {
   state = { failed: false }
@@ -63,10 +69,12 @@ export function MapShell({ children }: { children: ReactNode }) {
     try { browserPath = decodeURI(browserPath).normalize('NFC') } catch { return }
     if (browserPath.replace(/\/$/, '') !== next.path.replace(/\/$/, '')) return
     routeRef.current = next
+    markMapTiming('route-registered')
     navigationIntentRef.current++
     // Start network preparation alongside the dynamically imported map UI.
     // Its own initialization reports a failure; an early failure remains retryable.
-    void prepareMapSdk(localeForPath(next.path)).catch(() => {})
+    const sdkDone = beginMapTiming('sdk-prepare')
+    void prepareMapSdk(localeForPath(next.path)).catch(() => {}).finally(sdkDone)
     setRoute(next)
   }, [])
   const onMounted = useCallback(() => setMounted(true), [])

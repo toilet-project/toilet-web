@@ -82,6 +82,7 @@ import { warmOwnPhoto } from './lib/warmOwnPhoto'
 import { refreshSignupPhoto } from './lib/signupPhotoWarm'
 import { prefetchPublicReviews, PUBLIC_REVIEW_API_ENABLED } from './lib/publicReviewPrefetch'
 import { trackEvent } from './lib/analytics'
+import { beginMapTiming, installMapTimingOutput, mapTimingEnabled, markMapTiming } from './lib/mapTiming'
 import { localizeToiletDetail, localizeToiletMapItem, localizeToiletMapSearch } from './i18n/toiletTranslations'
 const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
@@ -961,7 +962,9 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   }, [selectedToilet, expandedCoordinateToilet, result, isMapReady, locale, suppressMapClickFromMarker, testToilet, hasMapFilters])
 
   const renderResult = useCallback((map: MapInstance, response: ToiletMapSearchResponse) => {
+    const totalDone = beginMapTiming('marker-total')
     clearOverlays()
+    const groupDone = beginMapTiming('marker-group')
     const displayResponse = localizeToiletMapSearch(response, mapLocale.current)
 
     const points: MapPoint[] = displayResponse.meta.display_type === 'CLUSTER'
@@ -972,6 +975,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       : points
 
     const shouldShowToiletName = map.getLevel() <= 4 && displayResponse.meta.display_type !== 'CLUSTER'
+    groupDone()
+    const buildDone = beginMapTiming('marker-build')
 
     overlaysRef.current = displayPoints.map((point) => {
       if (point.count > 1) {
@@ -1068,8 +1073,12 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       })
     })
 
+    buildDone()
+    const attachDone = beginMapTiming('marker-attach')
     overlaysRef.current.forEach((overlay) => overlay.setMap(map))
     localizeMapLabels(mapContainerRef.current, mapLocale.current)
+    attachDone()
+    totalDone()
   }, [clearOverlays, openCoordinateGroup, selectToilet, suppressMapClickFromMarker])
 
   const loadMapArea = useCallback(async () => {
@@ -1099,9 +1108,11 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       mobileListAbortRef.current?.abort()
       setIsMobileAreaListLoading(false)
       setIsLoading(true)
+      const dataDone = beginMapTiming('map-data')
       try {
         const response = await (MAP_FILTERS_ENABLED
           ? mapViewportClient.fetch(params, signal) : fetchToiletsInBounds(params, signal))
+        dataDone()
 
         if (signal.aborted || requestSequence !== requestSequenceRef.current) return
         setResult(response)
@@ -1114,10 +1125,25 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           setError('화장실 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
         }
       } finally {
+        dataDone()
         if (!signal.aborted && requestSequence === requestSequenceRef.current) setIsLoading(false)
       }
     })
   }, [mapRequests, mapViewportClient, renderResult])
+
+  useLayoutEffect(() => {
+    installMapTimingOutput()
+    markMapTiming('app-mounted')
+  }, [])
+  useLayoutEffect(() => {
+    if (!mapTimingEnabled() || !result || isLoading) return
+    markMapTiming('result-committed')
+    let secondFrame = 0
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => markMapTiming('result-frame'))
+    })
+    return () => { cancelAnimationFrame(firstFrame); cancelAnimationFrame(secondFrame) }
+  }, [result, isLoading])
 
   const sourceOwnerRef = useRef(activeFilterOwner)
   useLayoutEffect(() => {
@@ -1411,7 +1437,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         const requestedCenter = snapshot?.center ?? resume?.center ?? toiletCoordinates(initialRouteRef.current.detail) ?? toiletCoordinates(testToilet)
         const { center, usedFallback } = initialMapLocation(requestedCenter)
         const level = usedFallback ? 6 : snapshot?.level ?? resume?.level ?? (initialRouteRef.current.detail || testToilet ? 4 : 6)
-        const map = await createMap(container, center, level, mapLocale.current, controller.signal)
+        const mapDone = beginMapTiming('map-create')
+        const map = await createMap(container, center, level, mapLocale.current, controller.signal).finally(mapDone)
         if (disposed) return
         mapRef.current = map
         mapSwitchSnapshotRef.current = null
