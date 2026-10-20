@@ -1,4 +1,7 @@
+'use client'
+
 import Link from 'next/link'
+import { useState } from 'react'
 import { useMessages, useLocale } from '../i18n/context'
 import { localizedPublicPath } from '../i18n/routes'
 
@@ -20,11 +23,12 @@ export function Icon({ name }: { name: IconName }) {
   return <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[name]}</svg>
 }
 
-export function MobileNavigation({ tab, onChange, unread }: { tab: MobileTab; onChange: (tab: MobileTab) => void; unread: number }) {
+export function MobileNavigation({ tab, onChange, unread, regionsPrefetch = true }: { tab: MobileTab; onChange: (tab: MobileTab) => void; unread: number; regionsPrefetch?: boolean }) {
   const t = useMessages(), locale = useLocale()
+  const [regionsInterested, setRegionsInterested] = useState(false)
   return <nav className="mobile-navigation" aria-label={t('nav.main')}>
     <button type="button" aria-current={tab === 'map' ? 'page' : undefined} onClick={() => onChange('map')}><span className="mobile-nav-icon"><Icon name="map" /></span><span>{t('nav.map')}</span></button>
-    <Link href={localizedPublicPath('/regions', locale)!} prefetch={true}><span className="mobile-nav-icon"><Icon name="regions" /></span><span>{t('nav.community')}</span></Link>
+    <Link href={localizedPublicPath('/regions', locale)!} prefetch={regionsPrefetch || regionsInterested} onMouseEnter={() => setRegionsInterested(true)} onFocus={() => setRegionsInterested(true)} onTouchStart={() => setRegionsInterested(true)}><span className="mobile-nav-icon"><Icon name="regions" /></span><span>{t('nav.community')}</span></Link>
     <button type="button" aria-current={tab === 'notifications' ? 'page' : undefined} onClick={() => onChange('notifications')}><span className="mobile-nav-icon"><Icon name="notifications" /></span><span>{t('nav.notifications')}</span>{unread > 0 && <b aria-label={t('notification.unreadCount', { count: unread })}>{unread > 99 ? '99+' : unread}</b>}</button>
     <button type="button" aria-current={tab === 'account' ? 'page' : undefined} onClick={() => onChange('account')}><span className="mobile-nav-icon"><Icon name="account" /></span><span>{t('nav.account')}</span></button>
   </nav>

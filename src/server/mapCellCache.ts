@@ -204,13 +204,13 @@ export async function readThroughMapCells(options: Omit<CellReadOptions, 'cell' 
 }): Promise<CellReadResult[]> {
   const { bucket, cells, fetchOrigin, now = Date.now } = options
   if (!cells.length) return []
-  if (cells.length === 1) return [await readThroughMapCell({ ...options, cell: cells[0],
-    fetchOrigin: fetchOrigin ? () => fetchOrigin(cells[0]) : undefined })]
   for (let attempt = 0; attempt < 90; attempt++) {
     // All cells belong to this request only. Read their bodies alongside the
     // initial generation, then check the generation after every read completes.
     // No generation or private viewport result survives into another request.
+    // A single cell uses this same parallel start and final generation check.
     const generation = loadGlobal(bucket)
+    let singleCellValidated = false
     const results = await readCellsConcurrently(cells, async cell => {
       const [global, current] = await Promise.all([generation, loadCell(bucket, cell)])
       const globalRevision = global?.record?.revision ?? 0
@@ -219,8 +219,14 @@ export async function readThroughMapCells(options: Omit<CellReadOptions, 'cell' 
         return { toilets: record.data!, source: 'hit' as const }
       // Keep lease ownership, scoped-invalidation CAS and cold-writer checks in
       // the single-cell algorithm. Reuse only the reads from this attempt.
-      return readCell({ ...options, cell, fetchOrigin: fetchOrigin ? () => fetchOrigin(cell) : undefined }, { global, current })
+      const result = await readCell({ ...options, cell, fetchOrigin: fetchOrigin ? () => fetchOrigin(cell) : undefined }, { global, current })
+      // readCell checks the persisted generation before every successful return.
+      // One cold cell needs no second identical check after that; a multi-cell
+      // viewport still checks once more to prevent mixed visibility generations.
+      if (cells.length === 1) singleCellValidated = true
+      return result
     })
+    if (singleCellValidated) return results
     const globalRevision = (await generation)?.record?.revision ?? 0
     if (((await loadGlobal(bucket))?.record?.revision ?? 0) === globalRevision) return results
     // A global edit raced the viewport, including any warm cells. Retry all of

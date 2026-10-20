@@ -43,8 +43,10 @@ test('the homepage shell does not eagerly ship administrative boundary datasets'
 })
 
 test('the initial homepage bridge does not eagerly ship detail-only boundary datasets', async () => {
-  const files = await eagerFiles('src/components/ToiletRouteBridge.tsx')
+  const files = await eagerFiles('src/components/HomeRouteBridge.tsx')
   assert.deepEqual(files.filter(path => path.startsWith('data/regions/')), [])
+  assert.deepEqual(files.filter(path => path.startsWith('src/components/reviews/')
+    || /\/Toilet(?:Detail|Community|Card|Share)/.test(path)), [])
 })
 
 test('map location validation loads only the national outline, never district release data', async () => {

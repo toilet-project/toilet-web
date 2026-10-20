@@ -1,8 +1,8 @@
 // Local, opt-in preview diagnostics. Never sends performance or visitor data.
 type Phase = 'shell-evaluated' | 'route-registered' | 'app-import' | 'app-mounted' | 'sdk-prepare'
   | 'map-create' | 'map-data' | 'marker-group' | 'marker-build' | 'marker-attach'
-  | 'marker-total' | 'result-committed' | 'result-frame'
-type Timing = { phase: Phase; startMs: number; durationMs?: number }
+  | 'marker-total' | 'result-committed' | 'result-frame' | 'account-scope-reset' | 'viewport-refresh' | 'visibility-refresh'
+type Timing = { phase: Phase; startMs: number; durationMs?: number; visibility?: DocumentVisibilityState }
 const samples: Timing[] = []
 let active: boolean | undefined, output: HTMLOutputElement | null = null
 let longTaskCount = 0, longTaskMs = 0, observer: PerformanceObserver | undefined
@@ -36,7 +36,8 @@ function publish() {
         if (kind === 'map-tiles') return entry.initiatorType === 'img' && (/^map\d*\.daumcdn\.net$/.test(path.hostname)
           || ['map.pstatic.net', 'nrbe.map.naver.net'].includes(path.hostname))
         if (kind === 'region-prefetch') return path.origin === window.location.origin && /^(?:\/[a-z-]+)?\/regions$/.test(path.pathname)
-        return path.origin === window.location.origin && ['/api/map-area', '/api/map-filter-area', '/api/map-source-cells', '/api/map-clusters'].includes(path.pathname)
+        return (path.origin === window.location.origin && ['/api/map-area', '/api/map-filter-area', '/api/map-source-cells', '/api/map-clusters'].includes(path.pathname))
+          || (path.hostname === 'api.geupddong.com' && path.pathname === '/api/v1/toilets')
       })
       return { kind, count: entries.length, transferBytes: entries.reduce((sum, entry) => sum + entry.transferSize, 0),
         firstStartMs: entries.length ? rounded(Math.min(...entries.map(entry => entry.startTime))) : null,
@@ -53,7 +54,8 @@ function publish() {
 
 function record(phase: Phase, start: number, duration?: number) {
   if (!mapTimingEnabled()) return
-  samples.push({ phase, startMs: rounded(start), ...(duration === undefined ? {} : { durationMs: rounded(duration) }) })
+  samples.push({ phase, startMs: rounded(start), ...(duration === undefined ? {} : { durationMs: rounded(duration) }),
+    ...(typeof document === 'undefined' || !document.visibilityState ? {} : { visibility: document.visibilityState }) })
   if (samples.length > 160) samples.shift()
   publish()
 }
