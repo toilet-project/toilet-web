@@ -5,6 +5,7 @@ import { fetchMapCellOrigin, readThroughMapCells, sanitizeMapCellOriginResponse 
 import type { R2BucketLike } from './sharedToiletCache'
 
 export type MapSourceCellsResponse = { schema: 3; cells: Array<{ cell: MapCell; toilets: ToiletMapItemResponse[] }> }
+export const MAP_SOURCE_PREVIEW_FRESH_MS = 60_000
 
 // Complete live API facts cannot share the preview-enriched filter namespace:
 // an older preview snapshot deliberately excludes new or moved public markers.
@@ -18,8 +19,18 @@ export function mapSourceCellBucket(bucket: R2BucketLike): R2BucketLike {
       const found = await bucket.get(key(original))
       if (!found) return null
       return { etag: found.etag, arrayBuffer: () => found.arrayBuffer(), async json<T>() {
-        const value = await found.json<{ data?: Array<{ filterFlags?: number; filterSchema?: number }> }>()
-        return (value?.data?.some(item => !completeFilterMarker(item)) ? null : value) as T
+        const value = await found.json<{ data?: Array<{ filterFlags?: number; filterSchema?: number }>;
+          state?: string; storedAt?: number }>()
+        if (value?.data?.some(item => !completeFilterMarker(item))) return null as T
+        // Preview has its own bucket and may not receive production outbox events.
+        // Expire only these complete source bodies, retaining the persisted etag
+        // so the existing lease/CAS algorithm still arbitrates concurrent refreshes.
+        if (process.env.SITE_INDEXABLE === 'false' && Number.isSafeInteger(value?.storedAt)
+          && value.storedAt! + MAP_SOURCE_PREVIEW_FRESH_MS <= Date.now()) {
+          if (value.state === 'data') return { ...value, state: 'invalidated', data: undefined } as T
+          if (value.state === 'loading') return { ...value, data: undefined } as T
+        }
+        return value as T
       } }
     },
     put: (original, value, options) => bucket.put(key(original), value, options),

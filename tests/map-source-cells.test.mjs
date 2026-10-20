@@ -4,7 +4,7 @@ import { POST } from '../src/app/api/map-source-cells/route.ts'
 import { cellBounds, cellsForBounds } from '../src/lib/mapCells.ts'
 import { invalidateMapCells, readThroughMapCells } from '../src/server/mapCellCache.ts'
 import { MAP_FILTER_PREVIEW_SOURCE_KEY, invalidateMapFilterCaches, readThroughFilterCells } from '../src/server/mapFilterCache.ts'
-import { mapSourceCellBucket, parseMapSourceCellsInput, readMapSourceCells } from '../src/server/mapSourceCells.ts'
+import { MAP_SOURCE_PREVIEW_FRESH_MS, mapSourceCellBucket, parseMapSourceCellsInput, readMapSourceCells } from '../src/server/mapSourceCells.ts'
 
 class FakeR2 {
   objects = new Map(); sequence = 0
@@ -140,6 +140,61 @@ test('complete source includes new and moved live API markers independently of o
     else process.env.MAP_FILTER_PREVIEW_SOURCE_ENABLED = previousSource
     if (previousIndexable === undefined) delete process.env.SITE_INDEXABLE
     else process.env.SITE_INDEXABLE = previousIndexable
+  }
+})
+
+test('preview source expires after 60 seconds with one refresh lease while production retains normal freshness', async () => {
+  const previousIndexable = process.env.SITE_INDEXABLE
+  const originalFetch = globalThis.fetch, originalNow = Date.now
+  let now = originalNow(), calls = 0
+  Date.now = () => now
+  process.env.SITE_INDEXABLE = 'false'
+  const bucket = new FakeR2()
+  globalThis.fetch = async () => {
+    const id = ++calls
+    await new Promise(resolve => setTimeout(resolve, 15))
+    return Response.json({ meta: { display_type: 'MARKER', total_count: 1, result_count: 1 }, toilets: [marker(id)] })
+  }
+  try {
+    await readMapSourceCells(bucket, [cell])
+    now += MAP_SOURCE_PREVIEW_FRESH_MS - 1
+    assert.equal((await readMapSourceCells(bucket, [cell])).response.cells[0].toilets[0].id, 1)
+    now++
+    const results = await Promise.all(Array.from({ length: 4 }, () => readMapSourceCells(bucket, [cell])))
+    assert.equal(calls, 2, 'the original CAS lease permits one refresh origin call')
+    assert.ok(results.every(result => result.response.cells[0].toilets[0].id === 2))
+    await bucket.put('map-source-cells/v1/global.json', JSON.stringify({ schema: 1, revision: 0 }))
+    assert.deepEqual(await (await mapSourceCellBucket(bucket).get('map-cells/v1/global.json')).json(), { schema: 1, revision: 0 })
+    process.env.SITE_INDEXABLE = 'true'
+    now += MAP_SOURCE_PREVIEW_FRESH_MS * 2
+    assert.equal((await readMapSourceCells(bucket, [cell])).response.cells[0].toilets[0].id, 2)
+    assert.equal(calls, 2, 'production source freshness stays under the normal invalidation protocol')
+  } finally {
+    globalThis.fetch = originalFetch; Date.now = originalNow
+    if (previousIndexable === undefined) delete process.env.SITE_INDEXABLE; else process.env.SITE_INDEXABLE = previousIndexable
+  }
+})
+
+test('expired preview source never serves stale bodies during a refresh lease or after origin failure', async () => {
+  const previousIndexable = process.env.SITE_INDEXABLE
+  const originalFetch = globalThis.fetch, originalNow = Date.now
+  let now = originalNow()
+  Date.now = () => now
+  process.env.SITE_INDEXABLE = 'false'
+  const bucket = new FakeR2()
+  globalThis.fetch = async () => Response.json({ meta: { display_type: 'MARKER', total_count: 1, result_count: 1 }, toilets: [marker()] })
+  try {
+    await readMapSourceCells(bucket, [cell])
+    now += MAP_SOURCE_PREVIEW_FRESH_MS
+    globalThis.fetch = async () => { await new Promise(resolve => setTimeout(resolve, 15)); throw new Error('origin unavailable') }
+    const results = await Promise.allSettled([readMapSourceCells(bucket, [cell]), readMapSourceCells(bucket, [cell])])
+    assert.ok(results.every(result => result.status === 'rejected'), 'neither the lease owner nor a waiting reader may receive expired data')
+    const persisted = JSON.parse(bucket.objects.get('map-source-cells/v1/cells/750/2540.json').value)
+    assert.equal(persisted.state, 'invalidated')
+    assert.equal(persisted.data, undefined)
+  } finally {
+    globalThis.fetch = originalFetch; Date.now = originalNow
+    if (previousIndexable === undefined) delete process.env.SITE_INDEXABLE; else process.env.SITE_INDEXABLE = previousIndexable
   }
 })
 
