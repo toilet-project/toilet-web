@@ -68,6 +68,8 @@ jobs:
       - run: node tests/detail-production-smoke.mjs --indexable
       - run: pnpm exec opennextjs-cloudflare build --config ${{ matrix.config }}
       - if: matrix.target == 'production-candidate'
+        run: node scripts/verify-indexnow-worker.mjs
+      - if: matrix.target == 'production-candidate'
         run: node scripts/verify-region-worker-cold.mjs
       - if: matrix.target == 'production-candidate'
         run: node scripts/verify-detail-fragment-worker.mjs
@@ -81,12 +83,24 @@ jobs:
       - name: Package selected candidate runtime
         # Include ONLY the selected config: an indexable candidate must never
         # fall back to preview's default wrangler.jsonc when extracted.
-        run: tar -czf workers-${{ matrix.target }}.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs region-markers-worker.ts src/lib/regionMarkerStore.ts src/lib/regionDisplayItems.ts src/i18n/toiletTranslations.ts data/regions/boundary-assets.json review-verification-proxy.mjs report-preview-proxy.mjs place-search-worker.mjs map-provider-worker.mjs package.json pnpm-lock.yaml pnpm-workspace.yaml ${{ matrix.config }} worker-release-manifest.json open-next.config.ts detail-incremental-cache.ts detail-cache-tags.ts next.config.ts .next/BUILD_ID
+        run: tar -czf workers-${{ matrix.target }}.tar.gz .open-next custom-worker.mjs worker-cache-policy.mjs indexnow-dispatch.mjs region-markers-worker.ts src/lib/regionMarkerStore.ts src/lib/regionDisplayItems.ts src/i18n/toiletTranslations.ts data/regions/boundary-assets.json review-verification-proxy.mjs report-preview-proxy.mjs place-search-worker.mjs map-provider-worker.mjs package.json pnpm-lock.yaml pnpm-workspace.yaml ${{ matrix.config }} worker-release-manifest.json open-next.config.ts detail-incremental-cache.ts detail-cache-tags.ts next.config.ts .next/BUILD_ID
+      - name: Verify packaged runtime and IndexNow plan without deploying
+        run: |
+          mkdir -p .verified-release/${{ matrix.target }}
+          tar -xzf workers-${{ matrix.target }}.tar.gz -C .verified-release/${{ matrix.target }}
+          node scripts/verify-worker-release.mjs .verified-release/${{ matrix.target }} ${{ matrix.target }} ${{ github.sha }} --expect-member-growth=${{ matrix.growth_enabled }}
       - uses: actions/upload-artifact@v4
         with:
           name: workers-${{ matrix.target }}-${{ github.sha }}
           path: workers-${{ matrix.target }}.tar.gz
           retention-days: 3
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.target == 'production-candidate'
+        with:
+          name: indexnow-worker-proof-${{ github.sha }}
+          path: indexnow-worker-report.json
+          if-no-files-found: ignore
+          retention-days: 14
 
   detail-cache-cross-release:
     needs: build

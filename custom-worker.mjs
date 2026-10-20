@@ -5,8 +5,12 @@ import { reportPreviewResponse } from './report-preview-proxy.mjs'
 import { placeSearchResponse } from './place-search-worker.mjs'
 import { mapProviderConfigResponse } from './map-provider-worker.mjs'
 import { regionMarkersResponse } from './region-markers-worker.ts'
+import { runScheduledIndexNow } from './indexnow-dispatch.mjs'
 
 export default {
+  scheduled(_controller, env, ctx) {
+    ctx.waitUntil(runScheduledIndexNow(env, request => handler.fetch(request, env, ctx)))
+  },
   async fetch(request, env, ctx) {
     const reportPreview = await reportPreviewResponse(request, env)
     if (reportPreview) return reportPreview

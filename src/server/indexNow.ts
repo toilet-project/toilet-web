@@ -8,6 +8,7 @@ import type { ToiletDetailResponse } from '../api/toilets.ts'
 import type { R2BucketLike, ToiletCacheEvent } from './sharedToiletCache.ts'
 import { createIndexNowRateLimit, IndexNowRateLimitError, indexNowRetryAt } from './indexNowRateLimit.ts'
 import type { IndexNowRateLimit } from './indexNowRateLimit.ts'
+import { IndexNowBudgetError } from './indexNowLifecycle.ts'
 
 export const INDEXNOW_ENDPOINT = 'https://api.indexnow.org/indexnow'
 export const INDEXNOW_KEY = '237e18b19a2de7283207a1343afffb4dbf4dc12e24af2c9208999c2238df9c24'
@@ -33,7 +34,8 @@ export class IndexNowSubmissionError extends Error {
 }
 
 export function indexNowFailureInfo(error: unknown) {
-  return error instanceof IndexNowRateLimitError
+  return error instanceof IndexNowBudgetError ? { reason: 'budget', status: null }
+    : error instanceof IndexNowRateLimitError
     ? { reason: 'rate_limit', status: 429, retryAt: error.retryAt }
     : error instanceof IndexNowSubmissionError
     ? { reason: error.reason, status: error.status, ...(error.retryAt === undefined ? {} : { retryAt: error.retryAt }) }
@@ -101,10 +103,13 @@ function retryable(status: number) { return status >= 500 }
 const delay = (milliseconds: number) => new Promise(resolve => setTimeout(resolve, milliseconds))
 
 export async function submitIndexNow(paths: Iterable<string>, fetchImpl: FetchLike = fetch,
-  wait: (milliseconds: number) => Promise<unknown> = delay, rateLimit?: IndexNowRateLimit) {
+  wait: (milliseconds: number) => Promise<unknown> = delay, rateLimit?: IndexNowRateLimit,
+  attempts = INDEXNOW_RETRIES + 1) {
+  if (!Number.isInteger(attempts) || attempts < 1 || attempts > INDEXNOW_RETRIES + 1)
+    throw new Error('Invalid IndexNow attempt limit')
   const payload = buildIndexNowPayload(paths)
   if (!payload) return { submitted: 0, status: null }
-  for (let attempt = 0; attempt <= INDEXNOW_RETRIES; attempt++) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
     await rateLimit?.check()
     let response: Response
     try {
@@ -115,7 +120,7 @@ export async function submitIndexNow(paths: Iterable<string>, fetchImpl: FetchLi
         signal: AbortSignal.timeout(INDEXNOW_TIMEOUT_MS),
       })
     } catch (error) {
-      if (attempt === INDEXNOW_RETRIES) {
+      if (attempt === attempts - 1) {
         throw new IndexNowSubmissionError(error instanceof Error && error.name === 'TimeoutError' ? 'timeout' : 'network')
       }
       await wait(250 * (2 ** attempt))
@@ -132,7 +137,7 @@ export async function submitIndexNow(paths: Iterable<string>, fetchImpl: FetchLi
       // Do not repeat a rejected request in this background task.
       throw new IndexNowSubmissionError('http', 429, retryAt)
     }
-    if (!retryable(response.status) || attempt === INDEXNOW_RETRIES) {
+    if (!retryable(response.status) || attempt === attempts - 1) {
       throw new IndexNowSubmissionError('http', response.status)
     }
     await wait(250 * (2 ** attempt))
@@ -146,7 +151,7 @@ export function canonicalIndexNowPaths(detail: ToiletDetailResponse) {
     .filter(isIndexableDetailPath)
 }
 
-async function fetchCurrentDetail(id: number, fetchImpl: FetchLike): Promise<ToiletDetailResponse | null> {
+export async function fetchCurrentDetail(id: number, fetchImpl: FetchLike): Promise<ToiletDetailResponse | null> {
   const origin = (process.env.TOILET_API_ORIGIN || 'https://api.geupddong.com').replace(/\/$/, '')
   const response = await fetchImpl(`${origin}/api/v1/toilets/${id}`, {
     cache: 'no-store', signal: AbortSignal.timeout(INDEXNOW_TIMEOUT_MS),

@@ -272,6 +272,13 @@ export async function persistSharedToiletInvalidation(events: ToiletCacheEvent[]
   return bucket ? applySharedToiletInvalidations(bucket, events) : new Map<number, ToiletDetailResponse>()
 }
 
+/** Capture only a known older public image before a durable cache delivery mutates it. */
+export async function readSharedToiletBeforeInvalidation(bucket: R2BucketLike, event: ToiletCacheEvent) {
+  const current = await load(bucket, event.toiletId)
+  return current?.record?.state === 'data' && current.record.revision < event.revision
+    && current.record.staleUntil! > Date.now() ? current.record.data! : null
+}
+
 export async function applySharedToiletInvalidations(bucket: R2BucketLike, events: ToiletCacheEvent[]) {
   // A signed delivery can contain 100 toilets. Serial R2 reads and writes can
   // outlast the API sender's timeout, leaving the entire outbox batch pending.
