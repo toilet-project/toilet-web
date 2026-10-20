@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {readFile} from 'node:fs/promises'
-import {validateWorkerConfig, validateBuildPolicy, validateReleaseManifest, growthBuildFeature, validateGrowthRelease} from '../scripts/worker-release-policy.mjs'
+import {validateWorkerConfig, validateBuildPolicy, validateReleaseManifest, growthBuildFeature, validateGrowthRelease, indexNowReleaseFeature, validateIndexNowRelease, INDEXNOW_APPROVED_SCHEDULE} from '../scripts/worker-release-policy.mjs'
 const preview = JSON.parse(await readFile(new URL('../wrangler.jsonc',import.meta.url)))
 const production = JSON.parse(await readFile(new URL('../wrangler.production.jsonc',import.meta.url)))
 const header = {headers:[{headers:[{key:'X-Robots-Tag',value:'noindex, nofollow'}]}]}
@@ -40,13 +40,15 @@ test('explicit private staging requires real storage and no version URL',()=>{
 
 test('release manifest binds target, commit, config and build without granting approval',()=>{
   const commit='a'.repeat(40), hash='b'.repeat(64)
-  const manifest={target:'production-candidate',sourceCommit:commit,configFile:'wrangler.production.jsonc',configSha256:hash,buildId:'build-1',appVersion:`${commit}-12-1-production-candidate`,indexable:true,deploymentApproved:false}
+  const manifest={target:'production-candidate',sourceCommit:commit,configFile:'wrangler.production.jsonc',configSha256:hash,buildId:'build-1',appVersion:`${commit}-12-1-production-candidate`,indexable:true,deploymentApproved:false,
+    features:{indexNow:indexNowReleaseFeature(production,'production-candidate')},runtime:{indexNowDispatchSha256:hash}}
   const check=m=>validateReleaseManifest(m,production,hash,'build-1',commit,'production-candidate')
   check(manifest)
   for(const change of [{target:'preview'},{sourceCommit:'c'.repeat(40)},{configFile:'wrangler.jsonc'},
     {configSha256:'changed'},{buildId:'different'},{appVersion:'different'},
     {appVersion:`${commit}-12-x-production-candidate`},{appVersion:`${commit}-12-1-production-candidate-extra`},
-    {indexable:false},{deploymentApproved:true}]) assert.throws(()=>check({...manifest,...change}))
+    {indexable:false},{deploymentApproved:true},{features:{}},{runtime:{}},
+    {features:{indexNow:{enabled:true,durable:true,cron:INDEXNOW_APPROVED_SCHEDULE}}}]) assert.throws(()=>check({...manifest,...change}))
 })
 test('build/runtime mismatch or preview robots in candidate fails',()=>{
   assert.throws(()=>validateBuildPolicy(production,'production-candidate','false',none))
@@ -89,6 +91,40 @@ test('Naver map is enabled in both approved targets',()=>{
 test('IndexNow is isolated from preview and enabled only in production',()=>{
   assert.equal(preview.vars.INDEXNOW_ENABLED,'false')
   assert.equal(production.vars.INDEXNOW_ENABLED,'true')
+})
+
+test('durable IndexNow requires a paired reviewed schedule and is forbidden in preview',()=>{
+  const configured = {...production, vars:{...production.vars,INDEXNOW_OUTBOX_ENABLED:'true'},
+    triggers:{crons:[INDEXNOW_APPROVED_SCHEDULE]}}
+  validateWorkerConfig(configured,'production-candidate')
+  assert.deepEqual(indexNowReleaseFeature(configured,'production-candidate'),
+    {enabled:true,durable:true,cron:INDEXNOW_APPROVED_SCHEDULE})
+  for (const triggers of [undefined,{crons:[]},{crons:['* * * * *']},
+    {crons:[INDEXNOW_APPROVED_SCHEDULE,INDEXNOW_APPROVED_SCHEDULE]},{crons:INDEXNOW_APPROVED_SCHEDULE},{other:[]}])
+    assert.throws(()=>validateWorkerConfig({...configured,triggers},'production-candidate'))
+  assert.throws(()=>validateWorkerConfig({...preview,vars:{...preview.vars,INDEXNOW_OUTBOX_ENABLED:'true'},
+    triggers:configured.triggers},'preview'))
+  assert.throws(()=>validateWorkerConfig({...preview,vars:{...preview.vars,INDEXNOW_ENABLED:'true'}},'preview'))
+  assert.throws(()=>validateWorkerConfig({...production,triggers:configured.triggers},'production-candidate'))
+  assert.throws(()=>validateWorkerConfig({...production,vars:{...production.vars,INDEXNOW_OUTBOX_ENABLED:undefined}},'production-candidate'))
+})
+
+test('global IndexNow pause is allowed without disabling cache services',()=>{
+  const paused = {...production,vars:{...production.vars,INDEXNOW_ENABLED:'false',INDEXNOW_OUTBOX_ENABLED:'true'},
+    triggers:{crons:[INDEXNOW_APPROVED_SCHEDULE]}}
+  validateWorkerConfig(paused,'production-candidate')
+  assert.equal(indexNowReleaseFeature(paused,'production-candidate').enabled,false)
+  validateWorkerConfig({...production,vars:{...production.vars,INDEXNOW_ENABLED:'false'}},'production-candidate')
+})
+
+test('release feature and runtime digest must match the exact candidate without granting approval',()=>{
+  const digest = 'd'.repeat(64), feature = indexNowReleaseFeature(production,'production-candidate')
+  const manifest = {features:{indexNow:feature},runtime:{indexNowDispatchSha256:digest}}
+  validateIndexNowRelease(manifest,production,'production-candidate',digest)
+  assert.throws(()=>validateIndexNowRelease(manifest,production,'production-candidate','e'.repeat(64)))
+  assert.throws(()=>validateIndexNowRelease({...manifest,runtime:{}},production,'production-candidate',digest))
+  assert.throws(()=>validateIndexNowRelease({...manifest,features:{indexNow:{...feature,durable:true}}},production,'production-candidate',digest))
+  assert.throws(()=>validateIndexNowRelease(manifest,preview,'preview',digest))
 })
 
 test('approved production map filters cannot use preview snapshots or be silently disabled',()=>{

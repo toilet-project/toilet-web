@@ -1,4 +1,33 @@
 import assert from 'node:assert/strict'
+export const INDEXNOW_APPROVED_SCHEDULE = '*/10 * * * *'
+
+/** A release plan, never deployment approval or evidence that the remote schedule exists. */
+export function indexNowReleaseFeature(config, target) {
+  assert.ok(['preview', 'production-candidate'].includes(target), 'Unknown IndexNow release target')
+  const enabled = config.vars?.INDEXNOW_ENABLED, durable = config.vars?.INDEXNOW_OUTBOX_ENABLED
+  assert.ok(enabled === 'true' || enabled === 'false', 'Explicit IndexNow enabled flag required')
+  assert.ok(durable === 'true' || durable === 'false', 'Explicit IndexNow durable flag required')
+  assert.ok(config.triggers === undefined || config.triggers && !Array.isArray(config.triggers)
+    && Object.keys(config.triggers).every(key => key === 'crons'), 'Unexpected Worker trigger configuration')
+  const crons = config.triggers?.crons ?? []
+  assert.ok(Array.isArray(crons), 'Explicit Cron array required')
+  if (target === 'preview') {
+    assert.equal(enabled, 'false', 'Preview IndexNow must remain disabled')
+    assert.equal(durable, 'false', 'Preview durable IndexNow must remain disabled')
+  }
+  if (durable === 'true') {
+    assert.equal(target, 'production-candidate', 'Only production may schedule durable IndexNow')
+    assert.deepEqual(crons, [INDEXNOW_APPROVED_SCHEDULE], 'Durable IndexNow requires its reviewed ten-minute schedule')
+  } else assert.deepEqual(crons, [], 'A disabled durable dispatcher must not add schedules')
+  return { enabled: enabled === 'true', durable: durable === 'true', cron: crons[0] ?? null }
+}
+
+export function validateIndexNowRelease(manifest, config, target, runtimeDigest) {
+  assert.deepEqual(manifest.features?.indexNow, indexNowReleaseFeature(config, target), 'IndexNow artifact/config mismatch')
+  assert.match(manifest.runtime?.indexNowDispatchSha256 ?? '', /^[a-f0-9]{64}$/, 'IndexNow runtime digest missing')
+  assert.equal(manifest.runtime.indexNowDispatchSha256, runtimeDigest, 'IndexNow runtime changed after CI build')
+}
+
 export function growthBuildFeature(requiredServerFiles, requestedFlag) {
   const compiled = requiredServerFiles?.config?.env?.NEXT_PUBLIC_GROWTH_ENABLED
   assert.ok(compiled === 'true' || compiled === 'false', 'Compiled member growth flag is missing')
@@ -19,6 +48,7 @@ export function validateWorkerConfig(config, target, {deploy = false, stage = fa
   assert.equal(config.main, 'custom-worker.mjs', 'Navigation response cache guard must wrap OpenNext')
   assert.equal(config.vars?.SITE_INDEXABLE, String(production), 'Wrong runtime indexing policy')
   assert.equal(config.vars?.CACHE_RUNTIME, 'workers')
+  indexNowReleaseFeature(config, target)
   assert.equal(config.vars?.MAP_CELL_CACHE_ENABLED, 'true', 'Map cell R2 cache must be enabled in both targets')
   assert.equal(config.vars?.MAP_CLUSTER_CACHE_ENABLED, 'true', 'Map cluster R2 cache must be enabled in both targets')
   assert.equal(config.vars?.MAP_CLUSTER_LEGACY_SOURCE_FALLBACK, production ? undefined : 'true',
@@ -94,6 +124,8 @@ export function validateReleaseManifest(manifest, config, configHash, buildId, e
   if (expectedAppVersion !== undefined) assert.equal(manifest.appVersion, expectedAppVersion, 'App/deployment version mismatch')
   assert.equal(manifest.indexable, target === 'production-candidate')
   assert.equal(manifest.deploymentApproved, false, 'Artifact cannot grant deployment approval')
+  assert.deepEqual(manifest.features?.indexNow, indexNowReleaseFeature(config, target), 'IndexNow artifact/config mismatch')
+  assert.match(manifest.runtime?.indexNowDispatchSha256 ?? '', /^[a-f0-9]{64}$/, 'IndexNow runtime digest missing')
 }
 
 export function validateBuildPolicy(config, target, indexable, routesManifest) {

@@ -2,7 +2,7 @@
 import {readFile, access} from 'node:fs/promises'
 import {resolve, join} from 'node:path'
 import {createHash} from 'node:crypto'
-import {validateWorkerConfig, validateReleaseManifest, validateGrowthRelease} from './worker-release-policy.mjs'
+import {validateWorkerConfig, validateReleaseManifest, validateGrowthRelease, validateIndexNowRelease} from './worker-release-policy.mjs'
 const [directory, target, commit, ...extra] = process.argv.slice(2)
 if (!directory || !['preview','production-candidate'].includes(target) || extra.length > 1 || extra.length && !/^--expect-member-growth=(true|false)$/.test(extra[0])) throw new Error('Usage: verify-worker-release.mjs DIRECTORY TARGET FULL_COMMIT [--expect-member-growth=true|false]')
 const root = resolve(directory)
@@ -15,10 +15,14 @@ const config = JSON.parse(raw)
 const manifest = JSON.parse(await readFile(join(root,'worker-release-manifest.json'),'utf8'))
 const buildId = (await readFile(join(root,'.next/BUILD_ID'),'utf8')).trim()
 await access(join(root,'custom-worker.mjs'))
+await access(join(root,'.open-next/worker.js'))
 await access(join(root,'worker-cache-policy.mjs'))
+const indexNowRuntime = await readFile(join(root, 'indexnow-dispatch.mjs'))
 for (const path of ['region-markers-worker.ts', 'src/lib/regionMarkerStore.ts', 'src/lib/regionDisplayItems.ts',
   'src/i18n/toiletTranslations.ts', 'data/regions/boundary-assets.json']) await access(join(root, path))
 validateReleaseManifest(manifest,config,createHash('sha256').update(raw).digest('hex'),buildId,commit,target)
+validateIndexNowRelease(manifest, config, target, createHash('sha256').update(indexNowRuntime).digest('hex'))
 if (extra.length) validateGrowthRelease(manifest, extra[0].endsWith('=true'))
 validateWorkerConfig(config,target,{deploy:true,stage:target==='production-candidate'})
-console.log(JSON.stringify({verified:true,target,commit,buildId,publicRoutes:config.routes.length,memberGrowth:manifest.features?.memberGrowth ?? null}))
+console.log(JSON.stringify({verified:true,target,commit,buildId,publicRoutes:config.routes.length,memberGrowth:manifest.features?.memberGrowth ?? null,
+  indexNow:manifest.features.indexNow, deploymentApproved:false}))
