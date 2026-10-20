@@ -68,6 +68,8 @@ jobs:
       - run: node tests/detail-production-smoke.mjs --indexable
       - run: pnpm exec opennextjs-cloudflare build --config ${{ matrix.config }}
       - if: matrix.target == 'production-candidate'
+        run: node scripts/verify-indexnow-worker.mjs
+      - if: matrix.target == 'production-candidate'
         run: node scripts/verify-region-worker-cold.mjs
       - if: matrix.target == 'production-candidate'
         run: node scripts/verify-detail-fragment-worker.mjs
@@ -87,6 +89,13 @@ jobs:
           name: workers-${{ matrix.target }}-${{ github.sha }}
           path: workers-${{ matrix.target }}.tar.gz
           retention-days: 3
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.target == 'production-candidate'
+        with:
+          name: indexnow-worker-proof-${{ github.sha }}
+          path: indexnow-worker-report.json
+          if-no-files-found: ignore
+          retention-days: 14
 
   detail-cache-cross-release:
     needs: build

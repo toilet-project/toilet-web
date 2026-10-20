@@ -8,6 +8,7 @@ import type { ToiletDetailResponse } from '../api/toilets.ts'
 import type { R2BucketLike, ToiletCacheEvent } from './sharedToiletCache.ts'
 import { createIndexNowRateLimit, IndexNowRateLimitError, indexNowRetryAt } from './indexNowRateLimit.ts'
 import type { IndexNowRateLimit } from './indexNowRateLimit.ts'
+import { IndexNowBudgetError } from './indexNowLifecycle.ts'
 
 export const INDEXNOW_ENDPOINT = 'https://api.indexnow.org/indexnow'
 export const INDEXNOW_KEY = '237e18b19a2de7283207a1343afffb4dbf4dc12e24af2c9208999c2238df9c24'
@@ -33,7 +34,8 @@ export class IndexNowSubmissionError extends Error {
 }
 
 export function indexNowFailureInfo(error: unknown) {
-  return error instanceof IndexNowRateLimitError
+  return error instanceof IndexNowBudgetError ? { reason: 'budget', status: null }
+    : error instanceof IndexNowRateLimitError
     ? { reason: 'rate_limit', status: 429, retryAt: error.retryAt }
     : error instanceof IndexNowSubmissionError
     ? { reason: error.reason, status: error.status, ...(error.retryAt === undefined ? {} : { retryAt: error.retryAt }) }

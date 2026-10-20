@@ -6,7 +6,9 @@ import { basename, resolve } from 'node:path'
 import { signatureFor, REVALIDATION_PATH } from '../src/server/cacheRevalidation.ts'
 import { readThroughSharedToiletCache, sharedToiletCacheKey } from '../src/server/sharedToiletCache.ts'
 import { indexNowMemory } from './fixtures/indexnow-memory.mjs'
-import { runScheduledIndexNow } from '../indexnow-dispatch.mjs'
+import { runScheduledIndexNow, createIndexNowManageRequest } from '../indexnow-dispatch.mjs'
+import { createIndexNowOutbox } from '../src/server/indexNowOutbox.ts'
+import { IndexNowSubmissionError } from '../src/server/indexNow.ts'
 
 const require = createRequire(import.meta.url)
 const wranglerRequire = createRequire(require.resolve('wrangler/package.json'))
@@ -16,6 +18,7 @@ const { build } = wranglerRequire('esbuild')
 const result = await build({ entryPoints: {
   revalidate: fileURLToPath(new URL('../src/app/%255Finternal/cache/revalidate/route.ts', import.meta.url)),
   dispatch: fileURLToPath(new URL('../src/app/%255Finternal/indexnow/dispatch/route.ts', import.meta.url)),
+  manage: fileURLToPath(new URL('../src/app/%255Finternal/indexnow/manage/route.ts', import.meta.url)),
 }, outdir: 'isolated-route-memory',
   bundle: true, write: false, format: 'esm', platform: 'node', target: 'node24', logLevel: 'silent',
   plugins: [{ name: 'isolated-route-backends', setup(builder) {
@@ -41,7 +44,7 @@ const result = await build({ entryPoints: {
 })
 const bundled = name => import('data:text/javascript;base64,' + Buffer.from(result.outputFiles.find(file =>
   basename(file.path) === name + '.js').text).toString('base64'))
-const route = await bundled('revalidate'), dispatchRoute = await bundled('dispatch')
+const route = await bundled('revalidate'), dispatchRoute = await bundled('dispatch'), manageRoute = await bundled('manage')
 const secret = 'test-only-route-signing-secret-32-bytes-long'
 const event = { toiletId: 177, revision: 2, action: 'UPSERT', catalogChanged: true }
 function request(signature) {
@@ -149,4 +152,30 @@ test('dispatch route rejects unsigned callers and disabled preview without stora
     process.env.SITE_INDEXABLE = 'false'
     assert.equal((await dispatchRoute.POST(unsigned())).status, 404)
   } finally { f.restore() }
+})
+
+test('real management route authenticates bounded inspection and reviewed single-record recovery without a send', async () => {
+  const f = await setup(), originalFetch = globalThis.fetch
+  try {
+    globalThis.fetch = async () => { throw new Error('management must not emit network calls') }
+    const unsigned = () => new Request('https://geupddong.com/_internal/indexnow/manage', { method: 'POST', body: '{}' })
+    assert.equal((await manageRoute.POST(unsigned())).status, 401)
+    const queue = createIndexNowOutbox(f.bucket)
+    await queue.enqueue('operator-test', ['/en/regions/seoul-11/jongno-gu-11110'])
+    await queue.drain(async () => { throw new IndexNowSubmissionError('http', 422) }, { enabled: true, check: async () => {} })
+    const report = await (await manageRoute.POST(await createIndexNowManageRequest(secret, { action: 'inspect', kind: 'outbox' }))).json()
+    const { key, etag } = report.records[0]
+    assert.equal(report.records[0].canRecover, true)
+    const operation = { action: 'recover', key, etag }
+    const dryRun = await manageRoute.POST(await createIndexNowManageRequest(secret, operation))
+    assert.equal((await dryRun.json()).dryRun, true)
+    assert.equal(f.records('indexnow/outbox/')[0].state, 'blocked')
+    assert.equal((await manageRoute.POST(await createIndexNowManageRequest(secret, { ...operation, confirm: true }))).status, 200)
+    assert.equal(f.records('indexnow/outbox/')[0].state, 'pending')
+    assert.equal((await manageRoute.POST(await createIndexNowManageRequest(secret, { ...operation, confirm: true }))).status, 409)
+    assert.equal((await manageRoute.POST(await createIndexNowManageRequest(secret, { action: 'inspect', kind: 'outbox', limit: 21 }))).status, 400)
+    process.env.SITE_INDEXABLE = 'false'
+    f.bucket.get = async () => { throw new Error('disabled preview storage access') }
+    assert.equal((await manageRoute.POST(unsigned())).status, 404)
+  } finally { globalThis.fetch = originalFetch; f.restore() }
 })

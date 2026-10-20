@@ -5,7 +5,10 @@ import type { IndexNowOutboxBucket } from './indexNowOutbox.ts'
 import { indexNowFailureInfo } from './indexNow.ts'
 
 const CONTROL_KEY = 'indexnow/control/v1/dispatch.json'
-type Control = { schema: 1; leaseUntil: number; nextRunAt: number; intentCursor?: string; outboxCursor?: string }
+type RunSummary = { at: number; elapsedMs: number; yielded: boolean; state: string;
+  completed: number; received: number; deferred: number; blocked: number; compacted: number;
+  intentScanned: number; outboxScanned: number; observedBlocked: number; staleStaged: number }
+type Control = { schema: 1; leaseUntil: number; nextRunAt: number; intentCursor?: string; outboxCursor?: string; lastRun?: RunSummary }
 export async function dispatchIndexNow(options: {
   enabled: boolean; bucket: IndexNowOutboxBucket; check: () => Promise<void>
   resolve: (intent: IndexNowIntent) => Promise<string[]>
@@ -29,22 +32,45 @@ export async function dispatchIndexNow(options: {
   })
   if (!lease) return { state: 'busy' }
   let failure: { error: unknown } | undefined
-  let result: { state: 'processed'; completed: number; received: number; deferred: number; blocked: number } | undefined
+  const startedAt = now(), proceed = () => now() - startedAt < 20_000
+  const summary = { completed: 0, received: 0, deferred: 0, blocked: 0, compacted: 0,
+    intentScanned: 0, outboxScanned: 0, observedBlocked: 0, staleStaged: 0 }
+  let result: ({ state: 'processed'; yielded: boolean; sampled: true } & typeof summary) | undefined
   try {
     await options.check()
-    const intents = await createIndexNowDelivery(bucket, now).resolvePending(options.resolve,
-      { cursor: active.intentCursor, check: options.check })
-    active.intentCursor = intents.cursor
-    const outbox = await createIndexNowOutbox(bucket, now).drain(options.send,
-      { enabled: true, cursor: active.outboxCursor, limit: 10, check: options.check })
-    active.outboxCursor = outbox.cursor
-    result = { state: 'processed', completed: intents.completed, received: outbox.received,
-      deferred: intents.deferred + outbox.deferred, blocked: intents.blocked + outbox.blocked }
+    let attempted = 0, intentCompacted = 0, outboxCompacted = 0
+    const delivery = createIndexNowDelivery(bucket, now)
+    while (proceed() && attempted < 10 && summary.intentScanned < 1000) {
+      const intents = await delivery.resolvePending(options.resolve, { cursor: active.intentCursor,
+        check: options.check, proceed, limit: Math.min(10 - attempted, 1000 - summary.intentScanned),
+        compactLimit: 2 - intentCompacted })
+      active.intentCursor = intents.cursor; attempted += intents.attempted; intentCompacted += intents.compacted
+      summary.intentScanned += intents.scanned; summary.completed += intents.completed
+      summary.deferred += intents.deferred; summary.blocked += intents.blocked
+      summary.compacted += intents.compacted; summary.observedBlocked += intents.observedBlocked
+      summary.staleStaged += intents.staleStaged
+      if (!intents.cursor || !intents.scanned) break
+    }
+    const queue = createIndexNowOutbox(bucket, now)
+    while (proceed() && summary.outboxScanned < 1000) {
+      const outbox = await queue.drain(options.send, { enabled: true, cursor: active.outboxCursor,
+        limit: Math.min(10, 1000 - summary.outboxScanned), check: options.check, proceed,
+        compactLimit: 2 - outboxCompacted })
+      active.outboxCursor = outbox.cursor; outboxCompacted += outbox.compacted ?? 0
+      summary.outboxScanned += outbox.scanned ?? 0; summary.received += outbox.received
+      summary.deferred += outbox.deferred; summary.blocked += outbox.blocked
+      summary.compacted += outbox.compacted ?? 0; summary.observedBlocked += outbox.observedBlocked ?? 0
+      // Never make a second remote submission in this invocation, even after rejection.
+      if (outbox.attempted || !outbox.cursor || !outbox.scanned) break
+    }
+    result = { state: 'processed', yielded: !proceed(), sampled: true, ...summary }
   } catch (error) {
     const info = indexNowFailureInfo(error)
     if ('retryAt' in info && typeof info.retryAt === 'number') active.nextRunAt = Math.max(active.nextRunAt, info.retryAt)
     failure = { error }
   }
+  active.lastRun = { at: startedAt, elapsedMs: Math.max(0, now() - startedAt), yielded: !proceed(),
+    state: failure ? 'failed' : 'processed', ...summary }
   // A failed write keeps the lease until expiry; never erase or reset persisted cursors on restart.
   const released = await bucket.put(CONTROL_KEY, JSON.stringify({ ...active, leaseUntil: 0 }), {
     onlyIf: { etagMatches: lease.etag }, httpMetadata: { contentType: 'application/json' },
