@@ -13,6 +13,7 @@ import { mapFilterCopy, mapFilterCountLabel } from './i18n/mapFilterCopy'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, type ToiletMapSearchResponse } from './api/toilets'
 import { createDetailCache } from './lib/detailCache'
+import { createMapRequestCoalescer } from './lib/mapRequestCoalescer'
 import { createCardHandleGesture, createMarkerTapGesture, createReferenceRequestGate, relayoutPreservingCenter } from './lib/mapInteraction'
 import { cardPlacement } from './lib/cardPlacement'
 import { ToiletListItem } from './components/ToiletListItem'
@@ -185,6 +186,7 @@ function groupPointsByScreenGrid(map: MapInstance, points: MapPoint[]) {
 function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash = '' }: { route: MapRouteData; onNavigate: (id: number | null) => void; onMounted: () => void; onLocaleChange: (locale: Locale, id: number | null) => void; testToiletHash?: string }) {
   const locale = useLocale()
   const mapRuntimeKey = mapSdkIdentity(locale)
+  const [mapRetryVersion, setMapRetryVersion] = useState(0)
   const t = useMessages()
   const mapLocale = useRef(locale)
   useLayoutEffect(() => {
@@ -223,7 +225,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const locationWatchGeneration = useRef(0)
   const locationRequestRef = useRef<AbortController | null>(null)
   const requestSequenceRef = useRef(0)
-  const mapRequestAbortRef = useRef<AbortController | null>(null)
+  const [mapRequests] = useState(createMapRequestCoalescer)
   const mobileListAbortRef = useRef<AbortController | null>(null)
   const mapInteractionRef = useRef(false)
   const markerClickUntilRef = useRef(0)
@@ -1065,45 +1067,52 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     const filters = mapFilterRequestRef.current
     if (filters.blocked) { setIsLoading(!filters.error); return }
 
-    const requestSequence = ++requestSequenceRef.current
-    mapRequestAbortRef.current?.abort()
-    mobileListAbortRef.current?.abort()
-    setIsMobileAreaListLoading(false)
-    const controller = new AbortController()
-    mapRequestAbortRef.current = controller
     const bounds = map.getBounds()
     const southWest = bounds.getSouthWest()
     const northEast = bounds.getNorthEast()
-
-    setIsLoading(true)
-    try {
-      const response = await fetchToiletsInBounds({
-        southLat: southWest.getLat(),
-        northLat: northEast.getLat(),
-        westLng: southWest.getLng(),
-        eastLng: northEast.getLng(),
-        zoom: map.getLevel(),
-        includeList: window.matchMedia(DESKTOP_LAYOUT_QUERY).matches && map.getLevel() <= MAX_LIST_ZOOM_LEVEL,
-        ...(MAP_FILTERS_ENABLED ? { filterFlags: filters.filterFlags, likedIds: filters.likedIds } : {}),
-      }, controller.signal)
-
-      if (requestSequence !== requestSequenceRef.current) return
-      setResult(response)
-      setError(null)
-      setLastSuccessfulMapUpdate(new Date())
-      setMobileAreaToilets(null)
-      renderResult(map, response)
-    } catch {
-      if (requestSequence === requestSequenceRef.current) {
-        setError('화장실 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
-      }
-    } finally {
-      if (requestSequence === requestSequenceRef.current) {
-        mapRequestAbortRef.current = null
-        setIsLoading(false)
-      }
+    const params = {
+      southLat: southWest.getLat(),
+      northLat: northEast.getLat(),
+      westLng: southWest.getLng(),
+      eastLng: northEast.getLng(),
+      zoom: map.getLevel(),
+      includeList: window.matchMedia(DESKTOP_LAYOUT_QUERY).matches && map.getLevel() <= MAX_LIST_ZOOM_LEVEL,
+      ...(MAP_FILTERS_ENABLED ? { filterFlags: filters.filterFlags, likedIds: filters.likedIds } : {}),
     }
-  }, [renderResult])
+    // Initial SDK idle/relayout can repeat an unchanged viewport while its
+    // first response is pending. Share it instead of cancelling and starting over.
+    // The filter object is a request scope: logout/likes revisions replace it.
+    return mapRequests.run([map, filters, params.southLat, params.northLat, params.westLng, params.eastLng,
+      params.zoom, params.includeList], async signal => {
+      const requestSequence = ++requestSequenceRef.current
+      mobileListAbortRef.current?.abort()
+      setIsMobileAreaListLoading(false)
+      setIsLoading(true)
+      try {
+        const response = await fetchToiletsInBounds(params, signal)
+
+        if (signal.aborted || requestSequence !== requestSequenceRef.current) return
+        setResult(response)
+        setError(null)
+        setLastSuccessfulMapUpdate(new Date())
+        setMobileAreaToilets(null)
+        renderResult(map, response)
+      } catch {
+        if (!signal.aborted && requestSequence === requestSequenceRef.current) {
+          setError('화장실 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+        }
+      } finally {
+        if (!signal.aborted && requestSequence === requestSequenceRef.current) setIsLoading(false)
+      }
+    })
+  }, [mapRequests, renderResult])
+
+  const retryMap = useCallback(() => {
+    if (mapRef.current) { void loadMapArea(); return }
+    setError(null)
+    setIsLoading(true)
+    setMapRetryVersion(version => version + 1)
+  }, [loadMapArea])
 
   const mapFilterInitialized = useRef(false)
   const previousMapFilterSelection = useRef({ flags: mapFilterFlags, mine: isMyMapFilter })
@@ -1118,7 +1127,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     // Change the query, not the SDK: keep its camera and event listeners intact.
     // Remove the previous result before paint so unfiltered/private rows never masquerade as the new filter.
     requestSequenceRef.current++
-    mapRequestAbortRef.current?.abort()
+    mapRequests.cancel()
     mobileListAbortRef.current?.abort()
     window.clearTimeout(mapLoadTimerRef.current)
     clearOverlays()
@@ -1129,7 +1138,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     if (!mapFilterRequestRef.current.blocked) mapFilterInitialized.current = true
     setResult(null); setMobileAreaToilets(null); setIsMobileAreaListLoading(false); setError(null)
     void loadMapArea()
-  }, [mapFilterSelectionReady, mapFilterFlags, isMyMapFilter, mapFilterLikes.ids, mapFilterLikes.error, clearOverlays, loadMapArea, closeDetailCard])
+  }, [mapFilterSelectionReady, mapFilterFlags, isMyMapFilter, mapFilterLikes.ids, mapFilterLikes.error, clearOverlays, loadMapArea, closeDetailCard, mapRequests])
 
   useEffect(() => {
     if (!error || !result) return
@@ -1440,7 +1449,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     return () => {
       disposed = true
       controller.abort()
-      mapRequestAbortRef.current?.abort()
+      mapRequests.cancel()
       mobileListAbortRef.current?.abort()
       referenceRequestGate.invalidate()
       locationRequestRef.current?.abort()
@@ -1475,7 +1484,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       window.clearTimeout(mapLoadTimerRef.current)
       window.clearTimeout(locationMessageTimerRef.current)
     }
-  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, stopCurrentLocationWatch, referenceRequestGate, testToilet, mapRuntimeKey])
+  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, stopCurrentLocationWatch, referenceRequestGate, testToilet, mapRuntimeKey, mapRetryVersion, mapRequests])
 
   const distanceReference = resolveDistanceReference(distanceSource, mapCenter, currentLocation)
   const displaySelectedToilet = selectedToilet ? localizeToiletMapItem(selectedToilet, locale) : null
@@ -1678,7 +1687,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           listButton={!isDesktop ? <button className={`mobile-area-list-button${isMobileAreaListVisible ? ' is-open' : ''}${isLoading ? ' is-loading' : ''}`} type="button" onClick={() => void toggleMobileAreaList()} aria-label={`${isMobileAreaListVisible ? t('map.closeList') : t('map.list')}${result ? ` (${result.meta.total_count.toLocaleString(locale)})` : ''}`} aria-expanded={isMobileAreaListVisible} aria-busy={isLoading} disabled={isLoading || !result}>{filterCopy.list}{result && ` (${mapFilterCountLabel(result.meta.total_count)})`}</button> : undefined} />}
         {hasMapFilters && (isLoading || mapFilterLikes.error || error || result?.meta.total_count === 0) && <div className="map-filter-status" role="status" aria-live="polite">
           <span>{isLoading ? filterCopy.loading : mapFilterLikes.error || error ? filterCopy.error : filterCopy.empty}</span>
-          {!isLoading && (mapFilterLikes.error || error) && <button type="button" onClick={() => mapFilterLikes.error ? mapFilterLikes.retry() : void loadMapArea()}>{filterCopy.retry}</button>}
+          {!isLoading && (mapFilterLikes.error || error) && <button type="button" onClick={() => mapFilterLikes.error ? mapFilterLikes.retry() : retryMap()}>{filterCopy.retry}</button>}
         </div>}
         {!isMapReady && !isMapSwitching && !error && <MapLoadingState locale={locale} />}
         <div className={`map-provider-transition${isMapSwitching ? ' is-visible' : ''}`} role={isMapSwitching ? 'status' : undefined} aria-hidden={!isMapSwitching}>
@@ -1699,7 +1708,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
             {isLoading && <span className="map-loading-message">{t('map.loading')}</span>}
             {!isLoading && result && <span className="map-area-count">{t('map.area', { count: result.meta.total_count.toLocaleString(locale) })}{result.meta.display_type === 'CLUSTER' ? t('map.clustered') : ''}</span>}
             {!MAP_FILTERS_ENABLED && result && <button className={`mobile-area-list-button${isMobileAreaListVisible ? ' is-open' : ''}${isLoading ? ' is-loading' : ''}`} type="button" onClick={() => void toggleMobileAreaList()} aria-expanded={isMobileAreaListVisible} aria-busy={isLoading} disabled={isLoading}>{isLoading ? t('map.loading') : isMobileAreaListVisible ? t('map.closeList') : t('map.area', { count: result.meta.total_count.toLocaleString(locale) })}</button>}
-            {error && !result && !hasMapFilters && <span className="error-message">{mapSystemNotice(error, locale)}</span>}
+            {error && !result && !hasMapFilters && <><span className="error-message">{mapSystemNotice(error, locale)}</span><button type="button" onClick={retryMap} disabled={isLoading}>{t(isLoading ? 'map.reconnecting' : 'map.reconnect')}</button></>}
           </div>
           <button className={`location-button${hasMapCard ? ' is-with-card' : ''}`} type="button" onClick={() => void moveToCurrentLocation()} disabled={isLocating}>
             {isLocating ? t('map.checking') : t('map.currentLocation')}

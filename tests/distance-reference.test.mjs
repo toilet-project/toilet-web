@@ -22,7 +22,7 @@ test('GPS mode without a fix has a defined fallback', () => {
 })
 test('GPS hides reference overlay and single-card address lives in details first', async () => {
   const app = await readFile(new URL('../src/App.tsx',import.meta.url),'utf8')
-  const details = await readFile(new URL('../src/components/ToiletDetailContents.tsx',import.meta.url),'utf8')
+  const details = await readFile(new URL('../src/components/ToiletDetailBody.tsx',import.meta.url),'utf8')
   assert.match(app, /if \(source === 'current-location'\) return/)
   assert.match(app, /updateReferencePoint\(coordinates, 'current-location'\)/)
   assert.doesNotMatch(app, /isDesktop \? mapCenter : currentLocation|className="summary-address"/)

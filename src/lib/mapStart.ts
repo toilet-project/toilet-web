@@ -1,4 +1,4 @@
-import { isSouthKoreanCoordinate } from './regions.ts'
+import { isSouthKoreanCoordinate } from './koreaBoundary.ts'
 
 export type MapCoordinates = { latitude: number; longitude: number }
 

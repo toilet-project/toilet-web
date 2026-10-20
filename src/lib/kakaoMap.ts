@@ -1,6 +1,7 @@
 import { kakaoJavascriptKey } from '../config/kakao'
 import { getDisplayAddress } from './address'
 import type { PlaceSearchResult } from './placeSearchTypes'
+import { loadMapSdkScript } from './mapSdkScript'
 
 export type KakaoOverlay = { setMap(map: KakaoMapInstance | null): void }
 export type KakaoMapInstance = {
@@ -39,16 +40,18 @@ declare global {
 
 let kakaoSdkPromise: Promise<void> | undefined
 
-function loadKakaoSdk() {
+export function loadKakaoSdk() {
   if (kakaoSdkPromise) return kakaoSdkPromise
   if (window.kakao?.maps?.Map) return Promise.resolve()
-  kakaoSdkPromise = new Promise((resolve, reject) => {
-    const script = document.createElement('script')
-    script.src = `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoJavascriptKey}&autoload=false&libraries=services`
-    script.async = true
-    script.onload = () => window.kakao.maps.load(resolve)
-    script.onerror = () => reject(new Error('카카오맵 SDK를 불러오지 못했습니다.'))
-    document.head.append(script)
+  kakaoSdkPromise = loadMapSdkScript({
+    provider: 'kakao',
+    src: `https://dapi.kakao.com/v2/maps/sdk.js?appkey=${kakaoJavascriptKey}&autoload=false&libraries=services`,
+    ready: () => Boolean(window.kakao?.maps?.Map),
+    initialize: () => new Promise<void>(resolve => window.kakao.maps.load(resolve)),
+    errorMessage: '카카오맵 SDK를 불러오지 못했습니다.',
+  }).catch(error => {
+    kakaoSdkPromise = undefined
+    throw error
   })
   return kakaoSdkPromise
 }

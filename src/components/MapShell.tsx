@@ -5,14 +5,13 @@ import { Component, useCallback, useLayoutEffect, useRef, useState, useSyncExter
 import { useRouter } from 'next/navigation'
 import { MapRouteContext, type MapRouteData } from './mapRouteContext'
 import { toiletPath } from '../lib/toiletRoute'
-import { regionToiletPath } from '../lib/regionToiletPath'
 import { getReviewTestHash, subscribeReviewTestHash } from '../lib/reviewTestToilet'
 import { localeForPath, localizedPublicPath } from '../i18n/routes'
 import { rememberLocale, type Locale } from '../i18n/locale'
 import { consumeLanguageLoginReturn } from '../i18n/loginReturn'
 import { ENGLISH_UI_ENABLED } from '../i18n/feature'
 import { MAP_NAVIGATION_EVENT } from '../lib/navigationCache'
-import { loadedNaverMapLanguage } from '../lib/mapProvider'
+import { loadedNaverMapLanguage, prepareMapSdk } from '../lib/mapProvider'
 import { naverMapLanguageForLocale, naverMapLanguageNeedsReload } from '../lib/mapProviderSelection'
 import { useLocale } from '../i18n/context'
 import { message } from '../i18n/messages'
@@ -56,21 +55,41 @@ export function MapShell({ children }: { children: ReactNode }) {
     } catch { /* Normal login completion must remain usable without storage. */ }
   }, [])
   const [route, setRoute] = useState<MapRouteData | null>(null)
+  const routeRef = useRef<MapRouteData | null>(null)
+  const navigationIntentRef = useRef(0)
   const [mounted, setMounted] = useState(false)
   const register = useCallback((next: MapRouteData) => {
     let browserPath = window.location.pathname
     try { browserPath = decodeURI(browserPath).normalize('NFC') } catch { return }
     if (browserPath.replace(/\/$/, '') !== next.path.replace(/\/$/, '')) return
+    routeRef.current = next
+    navigationIntentRef.current++
+    // Start network preparation alongside the dynamically imported map UI.
+    // Its own initialization reports a failure; an early failure remains retryable.
+    void prepareMapSdk(localeForPath(next.path)).catch(() => {})
     setRoute(next)
   }, [])
   const onMounted = useCallback(() => setMounted(true), [])
   const navigate = useCallback((id: number | null) => {
+    navigationIntentRef.current++
     const path = localizedPublicPath(id === null ? '/' : toiletPath(id), localeForPath(window.location.pathname))!
     // Also cancels an in-flight detail navigation when the user closes before it resolves.
     routerRef.current.push(path + getReviewTestHash(), { scroll: false })
   }, [])
-  const changeLocale = useCallback((locale: Locale, id: number | null) => {
-    const currentPath = id !== null && route?.detail?.id === id ? regionToiletPath(route.detail, locale) : id === null ? '/' : toiletPath(id)
+  const changeLocale = useCallback(async (locale: Locale, id: number | null) => {
+    const intent = ++navigationIntentRef.current
+    const sourceUrl = window.location.href
+    const sourceRoute = routeRef.current
+    let currentPath = id === null ? '/' : toiletPath(id)
+    if (id !== null && sourceRoute?.detail?.id === id) {
+      // Polygon lookup is only needed for this canonical detail language link.
+      // Keep it out of every visitor's initial map bundle.
+      try {
+        const { regionToiletPath } = await import('../lib/regionToiletPath')
+        currentPath = regionToiletPath(sourceRoute.detail, locale)
+      } catch { /* The ordinary detail URL still resolves if its optional chunk fails. */ }
+      if (intent !== navigationIntentRef.current || window.location.href !== sourceUrl || routeRef.current !== sourceRoute) return
+    }
     const path = localizedPublicPath(currentPath, locale)
     if (!path) return
     try { rememberLocale(window.localStorage, locale) } catch { /* Preference storage is optional. */ }
@@ -84,7 +103,7 @@ export function MapShell({ children }: { children: ReactNode }) {
       return
     }
     routerRef.current.push(target, { scroll: false })
-  }, [route])
+  }, [])
   return <MapRouteContext.Provider value={{ mounted, register }}>
     <MapErrorBoundary locale={locale}>{route && <MapApp key={testToiletHash} testToiletHash={testToiletHash} route={route} onNavigate={navigate} onLocaleChange={changeLocale} onMounted={onMounted} />}</MapErrorBoundary>
     {children}

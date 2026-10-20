@@ -1,7 +1,7 @@
 import { createHmac } from 'node:crypto'
 import { sanitizeMapFilterPoints, completeFilterMarker, type MapFilterPoint } from '../lib/mapFilters.ts'
 import type { ScopedToiletCacheEvent } from './cacheRevalidation'
-import { getMapCellBucket, invalidateMapCells, readThroughMapCell } from './mapCellCache.ts'
+import { getMapCellBucket, invalidateMapCells, readThroughMapCell, readThroughMapCells } from './mapCellCache.ts'
 import type { R2BucketLike, R2ObjectBodyLike } from './sharedToiletCache'
 
 // Isolate gender-aware facts: old combined flags cannot imply a missing male/female stall.
@@ -52,6 +52,12 @@ export async function readThroughFilterCell(options: Parameters<typeof readThrou
   const result = await readThroughMapCell({ ...options, bucket: mapFilterCellBucket(options.bucket, options.previewSourceDate) })
   if (result.toilets.some(item => !completeFilterMarker(item))) throw new Error('Incomplete map filter attributes')
   return result
+}
+
+export async function readThroughFilterCells(options: Parameters<typeof readThroughMapCells>[0] & { previewSourceDate?: string }) {
+  const results = await readThroughMapCells({ ...options, bucket: mapFilterCellBucket(options.bucket, options.previewSourceDate) })
+  if (results.some(result => result.toilets.some(item => !completeFilterMarker(item)))) throw new Error('Incomplete map filter attributes')
+  return results
 }
 
 function validRecord(value: unknown): SourceRecord | null {

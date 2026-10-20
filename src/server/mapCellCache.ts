@@ -124,17 +124,24 @@ export async function fetchMapCellOrigin(cell: MapCell): Promise<ToiletMapItemRe
   return sanitizeMapCellOriginResponse(await response.json(), cell)
 }
 
-export async function readThroughMapCell(options: { bucket: R2BucketLike; cell: MapCell;
+type CellReadOptions = { bucket: R2BucketLike; cell: MapCell;
   fetchOrigin?: () => Promise<ToiletMapItemResponse[]>; now?: () => number;
-  pause?: (milliseconds: number) => Promise<void> }): Promise<CellReadResult> {
+  pause?: (milliseconds: number) => Promise<void> }
+type CellCheckpoint = { global: Loaded<GlobalRecord>; current: Loaded<CellRecord> }
+
+export function readThroughMapCell(options: CellReadOptions): Promise<CellReadResult> {
+  return readCell(options)
+}
+
+async function readCell(options: CellReadOptions, checkpoint?: CellCheckpoint): Promise<CellReadResult> {
   const { bucket, cell } = options
   const now = options.now ?? Date.now
   const fetchOrigin = options.fetchOrigin ?? (() => fetchMapCellOrigin(cell))
   const pause = options.pause ?? (milliseconds => new Promise<void>(resolve => setTimeout(resolve, milliseconds)))
   for (let attempt = 0; attempt < 90; attempt++) {
-    const global = await loadGlobal(bucket)
+    const global = attempt === 0 && checkpoint ? checkpoint.global : await loadGlobal(bucket)
     const globalRevision = global?.record?.revision ?? 0
-    const current = await loadCell(bucket, cell)
+    const current = attempt === 0 && checkpoint ? checkpoint.current : await loadCell(bucket, cell)
     const record = current?.record
     const sameGeneration = record?.globalRevision === globalRevision
     if (record?.state === 'data' && sameGeneration && record.storedAt + FRESH_MS > now()) {
@@ -178,6 +185,48 @@ export async function readThroughMapCell(options: { bucket: R2BucketLike; cell: 
     }
   }
   throw new Error('Map cell cache contention')
+}
+
+async function readCellsConcurrently<T>(cells: MapCell[], read: (cell: MapCell, index: number) => Promise<T>): Promise<T[]> {
+  const results: T[] = new Array(cells.length)
+  let cursor = 0
+  await Promise.all(Array.from({ length: Math.min(4, cells.length) }, async () => {
+    while (cursor < cells.length) {
+      const index = cursor++
+      results[index] = await read(cells[index], index)
+    }
+  }))
+  return results
+}
+
+export async function readThroughMapCells(options: Omit<CellReadOptions, 'cell' | 'fetchOrigin'> & {
+  cells: MapCell[]; fetchOrigin?: (cell: MapCell) => Promise<ToiletMapItemResponse[]>
+}): Promise<CellReadResult[]> {
+  const { bucket, cells, fetchOrigin, now = Date.now } = options
+  if (!cells.length) return []
+  if (cells.length === 1) return [await readThroughMapCell({ ...options, cell: cells[0],
+    fetchOrigin: fetchOrigin ? () => fetchOrigin(cells[0]) : undefined })]
+  for (let attempt = 0; attempt < 90; attempt++) {
+    // All cells belong to this request only. Read their bodies alongside the
+    // initial generation, then check the generation after every read completes.
+    // No generation or private viewport result survives into another request.
+    const generation = loadGlobal(bucket)
+    const results = await readCellsConcurrently(cells, async cell => {
+      const [global, current] = await Promise.all([generation, loadCell(bucket, cell)])
+      const globalRevision = global?.record?.revision ?? 0
+      const record = current?.record
+      if (record?.state === 'data' && record.globalRevision === globalRevision && record.storedAt + FRESH_MS > now())
+        return { toilets: record.data!, source: 'hit' as const }
+      // Keep lease ownership, scoped-invalidation CAS and cold-writer checks in
+      // the single-cell algorithm. Reuse only the reads from this attempt.
+      return readCell({ ...options, cell, fetchOrigin: fetchOrigin ? () => fetchOrigin(cell) : undefined }, { global, current })
+    })
+    const globalRevision = (await generation)?.record?.revision ?? 0
+    if (((await loadGlobal(bucket))?.record?.revision ?? 0) === globalRevision) return results
+    // A global edit raced the viewport, including any warm cells. Retry all of
+    // them rather than mixing data from different visibility generations.
+  }
+  throw new Error('Map viewport cache contention')
 }
 
 async function invalidateCell(bucket: R2BucketLike, cell: MapCell, now: () => number) {

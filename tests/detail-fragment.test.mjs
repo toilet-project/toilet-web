@@ -26,7 +26,7 @@ const hooks=registerHooks({
 const {detailPresentation}=await import('../src/lib/detailPresentation.ts')
 const {reuseDetailFragment,loadDetailFragment,detailFragmentKey}=await import('../src/server/detailFragmentCache.ts')
 const {renderDetailFragment}=await import('../src/server/detailFragmentTemplate.ts')
-const {ToiletDetailContents}=await import('../src/components/ToiletDetailContents.tsx')
+const {ToiletDetailBody}=await import('../src/components/ToiletDetailBody.tsx')
 const {LocaleContext}=await import('../src/i18n/context.ts')
 const {SUPPORTED_LOCALES}=await import('../src/i18n/locale.ts')
 hooks.deregister()
@@ -94,7 +94,7 @@ test('cached HTML matches the interactive public component in all six languages'
   for(const locale of SUPPORTED_LOCALES){
     const value=detail()
     const html=renderDetailFragment(detailPresentation(value,locale))
-    const live=renderToStaticMarkup(React.createElement(LocaleContext.Provider,{value:locale},React.createElement(ToiletDetailContents,{toilet:value})))
+    const live=renderToStaticMarkup(React.createElement(LocaleContext.Provider,{value:locale},React.createElement(ToiletDetailBody,{toilet:value})))
     const a=parseFragment(html),b=parseFragment(live)
     assert.equal(textOf(a),textOf(b),locale)
     assert.deepEqual(elements(a,'a').map(n=>decodeURI(attr(n,'href'))),elements(b,'a').map(n=>decodeURI(attr(n,'href'))),locale)
