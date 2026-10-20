@@ -91,7 +91,20 @@ test('pending, staged, leased and blocked records are never automatically compac
   const report = await op(f, { action: 'inspect', kind: 'intents' })
   assert.equal(report.records[0].needsSenderReplay, true)
   assert.equal(report.records[0].canRecover, false)
-  assert.equal(f.objects.size, 2)
+  const queue = createIndexNowOutbox(f.bucket, f.now)
+  for (const state of ['pending', 'leased']) {
+    await queue.enqueue(state, [path])
+    const [key, value] = [...f.objects].find(([key, value]) => key.startsWith('indexnow/outbox/')
+      && JSON.parse(value.body).state === 'pending')
+    const body = JSON.stringify({ ...JSON.parse(value.body), state, settledAt: f.now() - INDEXNOW_RETENTION_MS,
+      leaseUntil: state === 'leased' ? f.now() + 120_000 : 0 })
+    await f.bucket.put(key, body)
+    assert.equal((await op(f, { action: 'compact', key, etag: f.objects.get(key).etag, confirm: true })).state, 'ineligible')
+    assert.equal(f.objects.get(key).body, body)
+    // Do not select this pending fixture again in the next iteration.
+    if (state === 'pending') await f.bucket.put(key, JSON.stringify({ ...JSON.parse(body), state: 'leased', leaseUntil: f.now() + 120_000 }))
+  }
+  assert.equal(f.objects.size, 4)
 })
 
 test('recovery is bounded to three reviewed attempts and storage races cannot overwrite another operator', async () => {
@@ -155,6 +168,29 @@ test('twenty-second soft budget yields safely without a remote call and keeps un
   f.advance(600_000)
   assert.ok((await dispatchIndexNow({ enabled: true, bucket: f.bucket, now: f.now, check,
     resolve: async () => [path], send: accepted })).received > 0)
+})
+
+test('budget expiry before send returns claimed work without consuming an attempt', async () => {
+  const f = indexNowMemory(), queue = createIndexNowOutbox(f.bucket, f.now)
+  await queue.enqueue('budget', [path])
+  let probes = 0
+  const result = await queue.drain(never, { ...drainOptions, proceed: () => ++probes === 1 })
+  assert.equal(result.deferred, 1)
+  assert.equal(f.records('indexnow/outbox/')[0].attempts, 0)
+  assert.equal(f.records('indexnow/outbox/')[0].state, 'pending')
+})
+
+test('slow control storage is included in the soft budget before new work begins', async () => {
+  const f = indexNowMemory(), queue = createIndexNowOutbox(f.bucket, f.now)
+  await queue.enqueue('waiting', [path])
+  const get = f.bucket.get
+  f.bucket.get = async key => {
+    if (key === 'indexnow/control/v1/dispatch.json') f.advance(21_000)
+    return get(key)
+  }
+  const result = await dispatchIndexNow({ enabled: true, bucket: f.bucket, now: f.now, check, resolve: never, send: never })
+  assert.equal(result.yielded, true); assert.equal(result.outboxScanned, 0)
+  assert.equal(f.records('indexnow/outbox/')[0].attempts, 0)
 })
 
 test('scheduled compaction is capped and leaves old records without a known completion time intact', async () => {

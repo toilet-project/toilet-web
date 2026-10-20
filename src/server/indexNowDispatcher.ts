@@ -17,6 +17,7 @@ export async function dispatchIndexNow(options: {
 }) {
   if (!options.enabled) return { state: 'disabled' }
   const now = options.now ?? Date.now, bucket = options.bucket
+  const startedAt = now()
   // Fail closed on a damaged/unavailable control object. Its CAS lease also serializes different Worker instances.
   const object = await bucket.get(CONTROL_KEY)
   const control = object ? await object.json<Control>() : { schema: 1 as const, leaseUntil: 0, nextRunAt: 0 }
@@ -32,7 +33,7 @@ export async function dispatchIndexNow(options: {
   })
   if (!lease) return { state: 'busy' }
   let failure: { error: unknown } | undefined
-  const startedAt = now(), proceed = () => now() - startedAt < 20_000
+  const proceed = () => now() - startedAt < 20_000
   const summary = { completed: 0, received: 0, deferred: 0, blocked: 0, compacted: 0,
     intentScanned: 0, outboxScanned: 0, observedBlocked: 0, staleStaged: 0 }
   let result: ({ state: 'processed'; yielded: boolean; sampled: true } & typeof summary) | undefined
