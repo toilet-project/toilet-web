@@ -2,6 +2,7 @@ import { createHmac } from 'node:crypto'
 import { sanitizeMapFilterPoints, completeFilterMarker, type MapFilterPoint } from '../lib/mapFilters.ts'
 import type { ScopedToiletCacheEvent } from './cacheRevalidation'
 import { getMapCellBucket, invalidateMapCells, readThroughMapCell, readThroughMapCells } from './mapCellCache.ts'
+import { mapSourceCellBucket } from './mapSourceCells.ts'
 import type { R2BucketLike, R2ObjectBodyLike } from './sharedToiletCache'
 
 // Isolate gender-aware facts: old combined flags cannot imply a missing male/female stall.
@@ -187,11 +188,18 @@ export async function invalidateMapFilterSource(bucket: R2BucketLike, now = Date
   throw new Error('Map filter source invalidation contention')
 }
 
-export async function persistMapFilterInvalidation(events: ScopedToiletCacheEvent[] | null) {
-  if (process.env.MAP_FILTERS_ENABLED !== 'true' || mapFilterPreviewEnabled()) return
-  const bucket = await getMapCellBucket()
-  if (!bucket) return
+export async function invalidateMapFilterCaches(bucket: R2BucketLike, events: ScopedToiletCacheEvent[] | null) {
+  const preview = mapFilterPreviewEnabled()
   const scope = events ?? [{ toiletId: 1, revision: 1, action: 'UPSERT' as const, catalogChanged: true,
     regionScopeComplete: false, regionBounds: null }]
-  await Promise.all([invalidateMapCells(mapFilterCellBucket(bucket), scope), invalidateMapFilterSource(bucket)])
+  // Full source cells always use live public API facts, including in preview.
+  // Keep the older preview snapshot/filter invalidation policy isolated.
+  await Promise.all([invalidateMapCells(mapSourceCellBucket(bucket), scope),
+    ...(!preview ? [invalidateMapCells(mapFilterCellBucket(bucket), scope), invalidateMapFilterSource(bucket)] : [])])
+}
+
+export async function persistMapFilterInvalidation(events: ScopedToiletCacheEvent[] | null) {
+  if (process.env.MAP_FILTERS_ENABLED !== 'true') return
+  const bucket = await getMapCellBucket()
+  if (bucket) await invalidateMapFilterCaches(bucket, events)
 }

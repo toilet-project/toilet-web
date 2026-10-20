@@ -83,11 +83,15 @@ export function filterMapClusters(points: MapFilterPoint[], input: MapFilterInpu
 
 // The preview snapshot is not an authority for names/current public visibility.
 // Only enrich currently returned public markers with a matching stable position.
-export function enrichPreviewFilterMarkers(markers: ToiletMapItemResponse[], points: MapFilterPoint[]): ToiletMapItemResponse[] {
+export function createPreviewFilterMarkerEnricher(points: MapFilterPoint[]): (markers: ToiletMapItemResponse[]) => ToiletMapItemResponse[] {
   const index = new Map(points.map(point => [point[0], point]))
-  return markers.flatMap(marker => {
+  return markers => markers.flatMap(marker => {
     const point = index.get(marker.id)
     return point && Math.abs(marker.latitude - point[1]) < 0.00001 && Math.abs(marker.longitude - point[2]) < 0.00001
       ? [{ ...marker, filterFlags: point[3], filterSchema: MAP_FILTER_SCHEMA }] : []
   })
+}
+
+export function enrichPreviewFilterMarkers(markers: ToiletMapItemResponse[], points: MapFilterPoint[]): ToiletMapItemResponse[] {
+  return createPreviewFilterMarkerEnricher(points)(markers)
 }

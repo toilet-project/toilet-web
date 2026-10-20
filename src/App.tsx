@@ -14,6 +14,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, type ToiletMapSearchResponse } from './api/toilets'
 import { createDetailCache } from './lib/detailCache'
 import { createMapRequestCoalescer } from './lib/mapRequestCoalescer'
+import { createMapViewportClient } from './lib/mapViewportSourceCache'
+import { fetchMapSourceCells } from './api/mapSourceCells'
 import { createCardHandleGesture, createMarkerTapGesture, createReferenceRequestGate, relayoutPreservingCenter } from './lib/mapInteraction'
 import { cardPlacement } from './lib/cardPlacement'
 import { ToiletListItem } from './components/ToiletListItem'
@@ -226,7 +228,16 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const locationRequestRef = useRef<AbortController | null>(null)
   const requestSequenceRef = useRef(0)
   const [mapRequests] = useState(createMapRequestCoalescer)
+  const [mapViewportClient] = useState(() => createMapViewportClient({
+    fetchFallback: fetchToiletsInBounds, fetchCells: fetchMapSourceCells,
+  }))
   const mobileListAbortRef = useRef<AbortController | null>(null)
+  const invalidateMapSources = useCallback(() => {
+    requestSequenceRef.current++
+    mapRequests.cancel()
+    mobileListAbortRef.current?.abort()
+    mapViewportClient.clear()
+  }, [mapRequests, mapViewportClient])
   const mapInteractionRef = useRef(false)
   const markerClickUntilRef = useRef(0)
   const selectedToiletRef = useRef<SelectedToilet | null>(initialSelected)
@@ -1089,7 +1100,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       setIsMobileAreaListLoading(false)
       setIsLoading(true)
       try {
-        const response = await fetchToiletsInBounds(params, signal)
+        const response = await (MAP_FILTERS_ENABLED
+          ? mapViewportClient.fetch(params, signal) : fetchToiletsInBounds(params, signal))
 
         if (signal.aborted || requestSequence !== requestSequenceRef.current) return
         setResult(response)
@@ -1105,14 +1117,52 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         if (!signal.aborted && requestSequence === requestSequenceRef.current) setIsLoading(false)
       }
     })
-  }, [mapRequests, renderResult])
+  }, [mapRequests, mapViewportClient, renderResult])
+
+  const sourceOwnerRef = useRef(activeFilterOwner)
+  useLayoutEffect(() => {
+    if (!MAP_FILTERS_ENABLED || sourceOwnerRef.current === activeFilterOwner) return
+    sourceOwnerRef.current = activeFilterOwner
+    // Account transitions invalidate even public source work. Wait until the
+    // filter/likes layout effects have installed the new request scope.
+    invalidateMapSources()
+    const timer = window.setTimeout(() => { void loadMapArea() }, 0)
+    return () => window.clearTimeout(timer)
+  }, [activeFilterOwner, invalidateMapSources, loadMapArea])
 
   const retryMap = useCallback(() => {
+    invalidateMapSources()
     if (mapRef.current) { void loadMapArea(); return }
     setError(null)
     setIsLoading(true)
     setMapRetryVersion(version => version + 1)
-  }, [loadMapArea])
+  }, [invalidateMapSources, loadMapArea])
+
+  useEffect(() => {
+    if (!MAP_FILTERS_ENABLED) return
+    let wasHidden = document.visibilityState === 'hidden'
+    const visibility = () => {
+      if (document.visibilityState === 'hidden') {
+        wasHidden = true
+        invalidateMapSources()
+      } else if (wasHidden) {
+        wasHidden = false
+        void loadMapArea()
+      }
+    }
+    const restored = (event: PageTransitionEvent) => {
+      if (!event.persisted) return
+      invalidateMapSources()
+      void loadMapArea()
+    }
+    document.addEventListener('visibilitychange', visibility)
+    window.addEventListener('pageshow', restored)
+    return () => {
+      document.removeEventListener('visibilitychange', visibility)
+      window.removeEventListener('pageshow', restored)
+      invalidateMapSources()
+    }
+  }, [invalidateMapSources, loadMapArea])
 
   const mapFilterInitialized = useRef(false)
   const previousMapFilterSelection = useRef({ flags: mapFilterFlags, mine: isMyMapFilter })
@@ -1450,6 +1500,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       disposed = true
       controller.abort()
       mapRequests.cancel()
+      mapViewportClient.clear()
       mobileListAbortRef.current?.abort()
       referenceRequestGate.invalidate()
       locationRequestRef.current?.abort()
@@ -1484,7 +1535,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       window.clearTimeout(mapLoadTimerRef.current)
       window.clearTimeout(locationMessageTimerRef.current)
     }
-  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, stopCurrentLocationWatch, referenceRequestGate, testToilet, mapRuntimeKey, mapRetryVersion, mapRequests])
+  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, stopCurrentLocationWatch, referenceRequestGate, testToilet, mapRuntimeKey, mapRetryVersion, mapRequests, mapViewportClient])
 
   const distanceReference = resolveDistanceReference(distanceSource, mapCenter, currentLocation)
   const displaySelectedToilet = selectedToilet ? localizeToiletMapItem(selectedToilet, locale) : null
@@ -1542,7 +1593,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     const filters = mapFilterRequestRef.current
     if (filters.blocked) { setIsMobileAreaListLoading(false); return }
     try {
-      const response = await fetchToiletsInBounds({
+      const query = {
         southLat: southWest.getLat(),
         northLat: northEast.getLat(),
         westLng: southWest.getLng(),
@@ -1550,7 +1601,9 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         zoom: map.getLevel(),
         includeList: true,
         ...(MAP_FILTERS_ENABLED ? { filterFlags: filters.filterFlags, likedIds: filters.likedIds } : {}),
-      }, controller.signal)
+      }
+      const response = await (MAP_FILTERS_ENABLED ? mapViewportClient.fetch(query, controller.signal)
+        : fetchToiletsInBounds(query, controller.signal))
       if (controller.signal.aborted || requestSequence !== requestSequenceRef.current) return
       setMobileAreaToilets(response.toilets)
     } catch {
@@ -1559,7 +1612,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     } finally {
       if (mobileListAbortRef.current === controller) { mobileListAbortRef.current = null; setIsMobileAreaListLoading(false) }
     }
-  }, [closeDetailCard, isMobileAreaListVisible, result, showMobileZoomGuide])
+  }, [closeDetailCard, isMobileAreaListVisible, mapViewportClient, result, showMobileZoomGuide])
 
   const selectMobileAreaToilet = useCallback((toilet: ToiletMapItem) => {
     const map = mapRef.current
@@ -1673,7 +1726,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         </div>
       </header>
 
-      <section className="map-section" aria-label={t('map.title')}>
+      <section className="map-section" aria-label={t('map.title')} aria-busy={isLoading}>
         <div className={`map-stage${MAP_FILTERS_ENABLED ? ' has-map-filters' : ''}`} inert={!isDesktop && mobileTab !== 'map'} style={!isDesktop && mobileTab !== 'map' ? { visibility: 'hidden' } : undefined}>
         <div ref={mapContainerRef} className="map" />
         {MAP_FILTERS_ENABLED && <MapFilterBar locale={locale} flags={mapFilterFlags} mine={isMyMapFilter}
@@ -1700,7 +1753,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
             <strong>{t('map.connectionLost')}</strong>
             <span>{t('map.updated', { time: formatLastUpdatedAt(lastSuccessfulMapUpdate, locale) })}</span>
           </div>
-          <button type="button" onClick={() => void loadMapArea()} disabled={isLoading}>{t(isLoading ? 'map.reconnecting' : 'map.reconnect')}</button>
+          <button type="button" onClick={retryMap} disabled={isLoading}>{t(isLoading ? 'map.reconnecting' : 'map.reconnect')}</button>
         </div>}
         <p className="desktop-map-reference-hint">{t('map.referenceHint')}</p>
         <div className={`map-controls${hasMapCard ? ' is-with-card' : ''}`}>
@@ -1868,8 +1921,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setMobileAccountView('settings')} onWithdrawn={handleWithdrawn} onLogout={handleLogout} onCountChange={refreshNotificationCount} onOpenReport={showReportHistory}
           beforeLogin={tab => { try { window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, tab) } catch { /* 로그인은 계속 제공 */ } }} />}
         {reportTarget && (QUICK_REPORTS_ENABLED
-          ? <QuickReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} identity={isAuthLoading ? 'loading' : authProfile ? 'member' : 'guest'} onClose={() => setReportTarget(null)} />
-          : <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); showReportHistory() }} />)}
+          ? <QuickReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} identity={isAuthLoading ? 'loading' : authProfile ? 'member' : 'guest'} onClose={() => { invalidateMapSources(); setReportTarget(null); void loadMapArea() }} />
+          : <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => { invalidateMapSources(); setReportTarget(null); void loadMapArea() }} onViewMyReports={() => { invalidateMapSources(); setReportTarget(null); showReportHistory(); void loadMapArea() }} />)}
         {reviewPreview.modal}
         {authProfile && isDesktop && isMyReportsOpen && <MyReportsPanel key={`reports-${authProfile.userId}`} onSessionExpired={handleSessionExpired} initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
