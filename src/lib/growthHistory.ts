@@ -1,5 +1,5 @@
 export type GrowthHistoryDirection = 'earned' | 'deducted'
-export type GrowthHistoryItem = { id: string; deltaXp: number; type: string; reason: string; happenedAt: string }
+export type GrowthHistoryItem = { id: string; deltaXp: number; type: string; reason: string; happenedAt: string; awardKind?: string | null }
 export type GrowthHistoryPage = { items: GrowthHistoryItem[]; total: number; page: number; size: number; scope: 'all' | 'recent' }
 export const GROWTH_HISTORY_PAGE_SIZE = 10
 
@@ -17,8 +17,10 @@ export function decodeGrowthHistory(value: unknown): GrowthHistoryItem[] {
     const v = item as Record<string, unknown>
     if (!(typeof v.id === 'string' && /^[1-9]\d*$/.test(v.id) || Number.isSafeInteger(v.id) && Number(v.id) > 0)
       || !Number.isSafeInteger(v.deltaXp) || v.deltaXp === 0 || typeof v.type !== 'string' || typeof v.reason !== 'string'
-      || typeof v.happenedAt !== 'string' || !growthHistoryDate(v.happenedAt)) throw new Error('INVALID_GROWTH_HISTORY')
-    return { id: String(v.id), deltaXp: Number(v.deltaXp), type: v.type, reason: v.reason, happenedAt: v.happenedAt }
+      || typeof v.happenedAt !== 'string' || !growthHistoryDate(v.happenedAt)
+      || v.awardKind !== undefined && v.awardKind !== null && typeof v.awardKind !== 'string') throw new Error('INVALID_GROWTH_HISTORY')
+    return { id: String(v.id), deltaXp: Number(v.deltaXp), type: v.type, reason: v.reason, happenedAt: v.happenedAt,
+      ...(v.awardKind !== undefined ? { awardKind: v.awardKind as string | null } : {}) }
   })
 }
 
@@ -51,4 +53,24 @@ export function growthHistoryReason(reason: string): 'daily' | 'review' | 'edite
     case 'RECONCILE': return 'reconciled'
     default: return 'adjustment'
   }
+}
+
+const rewardLabels = {
+  CHECKIN: 'daily',
+  REVIEW_FIRST: 'reviewReward',
+  DISTRICT: 'district',
+  MEDAL_BRONZE: 'bronzeMedal',
+  MEDAL_SILVER: 'silverMedal',
+  MEDAL_GOLD: 'goldMedal',
+} as const
+
+/** The reward is recorded separately from its trigger. Never infer it from XP amounts or dates. */
+export function growthHistoryActivity(item: GrowthHistoryItem): {
+  label: typeof rewardLabels[keyof typeof rewardLabels] | ReturnType<typeof growthHistoryReason>
+  qualifier: 'activityBackfill' | 'activityReversal' | null
+} {
+  const reward = item.awardKind && Object.hasOwn(rewardLabels, item.awardKind)
+    ? rewardLabels[item.awardKind as keyof typeof rewardLabels] : null
+  if (!reward) return { label: growthHistoryReason(item.reason), qualifier: null }
+  return { label: reward, qualifier: item.deltaXp < 0 ? 'activityReversal' : item.reason === 'BACKFILL' ? 'activityBackfill' : null }
 }
