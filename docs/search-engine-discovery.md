@@ -25,9 +25,9 @@ Yahoo Japan, DuckDuckGo, Ecosia는 별도 사이트 등록보다 Google/Bing 색
 
 현재 지역 외 일반 페이지(홈·정책 등)의 콘텐츠 변경 이벤트와 운영 영속 재전송은 연결되지 않았다. 캐시 무효화나 배포 자체를 이 페이지들의 변경 증거로 취급하지 않는다. 진단·제한된 지역 알림·429 대기 보완의 검증과 배포 기록은 [PR #340](https://github.com/toilet-project/toilet-web/pull/340)에 연결한다. 자세한 미완료 범위는 [WBS #321](https://github.com/toilet-project/toilet-web/issues/321)에서 추적한다.
 
-## 영속 재전송 초안 · 연결 구현, 운영 비활성
+## 영속 재전송 · 제한 범위 활성화 후보
 
-[PR #375](https://github.com/toilet-project/toilet-web/pull/375)의 구현이다. 운영·프리뷰 모두 `INDEXNOW_OUTBOX_ENABLED=false`이며 Cron 등록도 없다. 기존 운영 경로·R2 사용량은 아직 바뀌지 않는다. 활성화에는 별도 운영 승인이 필요하다.
+[PR #375](https://github.com/toilet-project/toilet-web/pull/375)의 구현이다. 2026-10-20 사용자가 시설·최대 4개 시군구 범위의 운영 활성화와 10분 예약 등록을 승인했다. 운영 후보는 `INDEXNOW_OUTBOX_ENABLED=true`와 검토한 Cron을 함께 선언하며, 프리뷰는 비활성·예약 없음으로 유지한다. 설정 선언만으로 운영 배포·원격 예약 등록·자연 이벤트 접수를 완료했다고 판단하지 않는다.
 
 ### 변경 의도 보존과 ACK
 

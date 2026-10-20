@@ -35,13 +35,13 @@ test('extracted artifact verification rejects a missing or altered IndexNow help
   }
   const run = () => execute(process.execPath, [verifier, root, 'production-candidate', commit, '--expect-member-growth=true'])
   const good = JSON.parse((await run()).stdout)
-  assert.equal(good.verified, true); assert.equal(good.indexNow.durable, false); assert.equal(good.deploymentApproved, false)
+  assert.equal(good.verified, true); assert.equal(good.indexNow.durable, manifest.features.indexNow.durable); assert.equal(good.deploymentApproved, false)
   await writeFile(join(root, 'indexnow-dispatch.mjs'), helper + '// changed')
   await assert.rejects(run(), /IndexNow runtime changed/)
   await rm(join(root, 'indexnow-dispatch.mjs'))
   await assert.rejects(run(), /ENOENT/)
   await writeFile(join(root, 'indexnow-dispatch.mjs'), helper)
   await writeFile(join(root, 'worker-release-manifest.json'), JSON.stringify({ ...manifest,
-    features: { ...manifest.features, indexNow: { enabled: true, durable: true, cron: '*/10 * * * *' } } }))
+    features: { ...manifest.features, indexNow: { ...manifest.features.indexNow, durable: !manifest.features.indexNow.durable } } }))
   await assert.rejects(run(), /IndexNow artifact\/config mismatch/)
 })

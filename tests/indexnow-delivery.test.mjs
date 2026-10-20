@@ -118,17 +118,18 @@ test('cooldown arriving after an intent lease does not consume a retry or read t
   assert.equal(stored.state, 'pending')
 })
 
-test('source route contract authenticates, stages, invalidates, releases, then acknowledges; flags remain off', () => {
+test('source route authenticates, stages, invalidates, releases, then acknowledges; only approved production has a schedule', () => {
   const route = readFileSync(new URL('../src/app/%255Finternal/cache/revalidate/route.ts', import.meta.url), 'utf8')
   assert.ok(route.indexOf('await authenticateRevalidation') < route.indexOf('await prepareDurableIndexNow'))
   assert.ok(route.indexOf('await prepareDurableIndexNow') < route.indexOf('worker: persistWorkerInvalidation'))
   assert.ok(route.indexOf("result.status === 'rejected'") < route.indexOf('await releaseDurable()'))
   assert.ok(route.indexOf('await releaseDurable()') < route.indexOf('return Response.json(acknowledgement'))
-  for (const name of ['wrangler.jsonc', 'wrangler.production.jsonc']) {
-    const config = readFileSync(new URL('../' + name, import.meta.url), 'utf8')
-    assert.match(config, /"INDEXNOW_OUTBOX_ENABLED": "false"/)
-    assert.ok(!config.includes('"crons"'))
-  }
+  const preview = JSON.parse(readFileSync(new URL('../wrangler.jsonc', import.meta.url), 'utf8'))
+  const production = JSON.parse(readFileSync(new URL('../wrangler.production.jsonc', import.meta.url), 'utf8'))
+  assert.equal(preview.vars.INDEXNOW_OUTBOX_ENABLED, 'false')
+  assert.deepEqual(preview.triggers?.crons ?? [], [])
+  assert.equal(production.vars.INDEXNOW_OUTBOX_ENABLED, 'true')
+  assert.deepEqual(production.triggers?.crons, ['*/10 * * * *'])
   for (const name of ['workers-validation.yml', 'review-api-validation.yml']) {
     const workflow = readFileSync(new URL('../.github/workflows/' + name, import.meta.url), 'utf8')
     const packages = workflow.split('\n').filter(line => line.includes('tar -czf') && line.includes('custom-worker.mjs'))

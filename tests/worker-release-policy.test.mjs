@@ -48,7 +48,7 @@ test('release manifest binds target, commit, config and build without granting a
     {configSha256:'changed'},{buildId:'different'},{appVersion:'different'},
     {appVersion:`${commit}-12-x-production-candidate`},{appVersion:`${commit}-12-1-production-candidate-extra`},
     {indexable:false},{deploymentApproved:true},{features:{}},{runtime:{}},
-    {features:{indexNow:{enabled:true,durable:true,cron:INDEXNOW_APPROVED_SCHEDULE}}}]) assert.throws(()=>check({...manifest,...change}))
+    {features:{indexNow:{...manifest.features.indexNow,durable:!manifest.features.indexNow.durable}}}]) assert.throws(()=>check({...manifest,...change}))
 })
 test('build/runtime mismatch or preview robots in candidate fails',()=>{
   assert.throws(()=>validateBuildPolicy(production,'production-candidate','false',none))
@@ -105,7 +105,7 @@ test('durable IndexNow requires a paired reviewed schedule and is forbidden in p
   assert.throws(()=>validateWorkerConfig({...preview,vars:{...preview.vars,INDEXNOW_OUTBOX_ENABLED:'true'},
     triggers:configured.triggers},'preview'))
   assert.throws(()=>validateWorkerConfig({...preview,vars:{...preview.vars,INDEXNOW_ENABLED:'true'}},'preview'))
-  assert.throws(()=>validateWorkerConfig({...production,triggers:configured.triggers},'production-candidate'))
+  assert.throws(()=>validateWorkerConfig({...production,vars:{...production.vars,INDEXNOW_OUTBOX_ENABLED:'false'},triggers:configured.triggers},'production-candidate'))
   assert.throws(()=>validateWorkerConfig({...production,vars:{...production.vars,INDEXNOW_OUTBOX_ENABLED:undefined}},'production-candidate'))
 })
 
@@ -123,7 +123,7 @@ test('release feature and runtime digest must match the exact candidate without 
   validateIndexNowRelease(manifest,production,'production-candidate',digest)
   assert.throws(()=>validateIndexNowRelease(manifest,production,'production-candidate','e'.repeat(64)))
   assert.throws(()=>validateIndexNowRelease({...manifest,runtime:{}},production,'production-candidate',digest))
-  assert.throws(()=>validateIndexNowRelease({...manifest,features:{indexNow:{...feature,durable:true}}},production,'production-candidate',digest))
+  assert.throws(()=>validateIndexNowRelease({...manifest,features:{indexNow:{...feature,durable:!feature.durable}}},production,'production-candidate',digest))
   assert.throws(()=>validateIndexNowRelease(manifest,preview,'preview',digest))
 })
 
