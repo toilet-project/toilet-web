@@ -24,7 +24,7 @@ async function jobKey(eventId: string) {
   return PREFIX + Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, '0')).join('') + '.json'
 }
 
-/** Inert until explicitly connected to a producer and an authenticated scheduler.
+/** Runtime connection is gated by INDEXNOW_OUTBOX_ENABLED and a separately approved scheduler.
  * Stores public paths only, separately from visitor cache objects. Delivery is at-least-once:
  * a crash after remote acceptance but before receipt persistence can repeat the notification.
  */

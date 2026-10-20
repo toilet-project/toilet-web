@@ -14,6 +14,7 @@ import { districtCodesOverlappingBounds } from '../../../../server/regions'
 import type { ScopedToiletCacheEvent } from '../../../../server/cacheRevalidation'
 import { indexNowEnabled, scheduleIndexNowNotification } from '../../../../server/indexNow'
 import { canNotifyIndexNowDistricts, scheduleIndexNowRegionNotification } from '../../../../server/indexNowRegion'
+import { durableIndexNowEnabled, prepareDurableIndexNow } from '../../../../server/indexNowPipeline'
 
 export const runtime = 'nodejs'
 const headers = { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow' }
@@ -39,6 +40,11 @@ export async function POST(request: Request) {
     const ids = authenticated.events.map(event => event.toiletId)
     const catalogChanged = authenticated.events.some(event => event.catalogChanged)
     const districtCodes = authenticated.protocol === 'v3' ? affectedDistrictCodes(authenticated.events) : null
+    // Persist the original public before-image before any invalidation can remove it.
+    // Legacy v1 has no revision and retains its existing best-effort contract.
+    const releaseDurable = authenticated.protocol !== 'v1' && durableIndexNowEnabled()
+      ? await prepareDurableIndexNow(authenticated.events,
+        canNotifyIndexNowDistricts(districtCodes) ? districtCodes! : []) : null
     // Every affected cache is attempted before acknowledgement. A partial failure returns 503 for outbox retry.
     const persistence = {
       worker: persistWorkerInvalidation(ids, catalogChanged, districtCodes),
@@ -48,7 +54,7 @@ export async function POST(request: Request) {
       mapClusters: process.env.MAP_CLUSTER_CACHE_ENABLED === 'true'
         ? getMapCellBucket().then(bucket => bucket ? invalidateMapClusterCache(bucket) : Promise.resolve())
         : Promise.resolve(),
-      regions: persistRegionMarkerInvalidation(districtCodes, indexNowEnabled() && canNotifyIndexNowDistricts(districtCodes)),
+      regions: persistRegionMarkerInvalidation(districtCodes, !releaseDurable && indexNowEnabled() && canNotifyIndexNowDistricts(districtCodes)),
     }
     const persisted = await Promise.allSettled(Object.values(persistence))
     for (const id of ids) {
@@ -73,11 +79,16 @@ export async function POST(request: Request) {
       revalidatePath('/sitemaps/[file]', 'page')
     }
     if (persisted.some(result => result.status === 'rejected')) throw new Error('Cache persistence failed')
-    // Search discovery is best effort and must never delay or reject the cache outbox acknowledgement.
-    const previousDetails = await persistence.details ?? new Map()
-    const previousDistricts = await persistence.regions
-    await Promise.all([scheduleIndexNowNotification(authenticated.events, previousDetails),
-      scheduleIndexNowRegionNotification(previousDistricts)])
+    if (releaseDurable) {
+      // A release failure returns 503 too; the persisted before-image survives the sender's retry.
+      await releaseDurable()
+    } else {
+      // With the new feature disabled, keep the previous acknowledgement and notification behavior.
+      const previousDetails = await persistence.details ?? new Map()
+      const previousDistricts = await persistence.regions
+      await Promise.all([scheduleIndexNowNotification(authenticated.events, previousDetails),
+        scheduleIndexNowRegionNotification(previousDistricts)])
+    }
     const acknowledgement = authenticated.protocol === 'v1'
       ? { ok: true, acceptedIds: ids }
       : { ok: true, acceptedEvents: authenticated.events.map(({ toiletId, revision }) => ({ toiletId, revision })) }

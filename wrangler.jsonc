@@ -28,6 +28,7 @@
     "MAP_CLUSTER_LEGACY_SOURCE_FALLBACK": "true",
     "REGION_MARKER_CACHE_ENABLED": "true",
     "INDEXNOW_ENABLED": "false",
+    "INDEXNOW_OUTBOX_ENABLED": "false",
     "NAVER_MAP_ENABLED": "true",
     "PLACE_SEARCH_ENABLED": "true",
     "PLACE_SEARCH_SCOPE": "preview"
