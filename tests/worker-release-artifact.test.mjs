@@ -26,7 +26,7 @@ test('extracted artifact verification rejects a missing or altered IndexNow help
     runtime: { indexNowDispatchSha256: digest(helper) } }
   const files = { 'wrangler.production.jsonc': raw, 'worker-release-manifest.json': JSON.stringify(manifest),
     '.next/BUILD_ID': 'test-build', 'indexnow-dispatch.mjs': helper }
-  for (const path of ['custom-worker.mjs', '.open-next/worker.js', 'worker-cache-policy.mjs', 'region-markers-worker.ts',
+  for (const path of ['custom-worker.mjs', '.open-next/worker.js', 'worker-cache-policy.mjs', 'home-server-timing.mjs', 'region-markers-worker.ts',
     'src/lib/regionMarkerStore.ts', 'src/lib/regionDisplayItems.ts', 'src/i18n/toiletTranslations.ts', 'data/regions/boundary-assets.json'])
     files[path] = 'fixture'
   for (const [path, content] of Object.entries(files)) {

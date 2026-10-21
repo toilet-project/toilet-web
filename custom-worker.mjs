@@ -6,6 +6,7 @@ import { placeSearchResponse } from './place-search-worker.mjs'
 import { mapProviderConfigResponse } from './map-provider-worker.mjs'
 import { regionMarkersResponse } from './region-markers-worker.ts'
 import { runScheduledIndexNow } from './indexnow-dispatch.mjs'
+import { withHomeServerTiming } from './home-server-timing.mjs'
 
 export default {
   scheduled(_controller, env, ctx) {
@@ -22,7 +23,7 @@ export default {
     if (placeSearch) return placeSearch
     const verification = await reviewVerificationResponse(request, env)
     if (verification) return verification
-    const response = await handler.fetch(request, env, ctx)
+    const response = await withHomeServerTiming(request, env, ctx, (input, bindings, context) => handler.fetch(input, bindings, context))
     // OpenNext initializes this from the compiled deploymentId during fetch.
     // Never use the client's x-deployment-id to identify a server response.
     return protectNavigationResponse(request, response, process.env.DEPLOYMENT_ID)
