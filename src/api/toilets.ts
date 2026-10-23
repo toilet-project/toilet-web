@@ -111,16 +111,18 @@ export async function fetchToiletsInBounds(params: { southLat: number; northLat:
   const legacyUrl = createApiUrl(`/api/v1/toilets?${query}`)
   const url = cachedClusters ? `/api/map-clusters?${query}` : cells ? `/api/map-area?${query}` : legacyUrl
   let response: Response
+  let usedLegacyFallback = false
   try {
     response = await fetch(url, { signal })
   } catch (error) {
     // A cluster cache outage must not fan every viewport request back to the mini PC.
     if (cachedClusters || (!cells && !cachedClusters) || signal?.aborted) throw error
+    usedLegacyFallback = true
     response = await fetch(legacyUrl, { signal })
   }
   // Only a disabled or not-yet-deployed cluster route may use the legacy query.
   // Transient cache/source errors should not turn a busy map into an origin stampede.
-  if ((cells || (cachedClusters && response.status === 404)) && !response.ok && !signal?.aborted)
+  if (!usedLegacyFallback && (cells || (cachedClusters && response.status === 404)) && !response.ok && !signal?.aborted)
     response = await fetch(legacyUrl, { signal })
   if (!response.ok) throw new Error(`화장실 조회에 실패했습니다. (${response.status})`)
   const payload = await response.json() as Partial<ToiletMapSearchResponse>

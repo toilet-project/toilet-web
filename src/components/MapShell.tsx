@@ -1,26 +1,50 @@
 'use client'
 
-import dynamic from 'next/dynamic'
-import { Component, useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore, type ErrorInfo, type ReactNode } from 'react'
+import { Component, useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ErrorInfo, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { MapRouteContext, type MapRouteData } from './mapRouteContext'
 import { toiletPath } from '../lib/toiletRoute'
-import { regionToiletPath } from '../lib/regionToiletPath'
 import { getReviewTestHash, subscribeReviewTestHash } from '../lib/reviewTestToilet'
 import { localeForPath, localizedPublicPath } from '../i18n/routes'
 import { rememberLocale, type Locale } from '../i18n/locale'
 import { consumeLanguageLoginReturn } from '../i18n/loginReturn'
 import { ENGLISH_UI_ENABLED } from '../i18n/feature'
 import { MAP_NAVIGATION_EVENT } from '../lib/navigationCache'
-import { loadedNaverMapLanguage } from '../lib/mapProvider'
+import { loadedNaverMapLanguage, prepareMapSdk } from '../lib/mapProvider'
 import { naverMapLanguageForLocale, naverMapLanguageNeedsReload } from '../lib/mapProviderSelection'
 import { useLocale } from '../i18n/context'
 import { message } from '../i18n/messages'
+import { beginMapTiming, markMapTiming } from '../lib/mapTiming'
+import { createClientModuleLoader } from '../lib/clientModuleLoader'
+
+markMapTiming('shell-evaluated')
 
 const noServerTestHash = () => ''
 
-// The SDK and browser-only effects stay in the existing map. Policy/SEO routes stay server rendered.
-const MapApp = dynamic(() => import('../App'), { ssr: false })
+// The server always renders the route bridge; this is mounted only after its
+// browser registration. Loading explicitly avoids a Suspense retry delaying an
+// already downloaded map chunk while keeping the existing startup shell.
+const loadMapApp = createClientModuleLoader(() => {
+  const done = beginMapTiming('app-import')
+  return import('../App').finally(done)
+})
+type MapComponent = typeof import('../App').default
+type MapProps = Parameters<MapComponent>[0]
+
+function DeferredMapApp(props: MapProps) {
+  const [LoadedMap, setLoadedMap] = useState<MapComponent | null>(null)
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null)
+  useEffect(() => {
+    let current = true
+    void loadMapApp().then(module => {
+      if (current) setLoadedMap(() => module.default)
+    }, error => { if (current) setFailure({ error }) })
+    return () => { current = false }
+  }, [])
+  // Keep load failures inside the same visible error boundary as render errors.
+  if (failure) throw failure.error
+  return LoadedMap ? <LoadedMap {...props} /> : null
+}
 
 class MapErrorBoundary extends Component<{ children: ReactNode; locale: Locale }, { failed: boolean }> {
   state = { failed: false }
@@ -56,21 +80,43 @@ export function MapShell({ children }: { children: ReactNode }) {
     } catch { /* Normal login completion must remain usable without storage. */ }
   }, [])
   const [route, setRoute] = useState<MapRouteData | null>(null)
+  const routeRef = useRef<MapRouteData | null>(null)
+  const navigationIntentRef = useRef(0)
   const [mounted, setMounted] = useState(false)
   const register = useCallback((next: MapRouteData) => {
     let browserPath = window.location.pathname
     try { browserPath = decodeURI(browserPath).normalize('NFC') } catch { return }
     if (browserPath.replace(/\/$/, '') !== next.path.replace(/\/$/, '')) return
+    routeRef.current = next
+    markMapTiming('route-registered')
+    navigationIntentRef.current++
+    // Start network preparation alongside the dynamically imported map UI.
+    // Its own initialization reports a failure; an early failure remains retryable.
+    const sdkDone = beginMapTiming('sdk-prepare')
+    void prepareMapSdk(localeForPath(next.path)).catch(() => {}).finally(sdkDone)
     setRoute(next)
   }, [])
   const onMounted = useCallback(() => setMounted(true), [])
   const navigate = useCallback((id: number | null) => {
+    navigationIntentRef.current++
     const path = localizedPublicPath(id === null ? '/' : toiletPath(id), localeForPath(window.location.pathname))!
     // Also cancels an in-flight detail navigation when the user closes before it resolves.
     routerRef.current.push(path + getReviewTestHash(), { scroll: false })
   }, [])
-  const changeLocale = useCallback((locale: Locale, id: number | null) => {
-    const currentPath = id !== null && route?.detail?.id === id ? regionToiletPath(route.detail, locale) : id === null ? '/' : toiletPath(id)
+  const changeLocale = useCallback(async (locale: Locale, id: number | null) => {
+    const intent = ++navigationIntentRef.current
+    const sourceUrl = window.location.href
+    const sourceRoute = routeRef.current
+    let currentPath = id === null ? '/' : toiletPath(id)
+    if (id !== null && sourceRoute?.detail?.id === id) {
+      // Polygon lookup is only needed for this canonical detail language link.
+      // Keep it out of every visitor's initial map bundle.
+      try {
+        const { regionToiletPath } = await import('../lib/regionToiletPath')
+        currentPath = regionToiletPath(sourceRoute.detail, locale)
+      } catch { /* The ordinary detail URL still resolves if its optional chunk fails. */ }
+      if (intent !== navigationIntentRef.current || window.location.href !== sourceUrl || routeRef.current !== sourceRoute) return
+    }
     const path = localizedPublicPath(currentPath, locale)
     if (!path) return
     try { rememberLocale(window.localStorage, locale) } catch { /* Preference storage is optional. */ }
@@ -84,9 +130,9 @@ export function MapShell({ children }: { children: ReactNode }) {
       return
     }
     routerRef.current.push(target, { scroll: false })
-  }, [route])
+  }, [])
   return <MapRouteContext.Provider value={{ mounted, register }}>
-    <MapErrorBoundary locale={locale}>{route && <MapApp key={testToiletHash} testToiletHash={testToiletHash} route={route} onNavigate={navigate} onLocaleChange={changeLocale} onMounted={onMounted} />}</MapErrorBoundary>
+    <MapErrorBoundary locale={locale}>{route && <DeferredMapApp key={testToiletHash} testToiletHash={testToiletHash} route={route} onNavigate={navigate} onLocaleChange={changeLocale} onMounted={onMounted} />}</MapErrorBoundary>
     {children}
   </MapRouteContext.Provider>
 }

@@ -21,10 +21,11 @@ function PanelFallback({ modal, onClose, onRetry }: { modal: boolean; onClose?: 
   return modal ? <div className="account-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose?.() }}>{content}</div> : content
 }
 
-export function LazyPanelFrame({ children, attempt, modal, onClose, onRetry }: {
+export function LazyPanelFrame({ children, attempt, modal, onClose, onRetry, fallback }: {
   children?: ReactNode; attempt: number; modal: boolean; onClose?: () => void; onRetry: () => void;
+  fallback?: (onRetry?: () => void) => ReactNode;
 }) {
-  return <PanelBoundary key={attempt} fallback={<PanelFallback modal={modal} onClose={onClose} onRetry={onRetry} />}>
-    <Suspense fallback={<PanelFallback modal={modal} onClose={onClose} />}>{children}</Suspense>
+  return <PanelBoundary key={attempt} fallback={fallback ? fallback(onRetry) : <PanelFallback modal={modal} onClose={onClose} onRetry={onRetry} />}>
+    <Suspense fallback={fallback ? fallback() : <PanelFallback modal={modal} onClose={onClose} />}>{children}</Suspense>
   </PanelBoundary>
 }

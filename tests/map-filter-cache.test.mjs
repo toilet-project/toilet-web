@@ -3,10 +3,11 @@ import test from 'node:test'
 import { gunzipSync } from 'node:zlib'
 import { createHmac } from 'node:crypto'
 import { invalidateMapCells, mapCellObjectKey, readThroughMapCell } from '../src/server/mapCellCache.ts'
-import { fetchMapFilterSourceOrigin, invalidateMapFilterSource, mapFilterCellBucket, mapFilterPreviewEnabled,
+import { fetchMapFilterSourceOrigin, invalidateMapFilterCaches, invalidateMapFilterSource, mapFilterCellBucket, mapFilterPreviewEnabled,
   MAP_FILTER_PREVIEW_SOURCE_KEY, mapFilterSourceKey, readPreviewMapFilterSource,
-  readThroughFilterCell, readThroughMapFilterSource } from '../src/server/mapFilterCache.ts'
+  readThroughFilterCell, readThroughFilterCells, readThroughMapFilterSource } from '../src/server/mapFilterCache.ts'
 import { readMapFilterArea } from '../src/server/mapFilterArea.ts'
+import { mapSourceCellBucket } from '../src/server/mapSourceCells.ts'
 
 class FakeR2 {
   objects = new Map(); sequence = 0; reads = 0
@@ -69,6 +70,51 @@ test('preview snapshot replacement forces v4 refill instead of retaining old fla
   assert.equal((await read('2026-10-03T02:00:00Z', 15)).toilets[0].filterFlags, 1)
   assert.equal((await read('2026-10-03T03:00:00Z', 15)).toilets[0].filterFlags, 15)
   assert.equal(reads, 2)
+})
+
+test('batched filter cells retain schema and preview revision checks with six warm reads', async () => {
+  const bucket = new FakeR2()
+  const cells = [cell, { ...cell, x: cell.x + 1 }, { ...cell, y: cell.y + 1 }, { x: cell.x + 1, y: cell.y + 1 }]
+  let originReads = 0
+  const read = (date, flags) => readThroughFilterCells({ bucket, cells, previewSourceDate: date,
+    fetchOrigin: async () => { originReads++; return [marker(flags)] } })
+  await read('revision-before', 1)
+  const before = bucket.reads
+  const warm = await read('revision-before', 127)
+  assert.equal(bucket.reads - before, 6)
+  assert.equal(originReads, 4)
+  assert.ok(warm.every(result => result.toilets[0].filterFlags === 1))
+  const updated = await read('revision-after', 127)
+  assert.equal(originReads, 8)
+  assert.ok(updated.every(result => result.toilets[0].filterFlags === 127))
+  assert.ok([...bucket.objects.keys()].every(key => key.startsWith('map-cells/v4/')))
+})
+
+test('different personal likes are filtered independently over the same public cells', async () => {
+  const bucket = new FakeR2()
+  await readThroughFilterCell({ bucket, cell, fetchOrigin: async () => [marker(), { ...marker(), id: 2 }] })
+  const first = await readMapFilterArea(bucket, { ...input, likedIds: [1] })
+  const second = await readMapFilterArea(bucket, { ...input, likedIds: [2] })
+  assert.deepEqual(first.response.toilets.map(marker => marker.id), [1])
+  assert.deepEqual(second.response.toilets.map(marker => marker.id), [2])
+  assert.ok([...bucket.objects.values()].every(object => !object.value.toString().includes('likedIds')))
+})
+
+test('production changes invalidate complete source and filtered caches while preserving unfiltered legacy cells', async () => {
+  const bucket = new FakeR2()
+  await readThroughMapCell({ bucket, cell, fetchOrigin: async () => [marker()] })
+  const legacy = Buffer.from(bucket.objects.get(mapCellObjectKey(cell)).value)
+  await readThroughMapCell({ bucket: mapSourceCellBucket(bucket), cell, fetchOrigin: async () => [marker()] })
+  await readThroughFilterCell({ bucket, cell, fetchOrigin: async () => [marker()] })
+  await invalidateMapFilterCaches(bucket, [event])
+  assert.equal(bucket.value('map-source-cells/v1/cells/750/2540.json').state, 'invalidated')
+  assert.equal(bucket.value('map-cells/v4/cells/750/2540.json').state, 'invalidated')
+  assert.equal(bucket.value(mapFilterSourceKey()).state, 'invalidated')
+  assert.deepEqual(bucket.objects.get(mapCellObjectKey(cell)).value, legacy)
+  await invalidateMapFilterCaches(bucket, null)
+  assert.equal(bucket.value('map-source-cells/v1/global.json').revision, 1)
+  assert.equal(bucket.value('map-cells/v4/global.json').revision, 1)
+  assert.equal(bucket.value(mapFilterSourceKey()).state, 'invalidated')
 })
 
 test('national source has one lease, one unfiltered object and no personal/filter-combination keys', async () => {

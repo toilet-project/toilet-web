@@ -9,7 +9,8 @@ import { GROWTH_ENABLED } from '../../lib/growth'
 import { cachedPublicReviews, loadPublicReviews, prefetchPublicReviews, PUBLIC_REVIEW_API_ENABLED } from '../../lib/publicReviewPrefetch'
 import { trackEvent } from '../../lib/analytics'
 import { RankIcon } from '../growth/RankIcon'
-import { ReviewIcon } from './ReviewDialog'
+import { ReviewIcon } from './ReviewIcon'
+import { PublicReviewLoading } from './PublicReviewsLoading'
 
 const SUMMARY_LIMIT = 3
 type PublicReviewSummary = { count: number; rating: string }
@@ -18,17 +19,6 @@ export function PublicReviews({ toiletId, toiletName, toiletType, summary }: { t
   const locale = useLocale()
   if (!PUBLIC_REVIEW_API_ENABLED || toiletId <= 0) return null
   return <PublicReviewList key={toiletId} toiletId={toiletId} toiletName={toiletName || toiletTypeLabel(undefined, locale)} toiletType={toiletType || ''} summary={summary} />
-}
-
-export function PublicReviewsLoading() {
-  const t = useMessages()
-  if (!PUBLIC_REVIEW_API_ENABLED) return null
-  return <section className="public-reviews is-loading" aria-label={t('public.loading')} aria-busy="true">
-    <div className="public-review-section-heading"><h2>{t('public.title')} <span>—</span></h2></div>
-    <div className="public-review-summary-panel">
-      <div className="public-review-summary-list"><PublicReviewLoading /></div>
-    </div>
-  </section>
 }
 
 function PublicReviewList({ toiletId, toiletName, toiletType, summary }: { toiletId: number; toiletName: string; toiletType: string; summary?: PublicReviewSummary }) {
@@ -179,11 +169,6 @@ function PublicReviewRow({ item, expanded }: { item: StoredReview; expanded: boo
     </div>
     {comment && <p className="public-review-comment">{locale !== 'ko' && <small className="original-text-tag">{t('content.original')}</small>}{comment}</p>}
   </article>
-}
-
-function PublicReviewLoading() {
-  const t = useMessages()
-  return <div className="public-review-loading" role="status"><span /><span />{t('public.loading')}</div>
 }
 
 function ReviewLoadError({ message, onRetry }: { message: string; onRetry: () => void }) {

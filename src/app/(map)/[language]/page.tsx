@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { ToiletRouteBridge } from '../../../components/ToiletRouteBridge'
+import { HomeRouteBridge } from '../../../components/HomeRouteBridge'
 import { asianLocaleForSegment } from '../../../i18n/asianRoutes'
 import { homeMetadata, homeStructuredData } from '../../../i18n/pageSeo'
 import { safeJsonLd } from '../../../lib/seo'
@@ -17,6 +17,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function AsianLanguageHomePage({ params }: Props) {
   const locale = asianLocaleForSegment((await params).language)
   if (!locale) notFound()
-  return <><ToiletRouteBridge detail={null} locale={locale} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(homeStructuredData(locale)) }} /></>
+  return <><HomeRouteBridge locale={locale} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: safeJsonLd(homeStructuredData(locale)) }} /></>
 }
 

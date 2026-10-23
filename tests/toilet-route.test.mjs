@@ -41,7 +41,7 @@ test('loading and first HTML retain current card rows and mobile geometry withou
   const source = async path => readFile(new URL(path, import.meta.url), 'utf8')
   const app = await source('../src/App.tsx')
   const loading = await source('../src/components/ToiletCardLoading.tsx')
-  const reviews = await source('../src/components/reviews/PublicReviews.tsx')
+  const reviews = await source('../src/components/reviews/PublicReviewsLoading.tsx')
   const bridge = await source('../src/components/ToiletRouteBridge.tsx')
   const css = await source('../src/components/mobile-navigation.css')
   assert.match(app, /isDetailLoading && <LoadingOpenTime \/>/)

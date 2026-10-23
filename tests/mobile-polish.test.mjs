@@ -153,7 +153,7 @@ test('report uses an accessible icon in the card header while group details reta
 test('review summaries follow the review action and divider, before addresses, while staying out of the collapsed mobile card', async () => {
   const app = await source('../src/App.tsx')
   const route = await source('../src/components/ToiletRouteBridge.tsx')
-  const detail = await source('../src/components/ToiletDetailContents.tsx')
+  const detail = await source('../src/components/ToiletDetailBody.tsx')
   const reviews = await source('../src/components/reviews/PublicReviews.tsx')
   const css = await source('../src/components/mobile-navigation.css')
   const single = app.slice(app.indexOf('<div ref={cardScrollRef} className="card-scroll-content">'), app.indexOf('{displaySelectedCoordinateGroup && ('))
@@ -212,7 +212,7 @@ test('single and group address rows keep label left and align value toward the r
   assert.match(css, /\.detail-row.detail-address \.copy-address-button, \.detail-row.coordinate-inline-address \.copy-address-button\s*\{[^}]*justify-self: end/)
   assert.match(mobile, /\.has-mobile-navigation \.mobile-card-expanded \.detail-address\s*\{ display: grid/)
   // Presentation truncation must never truncate what gets copied.
-  const detail = await source('../src/components/ToiletDetailContents.tsx')
+  const detail = await source('../src/components/DetailRow.tsx')
   assert.match(detail, /navigator.clipboard.writeText\(value\)/)
   assert.match(detail, /textarea.value = value/)
 })

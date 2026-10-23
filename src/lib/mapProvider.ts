@@ -1,5 +1,6 @@
 import type { Locale } from '../i18n/locale'
-import { createKakaoMap, type KakaoMapInstance, type KakaoOverlay } from './kakaoMap'
+import { createKakaoMap, loadKakaoSdk, type KakaoMapInstance, type KakaoOverlay } from './kakaoMap'
+import { loadMapSdkScript } from './mapSdkScript'
 import {
   loadedNaverMapLanguage,
   mapLevelFromNaverZoom,
@@ -178,22 +179,11 @@ async function loadNaverSdk(language: NaverMapLanguage, signal?: AbortSignal) {
   if (!naverSdkPromise) {
     // The SDK is shared across maps. Unmounting one map must not cancel the
     // configuration request that another map is already waiting for.
-    naverSdkPromise = fetchNaverClientId().then(clientId => new Promise<void>((resolve, reject) => {
-      const existing = document.querySelector<HTMLScriptElement>('script[data-geupddong-map-provider="naver"]')
-      const script = existing ?? document.createElement('script')
-      if (!existing) {
-        script.dataset.geupddongMapProvider = 'naver'
-        script.dataset.geupddongMapLanguage = language
-        script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(clientId)}&language=${language}`
-        script.async = true
-        document.head.append(script)
-      }
-      const loaded = () => window.naver?.maps?.Map ? resolve() : reject(new Error('네이버 지도 SDK를 초기화하지 못했습니다.'))
-      if (window.naver?.maps?.Map) resolve()
-      else {
-        script.addEventListener('load', loaded, { once: true })
-        script.addEventListener('error', () => reject(new Error('네이버 지도 SDK를 불러오지 못했습니다.')), { once: true })
-      }
+    naverSdkPromise = fetchNaverClientId().then(clientId => loadMapSdkScript({
+      provider: 'naver', language,
+      src: `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${encodeURIComponent(clientId)}&language=${language}`,
+      ready: () => Boolean(window.naver?.maps?.Map),
+      errorMessage: '네이버 지도 SDK를 불러오지 못했습니다.',
     })).catch(error => {
       naverSdkPromise = undefined
       throw error
@@ -202,6 +192,11 @@ async function loadNaverSdk(language: NaverMapLanguage, signal?: AbortSignal) {
   await naverSdkPromise
   signal?.throwIfAborted()
   if (naverMapLanguageNeedsReload(loadedNaverMapLanguage(), language)) throw new NaverMapLanguageReloadRequired()
+}
+
+/** Start the selected SDK before the larger interactive map bundle is ready. */
+export function prepareMapSdk(locale: Locale) {
+  return resolveMapProvider(locale) === 'kakao' ? loadKakaoSdk() : loadNaverSdk(naverMapLanguageForLocale(locale))
 }
 
 export async function createMap(

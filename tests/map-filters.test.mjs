@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { enrichPreviewFilterMarkers, filterMapClusters, filterMapMarkers, matchesMapFilters,
+import { createPreviewFilterMarkerEnricher, enrichPreviewFilterMarkers, filterMapClusters, filterMapMarkers, matchesMapFilters,
   parseMapFilterInput, sanitizeMapFilterPoints } from '../src/lib/mapFilters.ts'
 import { POST } from '../src/app/api/map-filter-area/route.ts'
 
@@ -53,6 +53,23 @@ test('filter source rejects duplicate identities, invalid flags, NaNs and out-of
 test('preview enriches current public markers only, excluding missing IDs and moved coordinates', () => {
   assert.deepEqual(enrichPreviewFilterMarkers([{ ...markers[2], filterFlags: undefined },
     { ...markers[3], latitude: 37.56 }, { ...markers[4], id: 99999 }], points), [markers[2]])
+})
+
+test('one preview enrichment index preserves position tolerance and current names across multiple cell batches', () => {
+  const enrich = createPreviewFilterMarkerEnricher(points)
+  const near = { ...markers[2], name: '현재 공개 이름', latitude: markers[2].latitude + 0.000009,
+    filterFlags: undefined, filterSchema: undefined }
+  const moved = { ...markers[3], longitude: markers[3].longitude + 0.000011 }
+  const first = [near, moved]
+  assert.deepEqual(enrich(first), enrichPreviewFilterMarkers(first, points))
+  const result = enrich(first)
+  assert.equal(result.length, 1)
+  assert.equal(result[0].name, '현재 공개 이름')
+  assert.equal(result[0].filterFlags, points[2][3])
+  assert.equal(result[0].filterSchema, 3)
+  result[0].filterFlags = 0
+  assert.equal(enrich([markers[2], { ...markers[4], id: 99999 }])[0].filterFlags, points[2][3])
+  assert.equal(near.filterFlags, undefined)
 })
 
 test('request validation rejects coercions, malformed mask, huge private selections and invalid bounds', () => {

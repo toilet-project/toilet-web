@@ -1,7 +1,7 @@
 'use client'
 import { homeCopy } from './i18n/homeCopy'
 import { MapLoadingState } from './components/MapStartup'
-import { PublicReviews, PublicReviewsLoading } from './components/reviews/PublicReviews'
+import { PublicReviewsLoading } from './components/reviews/PublicReviewsLoading'
 import { ToiletEngagement, type EngagementProps } from './components/ToiletEngagement'
 import { EngagementPreviewTools } from './components/EngagementPreviewTools'
 import { MapFilterBar } from './components/MapFilterBar'
@@ -13,6 +13,10 @@ import { mapFilterCopy, mapFilterCountLabel } from './i18n/mapFilterCopy'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, type ToiletMapSearchResponse } from './api/toilets'
 import { createDetailCache } from './lib/detailCache'
+import { createMapRequestCoalescer } from './lib/mapRequestCoalescer'
+import { createMapAccountScope } from './lib/mapAccountScope'
+import { createMapViewportClient } from './lib/mapViewportSourceCache'
+import { fetchMapSourceCells } from './api/mapSourceCells'
 import { createCardHandleGesture, createMarkerTapGesture, createReferenceRequestGate, relayoutPreservingCenter } from './lib/mapInteraction'
 import { cardPlacement } from './lib/cardPlacement'
 import { ToiletListItem } from './components/ToiletListItem'
@@ -46,12 +50,10 @@ import {
   type MapOverlay,
 } from './lib/mapProvider'
 import { usePlaceSearch } from './lib/usePlaceSearch'
-import { MobilePage, ToiletReportModal, QuickReportModal, MyReportsPanel, AccountDialog } from './components/MapLazyPanels'
+import { MobilePage, ToiletReportModal, QuickReportModal, MyReportsPanel, AccountDialog, PublicReviews, PolicyConsentModal, AccountRecoveryDialog } from './components/MapLazyPanels'
 import type { PlaceSearchResult } from './lib/placeSearchTypes'
 import { QUICK_REPORTS_ENABLED } from './api/quickReports'
 import { NotificationMenu } from './components/NotificationMenu'
-import { PolicyConsentModal } from './components/PolicyConsentModal'
-import { AccountRecoveryDialog } from './components/AccountRecoveryDialog'
 import { fetchUnreadNotificationCount } from './api/notifications'
 import { getDisplayAddress } from './lib/address'
 import { ToiletDetailContents, DetailRow } from './components/ToiletDetailContents'
@@ -72,6 +74,7 @@ import type { MapRouteData } from './components/mapRouteContext'
 import { DESKTOP_LAYOUT_QUERY } from './lib/responsiveLayout'
 import { mobileReportFocus } from './lib/accountNavigation'
 import { resolveDistanceReference, type DistanceSource } from './lib/distanceReference'
+import { calculateDistanceInMeters, orderMapListByDistance } from './lib/mapListOrder'
 import { initialMapLocation, isKoreanMapLocation, SEOUL_STATION } from './lib/mapStart'
 import { TRANSIENT_NOTICE_MS } from './lib/uiTiming'
 import { BrowserLocationError, requestBrowserLocation } from './lib/browserLocation'
@@ -79,6 +82,7 @@ import { warmOwnPhoto } from './lib/warmOwnPhoto'
 import { refreshSignupPhoto } from './lib/signupPhotoWarm'
 import { prefetchPublicReviews, PUBLIC_REVIEW_API_ENABLED } from './lib/publicReviewPrefetch'
 import { trackEvent } from './lib/analytics'
+import { beginMapTiming, installMapTimingOutput, mapTimingEnabled, markMapTiming } from './lib/mapTiming'
 import { localizeToiletDetail, localizeToiletMapItem, localizeToiletMapSearch } from './i18n/toiletTranslations'
 const toiletMarkerLogo = '/toilet-marker-logo.svg'
 
@@ -100,19 +104,6 @@ const PENDING_MY_REPORTS_KEY = 'geupddong.pending-my-reports'
 const PENDING_MOBILE_TAB_KEY = 'geupddong.pending-mobile-tab'
 const PENDING_INBOX_KEY = 'geupddong.pending-inbox'
 
-
-function calculateDistanceInMeters(from: Coordinates, to: Coordinates) {
-  const earthRadiusInMeters = 6_371_000
-  const toRadians = (degree: number) => degree * (Math.PI / 180)
-  const latitudeDelta = toRadians(to.latitude - from.latitude)
-  const longitudeDelta = toRadians(to.longitude - from.longitude)
-  const latitudeFrom = toRadians(from.latitude)
-  const latitudeTo = toRadians(to.latitude)
-  const haversine = Math.sin(latitudeDelta / 2) ** 2
-    + Math.cos(latitudeFrom) * Math.cos(latitudeTo) * Math.sin(longitudeDelta / 2) ** 2
-
-  return 2 * earthRadiusInMeters * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
-}
 
 function formatDistance(distanceInMeters: number) {
   if (distanceInMeters < 1_000) return `${Math.round(distanceInMeters / 10) * 10}m`
@@ -185,6 +176,7 @@ function groupPointsByScreenGrid(map: MapInstance, points: MapPoint[]) {
 function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash = '' }: { route: MapRouteData; onNavigate: (id: number | null) => void; onMounted: () => void; onLocaleChange: (locale: Locale, id: number | null) => void; testToiletHash?: string }) {
   const locale = useLocale()
   const mapRuntimeKey = mapSdkIdentity(locale)
+  const [mapRetryVersion, setMapRetryVersion] = useState(0)
   const t = useMessages()
   const mapLocale = useRef(locale)
   useLayoutEffect(() => {
@@ -223,8 +215,17 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const locationWatchGeneration = useRef(0)
   const locationRequestRef = useRef<AbortController | null>(null)
   const requestSequenceRef = useRef(0)
-  const mapRequestAbortRef = useRef<AbortController | null>(null)
+  const [mapRequests] = useState(createMapRequestCoalescer)
+  const [mapViewportClient] = useState(() => createMapViewportClient({
+    fetchFallback: fetchToiletsInBounds, fetchCells: fetchMapSourceCells,
+  }))
   const mobileListAbortRef = useRef<AbortController | null>(null)
+  const invalidateMapSources = useCallback(() => {
+    requestSequenceRef.current++
+    mapRequests.cancel()
+    mobileListAbortRef.current?.abort()
+    mapViewportClient.clear()
+  }, [mapRequests, mapViewportClient])
   const mapInteractionRef = useRef(false)
   const markerClickUntilRef = useRef(0)
   const selectedToiletRef = useRef<SelectedToilet | null>(initialSelected)
@@ -240,6 +241,21 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [lastSuccessfulMapUpdate, setLastSuccessfulMapUpdate] = useState<Date | null>(null)
+  const [regionsPrefetchReady, setRegionsPrefetchReady] = useState(false)
+  const hasSuccessfulMapUpdate = lastSuccessfulMapUpdate !== null
+  useEffect(() => {
+    if (!hasSuccessfulMapUpdate || regionsPrefetchReady) return
+    // Give the first map result a paint before loading the region destination.
+    // Hover, keyboard focus and touch can still opt in immediately in the links.
+    let secondFrame: number | undefined
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => setRegionsPrefetchReady(true))
+    })
+    return () => {
+      window.cancelAnimationFrame(firstFrame)
+      if (secondFrame !== undefined) window.cancelAnimationFrame(secondFrame)
+    }
+  }, [hasSuccessfulMapUpdate, regionsPrefetchReady])
   const [result, setResult] = useState<ToiletMapSearchResponse | null>(null)
   const [isMapReady, setIsMapReady] = useState(false)
   const [isMapSwitching, setIsMapSwitching] = useState(false)
@@ -948,7 +964,9 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   }, [selectedToilet, expandedCoordinateToilet, result, isMapReady, locale, suppressMapClickFromMarker, testToilet, hasMapFilters])
 
   const renderResult = useCallback((map: MapInstance, response: ToiletMapSearchResponse) => {
+    const totalDone = beginMapTiming('marker-total')
     clearOverlays()
+    const groupDone = beginMapTiming('marker-group')
     const displayResponse = localizeToiletMapSearch(response, mapLocale.current)
 
     const points: MapPoint[] = displayResponse.meta.display_type === 'CLUSTER'
@@ -959,6 +977,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       : points
 
     const shouldShowToiletName = map.getLevel() <= 4 && displayResponse.meta.display_type !== 'CLUSTER'
+    groupDone()
+    const buildDone = beginMapTiming('marker-build')
 
     overlaysRef.current = displayPoints.map((point) => {
       if (point.count > 1) {
@@ -1055,8 +1075,12 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       })
     })
 
+    buildDone()
+    const attachDone = beginMapTiming('marker-attach')
     overlaysRef.current.forEach((overlay) => overlay.setMap(map))
     localizeMapLabels(mapContainerRef.current, mapLocale.current)
+    attachDone()
+    totalDone()
   }, [clearOverlays, openCoordinateGroup, selectToilet, suppressMapClickFromMarker])
 
   const loadMapArea = useCallback(async () => {
@@ -1065,45 +1089,114 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     const filters = mapFilterRequestRef.current
     if (filters.blocked) { setIsLoading(!filters.error); return }
 
-    const requestSequence = ++requestSequenceRef.current
-    mapRequestAbortRef.current?.abort()
-    mobileListAbortRef.current?.abort()
-    setIsMobileAreaListLoading(false)
-    const controller = new AbortController()
-    mapRequestAbortRef.current = controller
     const bounds = map.getBounds()
     const southWest = bounds.getSouthWest()
     const northEast = bounds.getNorthEast()
+    const params = {
+      southLat: southWest.getLat(),
+      northLat: northEast.getLat(),
+      westLng: southWest.getLng(),
+      eastLng: northEast.getLng(),
+      zoom: map.getLevel(),
+      includeList: window.matchMedia(DESKTOP_LAYOUT_QUERY).matches && map.getLevel() <= MAX_LIST_ZOOM_LEVEL,
+      ...(MAP_FILTERS_ENABLED ? { filterFlags: filters.filterFlags, likedIds: filters.likedIds } : {}),
+    }
+    // Initial SDK idle/relayout can repeat an unchanged viewport while its
+    // first response is pending. Share it instead of cancelling and starting over.
+    // The filter object is a request scope: logout/likes revisions replace it.
+    return mapRequests.run([map, filters, params.southLat, params.northLat, params.westLng, params.eastLng,
+      params.zoom, params.includeList], async signal => {
+      const requestSequence = ++requestSequenceRef.current
+      mobileListAbortRef.current?.abort()
+      setIsMobileAreaListLoading(false)
+      setIsLoading(true)
+      const dataDone = beginMapTiming('map-data')
+      try {
+        const response = await (MAP_FILTERS_ENABLED
+          ? mapViewportClient.fetch(params, signal) : fetchToiletsInBounds(params, signal))
+        dataDone()
 
-    setIsLoading(true)
-    try {
-      const response = await fetchToiletsInBounds({
-        southLat: southWest.getLat(),
-        northLat: northEast.getLat(),
-        westLng: southWest.getLng(),
-        eastLng: northEast.getLng(),
-        zoom: map.getLevel(),
-        includeList: window.matchMedia(DESKTOP_LAYOUT_QUERY).matches && map.getLevel() <= MAX_LIST_ZOOM_LEVEL,
-        ...(MAP_FILTERS_ENABLED ? { filterFlags: filters.filterFlags, likedIds: filters.likedIds } : {}),
-      }, controller.signal)
-
-      if (requestSequence !== requestSequenceRef.current) return
-      setResult(response)
-      setError(null)
-      setLastSuccessfulMapUpdate(new Date())
-      setMobileAreaToilets(null)
-      renderResult(map, response)
-    } catch {
-      if (requestSequence === requestSequenceRef.current) {
-        setError('화장실 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+        if (signal.aborted || requestSequence !== requestSequenceRef.current) return
+        setResult(response)
+        setError(null)
+        setLastSuccessfulMapUpdate(new Date())
+        setMobileAreaToilets(null)
+        renderResult(map, response)
+      } catch {
+        if (!signal.aborted && requestSequence === requestSequenceRef.current) {
+          setError('화장실 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.')
+        }
+      } finally {
+        dataDone()
+        if (!signal.aborted && requestSequence === requestSequenceRef.current) setIsLoading(false)
       }
-    } finally {
-      if (requestSequence === requestSequenceRef.current) {
-        mapRequestAbortRef.current = null
-        setIsLoading(false)
+    })
+  }, [mapRequests, mapViewportClient, renderResult])
+
+  useLayoutEffect(() => {
+    installMapTimingOutput()
+    markMapTiming('app-mounted')
+  }, [])
+  useLayoutEffect(() => {
+    if (!mapTimingEnabled() || !result || isLoading) return
+    markMapTiming('result-committed')
+    let secondFrame = 0
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => markMapTiming('result-frame'))
+    })
+    return () => { cancelAnimationFrame(firstFrame); cancelAnimationFrame(secondFrame) }
+  }, [result, isLoading])
+
+  const [mapAccountScope] = useState(() => createMapAccountScope({ owner: activeFilterOwner, authLoading: isAuthLoading }))
+  useLayoutEffect(() => {
+    if (!MAP_FILTERS_ENABLED) return
+    const currentRequest = mapFilterRequestRef.current
+    const change = mapAccountScope.update({ owner: activeFilterOwner, authLoading: isAuthLoading,
+      publicSelection: mapFilterSelectionReady && !isMyMapFilter && !currentRequest.blocked && currentRequest.likedIds === undefined })
+    if (change === 'preserve-initial-public') markMapTiming('account-initial-public-preserved')
+    if (change !== 'reset') return
+    markMapTiming('account-scope-reset')
+    // Preserve only a public query during the first session resolution. Actual
+    // login/logout/account changes and private selections retain a full reset.
+    invalidateMapSources()
+    const timer = window.setTimeout(() => { void loadMapArea() }, 0)
+    return () => window.clearTimeout(timer)
+  }, [activeFilterOwner, isAuthLoading, mapFilterSelectionReady, isMyMapFilter, mapAccountScope, invalidateMapSources, loadMapArea])
+
+  const retryMap = useCallback(() => {
+    invalidateMapSources()
+    if (mapRef.current) { void loadMapArea(); return }
+    setError(null)
+    setIsLoading(true)
+    setMapRetryVersion(version => version + 1)
+  }, [invalidateMapSources, loadMapArea])
+
+  useEffect(() => {
+    if (!MAP_FILTERS_ENABLED) return
+    let wasHidden = document.visibilityState === 'hidden'
+    const visibility = () => {
+      if (document.visibilityState === 'hidden') {
+        wasHidden = true
+        invalidateMapSources()
+      } else if (wasHidden) {
+        wasHidden = false
+        markMapTiming('visibility-refresh')
+        void loadMapArea()
       }
     }
-  }, [renderResult])
+    const restored = (event: PageTransitionEvent) => {
+      if (!event.persisted) return
+      invalidateMapSources()
+      void loadMapArea()
+    }
+    document.addEventListener('visibilitychange', visibility)
+    window.addEventListener('pageshow', restored)
+    return () => {
+      document.removeEventListener('visibilitychange', visibility)
+      window.removeEventListener('pageshow', restored)
+      invalidateMapSources()
+    }
+  }, [invalidateMapSources, loadMapArea])
 
   const mapFilterInitialized = useRef(false)
   const previousMapFilterSelection = useRef({ flags: mapFilterFlags, mine: isMyMapFilter })
@@ -1118,7 +1211,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     // Change the query, not the SDK: keep its camera and event listeners intact.
     // Remove the previous result before paint so unfiltered/private rows never masquerade as the new filter.
     requestSequenceRef.current++
-    mapRequestAbortRef.current?.abort()
+    mapRequests.cancel()
     mobileListAbortRef.current?.abort()
     window.clearTimeout(mapLoadTimerRef.current)
     clearOverlays()
@@ -1129,7 +1222,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     if (!mapFilterRequestRef.current.blocked) mapFilterInitialized.current = true
     setResult(null); setMobileAreaToilets(null); setIsMobileAreaListLoading(false); setError(null)
     void loadMapArea()
-  }, [mapFilterSelectionReady, mapFilterFlags, isMyMapFilter, mapFilterLikes.ids, mapFilterLikes.error, clearOverlays, loadMapArea, closeDetailCard])
+  }, [mapFilterSelectionReady, mapFilterFlags, isMyMapFilter, mapFilterLikes.ids, mapFilterLikes.error, clearOverlays, loadMapArea, closeDetailCard, mapRequests])
 
   useEffect(() => {
     if (!error || !result) return
@@ -1140,6 +1233,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
   const scheduleMapAreaLoad = useCallback(() => {
     window.clearTimeout(mapLoadTimerRef.current)
     mapLoadTimerRef.current = window.setTimeout(() => {
+      markMapTiming('viewport-refresh')
       void loadMapArea()
     }, 180)
   }, [loadMapArea])
@@ -1352,7 +1446,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         const requestedCenter = snapshot?.center ?? resume?.center ?? toiletCoordinates(initialRouteRef.current.detail) ?? toiletCoordinates(testToilet)
         const { center, usedFallback } = initialMapLocation(requestedCenter)
         const level = usedFallback ? 6 : snapshot?.level ?? resume?.level ?? (initialRouteRef.current.detail || testToilet ? 4 : 6)
-        const map = await createMap(container, center, level, mapLocale.current, controller.signal)
+        const mapDone = beginMapTiming('map-create')
+        const map = await createMap(container, center, level, mapLocale.current, controller.signal).finally(mapDone)
         if (disposed) return
         mapRef.current = map
         mapSwitchSnapshotRef.current = null
@@ -1440,7 +1535,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     return () => {
       disposed = true
       controller.abort()
-      mapRequestAbortRef.current?.abort()
+      mapRequests.cancel()
+      mapViewportClient.clear()
       mobileListAbortRef.current?.abort()
       referenceRequestGate.invalidate()
       locationRequestRef.current?.abort()
@@ -1475,7 +1571,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
       window.clearTimeout(mapLoadTimerRef.current)
       window.clearTimeout(locationMessageTimerRef.current)
     }
-  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, stopCurrentLocationWatch, referenceRequestGate, testToilet, mapRuntimeKey])
+  }, [clearOverlays, closeDetailCard, loadMapArea, moveToCurrentLocation, positionSelectedCard, scheduleMapAreaLoad, updateReferencePoint, resume, updateCurrentLocation, stopCurrentLocationWatch, referenceRequestGate, testToilet, mapRuntimeKey, mapRetryVersion, mapRequests, mapViewportClient])
 
   const distanceReference = resolveDistanceReference(distanceSource, mapCenter, currentLocation)
   const displaySelectedToilet = selectedToilet ? localizeToiletMapItem(selectedToilet, locale) : null
@@ -1501,9 +1597,12 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     [isListZoomLimited, locale, mobileAreaToilets, result?.toilets],
   )
   const groupedAreaToilets = useMemo(() => groupToiletsByCoordinate(areaToilets, locale), [areaToilets, locale])
-  const sortedAreaToiletGroups = distanceReference
-    ? [...groupedAreaToilets].sort((left, right) => calculateDistanceInMeters(distanceReference, left) - calculateDistanceInMeters(distanceReference, right))
-    : groupedAreaToilets
+  const listReferenceLatitude = distanceReference?.latitude
+  const listReferenceLongitude = distanceReference?.longitude
+  const sortedAreaToiletGroups = useMemo(() => orderMapListByDistance(groupedAreaToilets,
+    listReferenceLatitude === undefined || listReferenceLongitude === undefined
+      ? null : { latitude: listReferenceLatitude, longitude: listReferenceLongitude }),
+  [groupedAreaToilets, listReferenceLatitude, listReferenceLongitude])
 
   const toggleMobileAreaList = useCallback(async () => {
     if (isMobileAreaListVisible) {
@@ -1533,7 +1632,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     const filters = mapFilterRequestRef.current
     if (filters.blocked) { setIsMobileAreaListLoading(false); return }
     try {
-      const response = await fetchToiletsInBounds({
+      const query = {
         southLat: southWest.getLat(),
         northLat: northEast.getLat(),
         westLng: southWest.getLng(),
@@ -1541,7 +1640,9 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         zoom: map.getLevel(),
         includeList: true,
         ...(MAP_FILTERS_ENABLED ? { filterFlags: filters.filterFlags, likedIds: filters.likedIds } : {}),
-      }, controller.signal)
+      }
+      const response = await (MAP_FILTERS_ENABLED ? mapViewportClient.fetch(query, controller.signal)
+        : fetchToiletsInBounds(query, controller.signal))
       if (controller.signal.aborted || requestSequence !== requestSequenceRef.current) return
       setMobileAreaToilets(response.toilets)
     } catch {
@@ -1550,7 +1651,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
     } finally {
       if (mobileListAbortRef.current === controller) { mobileListAbortRef.current = null; setIsMobileAreaListLoading(false) }
     }
-  }, [closeDetailCard, isMobileAreaListVisible, result, showMobileZoomGuide])
+  }, [closeDetailCard, isMobileAreaListVisible, mapViewportClient, result, showMobileZoomGuide])
 
   const selectMobileAreaToilet = useCallback((toilet: ToiletMapItem) => {
     const map = mapRef.current
@@ -1651,7 +1752,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
             ><strong>{place.name}</strong><span className="place-search-result-detail"><small>{place.category || t('map.place')}</small><span>{place.address || t('map.noAddress')}</span></span></button>)}
           </div>}
         </div>
-        {isDesktop && <PrimaryNavigation className="desktop-primary-nav" active="map" />}
+        {isDesktop && <PrimaryNavigation className="desktop-primary-nav" active="map" regionsPrefetch={regionsPrefetchReady} />}
         {!isDesktop && <div className="mobile-header-actions">
           {!isAuthLoading && !authProfile && <button type="button" className="auth-button" onClick={() => setMobileTab('account')}>{t('auth.login')}</button>}
           {ENGLISH_UI_ENABLED && <LanguageSelector locale={locale} onSelect={next => onLocaleChange(next, testToilet ? null : selectedToilet?.id ?? expandedCoordinateToilet?.id ?? null)} />}
@@ -1664,7 +1765,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         </div>
       </header>
 
-      <section className="map-section" aria-label={t('map.title')}>
+      <section className="map-section" aria-label={t('map.title')} aria-busy={isLoading}>
         <div className={`map-stage${MAP_FILTERS_ENABLED ? ' has-map-filters' : ''}`} inert={!isDesktop && mobileTab !== 'map'} style={!isDesktop && mobileTab !== 'map' ? { visibility: 'hidden' } : undefined}>
         <div ref={mapContainerRef} className="map" />
         {MAP_FILTERS_ENABLED && <MapFilterBar locale={locale} flags={mapFilterFlags} mine={isMyMapFilter}
@@ -1678,7 +1779,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           listButton={!isDesktop ? <button className={`mobile-area-list-button${isMobileAreaListVisible ? ' is-open' : ''}${isLoading ? ' is-loading' : ''}`} type="button" onClick={() => void toggleMobileAreaList()} aria-label={`${isMobileAreaListVisible ? t('map.closeList') : t('map.list')}${result ? ` (${result.meta.total_count.toLocaleString(locale)})` : ''}`} aria-expanded={isMobileAreaListVisible} aria-busy={isLoading} disabled={isLoading || !result}>{filterCopy.list}{result && ` (${mapFilterCountLabel(result.meta.total_count)})`}</button> : undefined} />}
         {hasMapFilters && (isLoading || mapFilterLikes.error || error || result?.meta.total_count === 0) && <div className="map-filter-status" role="status" aria-live="polite">
           <span>{isLoading ? filterCopy.loading : mapFilterLikes.error || error ? filterCopy.error : filterCopy.empty}</span>
-          {!isLoading && (mapFilterLikes.error || error) && <button type="button" onClick={() => mapFilterLikes.error ? mapFilterLikes.retry() : void loadMapArea()}>{filterCopy.retry}</button>}
+          {!isLoading && (mapFilterLikes.error || error) && <button type="button" onClick={() => mapFilterLikes.error ? mapFilterLikes.retry() : retryMap()}>{filterCopy.retry}</button>}
         </div>}
         {!isMapReady && !isMapSwitching && !error && <MapLoadingState locale={locale} />}
         <div className={`map-provider-transition${isMapSwitching ? ' is-visible' : ''}`} role={isMapSwitching ? 'status' : undefined} aria-hidden={!isMapSwitching}>
@@ -1691,7 +1792,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
             <strong>{t('map.connectionLost')}</strong>
             <span>{t('map.updated', { time: formatLastUpdatedAt(lastSuccessfulMapUpdate, locale) })}</span>
           </div>
-          <button type="button" onClick={() => void loadMapArea()} disabled={isLoading}>{t(isLoading ? 'map.reconnecting' : 'map.reconnect')}</button>
+          <button type="button" onClick={retryMap} disabled={isLoading}>{t(isLoading ? 'map.reconnecting' : 'map.reconnect')}</button>
         </div>}
         <p className="desktop-map-reference-hint">{t('map.referenceHint')}</p>
         <div className={`map-controls${hasMapCard ? ' is-with-card' : ''}`}>
@@ -1699,7 +1800,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
             {isLoading && <span className="map-loading-message">{t('map.loading')}</span>}
             {!isLoading && result && <span className="map-area-count">{t('map.area', { count: result.meta.total_count.toLocaleString(locale) })}{result.meta.display_type === 'CLUSTER' ? t('map.clustered') : ''}</span>}
             {!MAP_FILTERS_ENABLED && result && <button className={`mobile-area-list-button${isMobileAreaListVisible ? ' is-open' : ''}${isLoading ? ' is-loading' : ''}`} type="button" onClick={() => void toggleMobileAreaList()} aria-expanded={isMobileAreaListVisible} aria-busy={isLoading} disabled={isLoading}>{isLoading ? t('map.loading') : isMobileAreaListVisible ? t('map.closeList') : t('map.area', { count: result.meta.total_count.toLocaleString(locale) })}</button>}
-            {error && !result && !hasMapFilters && <span className="error-message">{mapSystemNotice(error, locale)}</span>}
+            {error && !result && !hasMapFilters && <><span className="error-message">{mapSystemNotice(error, locale)}</span><button type="button" onClick={retryMap} disabled={isLoading}>{t(isLoading ? 'map.reconnecting' : 'map.reconnect')}</button></>}
           </div>
           <button className={`location-button${hasMapCard ? ' is-with-card' : ''}`} type="button" onClick={() => void moveToCurrentLocation()} disabled={isLocating}>
             {isLocating ? t('map.checking') : t('map.currentLocation')}
@@ -1721,9 +1822,9 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           <div className="desktop-area-list-content">
             {isListZoomLimited && <p className="map-list-zoom-guide">{t('map.zoomList')}</p>}
             {!isListZoomLimited && areaToilets.length === 0 && !isLoading && <p className="desktop-area-list-status">{t('map.empty')}</p>}
-            {!isListZoomLimited && sortedAreaToiletGroups.map((group) => {
+            {!isListZoomLimited && sortedAreaToiletGroups.map(({ group, distanceInMeters }) => {
               const representative = representativeToilet(group)
-              const distance = distanceReference ? formatDistance(calculateDistanceInMeters(distanceReference, representative)) : '—'
+              const distance = distanceInMeters === null ? '—' : formatDistance(distanceInMeters)
               return <ToiletListItem key={`${group.latitude}:${group.longitude}`} id={representative.id} name={group.displayGroupName || representative.name || ''} type={representative.toiletType} count={group.count} distance={distance}
                 active={selectedToilet?.id === representative.id || selectedCoordinateGroup?.latitude === group.latitude && selectedCoordinateGroup?.longitude === group.longitude}
                 onSelect={() => selectMobileAreaToilet(representative)} />
@@ -1736,9 +1837,9 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           <div className="mobile-area-list-content">
             {!isListZoomLimited && isMobileAreaListLoading && <p className="mobile-area-list-status">{t('common.loading')}</p>}
             {!isListZoomLimited && !isMobileAreaListLoading && areaToilets.length === 0 && <p className="mobile-area-list-status">{t('map.empty')}</p>}
-            {!isListZoomLimited && !isMobileAreaListLoading && sortedAreaToiletGroups.map((group) => {
+            {!isListZoomLimited && !isMobileAreaListLoading && sortedAreaToiletGroups.map(({ group, distanceInMeters }) => {
               const representative = representativeToilet(group)
-              const distance = distanceReference ? formatDistance(calculateDistanceInMeters(distanceReference, representative)) : '—'
+              const distance = distanceInMeters === null ? '—' : formatDistance(distanceInMeters)
               return <ToiletListItem key={`${group.latitude}:${group.longitude}`} id={representative.id} name={group.displayGroupName || representative.name || ''} type={representative.toiletType} count={group.count} distance={distance}
                 active={selectedToilet?.id === representative.id || selectedCoordinateGroup?.latitude === group.latitude && selectedCoordinateGroup?.longitude === group.longitude}
                 onSelect={() => selectMobileAreaToilet(representative)} />
@@ -1859,8 +1960,8 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
           onProfile={setAuthProfile} onReports={openMyReports} onAccount={() => setMobileAccountView('settings')} onWithdrawn={handleWithdrawn} onLogout={handleLogout} onCountChange={refreshNotificationCount} onOpenReport={showReportHistory}
           beforeLogin={tab => { try { window.sessionStorage.setItem(PENDING_MOBILE_TAB_KEY, tab) } catch { /* 로그인은 계속 제공 */ } }} />}
         {reportTarget && (QUICK_REPORTS_ENABLED
-          ? <QuickReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} identity={isAuthLoading ? 'loading' : authProfile ? 'member' : 'guest'} onClose={() => setReportTarget(null)} />
-          : <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => setReportTarget(null)} onViewMyReports={() => { setReportTarget(null); showReportHistory() }} />)}
+          ? <QuickReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} identity={isAuthLoading ? 'loading' : authProfile ? 'member' : 'guest'} onClose={() => { invalidateMapSources(); setReportTarget(null); void loadMapArea() }} />
+          : <ToiletReportModal toilet={reportTarget.toilet} latitude={reportTarget.latitude} longitude={reportTarget.longitude} onClose={() => { invalidateMapSources(); setReportTarget(null); void loadMapArea() }} onViewMyReports={() => { invalidateMapSources(); setReportTarget(null); showReportHistory(); void loadMapArea() }} />)}
         {reviewPreview.modal}
         {authProfile && isDesktop && isMyReportsOpen && <MyReportsPanel key={`reports-${authProfile.userId}`} onSessionExpired={handleSessionExpired} initialExpandedId={focusedReportId} onClose={() => { setIsMyReportsOpen(false); setFocusedReportId(null) }} />}
         {isLoginDialogOpen && <LoginDialog purpose={loginPurpose} onClose={closeLoginDialog} />}
@@ -1874,7 +1975,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         </section></div>}
         {!isAuthLoading && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('recovery') === 'required' && <AccountRecoveryDialog />}
       </section>
-      {isDesktop ? <SiteFooter homeIntro={route.path === localizedPublicPath('/', locale)} /> : <MobileNavigation tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { setLikedMapTarget(null); reviewPreview.close(); setMobileAccountView('home'); setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
+      {isDesktop ? <SiteFooter homeIntro={route.path === localizedPublicPath('/', locale)} /> : <MobileNavigation regionsPrefetch={regionsPrefetchReady} tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { setLikedMapTarget(null); reviewPreview.close(); setMobileAccountView('home'); setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
     </main>
   )
 }

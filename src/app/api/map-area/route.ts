@@ -1,5 +1,5 @@
 import { cellsForBounds, mapCellZoomSupported, mergeMapCells, type MapBounds } from '../../../lib/mapCells'
-import { fetchMapCellOrigin, getMapCellBucket, readThroughMapCell } from '../../../server/mapCellCache'
+import { fetchMapCellOrigin, getMapCellBucket, readThroughMapCells, type CellReadResult } from '../../../server/mapCellCache'
 
 export const runtime = 'nodejs'
 const headers = { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex, nofollow' }
@@ -22,15 +22,13 @@ export async function GET(request: Request) {
   if (!input || !cells) return Response.json({ error: 'Unsupported viewport' }, { status: 400, headers })
   try {
     const bucket = await getMapCellBucket()
-    const results: Awaited<ReturnType<typeof readThroughMapCell>>[] = []
-    let cursor = 0
-    await Promise.all(Array.from({ length: Math.min(4, cells.length) }, async () => {
-      while (cursor < cells.length) {
-        const cell = cells[cursor++]
-        results.push(bucket ? await readThroughMapCell({ bucket, cell })
-          : { toilets: await fetchMapCellOrigin(cell), source: 'miss' })
-      }
-    }))
+    const results: CellReadResult[] = bucket ? await readThroughMapCells({ bucket, cells }) : []
+    if (!bucket) {
+      let cursor = 0
+      await Promise.all(Array.from({ length: Math.min(4, cells.length) }, async () => {
+        while (cursor < cells.length) results.push({ toilets: await fetchMapCellOrigin(cells[cursor++]), source: 'miss' })
+      }))
+    }
     const merged = mergeMapCells(input.bounds, input.zoom, results.map(result => ({
       meta: { map_level: input.zoom, display_type: 'MARKER' as const,
         total_count: result.toilets.length, result_count: result.toilets.length },

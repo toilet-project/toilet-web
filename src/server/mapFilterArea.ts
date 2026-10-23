@@ -1,10 +1,10 @@
 import type { ToiletMapItemResponse, ToiletMapSearchResponse } from '../api/toilets'
 import { cellsForBounds, type MapBounds } from '../lib/mapCells.ts'
 import { mapClusterZoomSupported } from '../lib/mapClusters.ts'
-import { enrichPreviewFilterMarkers, filterMapClusters, filterMapMarkers, completeFilterMarker,
+import { createPreviewFilterMarkerEnricher, filterMapClusters, filterMapMarkers, completeFilterMarker,
   type MapFilterInput } from '../lib/mapFilters.ts'
 import { fetchMapCellOrigin, sanitizeMapCellOriginResponse } from './mapCellCache.ts'
-import { mapFilterPreviewEnabled, readPreviewMapFilterSource, readThroughFilterCell,
+import { mapFilterPreviewEnabled, readPreviewMapFilterSource, readThroughFilterCells,
   readThroughMapFilterSource, type MapFilterSource } from './mapFilterCache.ts'
 import type { R2BucketLike } from './sharedToiletCache'
 
@@ -51,25 +51,22 @@ export async function readMapFilterArea(bucket: R2BucketLike, input: MapFilterIn
     return { response: filterMapClusters(source.points, input), originReads: source.source === 'miss' ? 1 : 0,
       sourceDate: source.sourceDate, source: source.source }
   }
+  const enrichPreview = preview ? createPreviewFilterMarkerEnricher(source!.points) : undefined
   const enrich = (markers: ToiletMapItemResponse[]) => {
-    if (preview) return enrichPreviewFilterMarkers(markers, source!.points)
+    if (enrichPreview) return enrichPreview(markers)
     if (markers.some(marker => !completeFilterMarker(marker))) throw new Error('Map filter API not ready')
     return markers
   }
   let markers: ToiletMapItemResponse[] = []
   let originReads = 0
   if (cells) {
-    let cursor = 0
-    await Promise.all(Array.from({ length: Math.min(4, cells.length) }, async () => {
-      while (cursor < cells.length) {
-        const cell = cells[cursor++]
-        const result = await readThroughFilterCell({ bucket, cell, previewSourceDate: source?.sourceRevision,
-          fetchOrigin: async () => enrich(await fetchMapCellOrigin(cell)) })
-        // Refresh preview flags against the current snapshot even if the cell is warm.
-        markers.push(...enrich(result.toilets))
-        if (result.source === 'miss') originReads++
-      }
-    }))
+    const results = await readThroughFilterCells({ bucket, cells, previewSourceDate: source?.sourceRevision,
+      fetchOrigin: async cell => enrich(await fetchMapCellOrigin(cell)) })
+    for (const result of results) {
+      // Refresh preview flags against the current snapshot even if the cell is warm.
+      markers.push(...enrich(result.toilets))
+      if (result.source === 'miss') originReads++
+    }
   } else {
     markers = enrich(await fetchBoundedMarkers(bounds))
     originReads = 1

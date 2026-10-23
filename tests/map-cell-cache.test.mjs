@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { fetchMapCellOrigin, invalidateMapCells, mapCellGlobalKey, mapCellObjectKey, readThroughMapCell,
-  sanitizeMapCellOriginResponse } from '../src/server/mapCellCache.ts'
+  readThroughMapCells, sanitizeMapCellOriginResponse } from '../src/server/mapCellCache.ts'
 
 class FakeR2 {
-  objects = new Map(); sequence = 0
+  objects = new Map(); sequence = 0; readKeys = []
   async get(key) {
+    this.readKeys.push(key)
     const found = this.objects.get(key)
     return found ? { etag: found.etag, json: async () => JSON.parse(found.value) } : null
   }
@@ -23,6 +24,158 @@ const cell = { x: 2540, y: 750 }
 const marker = (name, id = 1) => ({ id, name, latitude: 37.525, longitude: 127.025 })
 const event = bounds => ({ toiletId: 1, revision: 1, action: 'UPSERT', catalogChanged: false,
   regionScopeComplete: true, regionBounds: bounds })
+const viewportCells = [cell, { ...cell, x: cell.x + 1 }, { ...cell, y: cell.y + 1 }, { x: cell.x + 1, y: cell.y + 1 }]
+
+test('a warm four-cell viewport shares two generation reads without sharing results between requests', async () => {
+  const bucket = new FakeR2()
+  const fetchOrigin = async cell => [marker(`cell-${cell.x}-${cell.y}`)]
+  await readThroughMapCells({ bucket, cells: viewportCells, fetchOrigin })
+  bucket.readKeys = []
+  const first = await readThroughMapCells({ bucket, cells: viewportCells,
+    fetchOrigin: async () => { throw new Error('warm viewport must not read origin') } })
+  assert.deepEqual(first.map(result => result.source), ['hit', 'hit', 'hit', 'hit'])
+  assert.deepEqual(first.map(result => result.toilets[0].name), viewportCells.map(cell => `cell-${cell.x}-${cell.y}`))
+  assert.equal(bucket.readKeys.length, 6)
+  assert.equal(bucket.readKeys.filter(key => key === mapCellGlobalKey()).length, 2)
+  bucket.readKeys = []
+  await readThroughMapCells({ bucket, cells: viewportCells, fetchOrigin })
+  assert.equal(bucket.readKeys.length, 6, 'each viewport checks the current persisted generation again')
+})
+
+test('a warm single cell starts its body alongside the initial generation and still rechecks generation', { timeout: 1_000 }, async () => {
+  const bucket = new FakeR2()
+  await readThroughMapCells({ bucket, cells: [cell], fetchOrigin: async () => [marker('warm')] })
+  bucket.readKeys = []
+  const get = bucket.get.bind(bucket)
+  let releaseGeneration
+  const bodyStarted = new Promise(resolve => { releaseGeneration = resolve })
+  let firstGeneration = true
+  bucket.get = async key => {
+    if (key === mapCellGlobalKey() && firstGeneration) {
+      firstGeneration = false
+      await bodyStarted
+    }
+    if (key === mapCellObjectKey(cell)) releaseGeneration()
+    return get(key)
+  }
+  const [result] = await readThroughMapCells({ bucket, cells: [cell],
+    fetchOrigin: async () => { throw new Error('warm single cell must not read origin') } })
+  assert.deepEqual(result, { toilets: [marker('warm')], source: 'hit' })
+  assert.equal(bucket.readKeys.length, 3, 'parallelizing the first reads does not remove visibility checks')
+  assert.equal(bucket.readKeys.filter(key => key === mapCellGlobalKey()).length, 2)
+})
+
+test('a cold single cell reuses its lease generation check without adding another R2 read', async () => {
+  const bucket = new FakeR2()
+  const [result] = await readThroughMapCells({ bucket, cells: [cell], fetchOrigin: async () => [marker('new')] })
+  assert.deepEqual(result, { toilets: [marker('new')], source: 'miss' })
+  assert.equal(bucket.readKeys.length, 3)
+  assert.equal(bucket.readKeys.filter(key => key === mapCellGlobalKey()).length, 2)
+})
+
+for (const cells of [[cell], viewportCells]) {
+test(`a global invalidation during a warm ${cells.length}-cell viewport reloads every cell before returning`, async () => {
+  const bucket = new FakeR2()
+  await readThroughMapCells({ bucket, cells, fetchOrigin: async () => [marker('old')] })
+  const get = bucket.get.bind(bucket); let invalidated = false; let originReads = 0
+  bucket.get = async key => {
+    const object = await get(key)
+    if (key !== mapCellObjectKey(cell) || invalidated) return object
+    return { ...object, json: async () => {
+      const value = await object.json()
+      invalidated = true
+      await invalidateMapCells(bucket, [{ ...event(null), regionScopeComplete: false }])
+      return value
+    } }
+  }
+  const results = await readThroughMapCells({ bucket, cells,
+    fetchOrigin: async () => { originReads++; return [marker('new')] } })
+  assert.ok(results.every(result => result.toilets[0].name === 'new'))
+  assert.equal(originReads, cells.length)
+  assert.ok(cells.every(cell => bucket.value(mapCellObjectKey(cell)).globalRevision === 1))
+})
+
+test(`parallel ${cells.length}-cell reads reject old cells even when the initial generation finishes after their bodies`, async () => {
+  const bucket = new FakeR2()
+  await readThroughMapCells({ bucket, cells, fetchOrigin: async () => [marker('old')] })
+  const get = bucket.get.bind(bucket)
+  let releaseGeneration
+  const afterBody = new Promise(resolve => { releaseGeneration = resolve })
+  let waitForBody = true; let bodyRead = false
+  bucket.get = async key => {
+    if (key === mapCellGlobalKey() && waitForBody) {
+      waitForBody = false
+      await afterBody
+    }
+    const object = await get(key)
+    if (key !== mapCellObjectKey(cell) || bodyRead) return object
+    return { ...object, json: async () => {
+      const value = await object.json()
+      bodyRead = true
+      await invalidateMapCells(bucket, [{ ...event(null), regionScopeComplete: false }])
+      releaseGeneration()
+      return value
+    } }
+  }
+  const results = await readThroughMapCells({ bucket, cells, fetchOrigin: async () => [marker('new')] })
+  assert.ok(results.every(result => result.toilets[0].name === 'new'))
+})
+}
+
+test('a scoped deletion refills only its cell and does not resurrect a removed marker', async () => {
+  const bucket = new FakeR2(); let originReads = 0
+  await readThroughMapCells({ bucket, cells: viewportCells, fetchOrigin: async () => [marker('visible')] })
+  await invalidateMapCells(bucket, [event({ west: 127.025, east: 127.025, south: 37.525, north: 37.525 })])
+  const results = await readThroughMapCells({ bucket, cells: viewportCells,
+    fetchOrigin: async () => { originReads++; return [] } })
+  assert.equal(originReads, 1)
+  assert.deepEqual(results[0], { toilets: [], source: 'miss' })
+  assert.ok(results.slice(1).every(result => result.source === 'hit'))
+})
+
+for (const cells of [[cell], viewportCells]) {
+test(`a scoped invalidation during a ${cells.length}-cell cold fetch defeats the old lease writer`, async () => {
+  const bucket = new FakeR2(); let targetedReads = 0
+  const results = await readThroughMapCells({ bucket, cells, fetchOrigin: async current => {
+    if (current.x !== cell.x || current.y !== cell.y) return [marker('unchanged')]
+    if (++targetedReads === 1) {
+      await invalidateMapCells(bucket, [event({ west: 127.025, east: 127.025, south: 37.525, north: 37.525 })])
+      return [marker('removed')]
+    }
+    return []
+  } })
+  assert.equal(targetedReads, 2)
+  assert.deepEqual(results[0].toilets, [])
+})
+
+test(`a global invalidation during a ${cells.length}-cell cold fetch cannot mix old and new generations`, async () => {
+  const bucket = new FakeR2(); let invalidated = false
+  const results = await readThroughMapCells({ bucket, cells, fetchOrigin: async () => {
+    if (!invalidated) {
+      invalidated = true
+      await invalidateMapCells(bucket, [{ ...event(null), regionScopeComplete: false }])
+      return [marker('old')]
+    }
+    return [marker('new')]
+  } })
+  assert.ok(results.every(result => result.toilets[0].name === 'new'))
+  assert.ok(cells.every(cell => bucket.value(mapCellObjectKey(cell)).globalRevision === 1))
+})
+
+test(`simultaneous ${cells.length}-cell cold viewports keep one origin lease per cell`, async () => {
+  const bucket = new FakeR2(); const reads = new Map()
+  const fetchOrigin = async cell => {
+    const key = mapCellObjectKey(cell)
+    reads.set(key, (reads.get(key) ?? 0) + 1)
+    await new Promise(resolve => setTimeout(resolve, 20))
+    return [marker('fresh')]
+  }
+  const results = await Promise.all(Array.from({ length: 8 }, () => readThroughMapCells({ bucket, cells, fetchOrigin })))
+  assert.equal(reads.size, cells.length)
+  assert.ok([...reads.values()].every(reads => reads === 1))
+  assert.ok(results.flat().every(result => result.toilets[0].name === 'fresh'))
+})
+}
 
 test('legacy map reads remain available when an older API rejects /map-cell', async () => {
   const originalFetch = globalThis.fetch
