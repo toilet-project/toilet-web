@@ -54,7 +54,7 @@ export function GrowthAwardNotifications({ profile }: { profile: AuthProfile }) 
       <button className="award-notice-close" type="button" aria-label={t.close} disabled={!demo && state.saving} onClick={() => { void dismiss() }}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6" /></svg></button>
       <div className={`award-notice-art${badges.length > 1 ? ' is-multiple' : ''}`} aria-hidden="true"><i className="award-spark s1" /><i className="award-spark s2" /><i className="award-spark s3" />{badges.slice(0, 3).map((badge, index) => <span key={`${badge.type}:${badge.code}:${badge.tier}`} style={{ '--award-index': index } as React.CSSProperties}>{growthBadgePath(badge, 80) ? <img src={growthBadgePath(badge, 80)!} width={80} height={80} alt="" /> : <b>✦</b>}</span>)}{badges.length > 3 && <em>+{badges.length - 3}</em>}</div>
       {demo && <p className="award-notice-demo">{t.demo}</p>}
-      <p className="award-notice-eyebrow">{badges.length > 1 ? t.multiple.replace('{count}', badges.length.toLocaleString(locale)) : t.single}</p>
+      {badges.length > 1 && <p className="award-notice-eyebrow">{t.multiple.replace('{count}', badges.length.toLocaleString(locale))}</p>}
       <h2>{t.title}</h2>
       <ul className="award-notice-earned">{badges.map(badge => <li key={`${badge.type}:${badge.code}:${badge.tier}`}><span>{description(badge)}</span><small>+{badge.xp.toLocaleString(locale)} XP</small></li>)}</ul>
       {!demo && state.error && <p className="award-notice-error" role="alert">{t.error}</p>}

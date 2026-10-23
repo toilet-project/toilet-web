@@ -5,6 +5,21 @@ import { createAwardNoticeStore, decodeAwardNotices } from '../src/lib/growthAwa
 
 const notice = (id = '1') => ({ id, badge: { type: 'district', code: '30110', name: '대전 동구', tier: null, xp: 20, earnedAt: '2026-10-23T12:00:00' } })
 const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b }); return { promise, resolve, reject } }
+test('the notice uses a plain white background without a gradient halo', async () => {
+  const css = await readFile(new URL('../src/components/growth/award-notice.css', import.meta.url), 'utf8')
+  assert.match(css, /^\.award-notice\{[^}]*background:#fff;/)
+  assert.doesNotMatch(css, /(?:linear|radial|conic)-gradient\(/i)
+})
+
+test('single awards have no filler line and the demonstration label never renders for a real award', async () => {
+  const component = await readFile(new URL('../src/components/growth/GrowthAwardNotifications.tsx', import.meta.url), 'utf8')
+  const labels = await readFile(new URL('../src/i18n/awardNoticeText.ts', import.meta.url), 'utf8')
+  assert.match(component, /\{badges\.length > 1 && <p className="award-notice-eyebrow">\{t\.multiple/)
+  assert.match(component, /\{demo && <p className="award-notice-demo">\{t\.demo\}<\/p>\}/)
+  assert.doesNotMatch(component, /\bt\.single\b/)
+  assert.doesNotMatch(labels, /\bsingle\s*:/)
+})
+
 test('the close button paints above the decorative artwork hit area', async () => {
   const css = await readFile(new URL('../src/components/growth/award-notice.css', import.meta.url), 'utf8')
   assert.match(css, /\.award-notice-close\{[^}]*z-index:3/)
