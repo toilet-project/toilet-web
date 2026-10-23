@@ -9,6 +9,14 @@ test('the close button paints above the decorative artwork hit area', async () =
   const css = await readFile(new URL('../src/components/growth/award-notice.css', import.meta.url), 'utf8')
   assert.match(css, /\.award-notice-close\{[^}]*z-index:3/)
 })
+
+test('desktop notices stay centered through animation and reduced motion while mobile keeps the bottom card', async () => {
+  const css = await readFile(new URL('../src/components/growth/award-notice.css', import.meta.url), 'utf8')
+  assert.match(css, /^\.award-notice\{[^}]*left:50%;top:50%;right:auto;bottom:auto;transform:translate\(-50%,-50%\)/)
+  assert.match(css, /@keyframes award-appear\{from\{opacity:0;transform:translate\(-50%,calc\(-50% \+ 18px\)\)\}to\{opacity:1;transform:translate\(-50%,-50%\)\}\}/)
+  assert.match(css, /@media\(max-width:768px\)\{\.award-notice\{left:auto;top:auto;right:50%;bottom:calc\(79px \+ env\(safe-area-inset-bottom\)\);transform:translateX\(50%\)/)
+  assert.match(css, /@media\(prefers-reduced-motion:reduce\)\{\.award-notice,\.award-notice-art>span\{animation:none!important\}\}/)
+})
 test('only valid unique server award IDs and badge types are accepted', () => {
   assert.deepEqual(decodeAwardNotices({ items: [notice()] }), [notice()])
   for (const items of [[notice('0')], [notice(), notice()], [{ ...notice(), badge: { ...notice().badge, tier: 'gold' } }], [{ ...notice(), badge: { ...notice().badge, type: 'invented' } }]]) assert.throws(() => decodeAwardNotices({ items }))
