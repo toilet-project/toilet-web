@@ -1,10 +1,21 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
+import { execFileSync } from 'node:child_process'
 import { createAwardNoticeStore, decodeAwardNotices } from '../src/lib/growthAwardNotices.ts'
 
 const notice = (id = '1') => ({ id, badge: { type: 'district', code: '30110', name: '대전 동구', tier: null, xp: 20, earnedAt: '2026-10-23T12:00:00' } })
 const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b }); return { promise, resolve, reject } }
+test('automatic notices require both explicit public build flags and stay off by default', () => {
+  const config = new URL('../next.config.ts', import.meta.url).href
+  for (const [growth, notices, expected] of [['false', 'false', 'false'], ['false', 'true', 'false'], ['true', 'false', 'false'], ['true', 'true', 'true']]) {
+    const output = execFileSync(process.execPath, ['--experimental-strip-types', '--input-type=module', '-e', `import config from ${JSON.stringify(config)}; console.log(config.env.NEXT_PUBLIC_GROWTH_AWARD_NOTICES_ENABLED)`], {
+      encoding: 'utf8', env: { ...process.env, NEXT_PUBLIC_GROWTH_ENABLED: growth, NEXT_PUBLIC_GROWTH_AWARD_NOTICES_ENABLED: notices },
+    })
+    assert.equal(output.trim(), expected)
+  }
+})
+
 test('the notice uses a plain white background without a gradient halo', async () => {
   const css = await readFile(new URL('../src/components/growth/award-notice.css', import.meta.url), 'utf8')
   assert.match(css, /^\.award-notice\{[^}]*background:#fff;/)
