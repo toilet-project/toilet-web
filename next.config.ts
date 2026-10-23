@@ -32,6 +32,9 @@ const config: NextConfig = {
   env: {
     // Public build flag only. Runtime Worker vars cannot change a compiled member UI.
     NEXT_PUBLIC_GROWTH_ENABLED: process.env.NEXT_PUBLIC_GROWTH_ENABLED === 'true' ? 'true' : 'false',
+    // Enable only after the authenticated notice API and V44 are deployed.
+    NEXT_PUBLIC_GROWTH_AWARD_NOTICES_ENABLED: process.env.NEXT_PUBLIC_GROWTH_AWARD_NOTICES_ENABLED === 'true'
+      && process.env.NEXT_PUBLIC_GROWTH_ENABLED === 'true' ? 'true' : 'false',
     NEXT_PUBLIC_MAP_FILTERS_ENABLED: (process.env.SITE_INDEXABLE === 'false' && process.env.MAP_FILTERS_PREVIEW === 'true')
       || (process.env.SITE_INDEXABLE === 'true' && process.env.MAP_FILTERS_RELEASE === 'true') ? 'true' : 'false',
     NEXT_PUBLIC_REPORT_REDESIGN_RELEASE: process.env.REPORT_REDESIGN_RELEASE === 'true'

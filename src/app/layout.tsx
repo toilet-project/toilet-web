@@ -22,6 +22,7 @@ import '../components/growth/growth-guide-mobile.css'
 import '../components/growth/mobile-growth.css'
 import '../components/growth/achievements.css'
 import '../components/growth/experience-history.css'
+import '../components/growth/award-notice.css'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://geupddong.com'),

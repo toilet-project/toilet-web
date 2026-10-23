@@ -10,7 +10,7 @@ import { useMapFilterSelection } from './components/useMapFilterSelection'
 import { mapFilterCopy, mapFilterCountLabel } from './i18n/mapFilterCopy'
 
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { fetchToiletDetail, fetchToiletsInBounds, type ToiletDetailResponse, type ToiletMapSearchResponse } from './api/toilets'
 import { createDetailCache } from './lib/detailCache'
 import { createMapRequestCoalescer } from './lib/mapRequestCoalescer'
@@ -85,6 +85,7 @@ import { trackEvent } from './lib/analytics'
 import { beginMapTiming, installMapTimingOutput, mapTimingEnabled, markMapTiming } from './lib/mapTiming'
 import { localizeToiletDetail, localizeToiletMapItem, localizeToiletMapSearch } from './i18n/toiletTranslations'
 const toiletMarkerLogo = '/toilet-marker-logo.svg'
+const GrowthAwardNotifications = lazy(() => import('./components/growth/GrowthAwardNotifications').then(module => ({ default: module.GrowthAwardNotifications })))
 
 const CLUSTER_GRID_SIZE = 84
 const MAX_LIST_ZOOM_LEVEL = 6
@@ -1975,6 +1976,7 @@ function MapApp({ route, onNavigate, onMounted, onLocaleChange, testToiletHash =
         </section></div>}
         {!isAuthLoading && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('recovery') === 'required' && <AccountRecoveryDialog />}
       </section>
+      {!isDesktop && authProfile && <Suspense fallback={null}><GrowthAwardNotifications profile={authProfile} /></Suspense>}
       {isDesktop ? <SiteFooter homeIntro={route.path === localizedPublicPath('/', locale)} /> : <MobileNavigation regionsPrefetch={regionsPrefetchReady} tab={mobileTab} unread={unreadNotificationCount} onChange={tab => { setLikedMapTarget(null); reviewPreview.close(); setMobileAccountView('home'); setMobileTab(tab); setIsPlaceSearchFocused(false); setIsMyReportsOpen(false); setIsNotificationsOpen(false); setIsAccountOpen(false); setFocusedReportId(null) }} />}
     </main>
   )
