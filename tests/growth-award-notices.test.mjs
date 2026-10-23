@@ -1,9 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import { createAwardNoticeStore, decodeAwardNotices } from '../src/lib/growthAwardNotices.ts'
 
 const notice = (id = '1') => ({ id, badge: { type: 'district', code: '30110', name: '대전 동구', tier: null, xp: 20, earnedAt: '2026-10-23T12:00:00' } })
 const deferred = () => { let resolve, reject; const promise = new Promise((a, b) => { resolve = a; reject = b }); return { promise, resolve, reject } }
+test('the close button paints above the decorative artwork hit area', async () => {
+  const css = await readFile(new URL('../src/components/growth/award-notice.css', import.meta.url), 'utf8')
+  assert.match(css, /\.award-notice-close\{[^}]*z-index:3/)
+})
 test('only valid unique server award IDs and badge types are accepted', () => {
   assert.deepEqual(decodeAwardNotices({ items: [notice()] }), [notice()])
   for (const items of [[notice('0')], [notice(), notice()], [{ ...notice(), badge: { ...notice().badge, tier: 'gold' } }], [{ ...notice(), badge: { ...notice().badge, type: 'invented' } }]]) assert.throws(() => decodeAwardNotices({ items }))
