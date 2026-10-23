@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import type { AuthProfile } from '../api/auth'
 import { OwnPhoto } from './ProfilePhoto'
@@ -10,7 +10,7 @@ import { HeaderIcon } from './HeaderIcon'
 import { useGrowth } from '../lib/useGrowth'
 import { RankIcon } from './growth/RankIcon'
 import { growthText } from '../i18n/growthText'
-import { GrowthAwardNotifications } from './growth/GrowthAwardNotifications'
+const GrowthAwardNotifications = lazy(() => import('./growth/GrowthAwardNotifications').then(module => ({ default: module.GrowthAwardNotifications })))
 const LIKES_ENABLED = process.env.NEXT_PUBLIC_TOILET_ENGAGEMENT_ENABLED === 'true'
 
 export function ProfileMenu({ profile, onLogout }: { profile: AuthProfile; onLogout: () => void }) {
@@ -28,7 +28,7 @@ export function ProfileMenu({ profile, onLogout }: { profile: AuthProfile; onLog
   }, [open])
   const account = (view?: string) => `${localizedPublicPath('/account', locale)!}${view ? `?view=${view}` : ''}`
   return <div className="profile-menu" ref={root}>
-    <GrowthAwardNotifications profile={profile} />
+    <Suspense fallback={null}><GrowthAwardNotifications profile={profile} /></Suspense>
     <button type="button" className="profile-menu-trigger" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(value => !value)}>
       <span className="profile-menu-avatar"><OwnPhoto state={profile.profilePhoto ?? null} fallback={<span aria-hidden="true">{(profile.displayName || 'G').slice(0, 1).toUpperCase()}</span>} /></span>
       <span className="profile-menu-name">{profile.displayName || t('account.defaultName')}</span>
