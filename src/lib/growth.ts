@@ -14,6 +14,13 @@ export type GrowthBadge = { type: 'district' | 'regional_medal'; code: string; n
 export type GrowthRegion = { code: string; name: string; targetDistricts: number; earnedDistricts: number; distinctFacilities: number; tier: MedalTier | null; bronzeFacilities: number; silverFacilities: number; goldFacilities: number; silverDistricts: number; goldDistricts: number }
 export type GrowthSummary = { enabled: true; policyVersion: string; totalXp: number; level: number; rank: GrowthRank; nextLevel: number; nextLevelXp: number; remainingXp: number; progressPercent: number; checkInAvailable: boolean; badges: GrowthBadge[]; regions: GrowthRegion[] }
 export type GrowthResponse = GrowthSummary | { enabled: false }
+export function decodeGrowthBadge(value: unknown): GrowthBadge {
+  const badge = record(value)
+  if (badge.type !== 'district' && badge.type !== 'regional_medal') throw new Error('INVALID_GROWTH_RESPONSE')
+  const medal = tier(badge.tier)
+  if (badge.type === 'district' ? medal !== null : medal === null) throw new Error('INVALID_GROWTH_RESPONSE')
+  return { type: badge.type, code: text(badge.code), name: text(badge.name), tier: medal, xp: integer(badge.xp), earnedAt: text(badge.earnedAt) }
+}
 export const growthTotalXp = (level: number) => 10 * (level * level - 1)
 export function growthRankFor(level: number) { return growthRanks.find(rank => level >= rank.min && (rank.max === null || level <= rank.max)) ?? growthRanks[0] }
 export function growthIconPath(rank: GrowthRank, size: number, reducedMotion: boolean) {
@@ -45,11 +52,7 @@ export function decodeGrowth(value: unknown): GrowthResponse {
   const nextLevelXp = integer(v.nextLevelXp), remainingXp = integer(v.remainingXp)
   if (level !== Math.floor(Math.sqrt(totalXp / 10 + 1)) || nextLevel !== level + 1 || nextLevelXp !== growthTotalXp(nextLevel)
     || remainingXp !== nextLevelXp - totalXp || growthRankFor(level).key !== v.rank || typeof v.progressPercent !== 'number' || !Number.isFinite(v.progressPercent) || v.progressPercent < 0 || v.progressPercent > 100) throw new Error('INVALID_GROWTH_RESPONSE')
-  const badges = v.badges.map(value => {
-    const badge = record(value)
-    if (badge.type !== 'district' && badge.type !== 'regional_medal') throw new Error('INVALID_GROWTH_RESPONSE')
-    return { type: badge.type, code: text(badge.code), name: text(badge.name), tier: tier(badge.tier), xp: integer(badge.xp), earnedAt: text(badge.earnedAt) } as GrowthBadge
-  })
+  const badges = v.badges.map(decodeGrowthBadge)
   const regions = v.regions.map(value => {
     const region = record(value)
     return { code: text(region.code), name: text(region.name), targetDistricts: integer(region.targetDistricts), earnedDistricts: integer(region.earnedDistricts), distinctFacilities: integer(region.distinctFacilities), tier: tier(region.tier), bronzeFacilities: integer(region.bronzeFacilities), silverFacilities: integer(region.silverFacilities), goldFacilities: integer(region.goldFacilities), silverDistricts: integer(region.silverDistricts), goldDistricts: integer(region.goldDistricts) }
