@@ -17,6 +17,13 @@ test('desktop notices stay centered through animation and reduced motion while m
   assert.match(css, /@media\(max-width:768px\)\{\.award-notice\{left:auto;top:auto;right:50%;bottom:calc\(79px \+ env\(safe-area-inset-bottom\)\);transform:translateX\(50%\)/)
   assert.match(css, /@media\(prefers-reduced-motion:reduce\)\{\.award-notice,\.award-notice-art>span\{animation:none!important\}\}/)
 })
+
+test('the mobile map mounts notices independently of the desktop-only profile menu without eagerly loading badge datasets', async () => {
+  const app = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8')
+  assert.match(app, /const GrowthAwardNotifications = lazy\(\(\) => import\('\.\/components\/growth\/GrowthAwardNotifications'\)/)
+  assert.match(app, /!isDesktop && authProfile && <Suspense fallback=\{null\}><GrowthAwardNotifications profile=\{authProfile\} \/><\/Suspense>/)
+  assert.doesNotMatch(app, /^import .*GrowthAwardNotifications.* from /m)
+})
 test('only valid unique server award IDs and badge types are accepted', () => {
   assert.deepEqual(decodeAwardNotices({ items: [notice()] }), [notice()])
   for (const items of [[notice('0')], [notice(), notice()], [{ ...notice(), badge: { ...notice().badge, tier: 'gold' } }], [{ ...notice(), badge: { ...notice().badge, type: 'invented' } }]]) assert.throws(() => decodeAwardNotices({ items }))
