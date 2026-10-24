@@ -4,6 +4,8 @@ on:
   schedule:
     - cron: '30 21 * * *'
   workflow_dispatch:
+  repository_dispatch:
+    types: [cache-production-deployed]
 
 permissions:
   contents: read
@@ -22,15 +24,20 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7.0.1
+        id: checkout
       - uses: pnpm/action-setup@v6.1.0
+        id: pnpm_setup
         with:
           version: 11.19.0
       - uses: actions/setup-node@v7.0.0
+        id: node_setup
         with:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+        id: install
       - name: Build protected release registry input
+        id: registry
         shell: bash
         env:
           REGISTRY_JSON: ${{ vars.CACHE_RELEASE_REGISTRY_JSON }}
@@ -38,6 +45,7 @@ jobs:
           [[ -n "$REGISTRY_JSON" ]] || { echo 'Release registry is required'; exit 1; }
           printf '%s' "$REGISTRY_JSON" > cache-release-registry.json
       - name: Produce a fresh fail-closed plan for batch 1
+        id: plan_report_1
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CACHE_STATUS_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -53,6 +61,7 @@ jobs:
           MAX_DELETE_BYTES: ${{ vars.CACHE_CLEANUP_AUTO_MAX_BYTES || '4294967296' }}
         run: node scripts/evaluate-automatic-cache-cleanup.mjs cache-cleanup-plan-1.json "$MAX_DELETE_FILES" "$MAX_DELETE_BYTES"
       - name: Delete exact automatic batch 1
+        id: execute_1
         if: ${{ steps.plan_1.outputs.should_execute == 'true' }}
         env:
           CACHE_CLEANUP_ENABLED: 'true'
@@ -81,6 +90,7 @@ jobs:
           --max-delete-files "$MAX_DELETE_FILES"
           --max-delete-bytes "$MAX_DELETE_BYTES"
       - name: Produce a fresh fail-closed plan for batch 2
+        id: plan_report_2
         if: ${{ steps.plan_1.outputs.has_deferred == 'true' }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CACHE_STATUS_API_TOKEN }}
@@ -98,6 +108,7 @@ jobs:
           MAX_DELETE_BYTES: ${{ vars.CACHE_CLEANUP_AUTO_MAX_BYTES || '4294967296' }}
         run: node scripts/evaluate-automatic-cache-cleanup.mjs cache-cleanup-plan-2.json "$MAX_DELETE_FILES" "$MAX_DELETE_BYTES"
       - name: Delete exact automatic batch 2
+        id: execute_2
         if: ${{ steps.plan_2.outputs.should_execute == 'true' }}
         env:
           CACHE_CLEANUP_ENABLED: 'true'
@@ -125,12 +136,31 @@ jobs:
           --expected-delete-fingerprint "$EXPECTED_DELETE_FINGERPRINT"
           --max-delete-files "$MAX_DELETE_FILES"
           --max-delete-bytes "$MAX_DELETE_BYTES"
+      # Dispatch payloads do not select a bucket, release, limits or credentials.
+      # Every trigger uses the same live status and protected registry checks.
+      - name: Summarize measured cleanup results even after preparation failure
+        if: ${{ always() }}
+        id: summary
+        env:
+          CLEANUP_JOB_STATUS: ${{ job.status }}
+          CLEANUP_STEPS_JSON: ${{ toJSON(steps) }}
+        shell: bash
+        run: |
+          if command -v node >/dev/null 2>&1 && [[ -f scripts/summarize-cache-cleanup.mjs ]]; then
+            node scripts/summarize-cache-cleanup.mjs --json-output cache-cleanup-summary.json
+          else
+            printf '%s\n' '## 운영 퇴역 페이지 캐시 정리' '' '상태: **실패**' '' '초기 준비 실패로 보고서를 만들지 못했습니다. 삭제·보호·미분류·미처리 수량은 미확인입니다.' >> "$GITHUB_STEP_SUMMARY"
+            printf '%s\n' '{"schema":1,"status":"failed","snapshotAvailable":false,"failures":[{"stage":"setup","code":"summary-unavailable"}]}' > cache-cleanup-summary.json
+            exit 1
+          fi
       - if: ${{ always() }}
+        id: artifacts
         uses: actions/upload-artifact@v4
         with:
           name: scheduled-incremental-cache-cleanup
           path: |
             cache-cleanup-plan-*.json
             cache-cleanup-execution-*.json
+            cache-cleanup-summary.json
           retention-days: 35
           if-no-files-found: warn

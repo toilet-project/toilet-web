@@ -39,7 +39,7 @@ export function selectRetiredNamespaceCleanup(plan,releases,activeWorkerVersions
   if(activeWorkerVersions.includes(release.workerVersion)||plan.protectedCacheNamespaces[cacheNamespace]){
     throw new Error('Selected cache namespace is protected')
   }
-  const newer=releases.filter(row=>row.workerVersion&&Date.parse(row.deployedAt)>Date.parse(release.deployedAt))
+  const newer=releases.filter(row=>row.workerVersion&&row.lifecycle!=='staged'&&Date.parse(row.deployedAt)>Date.parse(release.deployedAt))
   if(newer.length<2)throw new Error('Keep the active and most recent rollback releases')
   const selected=plan.deleteObjects.filter(row=>row.cacheNamespace===cacheNamespace)
   if(!selected.length)throw new Error('Selected cache namespace has no retired objects')
@@ -98,29 +98,46 @@ export function normalizeDeploymentStatus(value,workerName){
   if(!active.length) throw new Error('No active Worker versions found')
   return {schema:1,workerName,activeWorkerVersions:[...new Set(active)].sort()}
 }
-function checkedReleases(releases){
-  if(!Array.isArray(releases)||!releases.length) throw new Error('Release registry is empty')
+function registryError(code,message){return Object.assign(new Error(message),{code})}
+export function validateReleaseRegistry(releases){
+  if(!Array.isArray(releases)||!releases.length) throw registryError('registry-empty','Release registry is empty')
   const checked=releases.map(release=>{
     const cacheNamespace=release?.cacheNamespace||release?.appVersion
     if(!release||release.schema!==1||typeof cacheNamespace!=='string'||!cacheNamespace
-      ||typeof release.deployedAt!=='string'||!Number.isFinite(Date.parse(release.deployedAt))) throw new Error('Invalid release registry entry')
-    if(release.cacheNamespace&&release.appVersion&&release.cacheNamespace!==release.appVersion) throw new Error('Release cache namespace does not match app version')
+      ||typeof release.deployedAt!=='string'||!Number.isFinite(Date.parse(release.deployedAt))) throw registryError('registry-entry-invalid','Invalid release registry entry')
+    if(release.cacheNamespace&&release.appVersion&&release.cacheNamespace!==release.appVersion) throw registryError('registry-namespace-mismatch','Release cache namespace does not match app version')
     const workerRelease=typeof release.workerVersion==='string'&&UUID.test(release.workerVersion)
+    if(workerRelease&&release.lifecycle!==undefined&&!['staged','deployed'].includes(release.lifecycle)){
+      throw registryError('registry-release-unverified','Worker release lifecycle is invalid')
+    }
     const candidate=cacheNamespace.match(RETIRED_CANDIDATE_NAMESPACE)
     const retiredValidation=release.workerVersion===null&&release.lifecycle==='retired-validation'
       &&Number.isSafeInteger(release.sourceRunId)&&String(release.sourceRunId)===candidate?.[1]
       &&typeof release.retiredAt==='string'&&Number.isFinite(Date.parse(release.retiredAt))
-    if(!workerRelease&&!retiredValidation) throw new Error('Release must be a Worker version or an audited retired validation candidate')
+    if(!workerRelease&&!retiredValidation) throw registryError('registry-release-unverified','Release must be a Worker version or an audited retired validation candidate')
     return {...release,cacheNamespace}
   })
-  if(new Set(checked.map(release=>release.cacheNamespace)).size!==checked.length) throw new Error('Duplicate cache namespace in release registry')
+  if(new Set(checked.map(release=>release.cacheNamespace)).size!==checked.length) throw registryError('registry-namespace-duplicate','Duplicate cache namespace in release registry')
   const workerVersions=checked.filter(release=>release.workerVersion!==null).map(release=>release.workerVersion)
-  if(new Set(workerVersions).size!==workerVersions.length) throw new Error('Duplicate Worker version in release registry')
+  if(new Set(workerVersions).size!==workerVersions.length) throw registryError('registry-worker-duplicate','Duplicate Worker version in release registry')
   return checked
 }
+export function validateActiveReleaseRegistry(releases,activeWorkerVersions){
+  const registry=validateReleaseRegistry(releases)
+  if(!Array.isArray(activeWorkerVersions)||!activeWorkerVersions.length
+    ||activeWorkerVersions.some(version=>typeof version!=='string'||!UUID.test(version))){
+    throw registryError('active-versions-invalid','Active Worker versions are invalid')
+  }
+  const known=new Map(registry.filter(release=>release.workerVersion!==null).map(release=>[release.workerVersion,release]))
+  for(const version of activeWorkerVersions){
+    if(!known.has(version))throw registryError('active-release-missing',`Active Worker version is missing a release manifest: ${version}`)
+    if(known.get(version).lifecycle==='staged')throw registryError('REGISTRY_ACTIVE_NOT_FINALIZED','Active Worker release registration is not finalized')
+  }
+  return registry
+}
 export function planIncrementalCacheCleanup({objects,releases,activeWorkerVersions,now=Date.now(),rollbackProtectionDays=3}){
-  const registry=checkedReleases(releases)
-  const workerReleases=registry.filter(release=>release.workerVersion!==null)
+  const registry=validateActiveReleaseRegistry(releases,activeWorkerVersions)
+  const workerReleases=registry.filter(release=>release.workerVersion!==null&&release.lifecycle!=='staged')
   const byWorker=new Map(workerReleases.map(release=>[release.workerVersion,release]))
   const active=activeWorkerVersions.map(version=>{
     const release=byWorker.get(version)
@@ -128,6 +145,9 @@ export function planIncrementalCacheCleanup({objects,releases,activeWorkerVersio
     return release
   })
   const protectedCacheNamespaces=new Map(active.map(release=>[release.cacheNamespace,'active traffic']))
+  for(const release of registry){
+    if(release.lifecycle==='staged')protectedCacheNamespaces.set(release.cacheNamespace,'staged deployment candidate')
+  }
   const newestActive=Math.max(...active.map(release=>Date.parse(release.deployedAt)))
   for(const release of workerReleases){
     if(!activeWorkerVersions.includes(release.workerVersion)&&Date.parse(release.deployedAt)>=newestActive){
