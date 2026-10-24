@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react'
+import { Fragment } from 'react'
+import { ReviewModerationGuide, ReviewModerationRetentionNotice } from './ReviewModerationGuide'
 import type { Locale } from '../i18n/locale'
 import { koreanPolicySourcePath } from '../i18n/policyReturn'
 import { locationSections, pick, policyTitles, t, termsSections, type AsianPolicyKind, type PolicyBlock, type PolicySection, type PolicyText } from '../i18n/asianPolicyData'
@@ -102,5 +104,9 @@ export function AsianPolicyPage({ kind, locale, embedded = false }: { kind: Asia
     <div id="terms"><AsianPolicyPage kind="terms" locale={locale} embedded /></div><div id="privacy"><AsianPolicyPage kind="privacy" locale={locale} embedded /></div><div id="location"><AsianPolicyPage kind="location" locale={locale} embedded /></div>
   </PolicyLayout>
   const sections = kind === 'terms' ? termsSections : kind === 'privacy' ? privacySections : locationSections
-  return <PolicyLayout kind={kind} locale={locale} embedded={embedded}>{sections.map((section, i) => renderSection(section, locale, embedded, i))}</PolicyLayout>
+  return <PolicyLayout kind={kind} locale={locale} embedded={embedded}>{sections.map((section, i) => <Fragment key={i}>
+    {renderSection(section, locale, embedded, i)}
+    {kind === 'terms' && i === 3 && <ReviewModerationGuide locale={locale} embedded={embedded} />}
+    {kind === 'privacy' && i === 2 && <p><ReviewModerationRetentionNotice locale={locale} /></p>}
+  </Fragment>)}</PolicyLayout>
 }
