@@ -23,3 +23,22 @@ test('scheduled cleanup is fail-closed, capped, split into two fresh batches and
   assert.match(cleanup,/--max-delete-files/);assert.match(cleanup,/--max-delete-bytes/)
   assert.match(cleanup,/R2_CACHE_DELETE_ACCESS_KEY_ID/)
 })
+
+test('post-deployment cleanup accepts only the fixed event and never reads dispatch payload as authority',()=>{
+  assert.match(cleanup,/repository_dispatch:\s*\n\s+types: \[cache-production-deployed\]/)
+  assert.match(cleanup,/workflow_dispatch:/)
+  assert.doesNotMatch(cleanup,/client_payload|github\.event\.(?:inputs|action)/)
+  assert.match(cleanup,/environment: production-cache-maintenance/)
+  assert.match(cleanup,/cancel-in-progress: false/)
+  assert.equal((cleanup.match(/cleanup-incremental-cache\.mjs --registry cache-release-registry\.json --report cache-cleanup-plan-/g)||[]).length,2)
+})
+
+test('cleanup always summarizes setup and registry failures and preserves the structured reports',()=>{
+  assert.match(cleanup,/name: Summarize measured cleanup results[^\n]*\n\s+if: \$\{\{ always\(\) \}\}/)
+  assert.match(cleanup,/CLEANUP_JOB_STATUS: \$\{\{ job\.status \}\}/)
+  assert.match(cleanup,/CLEANUP_STEPS_JSON: \$\{\{ toJSON\(steps\) \}\}/)
+  assert.match(cleanup,/초기 준비 실패로 보고서를 만들지 못했습니다/)
+  assert.match(cleanup,/cache-cleanup-summary\.json/)
+  assert.match(cleanup,/cache-cleanup-plan-\*\.json/)
+  assert.match(cleanup,/cache-cleanup-execution-\*\.json/)
+})
